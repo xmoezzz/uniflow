@@ -1,0 +1,17 @@
+id: python-pkg-all-alias-chain
+sources:
+  - id: req-values
+    language: python
+    matcher:
+      receiver_contains: request.values
+      method_name: get
+    out: return
+    kind: generic
+sinks:
+  - id: execute-sink
+    language: python
+    matcher:
+      receiver_contains: DB
+      method_name: execute
+    inputs: [arg0]
+    kind: generic

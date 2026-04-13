@@ -1,0 +1,17 @@
+id: python-module-symbol-alias
+sources:
+  - id: req-headers
+    language: python
+    matcher:
+      receiver_contains: request.headers
+      method_name: get
+    out: return
+    kind: generic
+sinks:
+  - id: execute-sink
+    language: python
+    matcher:
+      receiver_contains: DB
+      method_name: execute
+    inputs: [arg0]
+    kind: generic

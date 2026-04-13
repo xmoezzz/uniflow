@@ -1,0 +1,15 @@
+id: python-method-summary-replay
+name: Python method summary replay
+sources:
+  - id: py-cli-input
+    language: python
+    where:
+      api:
+        exact: builtins.input
+sinks:
+  - id: py-os-system
+    language: python
+    where:
+      api:
+        exact: os.system
+    inputs: [arg0]

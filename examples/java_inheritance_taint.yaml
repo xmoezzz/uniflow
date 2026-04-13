@@ -1,0 +1,25 @@
+sources:
+  - id: java-custom-input
+    language: java
+    matcher:
+      exact: Input.get
+    out: return
+    kind: sql
+
+sinks:
+  - id: java-base-executor-execute
+    language: java
+    matcher:
+      receiver_type: BaseExecutor
+      method_name: execute
+    inputs: [arg0]
+    kind: sql
+
+summaries:
+  - id: java-input-get
+    language: java
+    matcher:
+      exact: Input.get
+    flows:
+      - from: return
+        to: return

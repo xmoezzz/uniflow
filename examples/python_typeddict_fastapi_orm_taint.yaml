@@ -1,0 +1,19 @@
+sources:
+  - id: python-fastapi-query-param-wrapper
+    language: python
+    matcher:
+      exact: fastapi.Query
+    out: return
+    kind: generic
+
+sinks:
+  - id: python-repo-run
+    language: python
+    matcher:
+      method_name: run
+    in: [arg0]
+    kind: generic
+
+sanitizers: []
+propagators: []
+summaries: []

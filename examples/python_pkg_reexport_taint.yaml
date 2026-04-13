@@ -1,0 +1,21 @@
+id: python-pkg-reexport-taint
+language: python
+mode: taint
+
+sources:
+  - id: flask-request-args
+    language: python
+    matcher:
+      exact: flask.request.args.get
+    out: return
+    kind: generic
+
+sinks:
+  - id: db-execute
+    language: python
+    matcher:
+      method_name: execute
+      receiver_type: pkg.db.DB
+    in:
+      - arg0
+    kind: generic

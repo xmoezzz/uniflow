@@ -1,0 +1,30 @@
+sources:
+  - id: py-request-source
+    language: python
+    matcher:
+      contains: get_parameter
+    out: return
+    kind: sql
+
+sinks:
+  - id: py-db-exec
+    language: python
+    matcher:
+      contains: execute
+    inputs:
+      - arg0
+    kind: sql
+
+sanitizers:
+  - id: py-escape
+    language: python
+    matcher:
+      exact: security.escape_sql
+    inputs:
+      - arg0
+    outputs:
+      - return
+    kind: sql
+
+propagators: []
+summaries: []

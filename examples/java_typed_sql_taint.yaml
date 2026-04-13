@@ -1,0 +1,42 @@
+sources:
+  - id: java-http-request-param
+    language: java
+    matcher:
+      receiver_type: javax.servlet.http.HttpServletRequest
+      method_name: getParameter
+    out: return
+    kind: sql
+
+sinks:
+  - id: java-sql-exec
+    language: java
+    matcher:
+      receiver_type: java.sql.Statement
+      method_name: executeQuery
+    inputs:
+      - arg0
+    kind: sql
+
+sanitizers:
+  - id: java-sql-escape
+    language: java
+    matcher:
+      method_name: escapeSql
+    inputs:
+      - arg0
+    outputs:
+      - return
+    kind: sql
+
+propagators: []
+summaries:
+  - id: java-stringbuilder-append
+    language: java
+    matcher:
+      receiver_type: java.lang.StringBuilder
+      method_name: append
+    flows:
+      - from: receiver
+        to: receiver
+      - from: arg0
+        to: receiver

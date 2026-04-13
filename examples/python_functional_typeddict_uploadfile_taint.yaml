@@ -1,0 +1,25 @@
+sources:
+  - id: python-fastapi-form-wrapper
+    language: python
+    matcher:
+      exact: fastapi.Form
+    out: return
+    kind: generic
+  - id: python-fastapi-uploadfile-read
+    language: python
+    matcher:
+      method_name: read
+    out: return
+    kind: generic
+
+sinks:
+  - id: python-repo-save
+    language: python
+    matcher:
+      method_name: save
+    in: [arg0, arg1]
+    kind: generic
+
+sanitizers: []
+propagators: []
+summaries: []

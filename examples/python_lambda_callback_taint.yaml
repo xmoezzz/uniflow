@@ -1,0 +1,15 @@
+id: python-lambda-callback
+name: Python local lambda callback flow
+sources:
+  - id: py-cli-argv
+    language: python
+    where:
+      api:
+        exact: builtins.input
+sinks:
+  - id: py-cmd-exec
+    language: python
+    where:
+      api:
+        exact: os.system
+    inputs: [arg0]

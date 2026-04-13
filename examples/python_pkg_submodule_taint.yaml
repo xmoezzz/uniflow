@@ -1,0 +1,14 @@
+id: python-pkg-submodule-taint
+name: Python package submodule taint
+rules:
+  - id: flask-source
+    language: python
+    mode: taint
+    sources:
+      - match: flask.request.args.get
+        out: return
+        kind: sql
+    sinks:
+      - match: DB.execute
+        in: [arg0]
+        kind: sql

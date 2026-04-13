@@ -1,0 +1,32 @@
+sources:
+  - id: py-deep-heap-source-nested
+    language: python
+    matcher:
+      exact: app.handle_nested
+    out: param0
+    kind: callback
+  - id: py-deep-heap-source-field
+    language: python
+    matcher:
+      exact: app.handle_pick_field
+    out: param0
+    kind: callback
+  - id: py-deep-heap-source-index
+    language: python
+    matcher:
+      exact: app.handle_pick_index
+    out: param0
+    kind: callback
+
+sinks:
+  - id: py-deep-heap-sink-load
+    language: python
+    matcher:
+      exact: repo.load
+    inputs:
+      - arg0
+    kind: callback
+
+sanitizers: []
+propagators: []
+summaries: []

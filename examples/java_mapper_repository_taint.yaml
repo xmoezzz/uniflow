@@ -1,0 +1,19 @@
+sources:
+  - id: java-http-request-param
+    language: java
+    matcher:
+      receiver_type: javax.servlet.http.HttpServletRequest
+      method_name: getParameter
+    out: return
+    kind: generic
+
+sinks:
+  - id: java-entitymanager-createquery
+    language: java
+    matcher:
+      receiver_contains: EntityManager
+      method_name: createQuery
+      arg_count: 1
+    inputs:
+      - arg0
+    kind: generic

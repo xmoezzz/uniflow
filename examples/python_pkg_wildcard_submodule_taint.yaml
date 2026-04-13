@@ -1,0 +1,19 @@
+id: python-pkg-wildcard-submodule
+mode: taint
+
+sources:
+  - id: flask-args
+    language: python
+    matcher:
+      receiver_contains: flask.request.args
+      method_name: get
+    out: return
+    kind: generic
+
+sinks:
+  - id: execute
+    language: python
+    matcher:
+      method_name: execute
+    in: [arg0]
+    kind: generic

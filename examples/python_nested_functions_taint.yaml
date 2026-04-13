@@ -1,0 +1,13 @@
+language: python
+sources:
+  - id: req
+    kind: call
+    match:
+      callee: handle
+    out: arg0
+sinks:
+  - id: ret
+    kind: call
+    match:
+      callee: builtins.print
+    input: arg0

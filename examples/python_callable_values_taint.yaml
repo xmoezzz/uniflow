@@ -1,0 +1,12 @@
+sources:
+  - id: py-request-source
+    language: python
+    matcher:
+      exact: flask.request.args.get
+    output: return
+sinks:
+  - id: py-open-sink
+    language: python
+    matcher:
+      exact: builtins.open
+    inputs: [arg0]

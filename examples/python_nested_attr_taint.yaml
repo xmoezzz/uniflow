@@ -1,0 +1,17 @@
+id: python-nested-attr-sql
+sources:
+  - id: flask-request-args-get
+    language: python
+    matcher:
+      receiver_contains: request.args
+      method_name: get
+    out: return
+    kind: sql
+
+sinks:
+  - id: db-execute
+    language: python
+    matcher:
+      method_name: execute
+    in: [arg0]
+    kind: sql

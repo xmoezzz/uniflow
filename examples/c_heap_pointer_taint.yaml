@@ -1,0 +1,17 @@
+id: c-heap-pointer
+language: c
+mode: taint
+sources:
+  - id: env-source
+    language: c
+    matcher:
+      exact: getenv
+    out: return
+    kind: generic
+sinks:
+  - id: system-sink
+    language: c
+    matcher:
+      exact: system
+    in: [arg0]
+    kind: command

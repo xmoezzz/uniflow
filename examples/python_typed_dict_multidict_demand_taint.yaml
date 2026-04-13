@@ -1,0 +1,16 @@
+sources:
+  - id: request-query
+    where:
+      package: python
+      module: app
+      function: handle
+      callee: request.query_params.get
+    out: return
+sinks:
+  - id: repo-save
+    where:
+      package: python
+      module: app
+      function: handle
+      callee: repo.save
+      arg: 0

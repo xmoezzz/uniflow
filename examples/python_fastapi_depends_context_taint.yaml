@@ -1,0 +1,20 @@
+sources:
+  - id: python-fastapi-request-state-get
+    language: python
+    matcher:
+      receiver_contains: request.state
+      method_name: get
+    out: return
+    kind: generic
+
+sinks:
+  - id: python-repo-run
+    language: python
+    matcher:
+      method_name: run
+    in: [arg0]
+    kind: generic
+
+sanitizers: []
+propagators: []
+summaries: []

@@ -1,0 +1,26 @@
+sources:
+  - id: py-field-path-local-source
+    language: python
+    matcher:
+      exact: app.handle_local
+    out: param0
+    kind: callback
+  - id: py-field-path-inter-source
+    language: python
+    matcher:
+      exact: app.handle_interprocedural
+    out: param0
+    kind: callback
+
+sinks:
+  - id: py-field-path-sink-load
+    language: python
+    matcher:
+      exact: repo.load
+    inputs:
+      - arg0
+    kind: callback
+
+sanitizers: []
+propagators: []
+summaries: []

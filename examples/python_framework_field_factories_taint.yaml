@@ -1,0 +1,20 @@
+sources:
+  - id: python-flask-current-app-config-get
+    language: python
+    matcher:
+      receiver_contains: current_app.config
+      method_name: get
+    out: return
+    kind: generic
+
+sinks:
+  - id: python-db-execute
+    language: python
+    matcher:
+      method_name: execute
+    in: [arg0]
+    kind: sql
+
+sanitizers: []
+propagators: []
+summaries: []

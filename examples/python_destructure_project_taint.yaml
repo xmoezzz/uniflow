@@ -1,0 +1,13 @@
+id: python-destructure-project
+language: python
+mode: taint
+
+sources:
+  - match: request.values.get
+    out: return
+    kind: sql
+
+sinks:
+  - match: DB.execute
+    in: [arg0]
+    kind: sql

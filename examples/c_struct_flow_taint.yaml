@@ -1,0 +1,15 @@
+sources:
+  - id: c-env
+    language: c
+    matcher:
+      exact: getenv
+    out: return
+    kind: generic
+
+sinks:
+  - id: c-system
+    language: c
+    matcher:
+      exact: system
+    in: [arg0]
+    kind: command

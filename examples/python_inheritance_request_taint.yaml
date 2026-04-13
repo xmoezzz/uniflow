@@ -1,0 +1,28 @@
+id: python-inheritance-request
+language: python
+mode: taint
+sources:
+  - id: django-get-source
+    language: python
+    matcher:
+      receiver_contains: request.GET
+      method_name: get
+    out: return
+    kind: generic
+sinks:
+  - id: os-system-sink
+    language: python
+    matcher:
+      receiver_type: os
+      method_name: system
+    in: [arg0]
+    kind: command
+summaries:
+  - id: repo-run-summary
+    language: python
+    matcher:
+      receiver_regex: .*Repo$
+      method_name: run
+    flow:
+      - from: arg0
+        to: return

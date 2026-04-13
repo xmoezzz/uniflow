@@ -1,0 +1,18 @@
+id: c-copy-stmt-return
+mode: taint
+
+sources:
+  - id: env
+    language: c
+    matcher:
+      exact: getenv
+    out: return
+    kind: command
+
+sinks:
+  - id: system
+    language: c
+    matcher:
+      exact: system
+    in: [arg0]
+    kind: command

@@ -1,0 +1,17 @@
+sources:
+  - id: python-request-args
+    language: python
+    matcher:
+      receiver_type: flask.request.args
+      method_name: get
+    out: return
+    kind: command
+
+sinks:
+  - id: python-os-system
+    language: python
+    matcher:
+      receiver_type: os
+      method_name: system
+    in: [arg0]
+    kind: command

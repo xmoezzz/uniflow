@@ -1,0 +1,20 @@
+sources:
+  - id: py-handle-input
+    language: python
+    matcher:
+      exact: app.handle
+    out: param0
+    kind: alias
+
+sinks:
+  - id: py-repo-load
+    language: python
+    matcher:
+      exact: repo.load
+    inputs:
+      - arg0
+    kind: alias
+
+sanitizers: []
+propagators: []
+summaries: []

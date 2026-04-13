@@ -1,0 +1,12 @@
+language: python
+sources:
+  - pattern: app.handle_map(cmd)
+    kind: param
+    arg: 0
+  - pattern: app.handle_sorted(cmd)
+    kind: param
+    arg: 0
+sinks:
+  - pattern: repo.Repo.run(cmd)
+    kind: arg
+    index: 0

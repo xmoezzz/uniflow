@@ -1,0 +1,26 @@
+sources:
+  - id: py-precise-index-source-direct
+    language: python
+    matcher:
+      exact: app.handle_direct
+    out: param0
+    kind: callback
+  - id: py-precise-index-source-returned
+    language: python
+    matcher:
+      exact: app.handle_returned
+    out: param0
+    kind: callback
+
+sinks:
+  - id: py-precise-index-sink-noop
+    language: python
+    matcher:
+      exact: repo.noop
+    inputs:
+      - arg0
+    kind: callback
+
+sanitizers: []
+propagators: []
+summaries: []

@@ -1,0 +1,27 @@
+sources:
+  - id: py-callback-source
+    language: python
+    matcher:
+      exact: app.handle
+    out: param0
+    kind: callback
+
+sinks:
+  - id: py-callback-sink-load
+    language: python
+    matcher:
+      exact: repo.load
+    inputs:
+      - arg0
+    kind: callback
+  - id: py-callback-sink-run
+    language: python
+    matcher:
+      exact: repo.Service.run
+    inputs:
+      - arg0
+    kind: callback
+
+sanitizers: []
+propagators: []
+summaries: []

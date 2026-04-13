@@ -1,0 +1,9 @@
+language: python
+sources:
+  - kind: call
+    match:
+      callee: builtins.input
+sinks:
+  - kind: call
+    match:
+      method: run

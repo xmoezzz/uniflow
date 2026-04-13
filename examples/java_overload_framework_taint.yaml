@@ -1,0 +1,19 @@
+sources:
+  - id: req-param
+    language: java
+    matcher:
+      receiver_type: javax.servlet.http.HttpServletRequest
+      method_name: getParameter
+      arg_count: 1
+    out: return
+    kind: sql
+
+sinks:
+  - id: jpa-native
+    language: java
+    matcher:
+      receiver_contains: EntityManager
+      method_name: createNativeQuery
+      arg_count: 1
+    inputs: [arg0]
+    kind: sql

@@ -1,0 +1,19 @@
+id: python-cross-file-return
+language: python
+mode: taint
+
+sources:
+  - id: env-source
+    language: python
+    matcher:
+      exact: os.environ.get
+    out: return
+    kind: generic
+
+sinks:
+  - id: execute-sink
+    language: python
+    matcher:
+      method_name: execute
+    in: [arg0]
+    kind: generic

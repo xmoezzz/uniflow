@@ -1,0 +1,16 @@
+id: python-cross-file-nested
+sources:
+  - id: py-flask-args
+    language: python
+    matcher:
+      exact: flask.request.args.get
+    out: return
+    kind: sql
+sinks:
+  - id: py-db-execute
+    language: python
+    matcher:
+      receiver_type: db.DB
+      method_name: execute
+    in: [arg0]
+    kind: sql

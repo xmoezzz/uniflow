@@ -1,0 +1,20 @@
+id: python-pkg-root-alias-chain
+language: python
+mode: taint
+
+sources:
+  - id: flask-q
+    language: python
+    matcher:
+      exact: flask.request.args.get
+    out: return
+    kind: generic
+
+sinks:
+  - id: db-exec
+    language: python
+    matcher:
+      method_name: execute
+      receiver_regex: .*DB$
+    in: [arg0]
+    kind: generic

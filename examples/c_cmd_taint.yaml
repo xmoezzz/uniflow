@@ -1,0 +1,30 @@
+sources:
+  - id: c-source
+    language: c
+    matcher:
+      exact: source
+    out: return
+    kind: generic
+
+sinks:
+  - id: c-sink
+    language: c
+    matcher:
+      exact: sink
+    inputs:
+      - arg0
+    kind: generic
+
+sanitizers:
+  - id: c-sanitize
+    language: c
+    matcher:
+      exact: sanitize
+    inputs:
+      - arg0
+    outputs:
+      - return
+    kind: generic
+
+propagators: []
+summaries: []

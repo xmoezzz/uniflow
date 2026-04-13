@@ -1,0 +1,15 @@
+id: python-del-magic
+name: Python direct del and __delitem__
+sources:
+  - id: py-cli-input
+    language: python
+    where:
+      api:
+        exact: builtins.input
+sinks:
+  - id: py-os-system
+    language: python
+    where:
+      api:
+        exact: os.system
+    inputs: [arg0]

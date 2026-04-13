@@ -1,0 +1,14 @@
+id: c-copy-result-alias-taint
+name: C copy result alias taint
+rules:
+  - id: c-command
+    language: c
+    mode: taint
+    sources:
+      - match: getenv
+        out: return
+        kind: command
+    sinks:
+      - match: system
+        in: [arg0]
+        kind: command

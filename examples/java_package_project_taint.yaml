@@ -1,0 +1,18 @@
+sources:
+  - id: demo-java-source
+    language: java
+    matcher:
+      receiver_type: demo.app.UserController
+      method_name: handle
+    out: arg0
+    kind: generic
+
+sinks:
+  - id: demo-java-sink
+    language: java
+    matcher:
+      receiver_type: java.sql.Statement
+      method_name: executeQuery
+    in:
+      - arg0
+    kind: generic

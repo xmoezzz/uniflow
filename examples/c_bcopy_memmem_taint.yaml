@@ -1,0 +1,19 @@
+id: c-bcopy-memmem
+language: c
+mode: taint
+
+sources:
+  - id: env
+    language: c
+    matcher:
+      exact: getenv
+    out: return
+    kind: generic
+
+sinks:
+  - id: sys
+    language: c
+    matcher:
+      exact: system
+    in: [arg0]
+    kind: generic

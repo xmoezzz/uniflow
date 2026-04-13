@@ -1,0 +1,27 @@
+id: c-memcpy-alias-command
+sources:
+  - id: c-getenv
+    language: c
+    matcher:
+      exact: getenv
+    out: return
+    kind: command
+
+summaries:
+  - id: c-memcpy
+    language: c
+    matcher:
+      exact: memcpy
+    flow:
+      - from: arg1
+        to: arg0
+      - from: arg1
+        to: return
+
+sinks:
+  - id: c-system
+    language: c
+    matcher:
+      exact: system
+    in: [arg0]
+    kind: command

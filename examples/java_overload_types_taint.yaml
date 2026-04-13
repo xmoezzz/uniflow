@@ -1,0 +1,17 @@
+sources:
+  - id: servlet-param
+    language: java
+    matcher:
+      exact: javax.servlet.http.HttpServletRequest.getParameter
+      arg_count: 1
+    out: return
+    kind: generic
+sinks:
+  - id: repo-query-string
+    language: java
+    matcher:
+      receiver_type: demo.repo.BaseRepo
+      method_name: query
+      arg_count: 1
+    inputs: [arg0]
+    kind: generic

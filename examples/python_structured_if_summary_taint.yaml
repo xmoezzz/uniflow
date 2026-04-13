@@ -1,0 +1,6 @@
+language: python
+sources:
+  - pattern: app.choose(flag)
+    kind: param
+    arg: 0
+sinks: []

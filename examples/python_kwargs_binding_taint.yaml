@@ -1,0 +1,17 @@
+sources:
+  - id: python-request-args
+    language: python
+    matcher:
+      receiver_type: flask.request.args
+      method_name: get
+    out: return
+    kind: command
+
+sinks:
+  - id: python-subprocess-run
+    language: python
+    matcher:
+      receiver_type: subprocess
+      method_name: run
+    in: [arg0]
+    kind: command

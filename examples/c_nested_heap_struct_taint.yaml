@@ -1,0 +1,15 @@
+id: c-nested-heap-struct
+sources:
+  - id: c-getenv-cmd
+    language: c
+    matcher:
+      exact: getenv
+    out: return
+    kind: command
+sinks:
+  - id: c-system
+    language: c
+    matcher:
+      exact: system
+    in: [arg0]
+    kind: command

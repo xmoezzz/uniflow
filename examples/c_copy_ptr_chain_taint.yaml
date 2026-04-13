@@ -1,0 +1,17 @@
+id: c-copy-ptr-chain
+language: c
+mode: taint
+sources:
+  - id: getenv-src
+    language: c
+    matcher:
+      exact: getenv
+    out: return
+    kind: command
+sinks:
+  - id: system-sink
+    language: c
+    matcher:
+      exact: system
+    in: [arg0]
+    kind: command

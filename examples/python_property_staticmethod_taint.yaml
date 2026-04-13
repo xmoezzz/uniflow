@@ -1,0 +1,14 @@
+id: python-property-staticmethod
+name: Python property and staticmethod
+sources:
+  - id: py-cli-input
+    language: python
+    where:
+      api:
+        exact: builtins.input
+sinks:
+  - id: py-run
+    language: python
+    where:
+      method_name: run
+    inputs: [arg0]

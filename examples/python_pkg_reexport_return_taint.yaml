@@ -1,0 +1,19 @@
+id: python-pkg-reexport-return
+language: python
+mode: taint
+
+sources:
+  - id: env
+    language: python
+    matcher:
+      exact: os.getenv
+    out: return
+    kind: sql
+
+sinks:
+  - id: execute
+    language: python
+    matcher:
+      method_name: execute
+    in: arg0
+    kind: sql

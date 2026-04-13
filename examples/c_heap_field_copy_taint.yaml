@@ -1,0 +1,20 @@
+id: c-heap-field-copy-taint
+language: c
+mode: taint
+
+sources:
+  - id: getenv-source
+    language: c
+    matcher:
+      exact: getenv
+    out: return
+    kind: generic
+
+sinks:
+  - id: system-sink
+    language: c
+    matcher:
+      exact: system
+    in:
+      - arg0
+    kind: generic

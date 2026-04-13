@@ -1,0 +1,17 @@
+[package]
+name = "uniflow-value-flow"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+petgraph.workspace = true
+serde.workspace = true
+uniflow-hir = { path = "../hir" }
+uniflow-ir = { path = "../ir" }
+uniflow-rules = { path = "../rules" }
+
+[dev-dependencies]
+uniflow-lang-python = { path = "../lang_python" }
+uniflow-lowering = { path = "../lowering" }

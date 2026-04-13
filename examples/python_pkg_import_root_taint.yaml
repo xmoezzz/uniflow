@@ -1,0 +1,18 @@
+id: python-pkg-import-root
+language: python
+mode: taint
+sources:
+  - id: flask-args-get
+    language: python
+    matcher:
+      exact: flask.request.args.get
+    out: return
+    kind: sql
+sinks:
+  - id: db-execute
+    language: python
+    matcher:
+      method_name: execute
+      receiver_type: DB
+    in: [arg0]
+    kind: sql

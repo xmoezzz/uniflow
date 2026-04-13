@@ -1,0 +1,15 @@
+[package]
+name = "uniflow-frontend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+uniflow-hir = { path = "../hir" }
+uniflow-lang-c = { path = "../lang_c" }
+uniflow-lang-cpp = { path = "../lang_cpp" }
+uniflow-lang-java = { path = "../lang_java" }
+uniflow-lang-python = { path = "../lang_python" }
+uniflow-parser-core = { path = "../parser_core" }

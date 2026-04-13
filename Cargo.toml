@@ -1,0 +1,39 @@
+[workspace]
+members = [
+  "crates/hir",
+  "crates/ir",
+  "crates/parser_core",
+  "crates/lang_c",
+  "crates/lang_cpp",
+  "crates/lang_java",
+  "crates/lang_python",
+  "crates/frontend",
+  "crates/lowering",
+  "crates/models",
+  "crates/rules",
+  "crates/value_flow",
+  "crates/taint",
+  "crates/report",
+  "crates/cache",
+  "crates/cli",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "MIT"
+authors = ["OpenAI"]
+
+[workspace.dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+petgraph = { version = "0.6", features = ["serde-1"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+thiserror = "2.0"
+regex = "1.11"
+indexmap = { version = "2.7", features = ["serde"] }
+sha2 = "0.10"
+indicatif = "0.17"

@@ -1,0 +1,6 @@
+language: python
+sources:
+  - pattern: app.maybe_repo(items)
+    kind: param
+    arg: 0
+sinks: []

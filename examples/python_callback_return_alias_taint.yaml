@@ -1,0 +1,15 @@
+id: python-callback-return-alias
+name: Python callback return and alias-backed field flow
+sources:
+  - id: py-cli-argv
+    language: python
+    where:
+      api:
+        exact: builtins.input
+sinks:
+  - id: py-cmd-exec
+    language: python
+    where:
+      api:
+        exact: os.system
+    inputs: [arg0]

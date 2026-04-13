@@ -1,0 +1,16 @@
+id: python-module-values-sql
+sources:
+  - id: req-args
+    language: python
+    matcher:
+      receiver_contains: request.args
+      method_name: get
+    out: return
+    kind: generic
+sinks:
+  - id: execute-sink
+    language: python
+    matcher:
+      method_name: execute
+    inputs: [arg0]
+    kind: sql

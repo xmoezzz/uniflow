@@ -1,0 +1,32 @@
+sources:
+  - id: py-heap-callback-source-field
+    language: python
+    matcher:
+      exact: app.handle_field
+    out: param0
+    kind: callback
+  - id: py-heap-callback-source-return
+    language: python
+    matcher:
+      exact: app.handle_returned_alias
+    out: param0
+    kind: callback
+  - id: py-heap-callback-source-index
+    language: python
+    matcher:
+      exact: app.handle_index
+    out: param0
+    kind: callback
+
+sinks:
+  - id: py-heap-callback-sink-load
+    language: python
+    matcher:
+      exact: repo.load
+    inputs:
+      - arg0
+    kind: callback
+
+sanitizers: []
+propagators: []
+summaries: []

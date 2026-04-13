@@ -1,0 +1,14 @@
+sources:
+  - id: python-cache-get
+    language: python
+    where:
+      exact: cache.get
+    out: return
+    kind: generic
+sinks:
+  - id: python-use-handler
+    language: python
+    where:
+      exact: use_handler
+    inputs: [arg1]
+    kind: generic

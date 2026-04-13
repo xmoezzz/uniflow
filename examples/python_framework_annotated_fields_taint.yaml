@@ -1,0 +1,16 @@
+sources:
+  - id: python-flask-session-get
+    language: python
+    matcher:
+      receiver_contains: session
+      method_name: get
+    out: return
+    kind: generic
+
+sinks:
+  - id: python-repo-run
+    language: python
+    matcher:
+      method_name: run
+    in: [arg0]
+    kind: command

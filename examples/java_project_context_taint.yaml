@@ -1,0 +1,19 @@
+id: java-project-context-sqli
+mode: taint
+
+sources:
+  - id: generic-input
+    language: java
+    matcher:
+      exact: demo.web.Controller.handle
+    out: arg0
+    kind: generic
+
+sinks:
+  - id: jdbc-exec
+    language: java
+    matcher:
+      receiver_type: java.sql.Statement
+      method_name: executeQuery
+    in: arg0
+    kind: generic

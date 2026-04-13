@@ -1,0 +1,12 @@
+[package]
+name = "uniflow-lang-cpp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+uniflow-hir = { path = "../hir" }
+uniflow-lang-c = { path = "../lang_c" }
+uniflow-parser-core = { path = "../parser_core" }

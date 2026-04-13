@@ -1,0 +1,21 @@
+id: python-project-import
+language: python
+mode: taint
+
+sources:
+  - id: flask-args
+    language: python
+    matcher:
+      exact: flask.request.args.get
+    out: return
+    kind: sql
+
+sinks:
+  - id: db-execute
+    language: python
+    matcher:
+      receiver_regex: '.*DB$'
+      method_name: execute
+      arg_count: 1
+    in: [arg0]
+    kind: sql

@@ -1,0 +1,12 @@
+[package]
+name = "uniflow-taint"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+petgraph.workspace = true
+serde.workspace = true
+uniflow-rules = { path = "../rules" }
+uniflow-value-flow = { path = "../value_flow" }

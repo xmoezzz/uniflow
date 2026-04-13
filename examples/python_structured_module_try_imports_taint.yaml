@@ -1,0 +1,15 @@
+id: python-structured-module-try-imports
+name: Python structured module try imports
+sources:
+  - id: py-cli-input
+    language: python
+    where:
+      api:
+        exact: builtins.input
+sinks:
+  - id: py-os-system
+    language: python
+    where:
+      api:
+        exact: os.system
+    inputs: [arg0]
