@@ -80,14 +80,15 @@ fn parser_keeps_record_name_qualified() {
         public record UserRecord(String name) {}
     "#;
 
-    let program = JavaParser::default().parse_file("UserRecord.java", src).expect("parse file");
+    let program = JavaParser::default()
+        .parse_file("UserRecord.java", src)
+        .expect("parse file");
     let class = match &program.modules[0].items[0] {
         Item::Class(class) => class,
         _ => panic!("expected class-like item"),
     };
     assert_eq!(class.name, "demo.model.UserRecord");
 }
-
 
 #[test]
 fn wildcard_import_conflict_does_not_pick_arbitrarily() {
@@ -115,11 +116,28 @@ fn wildcard_import_conflict_does_not_pick_arbitrarily() {
     ];
 
     let program = parse_project_sources(&entries).expect("project parse");
-    let rendered = format!("{:?}", program.modules);
-    assert!(!rendered.contains("demo.a.UserRepo"));
-    assert!(!rendered.contains("demo.b.UserRepo"));
+    let controller = program
+        .modules
+        .iter()
+        .flat_map(|module| module.items.iter())
+        .find_map(|item| match item {
+            Item::Class(class) if class.name == "demo.web.Controller" => Some(class),
+            _ => None,
+        })
+        .expect("controller class");
+    let repo_field = controller
+        .fields
+        .iter()
+        .find(|field| field.name == "repo")
+        .expect("repo field");
+    let repo_type = repo_field
+        .ty
+        .and_then(|type_id| program.types.iter().find(|ty| ty.id == type_id))
+        .map(|ty| ty.name.as_str())
+        .expect("repo field type");
+    assert_ne!(repo_type, "demo.a.UserRepo");
+    assert_ne!(repo_type, "demo.b.UserRepo");
 }
-
 
 #[test]
 fn same_name_overloads_keep_project_parse_stable() {

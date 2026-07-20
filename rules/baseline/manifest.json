@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "packs": [
+    {
+      "id": "cert-c-cpp",
+      "file": "cert-c-cpp.yml",
+      "languages": [
+        "c",
+        "cpp"
+      ],
+      "rule_count": 75
+    },
+    {
+      "id": "python-security",
+      "file": "python-security.yml",
+      "languages": [
+        "python"
+      ],
+      "rule_count": 50
+    },
+    {
+      "id": "java-security",
+      "file": "java-security.yml",
+      "languages": [
+        "java"
+      ],
+      "rule_count": 50
+    },
+    {
+      "id": "common-security",
+      "file": "common-security.yml",
+      "languages": [
+        "c",
+        "cpp",
+        "java",
+        "python"
+      ],
+      "rule_count": 25
+    }
+  ],
+  "rule_count": 200
+}

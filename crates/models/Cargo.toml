@@ -9,3 +9,4 @@ authors.workspace = true
 anyhow.workspace = true
 uniflow-hir = { path = "../hir" }
 uniflow-rules = { path = "../rules" }
+serde_yaml.workspace = true

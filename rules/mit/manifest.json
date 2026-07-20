@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "packs": [
+    {
+      "file": "pysa-python.yml",
+      "counts": {
+        "sources": 29,
+        "sinks": 41,
+        "sanitizers": 7,
+        "propagators": 0,
+        "summaries": 8
+      }
+    },
+    {
+      "file": "mariana-java.yml",
+      "counts": {
+        "sources": 30,
+        "sinks": 30,
+        "sanitizers": 5,
+        "propagators": 0,
+        "summaries": 5
+      }
+    },
+    {
+      "file": "infer-c-cpp.yml",
+      "counts": {
+        "sources": 24,
+        "sinks": 42,
+        "sanitizers": 0,
+        "propagators": 0,
+        "summaries": 24
+      }
+    },
+    {
+      "file": "codeql-security.yml",
+      "counts": {
+        "sources": 4,
+        "sinks": 26,
+        "sanitizers": 0,
+        "propagators": 0,
+        "summaries": 0
+      }
+    }
+  ]
+}

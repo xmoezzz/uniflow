@@ -1,0 +1,12 @@
+{
+  "cases": [
+    {"language":"c", "file":"c-positive.c", "expected":["UF-C-STR-GETS","UF-COMMON-HTTP-URL"]},
+    {"language":"c", "file":"c-negative.c", "expected":[]},
+    {"language":"cpp", "file":"cpp-positive.cpp", "expected":["UF-C-ENV-SYSTEM","UF-COMMON-HTTP-URL"]},
+    {"language":"cpp", "file":"cpp-negative.cpp", "expected":[]},
+    {"language":"python", "file":"python-positive.py", "expected":["UF-PY-HASHLIB-NEW-WEAK","UF-COMMON-HTTP-URL"]},
+    {"language":"python", "file":"python-negative.py", "expected":[]},
+    {"language":"java", "file":"JavaPositive.java", "expected":["UF-JAVA-WEAK-HASH","UF-COMMON-HTTP-URL"]},
+    {"language":"java", "file":"JavaNegative.java", "expected":[]}
+  ]
+}

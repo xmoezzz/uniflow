@@ -1,0 +1,1104 @@
+id: cert-c-cpp
+title: CERT C and C++ security baseline
+rules:
+- id: UF-C-STR-GETS
+  title: Use of removed gets function
+  languages:
+  - c
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \bgets\s*\(
+  matcher:
+    callee: (^|::)gets$
+    min_args: 1
+    max_args: 1
+  cwe:
+  - CWE-242
+  standards:
+  - CERT-C-MSC24-C
+  - CERT-CPP
+  message: Replace gets with a length-bounded input API.
+- id: UF-C-STR-STRCPY
+  title: Unbounded string copy
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \bstrcpy\s*\(
+  matcher:
+    callee: (^|::)strcpy$
+    min_args: 2
+    max_args: 2
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  - CERT-CPP
+  message: Verify destination capacity or use an explicitly bounded operation.
+- id: UF-C-STR-STRCAT
+  title: Unbounded string concatenation
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \bstrcat\s*\(
+  matcher:
+    callee: (^|::)strcat$
+    min_args: 2
+    max_args: 2
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  - CERT-CPP
+  message: Verify complete destination capacity before concatenation.
+- id: UF-C-FIO-SPRINTF
+  title: Unbounded formatted output
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \b(?:sprintf|vsprintf)\s*\(
+  matcher:
+    callee: (^|::)(sprintf|vsprintf)$
+    min_args: 2
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  message: Prefer a bounded formatting API and verify truncation handling.
+- id: UF-C-FIO-SCANF-S
+  title: Unbounded percent-s conversion
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \b(?:scanf|fscanf|sscanf)\s*\([^;\n]*%s
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  message: Add an explicit field width for percent-s conversions.
+- id: UF-C-TMP-INSECURE
+  title: Insecure temporary-file name generation
+  languages:
+  - c
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \b(?:mktemp|tmpnam|tempnam)\s*\(
+  matcher:
+    callee: (^|::)(mktemp|tmpnam|tempnam)$
+  cwe:
+  - CWE-377
+  standards:
+  - CERT-C-FIO21-C
+  - CERT-CPP
+  message: Create temporary files atomically with restrictive permissions.
+- id: UF-C-ENV-SYSTEM
+  title: Command processor invocation
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \b(?:system|popen)\s*\(
+  matcher:
+    callee: (^|::)(system|popen)$
+    min_args: 1
+  cwe:
+  - CWE-78
+  standards:
+  - CERT-C-ENV33-C
+  - CERT-CPP
+  message: Avoid invoking a command processor with externally influenced text.
+- id: UF-C-ENV-SHELL-C
+  title: Explicit shell command execution
+  languages:
+  - c
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \bexeclp?\s*\(\s*"/bin/(?:ba)?sh"[^;\n]*"-c"
+  cwe:
+  - CWE-78
+  standards:
+  - CERT-C-ENV33-C
+  message: Do not pass externally influenced command text to a shell.
+- id: UF-C-RAND-WEAK
+  title: Predictable pseudo-random generator
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \b(?:rand|random|drand48|std::rand)\s*\(
+  matcher:
+    callee: (^|::)(rand|random|drand48)$
+  cwe:
+  - CWE-338
+  standards:
+  - CERT-C-MSC30-C
+  - CERT-CPP
+  message: Do not use predictable PRNG output for security decisions.
+- id: UF-C-MEM-REALLOC-ASSIGN
+  title: realloc directly assigned to original pointer
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \brealloc\s*\(
+  matcher:
+    callee: (^|::)realloc$
+    min_args: 2
+    max_args: 2
+    self_assignment: true
+  cwe:
+  - CWE-401
+  standards:
+  - CERT-C-MEM31-C
+  message: Preserve the original allocation until realloc succeeds.
+- id: UF-C-MEM-ALLOCA
+  title: Stack allocation from runtime size
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \b(?:alloca|_alloca)\s*\(
+  matcher:
+    callee: (^|::)(alloca|_alloca)$
+    min_args: 1
+    max_args: 1
+  cwe:
+  - CWE-770
+  - CWE-121
+  standards:
+  - CERT-C-MEM05-C
+  message: Avoid unbounded runtime-sized stack allocation.
+- id: UF-C-MEM-SIZEOF-POINTER
+  title: Allocation uses sizeof pointer instead of pointee
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \b(?:malloc|calloc|realloc)\s*\([^;\n]*sizeof\s*\(\s*[A-Za-z_][A-Za-z0-9_]*\s*\)
+  cwe:
+  - CWE-131
+  standards:
+  - CERT-C-MEM35-C
+  message: Confirm that sizeof is applied to the allocated object type, not a pointer.
+- id: UF-C-MEM-MULTIPLY-SIZE
+  title: Allocation size multiplication may overflow
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: low
+  pattern: \b(?:malloc|realloc)\s*\([^;\n]*\b[A-Za-z_][A-Za-z0-9_]*\s*\*\s*(?:sizeof|[A-Za-z_])
+  cwe:
+  - CWE-190
+  - CWE-131
+  standards:
+  - CERT-C-MEM35-C
+  message: Check multiplication for overflow before allocating memory.
+- id: UF-C-ASSERT-SIDE-EFFECT
+  title: Side effect in assert expression
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \bassert\s*\([^)]*(?:\+\+|--|=[^=])
+  cwe:
+  - CWE-617
+  standards:
+  - CERT-C
+  - CERT-CPP
+  message: Assertions may be disabled; do not place required side effects inside them.
+- id: UF-C-PRINTF-NONLITERAL
+  title: Potentially nonliteral format string
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \b(?:printf|syslog)\s*\(
+  matcher:
+    callee: (^|::)(printf|syslog)$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-134
+  standards:
+  - CERT-C-FIO30-C
+  message: Use a constant format string and pass data through format arguments.
+- id: UF-C-FPRINTF-NONLITERAL
+  title: Potentially nonliteral stream format string
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \b(?:fprintf|snprintf|sprintf)\s*\(
+  matcher:
+    callee: (^|::)(fprintf|snprintf|sprintf)$
+    min_args: 2
+    non_literal_args:
+    - 1
+  cwe:
+  - CWE-134
+  standards:
+  - CERT-C-FIO30-C
+  message: Use a constant format string.
+- id: UF-C-CONV-ATOI
+  title: Numeric conversion without error reporting
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \b(?:atoi|atol|atoll|atof)\s*\(
+  matcher:
+    callee: (^|::)(atoi|atol|atoll|atof)$
+    min_args: 1
+    max_args: 1
+  cwe:
+  - CWE-20
+  - CWE-190
+  standards:
+  - CERT-C-ERR34-C
+  message: Use a conversion API that reports errors and range failures.
+- id: UF-C-STR-STRTOK
+  title: Non-reentrant tokenization API
+  languages:
+  - c
+  - cpp
+  severity: note
+  confidence: high
+  pattern: \bstrtok\s*\(
+  matcher:
+    callee: (^|::)strtok$
+    min_args: 2
+    max_args: 2
+  cwe:
+  - CWE-362
+  standards:
+  - CERT-C-CON33-C
+  message: Prefer a reentrant tokenizer when shared or concurrent state is possible.
+- id: UF-C-TIME-NONREENTRANT
+  title: Non-reentrant time conversion API
+  languages:
+  - c
+  - cpp
+  severity: note
+  confidence: high
+  pattern: \b(?:asctime|ctime|gmtime|localtime)\s*\(
+  matcher:
+    callee: (^|::)(asctime|ctime|gmtime|localtime)$
+  cwe:
+  - CWE-362
+  standards:
+  - CERT-C-CON33-C
+  message: Prefer the reentrant variant or synchronize access to shared static storage.
+- id: UF-C-SIG-SIGNAL
+  title: Legacy signal handler installation
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \bsignal\s*\(
+  matcher:
+    callee: (^|::)signal$
+    min_args: 2
+    max_args: 2
+  cwe:
+  - CWE-364
+  standards:
+  - CERT-C-SIG30-C
+  message: Prefer sigaction and keep handlers asynchronous-signal-safe.
+- id: UF-C-PERM-CHMOD-777
+  title: World-writable file permissions
+  languages:
+  - c
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \bchmod\s*\([^;\n]*,\s*0?777\s*\)
+  cwe:
+  - CWE-732
+  standards:
+  - CERT-C-FIO01-C
+  message: Do not grant write permission to every user.
+- id: UF-C-PERM-UMASK-ZERO
+  title: Process umask disables permission filtering
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \bumask\s*\(\s*0\s*\)
+  matcher:
+    callee: (^|::)umask$
+    min_args: 1
+    max_args: 1
+    int_arg_values:
+      0: 0
+  cwe:
+  - CWE-732
+  standards:
+  - CERT-C-FIO01-C
+  message: Use a restrictive umask before creating files.
+- id: UF-C-PRIV-SETUID-IGNORED
+  title: Privilege-change result ignored
+  languages:
+  - c
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \b(?:setuid|seteuid|setgid|setegid)\s*\(
+  matcher:
+    callee: (^|::)(setuid|seteuid|setgid|setegid)$
+    ignored_return: true
+  cwe:
+  - CWE-273
+  standards:
+  - CERT-C-POS37-C
+  message: Check whether the privilege transition succeeded.
+- id: UF-C-CHROOT-IGNORED
+  title: chroot result ignored
+  languages:
+  - c
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \bchroot\s*\(
+  matcher:
+    callee: (^|::)chroot$
+    min_args: 1
+    max_args: 1
+    ignored_return: true
+  cwe:
+  - CWE-243
+  standards:
+  - CERT-C
+  message: Check chroot success and change the working directory afterward.
+- id: UF-C-CRYPTO-MD5-SHA1
+  title: Weak cryptographic digest
+  languages:
+  - c
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \b(?:MD5|SHA1|EVP_md5|EVP_sha1)\s*\(
+  matcher:
+    callee: (^|::)(MD5|SHA1|EVP_md5|EVP_sha1)$
+  cwe:
+  - CWE-328
+  standards:
+  - OWASP-A02
+  - CERT-C
+  message: Use an approved modern digest algorithm.
+- id: UF-C-CRYPTO-DES-RC4
+  title: Obsolete encryption primitive
+  languages:
+  - c
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \b(?:DES_|RC4|EVP_des_|EVP_rc4)
+  cwe:
+  - CWE-327
+  standards:
+  - OWASP-A02
+  - CERT-C
+  message: Replace DES or RC4 with an approved authenticated encryption construction.
+- id: UF-CPP-AUTO-PTR
+  title: Deprecated ownership type std::auto_ptr
+  languages:
+  - cpp
+  severity: warning
+  confidence: high
+  pattern: \bstd::auto_ptr\s*<
+  cwe:
+  - CWE-664
+  standards:
+  - CERT-CPP
+  message: Use std::unique_ptr for exclusive ownership.
+- id: UF-CPP-DELETE-THIS
+  title: Object deletes itself
+  languages:
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \bdelete\s+this\s*;
+  cwe:
+  - CWE-416
+  standards:
+  - CERT-CPP-OOP05-CPP
+  message: Self-deletion is fragile; ensure no member or caller accesses the object afterward.
+- id: UF-CPP-MEMSET-THIS
+  title: Raw memory overwrite of C++ object
+  languages:
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \bmemset\s*\(\s*this\s*,\s*0\s*,\s*sizeof\s*\(\s*\*?this\s*\)
+  cwe:
+  - CWE-843
+  standards:
+  - CERT-CPP-OOP
+  message: Do not erase object invariants, vptrs, or non-trivial members with memset.
+- id: UF-C-STR-GETWD
+  title: Use of obsolete getwd function
+  languages: &id001
+  - c
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \bgetwd\s*\(
+  matcher:
+    callee: (^|::)getwd$
+    min_args: 1
+    max_args: 1
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  message: Use getcwd with an explicit destination size.
+- id: UF-C-STR-WCSCPY
+  title: Unbounded wide-character string copy
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bwcscpy\s*\(
+  matcher:
+    callee: (^|::)wcscpy$
+    min_args: 2
+    max_args: 2
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  message: Verify destination capacity before copying wide-character strings.
+- id: UF-C-STR-WCSCAT
+  title: Unbounded wide-character string concatenation
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bwcscat\s*\(
+  matcher:
+    callee: (^|::)wcscat$
+    min_args: 2
+    max_args: 2
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  message: Verify complete destination capacity before concatenation.
+- id: UF-C-STR-STRNCPY
+  title: Potentially unterminated strncpy result
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bstrncpy\s*\(
+  matcher:
+    callee: (^|::)strncpy$
+    min_args: 3
+    max_args: 3
+  cwe:
+  - CWE-170
+  standards:
+  - CERT-C-STR32-C
+  message: Ensure the destination is terminated when the source length reaches the bound.
+- id: UF-C-STR-STRNCAT
+  title: Error-prone strncat bound
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bstrncat\s*\(
+  matcher:
+    callee: (^|::)strncat$
+    min_args: 3
+    max_args: 3
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  message: Compute remaining destination capacity, not total capacity, before strncat.
+- id: UF-C-FIO-SCANF-SCANSET
+  title: Unbounded scanf scanset conversion
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \b(?:scanf|fscanf|sscanf)\s*\([^;\n]*%\[
+  cwe:
+  - CWE-120
+  standards:
+  - CERT-C-STR31-C
+  message: Add an explicit field width before a scanset conversion.
+- id: UF-C-FIO-PRINTF-PERCENT-N
+  title: Percent-n conversion in output format
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \b(?:printf|fprintf|sprintf|snprintf|syslog)\s*\([^;\n]*%n
+  cwe:
+  - CWE-134
+  standards:
+  - CERT-C-FIO30-C
+  message: Remove percent-n from format strings.
+- id: UF-C-FIO-SCANF-PERCENT-N
+  title: Percent-n conversion in input format
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \b(?:scanf|fscanf|sscanf)\s*\([^;\n]*%n
+  cwe:
+  - CWE-20
+  standards:
+  - CERT-C-FIO34-C
+  message: Avoid percent-n in externally influenced input formats.
+- id: UF-C-FIO-SNPRINTF-IGNORED
+  title: snprintf result ignored
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bsnprintf\s*\(
+  matcher:
+    callee: (^|::)snprintf$
+    min_args: 3
+    ignored_return: true
+  cwe:
+  - CWE-252
+  - CWE-170
+  standards:
+  - CERT-C-ERR33-C
+  message: Check the return value to detect encoding errors and truncation.
+- id: UF-C-FIO-FREAD-IGNORED
+  title: fread result ignored
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bfread\s*\(
+  matcher:
+    callee: (^|::)fread$
+    min_args: 4
+    max_args: 4
+    ignored_return: true
+  cwe:
+  - CWE-252
+  standards:
+  - CERT-C-ERR33-C
+  message: Check how many elements were read and handle errors or short input.
+- id: UF-C-IO-READ-IGNORED
+  title: read result ignored
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bread\s*\(
+  matcher:
+    callee: (^|::)read$
+    min_args: 3
+    max_args: 3
+    ignored_return: true
+  cwe:
+  - CWE-252
+  standards:
+  - CERT-C-ERR33-C
+  message: Check for errors, EOF, and partial reads.
+- id: UF-C-NET-RECV-IGNORED
+  title: recv result ignored
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \brecv\s*\(
+  matcher:
+    callee: (^|::)recv$
+    min_args: 4
+    max_args: 4
+    ignored_return: true
+  cwe:
+  - CWE-252
+  standards:
+  - CERT-C-ERR33-C
+  message: Check for socket errors, closure, and partial input.
+- id: UF-C-IO-WRITE-IGNORED
+  title: write result ignored
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bwrite\s*\(
+  matcher:
+    callee: (^|::)write$
+    min_args: 3
+    max_args: 3
+    ignored_return: true
+  cwe:
+  - CWE-252
+  standards:
+  - CERT-C-ERR33-C
+  message: Handle errors and partial writes.
+- id: UF-C-NET-SEND-IGNORED
+  title: send result ignored
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bsend\s*\(
+  matcher:
+    callee: (^|::)send$
+    min_args: 4
+    max_args: 4
+    ignored_return: true
+  cwe:
+  - CWE-252
+  standards:
+  - CERT-C-ERR33-C
+  message: Handle socket errors and partial sends.
+- id: UF-C-MEM-MALLOC-DISCARDED
+  title: Allocated memory immediately discarded
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bmalloc\s*\(
+  matcher:
+    callee: (^|::)malloc$
+    min_args: 1
+    max_args: 1
+    ignored_return: true
+  cwe:
+  - CWE-401
+  standards:
+  - CERT-C-MEM31-C
+  message: Store and eventually release the allocated object.
+- id: UF-C-FIO-FOPEN-DISCARDED
+  title: Opened stream immediately discarded
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bfopen\s*\(
+  matcher:
+    callee: (^|::)fopen$
+    min_args: 2
+    max_args: 2
+    ignored_return: true
+  cwe:
+  - CWE-404
+  standards:
+  - CERT-C-FIO42-C
+  message: Retain the stream, check for failure, and close it.
+- id: UF-C-CON-PTHREAD-CREATE-IGNORED
+  title: pthread_create result ignored
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bpthread_create\s*\(
+  matcher:
+    callee: (^|::)pthread_create$
+    min_args: 4
+    max_args: 4
+    ignored_return: true
+  cwe:
+  - CWE-252
+  standards:
+  - CERT-C-CON
+  message: Check whether thread creation succeeded.
+- id: UF-C-CON-MUTEX-LOCK-IGNORED
+  title: Mutex lock result ignored
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bpthread_mutex_(?:lock|trylock|timedlock)\s*\(
+  matcher:
+    callee: (^|::)pthread_mutex_(lock|trylock|timedlock)$
+    min_args: 1
+    ignored_return: true
+  cwe:
+  - CWE-252
+  - CWE-667
+  standards:
+  - CERT-C-CON
+  message: Check whether the mutex operation succeeded.
+- id: UF-C-ENV-PUTENV
+  title: Environment modification with caller-owned storage
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bputenv\s*\(
+  matcher:
+    callee: (^|::)putenv$
+    min_args: 1
+    max_args: 1
+  cwe:
+  - CWE-807
+  standards:
+  - CERT-C-ENV
+  message: Prefer setenv and control the lifetime of environment values.
+- id: UF-C-DL-DLOPEN-NONLITERAL
+  title: Dynamic library path constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bdlopen\s*\(
+  matcher:
+    callee: (^|::)dlopen$
+    min_args: 2
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-114
+  standards:
+  - CWE-TOP-25
+  message: Restrict dynamic library paths to trusted allowlisted locations.
+- id: UF-C-WIN-LOADLIBRARY-NONLITERAL
+  title: Windows library path constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bLoadLibrary(?:Ex)?[AW]?\s*\(
+  matcher:
+    callee: (^|::)LoadLibrary(Ex)?[AW]?$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-114
+  standards:
+  - CWE-TOP-25
+  message: Use an absolute trusted path and safe DLL search settings.
+- id: UF-C-WIN-WINEXEC
+  title: Use of WinExec command execution
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bWinExec\s*\(
+  matcher:
+    callee: (^|::)WinExec$
+    min_args: 2
+    max_args: 2
+  cwe:
+  - CWE-78
+  standards:
+  - CWE-TOP-25
+  message: Use CreateProcess with a fixed executable and validated argument vector.
+- id: UF-C-WIN-CREATEPROCESS-NONLITERAL
+  title: CreateProcess command line constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bCreateProcess[AW]?\s*\(
+  matcher:
+    callee: (^|::)CreateProcess[AW]?$
+    min_args: 2
+    non_literal_args:
+    - 1
+  cwe:
+  - CWE-78
+  standards:
+  - CWE-TOP-25
+  message: Use an explicit application path and validate every command-line argument.
+- id: UF-C-WIN-SHELLEXECUTE-NONLITERAL
+  title: ShellExecute target constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bShellExecute(?:Ex)?[AW]?\s*\(
+  matcher:
+    callee: (^|::)ShellExecute[AW]?$
+    min_args: 3
+    non_literal_args:
+    - 2
+  cwe:
+  - CWE-78
+  standards:
+  - CWE-TOP-25
+  message: Do not pass externally influenced targets to the shell.
+- id: UF-C-DB-SQLITE-NONLITERAL
+  title: SQLite query constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bsqlite3_exec\s*\(
+  matcher:
+    callee: (^|::)sqlite3_exec$
+    min_args: 2
+    non_literal_args:
+    - 1
+  cwe:
+  - CWE-89
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Use prepared statements and bind all untrusted values.
+- id: UF-C-DB-MYSQL-NONLITERAL
+  title: MySQL query constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bmysql_(?:real_)?query\s*\(
+  matcher:
+    callee: (^|::)mysql_(real_)?query$
+    min_args: 2
+    non_literal_args:
+    - 1
+  cwe:
+  - CWE-89
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Use parameter binding or a safely escaped query API.
+- id: UF-C-DB-PQEXEC-NONLITERAL
+  title: PostgreSQL query constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bPQexec\s*\(
+  matcher:
+    callee: (^|::)PQexec$
+    min_args: 2
+    non_literal_args:
+    - 1
+  cwe:
+  - CWE-89
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Use PQexecParams or prepared statements.
+- id: UF-C-TLS-VERIFY-NONE
+  title: OpenSSL peer verification disabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bSSL_CTX_set_verify\s*\([^;\n]*SSL_VERIFY_NONE
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Require peer certificate verification.
+- id: UF-C-CURL-VERIFYPEER-OFF
+  title: libcurl peer verification disabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bcurl_easy_setopt\s*\([^;\n]*CURLOPT_SSL_VERIFYPEER\s*,\s*(?:0|0L|false)
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Keep CURLOPT_SSL_VERIFYPEER enabled.
+- id: UF-C-CURL-VERIFYHOST-OFF
+  title: libcurl hostname verification disabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bcurl_easy_setopt\s*\([^;\n]*CURLOPT_SSL_VERIFYHOST\s*,\s*(?:0|0L|false)
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Set CURLOPT_SSL_VERIFYHOST to 2.
+- id: UF-C-TLS-OBSOLETE-METHOD
+  title: Obsolete OpenSSL protocol method
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \b(?:SSLv2|SSLv3|TLSv1)_method\s*\(
+  cwe:
+  - CWE-326
+  standards:
+  - OWASP-A02
+  message: Use a generic TLS method and enforce a modern minimum protocol version.
+- id: UF-C-XML-NOENT
+  title: libxml external entity expansion enabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \b(?:xmlReadMemory|xmlReadFile|xmlCtxtReadMemory|xmlCtxtReadFile)\s*\([^;\n]*XML_PARSE_NOENT
+  cwe:
+  - CWE-611
+  standards:
+  - CWE-TOP-25
+  - OWASP-A05
+  message: Do not enable external entity substitution for untrusted XML.
+- id: UF-C-PERM-CHMOD-666
+  title: World-writable file mode
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bchmod\s*\([^;\n]*,\s*0?666\s*\)
+  cwe:
+  - CWE-732
+  standards:
+  - CERT-C-FIO01-C
+  message: Use the minimum required permissions.
+- id: UF-C-PERM-OPEN-777
+  title: File created with world-writable executable mode
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bopen\s*\([^;\n]*,\s*[^;\n]*O_CREAT[^;\n]*,\s*0?777\s*\)
+  cwe:
+  - CWE-732
+  standards:
+  - CERT-C-FIO01-C
+  message: Create files with restrictive permissions and a restrictive umask.
+- id: UF-C-PERM-CREAT-777
+  title: creat uses world-writable executable mode
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bcreat\s*\([^;\n]*,\s*0?777\s*\)
+  cwe:
+  - CWE-732
+  standards:
+  - CERT-C-FIO01-C
+  message: Create files with restrictive permissions.
+- id: UF-C-PRIV-SETUID-ROOT
+  title: Process explicitly switches to root user
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bsete?uid\s*\(\s*0\s*\)
+  cwe:
+  - CWE-250
+  standards:
+  - CERT-C-POS
+  message: Avoid regaining or retaining root privileges unless strictly required.
+- id: UF-C-PRIV-SETGID-ROOT
+  title: Process explicitly switches to root group
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bsete?gid\s*\(\s*0\s*\)
+  cwe:
+  - CWE-250
+  standards:
+  - CERT-C-POS
+  message: Avoid regaining or retaining privileged group identity unless required.
+- id: UF-C-RAND-PREDICTABLE-SEED
+  title: Predictable pseudo-random seed
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bsrand\s*\([^;\n]*(?:time|getpid|clock)\s*\(
+  cwe:
+  - CWE-337
+  standards:
+  - CERT-C-MSC32-C
+  message: Use an operating-system CSPRNG for security-sensitive randomness.
+- id: UF-C-CRYPTO-CRYPT-DES
+  title: Legacy DES-based password hashing API
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \b(?:crypt|crypt_r)\s*\(
+  matcher:
+    callee: (^|::)(crypt|crypt_r)$
+    min_args: 2
+  cwe:
+  - CWE-327
+  standards:
+  - OWASP-A02
+  message: Use a modern password hashing construction with an appropriate work factor.
+- id: UF-C-ANNEXK-RESULT-IGNORED
+  title: Bounds-checking interface result ignored
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \b(?:strcpy_s|strcat_s|memcpy_s|memmove_s|sprintf_s)\s*\(
+  matcher:
+    callee: (^|::)(strcpy_s|strcat_s|memcpy_s|memmove_s|sprintf_s)$
+    ignored_return: true
+  cwe:
+  - CWE-252
+  standards:
+  - CERT-C-ERR33-C
+  message: Check the constraint-handler return value.
+- id: UF-C-STR-STRERROR
+  title: Non-reentrant strerror result
+  languages: *id001
+  severity: note
+  confidence: medium
+  pattern: \bstrerror\s*\(
+  matcher:
+    callee: (^|::)strerror$
+    min_args: 1
+    max_args: 1
+  cwe:
+  - CWE-362
+  standards:
+  - CERT-C-CON33-C
+  message: Use a thread-safe error formatting API where concurrent access is possible.
+- id: UF-CPP-SHARED-PTR-THIS
+  title: shared_ptr constructed directly from this
+  languages:
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \b(?:std::)?shared_ptr\s*<[^>]+>\s*\(\s*this\s*\)
+  cwe:
+  - CWE-415
+  standards:
+  - CERT-CPP-MEM
+  message: Use enable_shared_from_this when shared ownership already exists.
+- id: UF-CPP-UNIQUE-PTR-THIS
+  title: unique_ptr constructed directly from this
+  languages:
+  - cpp
+  severity: error
+  confidence: high
+  pattern: \b(?:std::)?unique_ptr\s*<[^>]+>\s*\(\s*this\s*\)
+  cwe:
+  - CWE-415
+  standards:
+  - CERT-CPP-MEM
+  message: Do not transfer ownership of this to a temporary unique_ptr.
+- id: UF-CPP-ASYNC-IGNORED
+  title: std::async future immediately discarded
+  languages:
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \bstd::async\s*\(
+  matcher:
+    callee: (^|::)async$
+    min_args: 1
+    ignored_return: true
+  cwe:
+  - CWE-667
+  standards:
+  - CERT-CPP-CON
+  message: Retain and observe the future so execution and exceptions are controlled.
+- id: UF-CPP-EMPTY-CATCH
+  title: Exception silently discarded
+  languages:
+  - cpp
+  severity: warning
+  confidence: medium
+  pattern: \bcatch\s*\([^)]*\)\s*\{\s*\}
+  cwe:
+  - CWE-390
+  standards:
+  - CERT-CPP-ERR
+  message: Handle, translate, or explicitly document discarded exceptions.
+- id: UF-CPP-REINTERPRET-CAST
+  title: reinterpret_cast bypasses type safety
+  languages:
+  - cpp
+  severity: note
+  confidence: low
+  pattern: \breinterpret_cast\s*<
+  cwe:
+  - CWE-704
+  standards:
+  - CERT-CPP-EXP
+  message: Review the cast for alignment, lifetime, provenance, and representation safety.

@@ -1,13 +1,104 @@
-# uniflow
+# UniFlow
 
-uniflow is a Rust workspace for source-level multi-language value-flow and taint analysis.
+UniFlow is a source-only multi-language value-flow, taint, and security-baseline analyzer written in Rust. It uses project-owned frontends for C, C++, Java, and Python and does not require the analyzed project to compile.
 
-Current workspace components:
+```text
+source -> language frontend -> unified HIR -> analysis IR
+       -> value flow -> taint/baseline/checkers -> JSON/SARIF/DOT/Markdown
+```
 
-- language frontends for C, C++, Java, and Python
-- unified HIR and lowering into a common analysis IR
-- value-flow graph construction
-- taint analysis on top of the value-flow graph
-- YAML rule system for source, sink, sanitizer, propagator, and summary models
-- built-in default models for Java, Python, C, and C++
+## Product surface
+
+UniFlow 1.0.0 includes:
+
+- C, C++, Java, and Python source frontends and project indexing;
+- unified HIR and analysis IR lowering;
+- assignment, call-port, field/index, object/heap, contextual-summary, callback, and modeled API value-flow behavior covered by the default test suite;
+- source, sink, sanitizer, propagator, and summary rules;
+- 275 MIT-derived API models with attribution under `THIRD_PARTY_NOTICES.md`;
+- 200 direct baseline rules mapped to relevant CERT, CWE, and OWASP identifiers;
+- terminal JSON, SARIF, DOT, and Markdown output;
+- platform-aware project caching and source-visible platform profiles;
+- native Rust, C, and C++ checker plugins through ABI v2, with ABI v1 compatibility;
+- process-isolated checker execution with timeouts, crash containment, validation, diagnostics, and optional continue-on-error behavior.
+
+The analyzer is intentionally source-only. It does not claim compiler-equivalent macro expansion, C++ template instantiation, bytecode generation, linking, or ABI validation.
+
+## Build and verify
+
+The repository pins Rust 1.97.1 as its minimum supported version.
+
+```bash
+cargo build --locked --workspace
+./scripts/verify.sh
+```
+
+Windows PowerShell:
+
+```powershell
+./scripts/verify.ps1
+```
+
+
+## Analyze source or a project
+
+```bash
+uniflow analyze-source \
+  --language c \
+  --platform linux-x86_64-gnu \
+  --input examples/smoke/command_flow.c \
+  --use-default-models \
+  --pretty-findings \
+  --sarif-out findings.sarif
+
+uniflow analyze-project \
+  --language python \
+  --input examples/smoke/python_project \
+  --use-default-models \
+  --cache-out target/python-cache.json \
+  --pretty-findings
+```
+
+Supported profiles are `generic`, `linux-x86_64-gnu`, `windows-x86_64-msvc`, and `macos-aarch64`. The generic profile is open-world; named profiles remove source branches known to be impossible for that target.
+
+## Rules and baseline checks
+
+```bash
+uniflow list-rule-packs
+uniflow dump-mit-rules --language python --output python-models.yml
+uniflow check-rules --rules custom-rules.yml
+
+uniflow list-baseline-packs
+uniflow check-baseline --language c --input src/
+uniflow check-baseline --language python --input app/ --json-out baseline.json
+```
+
+Baseline findings are candidate defects, not a certification of full CERT/CWE/OWASP conformance. Each rule has a regression obligation and the complete built-in catalog is validated as one merged pack.
+
+## Native checker plugins
+
+Checkers may be written in Rust, C, or C++. New plugins export ABI v2; existing ABI v1 plugins remain supported. Checkers run in worker processes by default.
+
+```bash
+uniflow analyze-source \
+  --language c \
+  --input examples/checker_demo/demo.c \
+  --checker path/to/libchecker.so \
+  --checker-timeout-ms 5000 \
+  --checker-isolation process \
+  --checker-failure continue \
+  --sarif-out checker-results.sarif
+```
+
+Use `--checker` repeatedly to load several plugins. `--checker-isolation in-process` is available only for explicitly trusted plugins. See `docs/CHECKER_SDK.md`, `include/uniflow_checker_v1.h`, and `examples/checkers/`.
+
+```bash
+./scripts/validate-checker-sdk.sh
+```
+
+Windows release validation uses:
+
+```powershell
+./scripts/validate-checker-sdk.ps1
+```
 

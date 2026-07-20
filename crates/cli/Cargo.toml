@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+default-run = "uniflow"
+
+[[bin]]
+name = "uniflow"
+path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
@@ -20,3 +25,8 @@ uniflow-rules = { path = "../rules" }
 uniflow-report = { path = "../report" }
 uniflow-taint = { path = "../taint" }
 uniflow-value-flow = { path = "../value_flow" }
+uniflow-platform = { path = "../platform" }
+serde_yaml.workspace = true
+uniflow-baseline = { path = "../baseline" }
+uniflow-checker-api = { path = "../checker_api" }
+uniflow-checker-host = { path = "../checker_host" }

@@ -6,6 +6,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
 anyhow.workspace = true
 uniflow-hir = { path = "../hir" }
 uniflow-lang-c = { path = "../lang_c" }
@@ -13,3 +15,4 @@ uniflow-lang-cpp = { path = "../lang_cpp" }
 uniflow-lang-java = { path = "../lang_java" }
 uniflow-lang-python = { path = "../lang_python" }
 uniflow-parser-core = { path = "../parser_core" }
+uniflow-platform = { path = "../platform" }

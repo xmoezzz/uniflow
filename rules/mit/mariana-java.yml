@@ -1,0 +1,548 @@
+sources:
+- id: mit-mariana-java-source-httpservletrequest-getparameter
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getParameter
+  out: return
+  kind: http
+- id: mit-mariana-java-source-httpservletrequest-getparametervalues
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getParameterValues
+  out: return
+  kind: http
+- id: mit-mariana-java-source-httpservletrequest-getparametermap
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getParameterMap
+  out: return
+  kind: http
+- id: mit-mariana-java-source-httpservletrequest-getheader
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getHeader
+  out: return
+  kind: http
+- id: mit-mariana-java-source-httpservletrequest-getheaders
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getHeaders
+  out: return
+  kind: http
+- id: mit-mariana-java-source-httpservletrequest-getquerystring
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getQueryString
+  out: return
+  kind: http
+- id: mit-mariana-java-source-httpservletrequest-getrequesturi
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getRequestURI
+  out: return
+  kind: http
+- id: mit-mariana-java-source-httpservletrequest-getpathinfo
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getPathInfo
+  out: return
+  kind: http
+- id: mit-mariana-java-source-httpservletrequest-getcookies
+  language: java
+  matcher:
+    receiver_contains: HttpServletRequest
+    method_name: getCookies
+  out: return
+  kind: http
+- id: mit-mariana-java-source-serverrequest-queryparam
+  language: java
+  matcher:
+    receiver_contains: ServerRequest
+    method_name: queryParam
+  out: return
+  kind: http
+- id: mit-mariana-java-source-serverrequest-pathvariable
+  language: java
+  matcher:
+    receiver_contains: ServerRequest
+    method_name: pathVariable
+  out: return
+  kind: http
+- id: mit-mariana-java-source-serverrequest-headers
+  language: java
+  matcher:
+    receiver_contains: ServerRequest
+    method_name: headers
+  out: return
+  kind: http
+- id: mit-mariana-java-source-serverrequest-cookies
+  language: java
+  matcher:
+    receiver_contains: ServerRequest
+    method_name: cookies
+  out: return
+  kind: http
+- id: mit-mariana-java-source-serverrequest-bodytomono
+  language: java
+  matcher:
+    receiver_contains: ServerRequest
+    method_name: bodyToMono
+  out: return
+  kind: http
+- id: mit-mariana-java-source-uriinfo-getqueryparameters
+  language: java
+  matcher:
+    receiver_contains: UriInfo
+    method_name: getQueryParameters
+  out: return
+  kind: http
+- id: mit-mariana-java-source-uriinfo-getpathparameters
+  language: java
+  matcher:
+    receiver_contains: UriInfo
+    method_name: getPathParameters
+  out: return
+  kind: http
+- id: mit-mariana-java-source-uriinfo-getrequesturi
+  language: java
+  matcher:
+    receiver_contains: UriInfo
+    method_name: getRequestUri
+  out: return
+  kind: http
+- id: mit-mariana-java-source-intent-getstringextra
+  language: java
+  matcher:
+    receiver_contains: Intent
+    method_name: getStringExtra
+  out: return
+  kind: android
+- id: mit-mariana-java-source-intent-getextras
+  language: java
+  matcher:
+    receiver_contains: Intent
+    method_name: getExtras
+  out: return
+  kind: android
+- id: mit-mariana-java-source-intent-getdatastring
+  language: java
+  matcher:
+    receiver_contains: Intent
+    method_name: getDataString
+  out: return
+  kind: android
+- id: mit-mariana-java-source-intent-getdata
+  language: java
+  matcher:
+    receiver_contains: Intent
+    method_name: getData
+  out: return
+  kind: android
+- id: mit-mariana-java-source-bundle-getstring
+  language: java
+  matcher:
+    receiver_contains: Bundle
+    method_name: getString
+  out: return
+  kind: android
+- id: mit-mariana-java-source-bundle-getcharsequence
+  language: java
+  matcher:
+    receiver_contains: Bundle
+    method_name: getCharSequence
+  out: return
+  kind: android
+- id: mit-mariana-java-source-bundle-getserializable
+  language: java
+  matcher:
+    receiver_contains: Bundle
+    method_name: getSerializable
+  out: return
+  kind: android
+- id: mit-mariana-java-source-scanner-next
+  language: java
+  matcher:
+    receiver_contains: Scanner
+    method_name: next
+  out: return
+  kind: user_input
+- id: mit-mariana-java-source-scanner-nextline
+  language: java
+  matcher:
+    receiver_contains: Scanner
+    method_name: nextLine
+  out: return
+  kind: user_input
+- id: mit-mariana-java-source-bufferedreader-readline
+  language: java
+  matcher:
+    receiver_contains: BufferedReader
+    method_name: readLine
+  out: return
+  kind: user_input
+- id: mit-mariana-java-source-java-lang-system-getenv
+  language: java
+  matcher:
+    exact: java.lang.System.getenv
+  out: return
+  kind: environment
+- id: mit-mariana-java-source-java-lang-system-getproperty
+  language: java
+  matcher:
+    exact: java.lang.System.getProperty
+  out: return
+  kind: environment
+- id: mit-mariana-java-source-android-os-systemproperties-get
+  language: java
+  matcher:
+    exact: android.os.SystemProperties.get
+  out: return
+  kind: environment
+sinks:
+- id: mit-mariana-java-sink-statement-execute
+  language: java
+  matcher:
+    receiver_contains: Statement
+    method_name: execute
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-mariana-java-sink-statement-executequery
+  language: java
+  matcher:
+    receiver_contains: Statement
+    method_name: executeQuery
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-mariana-java-sink-statement-executeupdate
+  language: java
+  matcher:
+    receiver_contains: Statement
+    method_name: executeUpdate
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-mariana-java-sink-connection-preparestatement
+  language: java
+  matcher:
+    receiver_contains: Connection
+    method_name: prepareStatement
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-mariana-java-sink-jdbctemplate-query
+  language: java
+  matcher:
+    receiver_contains: JdbcTemplate
+    method_name: query
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-mariana-java-sink-jdbctemplate-update
+  language: java
+  matcher:
+    receiver_contains: JdbcTemplate
+    method_name: update
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-mariana-java-sink-entitymanager-createquery
+  language: java
+  matcher:
+    receiver_contains: EntityManager
+    method_name: createQuery
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-mariana-java-sink-entitymanager-createnativequery
+  language: java
+  matcher:
+    receiver_contains: EntityManager
+    method_name: createNativeQuery
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-mariana-java-sink-runtime-exec
+  language: java
+  matcher:
+    receiver_contains: Runtime
+    method_name: exec
+  inputs:
+  - arg0
+  kind: command
+- id: mit-mariana-java-sink-processbuilder-command
+  language: java
+  matcher:
+    receiver_contains: ProcessBuilder
+    method_name: command
+  inputs:
+  - arg0
+  kind: command
+- id: mit-mariana-java-sink-scriptengine-eval
+  language: java
+  matcher:
+    receiver_contains: ScriptEngine
+    method_name: eval
+  inputs:
+  - arg0
+  kind: code
+- id: mit-mariana-java-sink-objectinputstream-readobject
+  language: java
+  matcher:
+    receiver_contains: ObjectInputStream
+    method_name: readObject
+  inputs:
+  - receiver
+  kind: deserialization
+- id: mit-mariana-java-sink-xmldecoder-readobject
+  language: java
+  matcher:
+    receiver_contains: XMLDecoder
+    method_name: readObject
+  inputs:
+  - receiver
+  kind: deserialization
+- id: mit-mariana-java-sink-file-init
+  language: java
+  matcher:
+    receiver_contains: File
+    method_name: <init>
+  inputs:
+  - arg0
+  kind: path
+- id: mit-mariana-java-sink-fileinputstream-init
+  language: java
+  matcher:
+    receiver_contains: FileInputStream
+    method_name: <init>
+  inputs:
+  - arg0
+  kind: path
+- id: mit-mariana-java-sink-fileoutputstream-init
+  language: java
+  matcher:
+    receiver_contains: FileOutputStream
+    method_name: <init>
+  inputs:
+  - arg0
+  kind: path
+- id: mit-mariana-java-sink-paths-get
+  language: java
+  matcher:
+    receiver_contains: Paths
+    method_name: get
+  inputs:
+  - arg0
+  kind: path
+- id: mit-mariana-java-sink-url-init
+  language: java
+  matcher:
+    receiver_contains: URL
+    method_name: <init>
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-mariana-java-sink-httpclient-send
+  language: java
+  matcher:
+    receiver_contains: HttpClient
+    method_name: send
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-mariana-java-sink-resttemplate-getforobject
+  language: java
+  matcher:
+    receiver_contains: RestTemplate
+    method_name: getForObject
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-mariana-java-sink-resttemplate-postforobject
+  language: java
+  matcher:
+    receiver_contains: RestTemplate
+    method_name: postForObject
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-mariana-java-sink-httpservletresponse-sendredirect
+  language: java
+  matcher:
+    receiver_contains: HttpServletResponse
+    method_name: sendRedirect
+  inputs:
+  - arg0
+  kind: redirect
+- id: mit-mariana-java-sink-printwriter-write
+  language: java
+  matcher:
+    receiver_contains: PrintWriter
+    method_name: write
+  inputs:
+  - arg0
+  kind: xss
+- id: mit-mariana-java-sink-printwriter-print
+  language: java
+  matcher:
+    receiver_contains: PrintWriter
+    method_name: print
+  inputs:
+  - arg0
+  kind: xss
+- id: mit-mariana-java-sink-logger-info
+  language: java
+  matcher:
+    receiver_contains: Logger
+    method_name: info
+  inputs:
+  - arg0
+  kind: log
+- id: mit-mariana-java-sink-logger-warn
+  language: java
+  matcher:
+    receiver_contains: Logger
+    method_name: warn
+  inputs:
+  - arg0
+  kind: log
+- id: mit-mariana-java-sink-logger-error
+  language: java
+  matcher:
+    receiver_contains: Logger
+    method_name: error
+  inputs:
+  - arg0
+  kind: log
+- id: mit-mariana-java-sink-xpath-evaluate
+  language: java
+  matcher:
+    receiver_contains: XPath
+    method_name: evaluate
+  inputs:
+  - arg0
+  kind: xpath
+- id: mit-mariana-java-sink-dircontext-search
+  language: java
+  matcher:
+    receiver_contains: DirContext
+    method_name: search
+  inputs:
+  - arg1
+  kind: ldap
+- id: mit-mariana-java-sink-pattern-compile
+  language: java
+  matcher:
+    receiver_contains: Pattern
+    method_name: compile
+  inputs:
+  - arg0
+  kind: regex
+sanitizers:
+- id: mit-mariana-java-sanitize-esapi.encoder()-encodeforhtml
+  language: java
+  matcher:
+    receiver_contains: ESAPI.encoder()
+    method_name: encodeForHTML
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: xss
+- id: mit-mariana-java-sanitize-stringescapeutils-escapehtml4
+  language: java
+  matcher:
+    receiver_contains: StringEscapeUtils
+    method_name: escapeHtml4
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: xss
+- id: mit-mariana-java-sanitize-urlencoder-encode
+  language: java
+  matcher:
+    receiver_contains: URLEncoder
+    method_name: encode
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: url
+- id: mit-mariana-java-sanitize-filenameutils-getname
+  language: java
+  matcher:
+    receiver_contains: FilenameUtils
+    method_name: getName
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: path
+- id: mit-mariana-java-sanitize-htmlutils-htmlescape
+  language: java
+  matcher:
+    receiver_contains: HtmlUtils
+    method_name: htmlEscape
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: xss
+propagators: []
+summaries:
+- id: mit-mariana-java-summary-stringbuilder-append
+  language: java
+  matcher:
+    receiver_contains: StringBuilder
+    method_name: append
+  flows:
+  - from: arg0
+    to: receiver
+  - from: arg0
+    to: return
+- id: mit-mariana-java-summary-stringbuffer-append
+  language: java
+  matcher:
+    receiver_contains: StringBuffer
+    method_name: append
+  flows:
+  - from: arg0
+    to: receiver
+  - from: arg0
+    to: return
+- id: mit-mariana-java-summary-string-concat
+  language: java
+  matcher:
+    receiver_contains: String
+    method_name: concat
+  flows:
+  - from: receiver
+    to: return
+  - from: arg0
+    to: return
+- id: mit-mariana-java-summary-optional-of
+  language: java
+  matcher:
+    receiver_contains: Optional
+    method_name: of
+  flows:
+  - from: arg0
+    to: return
+- id: mit-mariana-java-summary-collections-singletonlist
+  language: java
+  matcher:
+    receiver_contains: Collections
+    method_name: singletonList
+  flows:
+  - from: arg0
+    to: return

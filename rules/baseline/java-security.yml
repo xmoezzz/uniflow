@@ -1,0 +1,709 @@
+id: java-security
+title: Java security baseline
+rules:
+- id: UF-JAVA-RUNTIME-EXEC
+  title: Runtime command execution
+  languages:
+  - java
+  severity: warning
+  confidence: high
+  pattern: \bRuntime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*exec\s*\(
+  cwe:
+  - CWE-78
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Avoid constructing process commands from externally influenced strings.
+- id: UF-JAVA-PROCESS-BUILDER
+  title: ProcessBuilder command execution
+  languages:
+  - java
+  severity: warning
+  confidence: medium
+  pattern: \bnew\s+ProcessBuilder\s*\(
+  cwe:
+  - CWE-78
+  standards:
+  - OWASP-A03
+  message: Use a fixed executable and validate each argument independently.
+- id: UF-JAVA-WEAK-HASH
+  title: Weak message-digest algorithm
+  languages:
+  - java
+  severity: warning
+  confidence: high
+  pattern: \bMessageDigest\.getInstance\s*\(\s*"(?:MD5|SHA-?1)"
+  matcher:
+    callee: (^|\.)MessageDigest\.getInstance$
+    string_arg_patterns:
+      0: (?i)^(MD5|SHA-?1)$
+  cwe:
+  - CWE-328
+  standards:
+  - OWASP-A02
+  message: Use an approved modern digest algorithm.
+- id: UF-JAVA-ECB
+  title: ECB block-cipher mode
+  languages:
+  - java
+  severity: error
+  confidence: high
+  pattern: \bCipher\.getInstance\s*\(\s*"[^"]*/ECB/
+  matcher:
+    callee: (^|\.)Cipher\.getInstance$
+    string_arg_patterns:
+      0: (?i)/ECB/
+  cwe:
+  - CWE-327
+  standards:
+  - OWASP-A02
+  message: ECB mode reveals repeated plaintext blocks; use authenticated encryption.
+- id: UF-JAVA-WEAK-CIPHER
+  title: Obsolete cipher algorithm
+  languages:
+  - java
+  severity: error
+  confidence: high
+  pattern: \bCipher\.getInstance\s*\(\s*"(?:DES|DESede|RC2|RC4)
+  matcher:
+    callee: (^|\.)Cipher\.getInstance$
+    string_arg_patterns:
+      0: (?i)^(DES|DESede|RC2|RC4)(/|$)
+  cwe:
+  - CWE-327
+  standards:
+  - OWASP-A02
+  message: Replace obsolete encryption with an approved authenticated construction.
+- id: UF-JAVA-OBJECTINPUTSTREAM
+  title: Native Java deserialization
+  languages:
+  - java
+  severity: error
+  confidence: high
+  pattern: \.readObject\s*\(
+  matcher:
+    callee: (^|\.)readObject$
+    max_args: 0
+  cwe:
+  - CWE-502
+  standards:
+  - CWE-TOP-25
+  - OWASP-A08
+  message: Do not deserialize untrusted native Java object streams.
+- id: UF-JAVA-XSTREAM
+  title: XStream deserialization
+  languages:
+  - java
+  severity: error
+  confidence: high
+  pattern: \.fromXML\s*\(
+  matcher:
+    callee: (^|\.)fromXML$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Use a strict type allowlist before deserializing XML objects.
+- id: UF-JAVA-SCRIPT-EVAL
+  title: Script engine evaluation
+  languages:
+  - java
+  severity: error
+  confidence: medium
+  pattern: \b(?:ScriptEngine|engine)\.eval\s*\(
+  matcher:
+    callee: (^|\.)eval$
+    min_args: 1
+  cwe:
+  - CWE-95
+  standards:
+  - OWASP-A03
+  message: Do not evaluate externally influenced script source.
+- id: UF-JAVA-SQL-NONLITERAL
+  title: SQL statement constructed at runtime
+  languages:
+  - java
+  severity: warning
+  confidence: medium
+  pattern: \.(?:execute|executeQuery|executeUpdate)\s*\(
+  matcher:
+    callee: (^|\.)(execute|executeQuery|executeUpdate)$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-89
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Use a PreparedStatement and bind every untrusted value.
+- id: UF-JAVA-LDAP-NONLITERAL
+  title: LDAP search filter constructed at runtime
+  languages:
+  - java
+  severity: warning
+  confidence: medium
+  pattern: \.(?:search|list)\s*\(
+  matcher:
+    callee: (^|\.)(search|list)$
+    min_args: 2
+    non_literal_args:
+    - 1
+  cwe:
+  - CWE-90
+  standards:
+  - OWASP-A03
+  message: Escape LDAP filter metacharacters or use a safe filter builder.
+- id: UF-JAVA-TRUST-ALL
+  title: Hostname verification disabled
+  languages:
+  - java
+  severity: error
+  confidence: medium
+  pattern: \bsetHostnameVerifier\s*\([^;\n]*(?:ALLOW_ALL|return\s+true)
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Do not install a verifier that accepts every host.
+- id: UF-JAVA-TRUST-MANAGER
+  title: Trust manager accepts every certificate
+  languages:
+  - java
+  severity: error
+  confidence: medium
+  pattern: \bcheckServerTrusted\s*\([^)]*\)\s*\{\s*\}
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Validate the peer certificate chain against trusted anchors.
+- id: UF-JAVA-SECURERANDOM-SEED
+  title: SecureRandom seeded with a constant
+  languages:
+  - java
+  severity: warning
+  confidence: high
+  pattern: \bsetSeed\s*\(\s*(?:[0-9]+L?|"[^"]*")\s*\)
+  matcher:
+    callee: (^|\.)setSeed$
+    min_args: 1
+    max_args: 1
+    literal_args:
+    - 0
+  cwe:
+  - CWE-337
+  standards:
+  - OWASP-A02
+  message: Do not make cryptographic random output deterministic with a constant seed.
+- id: UF-JAVA-RANDOM
+  title: Non-cryptographic java.util.Random
+  languages:
+  - java
+  severity: warning
+  confidence: low
+  pattern: \bnew\s+(?:java\.util\.)?Random\s*\(
+  cwe:
+  - CWE-338
+  standards:
+  - OWASP-A02
+  message: Use SecureRandom for tokens, credentials, and security decisions.
+- id: UF-JAVA-XXE-DOCTYPE
+  title: XML parser permits DOCTYPE declarations
+  languages:
+  - java
+  severity: error
+  confidence: high
+  pattern: \bsetFeature\s*\(\s*"http://apache\.org/xml/features/disallow-doctype-decl"\s*,\s*false
+  cwe:
+  - CWE-611
+  standards:
+  - CWE-TOP-25
+  - OWASP-A05
+  message: Disallow DOCTYPE declarations for untrusted XML.
+- id: UF-JAVA-XXE-EXTERNAL
+  title: XML parser permits external entities
+  languages:
+  - java
+  severity: error
+  confidence: high
+  pattern: \bsetFeature\s*\(\s*"http://xml\.org/sax/features/external-(?:general|parameter)-entities"\s*,\s*true
+  cwe:
+  - CWE-611
+  standards:
+  - CWE-TOP-25
+  - OWASP-A05
+  message: Disable external entity expansion for untrusted XML.
+- id: UF-JAVA-XPATH-NONLITERAL
+  title: XPath expression constructed at runtime
+  languages:
+  - java
+  severity: warning
+  confidence: medium
+  pattern: \.(?:evaluate|compile)\s*\(
+  matcher:
+    callee: (^|\.)(evaluate|compile)$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-643
+  standards:
+  - OWASP-A03
+  message: Avoid concatenating untrusted values into XPath expressions.
+- id: UF-JAVA-REFLECTION-NONLITERAL
+  title: Dynamic class loading from runtime string
+  languages:
+  - java
+  severity: warning
+  confidence: low
+  pattern: \bClass\.forName\s*\(
+  matcher:
+    callee: (^|\.)Class\.forName$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-470
+  standards:
+  - OWASP-A03
+  message: Restrict dynamic class names to an explicit allowlist.
+- id: UF-JAVA-LOG-FORGING
+  title: Runtime text written directly to a log
+  languages:
+  - java
+  severity: note
+  confidence: low
+  pattern: \.(?:info|warn|error|debug|trace)\s*\(
+  matcher:
+    callee: (^|\.)(info|warn|error|debug|trace)$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-117
+  standards:
+  - OWASP-A09
+  message: Encode CR and LF characters in externally influenced log fields.
+- id: UF-JAVA-XMLDECODER
+  title: XMLDecoder object deserialization
+  languages: &id001
+  - java
+  severity: error
+  confidence: high
+  pattern: \bXMLDecoder\s*\(
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Do not decode attacker-controlled XML object streams.
+- id: UF-JAVA-SERIALIZATIONUTILS
+  title: Apache SerializationUtils deserialization
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bSerializationUtils\.deserialize\s*\(
+  matcher:
+    callee: (^|\.)SerializationUtils\.deserialize$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Do not deserialize untrusted native Java objects.
+- id: UF-JAVA-KRYO-DESERIALIZE
+  title: Kryo class-and-object deserialization
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \.readClassAndObject\s*\(
+  matcher:
+    callee: (^|\.)readClassAndObject$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Register and allowlist expected types before deserializing trusted input only.
+- id: UF-JAVA-SNAKEYAML-DEFAULT
+  title: SnakeYAML default constructor
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bnew\s+Yaml\s*\(\s*\)
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Use SafeConstructor and an explicit type policy for untrusted YAML.
+- id: UF-JAVA-JACKSON-DEFAULT-TYPING
+  title: Jackson polymorphic default typing enabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \.(?:enableDefaultTyping|activateDefaultTyping)\s*\(
+  matcher:
+    callee: (^|\.)(enableDefaultTyping|activateDefaultTyping)$
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Avoid global polymorphic typing; use explicit allowlisted subtypes.
+- id: UF-JAVA-SPEL-NONLITERAL
+  title: Spring expression constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.parseExpression\s*\(
+  matcher:
+    callee: (^|\.)parseExpression$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-917
+  standards:
+  - OWASP-A03
+  message: Do not evaluate externally influenced SpEL expressions.
+- id: UF-JAVA-OGNL-NONLITERAL
+  title: OGNL expression constructed at runtime
+  languages: *id001
+  severity: error
+  confidence: medium
+  pattern: \bOgnl\.getValue\s*\(
+  matcher:
+    callee: (^|\.)Ognl\.getValue$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-917
+  standards:
+  - OWASP-A03
+  message: Do not evaluate externally influenced OGNL expressions.
+- id: UF-JAVA-MVEL-NONLITERAL
+  title: MVEL expression constructed at runtime
+  languages: *id001
+  severity: error
+  confidence: medium
+  pattern: \bMVEL\.(?:eval|compileExpression)\s*\(
+  matcher:
+    callee: (^|\.)MVEL\.(eval|compileExpression)$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-95
+  standards:
+  - OWASP-A03
+  message: Do not evaluate externally influenced MVEL source.
+- id: UF-JAVA-GROOVY-EVAL-NONLITERAL
+  title: Groovy source evaluated at runtime
+  languages: *id001
+  severity: error
+  confidence: medium
+  pattern: \bGroovyShell\s*\([^;]*\)\.evaluate\s*\(
+  cwe:
+  - CWE-95
+  standards:
+  - OWASP-A03
+  message: Do not evaluate externally influenced Groovy source.
+- id: UF-JAVA-NATIVE-QUERY-NONLITERAL
+  title: Native SQL query constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.createNativeQuery\s*\(
+  matcher:
+    callee: (^|\.)createNativeQuery$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-89
+  standards:
+  - OWASP-A03
+  message: Use fixed SQL with bound parameters.
+- id: UF-JAVA-JDBCTEMPLATE-NONLITERAL
+  title: JdbcTemplate query constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.(?:query|queryForObject|queryForList|update|execute)\s*\(
+  matcher:
+    callee: (^|\.)(query|queryForObject|queryForList|update|execute)$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-89
+  standards:
+  - OWASP-A03
+  message: Use fixed SQL and bind untrusted values.
+- id: UF-JAVA-JPA-QUERY-NONLITERAL
+  title: JPA query constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.createQuery\s*\(
+  matcher:
+    callee: (^|\.)createQuery$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-89
+  standards:
+  - OWASP-A03
+  message: Use a fixed JPQL query and bind parameters.
+- id: UF-JAVA-NOOP-HOSTNAME-VERIFIER
+  title: No-op hostname verifier selected
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bNoopHostnameVerifier\.INSTANCE\b
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Use the default strict hostname verifier.
+- id: UF-JAVA-TRUST-ALL-STRATEGY
+  title: Trust-all certificate strategy selected
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bTrustAllStrategy\.INSTANCE\b
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Validate certificate chains against trusted anchors.
+- id: UF-JAVA-SSL-OBSOLETE-CONTEXT
+  title: Obsolete SSLContext protocol
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bSSLContext\.getInstance\s*\(\s*"(?:SSL|SSLv2|SSLv3|TLSv1(?:\.0)?)"
+  cwe:
+  - CWE-326
+  standards:
+  - OWASP-A02
+  message: Use a modern TLS context and enforce a current minimum version.
+- id: UF-JAVA-SHA1PRNG
+  title: Legacy SHA1PRNG selected
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bSecureRandom\.getInstance\s*\(\s*"SHA1PRNG"
+  cwe:
+  - CWE-327
+  standards:
+  - OWASP-A02
+  message: Use the platform default SecureRandom unless a reviewed provider is required.
+- id: UF-JAVA-SECURERANDOM-CONSTANT
+  title: SecureRandom constructed with constant seed
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bnew\s+SecureRandom\s*\(\s*(?:"[^"]*"\.getBytes\s*\(\s*\)|new\s+byte\s*\[[^\]]*\]\s*\{)
+  cwe:
+  - CWE-337
+  standards:
+  - OWASP-A02
+  message: Do not initialize cryptographic randomness with a predictable constant.
+- id: UF-JAVA-COOKIE-SECURE-OFF
+  title: Cookie Secure flag disabled
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \.setSecure\s*\(\s*false\s*\)
+  matcher:
+    callee: (^|\.)setSecure$
+    min_args: 1
+    max_args: 1
+    bool_arg_values:
+      0: false
+  cwe:
+  - CWE-614
+  standards:
+  - OWASP-A05
+  message: Set Secure on cookies carrying session or sensitive data.
+- id: UF-JAVA-COOKIE-HTTPONLY-OFF
+  title: Cookie HttpOnly flag disabled
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \.setHttpOnly\s*\(\s*false\s*\)
+  matcher:
+    callee: (^|\.)setHttpOnly$
+    min_args: 1
+    max_args: 1
+    bool_arg_values:
+      0: false
+  cwe:
+  - CWE-1004
+  standards:
+  - OWASP-A05
+  message: Set HttpOnly on cookies not required by client-side scripts.
+- id: UF-JAVA-SPRING-CSRF-DISABLE
+  title: Spring Security CSRF protection disabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \.csrf\s*\([^;]*\)\.disable\s*\(
+  cwe:
+  - CWE-352
+  standards:
+  - CWE-TOP-25
+  - OWASP-A01
+  message: Keep CSRF protection enabled for browser-authenticated state changes.
+- id: UF-JAVA-SPRING-FRAMEOPTIONS-DISABLE
+  title: Spring frame protections disabled
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \.frameOptions\s*\([^;]*\)\.disable\s*\(
+  cwe:
+  - CWE-1021
+  standards:
+  - OWASP-A05
+  message: Keep anti-framing headers enabled unless framing is explicitly required.
+- id: UF-JAVA-CORS-WILDCARD
+  title: CORS allows every origin
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \b(?:allowedOrigins|setAllowedOrigins|addAllowedOrigin)\s*\([^;\n]*"\*"
+  cwe:
+  - CWE-942
+  standards:
+  - OWASP-A05
+  message: Allow only trusted origins, especially when credentials are enabled.
+- id: UF-JAVA-REFLECTION-ACCESSIBLE
+  title: Reflective access checks disabled
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.setAccessible\s*\(\s*true\s*\)
+  matcher:
+    callee: (^|\.)setAccessible$
+    min_args: 1
+    max_args: 1
+    bool_arg_values:
+      0: true
+  cwe:
+  - CWE-470
+  standards:
+  - OWASP-A03
+  message: Avoid bypassing access controls on attacker-influenced reflective targets.
+- id: UF-JAVA-NATIVE-LOAD-NONLITERAL
+  title: Native library path constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bSystem\.(?:load|loadLibrary)\s*\(
+  matcher:
+    callee: (^|\.)System\.(load|loadLibrary)$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-114
+  standards:
+  - CWE-TOP-25
+  message: Restrict native library names and paths to trusted allowlisted values.
+- id: UF-JAVA-URLCLASSLOADER
+  title: Runtime URL class loading
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bnew\s+URLClassLoader\s*\(
+  cwe:
+  - CWE-470
+  standards:
+  - OWASP-A08
+  message: Load code only from trusted, integrity-verified locations.
+- id: UF-JAVA-ANDROID-JS-ENABLED
+  title: Android WebView JavaScript enabled
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.setJavaScriptEnabled\s*\(\s*true\s*\)
+  matcher:
+    callee: (^|\.)setJavaScriptEnabled$
+    min_args: 1
+    max_args: 1
+    bool_arg_values:
+      0: true
+  cwe:
+  - CWE-749
+  standards:
+  - OWASP-A05
+  message: Enable WebView JavaScript only for trusted content that requires it.
+- id: UF-JAVA-ANDROID-JS-INTERFACE
+  title: Android JavaScript bridge exposed
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \.addJavascriptInterface\s*\(
+  matcher:
+    callee: (^|\.)addJavascriptInterface$
+    min_args: 2
+  cwe:
+  - CWE-749
+  standards:
+  - OWASP-A05
+  message: Expose only minimal reviewed interfaces and never load untrusted content.
+- id: UF-JAVA-ANDROID-FILE-ACCESS
+  title: Android WebView file access enabled
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \.setAllowFileAccess\s*\(\s*true\s*\)
+  matcher:
+    callee: (^|\.)setAllowFileAccess$
+    min_args: 1
+    max_args: 1
+    bool_arg_values:
+      0: true
+  cwe:
+  - CWE-22
+  standards:
+  - OWASP-A01
+  message: Disable WebView file access unless strictly required.
+- id: UF-JAVA-ANDROID-MIXED-CONTENT
+  title: Android WebView always allows mixed content
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \.setMixedContentMode\s*\(\s*WebSettings\.MIXED_CONTENT_ALWAYS_ALLOW\s*\)
+  cwe:
+  - CWE-319
+  standards:
+  - OWASP-A02
+  message: Block mixed HTTP content in HTTPS WebViews.
+- id: UF-JAVA-ZIP-SLIP
+  title: Archive entry joined directly to destination path
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bnew\s+File\s*\([^,\n]+,\s*[^\n;]*\.getName\s*\(\s*\)\s*\)
+  cwe:
+  - CWE-22
+  standards:
+  - CWE-TOP-25
+  - OWASP-A01
+  message: Normalize the output path and verify it remains under the destination directory.
+- id: UF-JAVA-EXTERNAL-DTD-ACCESS
+  title: External DTD or schema access enabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bsetAttribute\s*\(\s*XMLConstants\.ACCESS_EXTERNAL_(?:DTD|SCHEMA)\s*,\s*"[^"]+"
+  cwe:
+  - CWE-611
+  standards:
+  - CWE-TOP-25
+  - OWASP-A05
+  message: Set external DTD and schema access to the empty string.

@@ -5,6 +5,13 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[features]
+default = []
+experimental-advanced-value-flow = [
+    "uniflow-lang-python/experimental-python-semantics",
+    "uniflow-lowering/experimental-python-semantics",
+]
+
 [dependencies]
 petgraph.workspace = true
 serde.workspace = true
@@ -13,5 +20,7 @@ uniflow-ir = { path = "../ir" }
 uniflow-rules = { path = "../rules" }
 
 [dev-dependencies]
+uniflow-lang-cpp = { path = "../lang_cpp" }
+uniflow-parser-core = { path = "../parser_core" }
 uniflow-lang-python = { path = "../lang_python" }
 uniflow-lowering = { path = "../lowering" }

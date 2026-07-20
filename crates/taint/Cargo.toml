@@ -10,3 +10,9 @@ petgraph.workspace = true
 serde.workspace = true
 uniflow-rules = { path = "../rules" }
 uniflow-value-flow = { path = "../value_flow" }
+
+[dev-dependencies]
+uniflow-frontend = { path = "../frontend" }
+uniflow-hir = { path = "../hir" }
+uniflow-lowering = { path = "../lowering" }
+uniflow-models = { path = "../models" }

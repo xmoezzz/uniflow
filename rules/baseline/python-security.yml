@@ -1,0 +1,707 @@
+id: python-security
+title: Python security baseline
+rules:
+- id: UF-PY-EVAL
+  title: Dynamic code evaluation
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \b(?:eval|exec)\s*\(
+  matcher:
+    callee: (^|\.)(eval|exec)$
+    min_args: 1
+  cwe:
+  - CWE-95
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Avoid evaluating externally influenced Python code.
+- id: UF-PY-COMPILE
+  title: Dynamic source compilation
+  languages:
+  - python
+  severity: warning
+  confidence: medium
+  pattern: \bcompile\s*\(
+  matcher:
+    callee: (^|\.)compile$
+    min_args: 3
+  cwe:
+  - CWE-95
+  standards:
+  - OWASP-A03
+  message: Treat dynamically compiled source as code execution.
+- id: UF-PY-PICKLE
+  title: Unsafe Python deserialization
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \b(?:pickle|dill|cloudpickle)\.(?:load|loads)\s*\(
+  matcher:
+    callee: (^|\.)(pickle|dill|cloudpickle)\.(load|loads)$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - CWE-TOP-25
+  - OWASP-A08
+  message: Do not deserialize untrusted pickle-compatible data.
+- id: UF-PY-MARSHAL
+  title: Unsafe marshal deserialization
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \bmarshal\.loads?\s*\(
+  matcher:
+    callee: (^|\.)marshal\.(load|loads)$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Do not deserialize untrusted marshal data.
+- id: UF-PY-YAML-LOAD
+  title: Potentially unsafe YAML loading
+  languages:
+  - python
+  severity: warning
+  confidence: medium
+  pattern: \byaml\.load\s*\(
+  matcher:
+    callee: (^|\.)yaml\.load$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Use safe_load or an explicitly constrained loader for untrusted YAML.
+- id: UF-PY-SHELL-TRUE
+  title: subprocess shell execution enabled
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \bsubprocess\.(?:run|Popen|call|check_call|check_output)\s*\(
+  matcher:
+    callee: (^|\.)(run|Popen|call|check_call|check_output)$
+    named_bool_args:
+      shell: true
+  cwe:
+  - CWE-78
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Avoid shell=True with externally influenced command text.
+- id: UF-PY-OS-SYSTEM
+  title: Shell command execution
+  languages:
+  - python
+  severity: warning
+  confidence: high
+  pattern: \bos\.(?:system|popen)\s*\(
+  matcher:
+    callee: (^|\.)os\.(system|popen)$
+    min_args: 1
+  cwe:
+  - CWE-78
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Prefer an argument-vector subprocess API and validate every argument.
+- id: UF-PY-WEAK-HASH
+  title: Weak cryptographic hash
+  languages:
+  - python
+  severity: warning
+  confidence: high
+  pattern: \bhashlib\.(?:md5|sha1)\s*\(
+  matcher:
+    callee: (^|\.)hashlib\.(md5|sha1)$
+  cwe:
+  - CWE-328
+  standards:
+  - OWASP-A02
+  message: Use an approved modern hash for security-sensitive operations.
+- id: UF-PY-HASHLIB-NEW-WEAK
+  title: Weak algorithm selected through hashlib.new
+  languages:
+  - python
+  severity: warning
+  confidence: high
+  pattern: \bhashlib\.new\s*\(
+  matcher:
+    callee: (^|\.)hashlib\.new$
+    min_args: 1
+    string_arg_patterns:
+      0: (?i)^(md5|sha-?1)$
+  cwe:
+  - CWE-328
+  standards:
+  - OWASP-A02
+  message: Use an approved modern hash algorithm.
+- id: UF-PY-REQUESTS-NOVERIFY
+  title: TLS certificate verification disabled
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \b(?:requests\.)?(?:get|post|put|patch|delete|request)\s*\(
+  matcher:
+    callee: (^|\.)(get|post|put|patch|delete|request|Session\.request)$
+    named_bool_args:
+      verify: false
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Keep TLS peer verification enabled.
+- id: UF-PY-SSL-UNVERIFIED
+  title: Unverified TLS context
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \bssl\._create_unverified_context\s*\(
+  matcher:
+    callee: (^|\.)ssl\._create_unverified_context$
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Use a verified TLS context with hostname checking.
+- id: UF-PY-TEMPFILE-MKTEMP
+  title: Insecure temporary path generation
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \btempfile\.mktemp\s*\(
+  matcher:
+    callee: (^|\.)tempfile\.mktemp$
+  cwe:
+  - CWE-377
+  standards:
+  - CWE-TOP-25
+  message: Use NamedTemporaryFile or mkstemp to create the file atomically.
+- id: UF-PY-ARCHIVE-EXTRACTALL
+  title: Archive extraction without member validation
+  languages:
+  - python
+  severity: warning
+  confidence: medium
+  pattern: \b(?:extractall|unpack_archive)\s*\(
+  matcher:
+    callee: (^|\.)(extractall|unpack_archive)$
+  cwe:
+  - CWE-22
+  standards:
+  - CWE-TOP-25
+  - OWASP-A01
+  message: Reject absolute paths and parent-directory traversal before extraction.
+- id: UF-PY-FLASK-DEBUG
+  title: Flask debug server enabled
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \.run\s*\([^\n]*debug\s*=\s*True
+  matcher:
+    callee: (^|\.)run$
+    named_bool_args:
+      debug: true
+  cwe:
+  - CWE-489
+  standards:
+  - OWASP-A05
+  message: Do not deploy the interactive debugger.
+- id: UF-PY-JINJA-NOAUTOESCAPE
+  title: Jinja autoescaping disabled
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \bEnvironment\s*\([^\n]*autoescape\s*=\s*False
+  matcher:
+    callee: (^|\.)Environment$
+    named_bool_args:
+      autoescape: false
+  cwe:
+  - CWE-79
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Keep template autoescaping enabled for untrusted content.
+- id: UF-PY-DJANGO-MARK-SAFE
+  title: Explicit HTML safety override
+  languages:
+  - python
+  severity: warning
+  confidence: high
+  pattern: \bmark_safe\s*\(
+  matcher:
+    callee: (^|\.)mark_safe$
+    min_args: 1
+  cwe:
+  - CWE-79
+  standards:
+  - OWASP-A03
+  message: Do not mark externally influenced text as safe HTML.
+- id: UF-PY-PARAMIKO-AUTOADD
+  title: SSH host keys accepted automatically
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \bAutoAddPolicy\s*\(
+  matcher:
+    callee: (^|\.)AutoAddPolicy$
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Verify SSH host keys against a trusted known-hosts source.
+- id: UF-PY-CHMOD-777
+  title: World-writable file permissions
+  languages:
+  - python
+  severity: error
+  confidence: high
+  pattern: \bos\.chmod\s*\([^\n]*,\s*0o777\s*\)
+  matcher:
+    callee: (^|\.)os\.chmod$
+    min_args: 2
+    max_args: 2
+    int_arg_values:
+      1: 511
+  cwe:
+  - CWE-732
+  standards:
+  - OWASP-A01
+  message: Do not grant write permission to every user.
+- id: UF-PY-RANDOM-SECURITY
+  title: Non-cryptographic random generator
+  languages:
+  - python
+  severity: warning
+  confidence: low
+  pattern: \brandom\.(?:random|randint|choice|choices|randrange|getrandbits)\s*\(
+  matcher:
+    callee: (^|\.)random\.(random|randint|choice|choices|randrange|getrandbits)$
+  cwe:
+  - CWE-338
+  standards:
+  - OWASP-A02
+  message: Use the secrets module for tokens, credentials, and security decisions.
+- id: UF-PY-LOGGING-LISTEN
+  title: Network logging configuration listener
+  languages:
+  - python
+  severity: warning
+  confidence: high
+  pattern: \blogging\.config\.listen\s*\(
+  matcher:
+    callee: (^|\.)logging\.config\.listen$
+  cwe:
+  - CWE-94
+  standards:
+  - OWASP-A08
+  message: Do not expose an unauthenticated logging configuration listener.
+- id: UF-PY-YAML-UNSAFE-LOAD
+  title: Explicit unsafe YAML loading
+  languages: &id001
+  - python
+  severity: error
+  confidence: high
+  pattern: \byaml\.unsafe_load(?:_all)?\s*\(
+  matcher:
+    callee: (^|\.)yaml\.unsafe_load(_all)?$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Use safe_load for untrusted YAML.
+- id: UF-PY-YAML-FULL-LOAD
+  title: Full YAML object construction
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \byaml\.full_load(?:_all)?\s*\(
+  matcher:
+    callee: (^|\.)yaml\.full_load(_all)?$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Use safe_load unless Python-specific object construction is explicitly required.
+- id: UF-PY-YAML-UNSAFE-LOADER
+  title: Unsafe YAML loader selected
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \byaml\.load\s*\([^\n]*(?:Loader|loader)\s*=\s*yaml\.(?:Loader|UnsafeLoader)
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Select SafeLoader for untrusted YAML.
+- id: UF-PY-JSONPICKLE
+  title: jsonpickle object deserialization
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bjsonpickle\.(?:decode|loads)\s*\(
+  matcher:
+    callee: (^|\.)jsonpickle\.(decode|loads)$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Do not decode untrusted jsonpickle payloads.
+- id: UF-PY-PANDAS-PICKLE
+  title: Pandas pickle deserialization
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bpandas\.read_pickle\s*\(
+  matcher:
+    callee: (^|\.)pandas\.read_pickle$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Do not load untrusted pickle-backed data.
+- id: UF-PY-JOBLIB-LOAD
+  title: Joblib deserialization
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bjoblib\.load\s*\(
+  matcher:
+    callee: (^|\.)joblib\.load$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Do not load untrusted joblib artifacts.
+- id: UF-PY-TORCH-LOAD
+  title: PyTorch pickle-backed model loading
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \btorch\.load\s*\(
+  matcher:
+    callee: (^|\.)torch\.load$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Load only trusted model artifacts and prefer weights-only formats.
+- id: UF-PY-SHELVE-OPEN
+  title: Shelve database opens pickle-backed objects
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bshelve\.open\s*\(
+  matcher:
+    callee: (^|\.)shelve\.open$
+    min_args: 1
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Do not open attacker-controlled shelve databases.
+- id: UF-PY-NUMPY-ALLOW-PICKLE
+  title: NumPy pickle loading enabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bnumpy\.load\s*\([^\n]*allow_pickle\s*=\s*True
+  matcher:
+    callee: (^|\.)numpy\.load$
+    named_bool_args:
+      allow_pickle: true
+  cwe:
+  - CWE-502
+  standards:
+  - OWASP-A08
+  message: Keep allow_pickle disabled for untrusted arrays.
+- id: UF-PY-FLASK-RENDER-TEMPLATE-STRING
+  title: Runtime template source rendered
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \brender_template_string\s*\(
+  matcher:
+    callee: (^|\.)render_template_string$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-1336
+  standards:
+  - OWASP-A03
+  message: Use fixed template files and pass untrusted values as data.
+- id: UF-PY-JINJA-TEMPLATE-NONLITERAL
+  title: Jinja template constructed from runtime text
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \bTemplate\s*\(
+  matcher:
+    callee: (^|\.)Template$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-1336
+  standards:
+  - OWASP-A03
+  message: Do not compile externally influenced template source.
+- id: UF-PY-MARKUP-NONLITERAL
+  title: Runtime text marked as safe markup
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bMarkup\s*\(
+  matcher:
+    callee: (^|\.)Markup$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-79
+  standards:
+  - OWASP-A03
+  message: Escape untrusted text instead of marking it safe.
+- id: UF-PY-SQL-EXECUTE-NONLITERAL
+  title: SQL query constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.(?:execute|executemany)\s*\(
+  matcher:
+    callee: (^|\.)(execute|executemany)$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-89
+  standards:
+  - CWE-TOP-25
+  - OWASP-A03
+  message: Use parameter placeholders and bind untrusted values.
+- id: UF-PY-SQL-EXECUTESCRIPT
+  title: SQLite executescript runs multiple statements
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \.executescript\s*\(
+  matcher:
+    callee: (^|\.)executescript$
+    min_args: 1
+  cwe:
+  - CWE-89
+  standards:
+  - OWASP-A03
+  message: Do not pass externally influenced SQL scripts.
+- id: UF-PY-SQLALCHEMY-TEXT-NONLITERAL
+  title: SQLAlchemy textual SQL constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \b(?:sqlalchemy\.)?text\s*\(
+  matcher:
+    callee: (^|\.)text$
+    min_args: 1
+    non_literal_args:
+    - 0
+  cwe:
+  - CWE-89
+  standards:
+  - OWASP-A03
+  message: Use bound parameters with fixed SQL structure.
+- id: UF-PY-DJANGO-RAW-SQL
+  title: Django raw SQL API
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.(?:raw|extra)\s*\(
+  matcher:
+    callee: (^|\.)(raw|extra)$
+    min_args: 1
+  cwe:
+  - CWE-89
+  standards:
+  - OWASP-A03
+  message: Prefer the ORM or strictly parameterized raw SQL.
+- id: UF-PY-LDAP-FILTER-NONLITERAL
+  title: LDAP filter constructed at runtime
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \.(?:search|search_s|search_ext)\s*\(
+  matcher:
+    callee: (^|\.)(search|search_s|search_ext)$
+    min_args: 2
+    non_literal_args:
+    - 1
+  cwe:
+  - CWE-90
+  standards:
+  - OWASP-A03
+  message: Escape LDAP filter metacharacters or use a safe filter builder.
+- id: UF-PY-SSL-CERT-NONE
+  title: TLS certificate validation disabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bverify_mode\s*=\s*ssl\.CERT_NONE
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Set CERT_REQUIRED and validate peer certificates.
+- id: UF-PY-SSL-CHECK-HOSTNAME-OFF
+  title: TLS hostname checking disabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bcheck_hostname\s*=\s*False
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Keep hostname checking enabled.
+- id: UF-PY-SSL-OBSOLETE-PROTOCOL
+  title: Obsolete Python SSL protocol constant
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bssl\.PROTOCOL_(?:SSLv2|SSLv3|TLSv1)\b
+  cwe:
+  - CWE-326
+  standards:
+  - OWASP-A02
+  message: Use a modern TLS client or server context.
+- id: UF-PY-CRYPTO-WEAK-CIPHER
+  title: Obsolete Python cipher primitive
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \b(?:Crypto|Cryptodome)\.Cipher\.(?:DES|DES3|ARC2|ARC4|Blowfish)\b
+  cwe:
+  - CWE-327
+  standards:
+  - OWASP-A02
+  message: Use an approved authenticated encryption construction.
+- id: UF-PY-CRYPTO-AES-ECB
+  title: AES ECB mode selected
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bAES\.MODE_ECB\b
+  cwe:
+  - CWE-327
+  standards:
+  - OWASP-A02
+  message: Use an authenticated mode such as GCM with unique nonces.
+- id: UF-PY-RANDOM-CONSTANT-SEED
+  title: Predictable random seed
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \brandom\.seed\s*\(\s*(?:[0-9]+|["\'][^"\']*["\'])\s*\)
+  cwe:
+  - CWE-337
+  standards:
+  - OWASP-A02
+  message: Do not use deterministic seeds for security-sensitive randomness.
+- id: UF-PY-DJANGO-DEBUG
+  title: Django debug mode enabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: (?m)^\s*DEBUG\s*=\s*True\s*$
+  cwe:
+  - CWE-489
+  standards:
+  - OWASP-A05
+  message: Disable Django debug mode in deployed configurations.
+- id: UF-PY-DJANGO-ALLOWED-HOSTS-ALL
+  title: Django accepts every Host header
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: (?m)^\s*ALLOWED_HOSTS\s*=\s*\[[^\]]*["\']\*["\']
+  cwe:
+  - CWE-346
+  standards:
+  - OWASP-A05
+  message: Restrict ALLOWED_HOSTS to trusted deployment names.
+- id: UF-PY-DJANGO-INSECURE-COOKIE
+  title: Django security cookie flag disabled
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: (?m)^\s*(?:SESSION_COOKIE_SECURE|CSRF_COOKIE_SECURE|SESSION_COOKIE_HTTPONLY)\s*=\s*False\s*$
+  cwe:
+  - CWE-614
+  - CWE-1004
+  standards:
+  - OWASP-A05
+  message: Enable Secure and HttpOnly cookie protections as applicable.
+- id: UF-PY-DJANGO-SSL-REDIRECT-OFF
+  title: Django HTTPS redirect disabled
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: (?m)^\s*SECURE_SSL_REDIRECT\s*=\s*False\s*$
+  cwe:
+  - CWE-319
+  standards:
+  - OWASP-A02
+  message: Redirect production traffic to HTTPS at the application or trusted proxy.
+- id: UF-PY-JWT-NOVERIFY
+  title: JWT signature verification disabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bjwt\.decode\s*\([^\n]*(?:verify\s*=\s*False|verify_signature["\']?\s*:\s*False)
+  cwe:
+  - CWE-347
+  standards:
+  - OWASP-A07
+  message: Always verify JWT signatures and expected claims.
+- id: UF-PY-BOTO-UNSIGNED
+  title: Unsigned AWS requests enabled
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bsignature_version\s*=\s*(?:botocore\.)?UNSIGNED
+  cwe:
+  - CWE-345
+  standards:
+  - OWASP-A07
+  message: Require authenticated request signing unless anonymous access is intentional.
+- id: UF-PY-FTP-CLEARTEXT
+  title: Cleartext FTP client
+  languages: *id001
+  severity: warning
+  confidence: high
+  pattern: \bftplib\.FTP\s*\(
+  matcher:
+    callee: (^|\.)ftplib\.FTP$
+  cwe:
+  - CWE-319
+  standards:
+  - OWASP-A02
+  message: Use FTPS, SFTP, or another authenticated encrypted transport.

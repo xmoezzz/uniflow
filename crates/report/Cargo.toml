@@ -10,3 +10,4 @@ serde.workspace = true
 serde_json.workspace = true
 uniflow-taint = { path = "../taint" }
 uniflow-value-flow = { path = "../value_flow" }
+uniflow-checker-api = { path = "../checker_api" }

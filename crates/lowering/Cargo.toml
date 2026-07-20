@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[features]
+default = []
+experimental-python-semantics = ["uniflow-lang-python/experimental-python-semantics"]
+
 [dependencies]
 indexmap.workspace = true
 uniflow-hir = { path = "../hir" }

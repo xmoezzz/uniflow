@@ -1,0 +1,629 @@
+sources:
+- id: mit-infer-c-source-getenv
+  language: c
+  matcher:
+    exact: getenv
+  out: return
+  kind: environment
+- id: mit-infer-cpp-source-getenv
+  language: cpp
+  matcher:
+    exact: getenv
+  out: return
+  kind: environment
+- id: mit-infer-c-source-gets
+  language: c
+  matcher:
+    exact: gets
+  out: arg0
+  kind: user_input
+- id: mit-infer-cpp-source-gets
+  language: cpp
+  matcher:
+    exact: gets
+  out: arg0
+  kind: user_input
+- id: mit-infer-c-source-fgets
+  language: c
+  matcher:
+    exact: fgets
+  out: arg0
+  kind: user_input
+- id: mit-infer-cpp-source-fgets
+  language: cpp
+  matcher:
+    exact: fgets
+  out: arg0
+  kind: user_input
+- id: mit-infer-c-source-getline
+  language: c
+  matcher:
+    exact: getline
+  out: arg0
+  kind: user_input
+- id: mit-infer-cpp-source-getline
+  language: cpp
+  matcher:
+    exact: getline
+  out: arg0
+  kind: user_input
+- id: mit-infer-c-source-getdelim
+  language: c
+  matcher:
+    exact: getdelim
+  out: arg0
+  kind: user_input
+- id: mit-infer-cpp-source-getdelim
+  language: cpp
+  matcher:
+    exact: getdelim
+  out: arg0
+  kind: user_input
+- id: mit-infer-c-source-read
+  language: c
+  matcher:
+    exact: read
+  out: arg1
+  kind: file
+- id: mit-infer-cpp-source-read
+  language: cpp
+  matcher:
+    exact: read
+  out: arg1
+  kind: file
+- id: mit-infer-c-source-pread
+  language: c
+  matcher:
+    exact: pread
+  out: arg1
+  kind: file
+- id: mit-infer-cpp-source-pread
+  language: cpp
+  matcher:
+    exact: pread
+  out: arg1
+  kind: file
+- id: mit-infer-c-source-recv
+  language: c
+  matcher:
+    exact: recv
+  out: arg1
+  kind: network
+- id: mit-infer-cpp-source-recv
+  language: cpp
+  matcher:
+    exact: recv
+  out: arg1
+  kind: network
+- id: mit-infer-c-source-recvfrom
+  language: c
+  matcher:
+    exact: recvfrom
+  out: arg1
+  kind: network
+- id: mit-infer-cpp-source-recvfrom
+  language: cpp
+  matcher:
+    exact: recvfrom
+  out: arg1
+  kind: network
+- id: mit-infer-c-source-accept
+  language: c
+  matcher:
+    exact: accept
+  out: return
+  kind: network
+- id: mit-infer-cpp-source-accept
+  language: cpp
+  matcher:
+    exact: accept
+  out: return
+  kind: network
+- id: mit-infer-c-source-getcwd
+  language: c
+  matcher:
+    exact: getcwd
+  out: arg0
+  kind: environment
+- id: mit-infer-cpp-source-getcwd
+  language: cpp
+  matcher:
+    exact: getcwd
+  out: arg0
+  kind: environment
+- id: mit-infer-c-source-readlink
+  language: c
+  matcher:
+    exact: readlink
+  out: arg1
+  kind: file
+- id: mit-infer-cpp-source-readlink
+  language: cpp
+  matcher:
+    exact: readlink
+  out: arg1
+  kind: file
+sinks:
+- id: mit-infer-c-sink-system
+  language: c
+  matcher:
+    exact: system
+  inputs: &id001
+  - arg0
+  kind: command
+- id: mit-infer-cpp-sink-system
+  language: cpp
+  matcher:
+    exact: system
+  inputs: *id001
+  kind: command
+- id: mit-infer-c-sink-popen
+  language: c
+  matcher:
+    exact: popen
+  inputs: &id002
+  - arg0
+  kind: command
+- id: mit-infer-cpp-sink-popen
+  language: cpp
+  matcher:
+    exact: popen
+  inputs: *id002
+  kind: command
+- id: mit-infer-c-sink-execl
+  language: c
+  matcher:
+    exact: execl
+  inputs: &id003
+  - arg0
+  - arg1
+  kind: command
+- id: mit-infer-cpp-sink-execl
+  language: cpp
+  matcher:
+    exact: execl
+  inputs: *id003
+  kind: command
+- id: mit-infer-c-sink-execlp
+  language: c
+  matcher:
+    exact: execlp
+  inputs: &id004
+  - arg0
+  - arg1
+  kind: command
+- id: mit-infer-cpp-sink-execlp
+  language: cpp
+  matcher:
+    exact: execlp
+  inputs: *id004
+  kind: command
+- id: mit-infer-c-sink-execle
+  language: c
+  matcher:
+    exact: execle
+  inputs: &id005
+  - arg0
+  - arg1
+  kind: command
+- id: mit-infer-cpp-sink-execle
+  language: cpp
+  matcher:
+    exact: execle
+  inputs: *id005
+  kind: command
+- id: mit-infer-c-sink-execv
+  language: c
+  matcher:
+    exact: execv
+  inputs: &id006
+  - arg0
+  - arg1
+  kind: command
+- id: mit-infer-cpp-sink-execv
+  language: cpp
+  matcher:
+    exact: execv
+  inputs: *id006
+  kind: command
+- id: mit-infer-c-sink-execvp
+  language: c
+  matcher:
+    exact: execvp
+  inputs: &id007
+  - arg0
+  - arg1
+  kind: command
+- id: mit-infer-cpp-sink-execvp
+  language: cpp
+  matcher:
+    exact: execvp
+  inputs: *id007
+  kind: command
+- id: mit-infer-c-sink-execve
+  language: c
+  matcher:
+    exact: execve
+  inputs: &id008
+  - arg0
+  - arg1
+  kind: command
+- id: mit-infer-cpp-sink-execve
+  language: cpp
+  matcher:
+    exact: execve
+  inputs: *id008
+  kind: command
+- id: mit-infer-c-sink-sqlite3_exec
+  language: c
+  matcher:
+    exact: sqlite3_exec
+  inputs: &id009
+  - arg1
+  kind: sql
+- id: mit-infer-cpp-sink-sqlite3_exec
+  language: cpp
+  matcher:
+    exact: sqlite3_exec
+  inputs: *id009
+  kind: sql
+- id: mit-infer-c-sink-mysql_query
+  language: c
+  matcher:
+    exact: mysql_query
+  inputs: &id010
+  - arg1
+  kind: sql
+- id: mit-infer-cpp-sink-mysql_query
+  language: cpp
+  matcher:
+    exact: mysql_query
+  inputs: *id010
+  kind: sql
+- id: mit-infer-c-sink-pqexec
+  language: c
+  matcher:
+    exact: PQexec
+  inputs: &id011
+  - arg1
+  kind: sql
+- id: mit-infer-cpp-sink-pqexec
+  language: cpp
+  matcher:
+    exact: PQexec
+  inputs: *id011
+  kind: sql
+- id: mit-infer-c-sink-dlopen
+  language: c
+  matcher:
+    exact: dlopen
+  inputs: &id012
+  - arg0
+  kind: path
+- id: mit-infer-cpp-sink-dlopen
+  language: cpp
+  matcher:
+    exact: dlopen
+  inputs: *id012
+  kind: path
+- id: mit-infer-c-sink-fopen
+  language: c
+  matcher:
+    exact: fopen
+  inputs: &id013
+  - arg0
+  kind: path
+- id: mit-infer-cpp-sink-fopen
+  language: cpp
+  matcher:
+    exact: fopen
+  inputs: *id013
+  kind: path
+- id: mit-infer-c-sink-open
+  language: c
+  matcher:
+    exact: open
+  inputs: &id014
+  - arg0
+  kind: path
+- id: mit-infer-cpp-sink-open
+  language: cpp
+  matcher:
+    exact: open
+  inputs: *id014
+  kind: path
+- id: mit-infer-c-sink-remove
+  language: c
+  matcher:
+    exact: remove
+  inputs: &id015
+  - arg0
+  kind: path
+- id: mit-infer-cpp-sink-remove
+  language: cpp
+  matcher:
+    exact: remove
+  inputs: *id015
+  kind: path
+- id: mit-infer-c-sink-unlink
+  language: c
+  matcher:
+    exact: unlink
+  inputs: &id016
+  - arg0
+  kind: path
+- id: mit-infer-cpp-sink-unlink
+  language: cpp
+  matcher:
+    exact: unlink
+  inputs: *id016
+  kind: path
+- id: mit-infer-c-sink-rename
+  language: c
+  matcher:
+    exact: rename
+  inputs: &id017
+  - arg0
+  - arg1
+  kind: path
+- id: mit-infer-cpp-sink-rename
+  language: cpp
+  matcher:
+    exact: rename
+  inputs: *id017
+  kind: path
+- id: mit-infer-c-sink-printf
+  language: c
+  matcher:
+    exact: printf
+  inputs: &id018
+  - arg0
+  kind: format
+- id: mit-infer-cpp-sink-printf
+  language: cpp
+  matcher:
+    exact: printf
+  inputs: *id018
+  kind: format
+- id: mit-infer-c-sink-fprintf
+  language: c
+  matcher:
+    exact: fprintf
+  inputs: &id019
+  - arg1
+  kind: format
+- id: mit-infer-cpp-sink-fprintf
+  language: cpp
+  matcher:
+    exact: fprintf
+  inputs: *id019
+  kind: format
+- id: mit-infer-c-sink-sprintf
+  language: c
+  matcher:
+    exact: sprintf
+  inputs: &id020
+  - arg1
+  kind: format
+- id: mit-infer-cpp-sink-sprintf
+  language: cpp
+  matcher:
+    exact: sprintf
+  inputs: *id020
+  kind: format
+- id: mit-infer-c-sink-syslog
+  language: c
+  matcher:
+    exact: syslog
+  inputs: &id021
+  - arg1
+  kind: log
+- id: mit-infer-cpp-sink-syslog
+  language: cpp
+  matcher:
+    exact: syslog
+  inputs: *id021
+  kind: log
+sanitizers: []
+propagators: []
+summaries:
+- id: mit-infer-c-summary-strcpy
+  language: c
+  matcher:
+    exact: strcpy
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-cpp-summary-strcpy
+  language: cpp
+  matcher:
+    exact: strcpy
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-c-summary-strncpy
+  language: c
+  matcher:
+    exact: strncpy
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-cpp-summary-strncpy
+  language: cpp
+  matcher:
+    exact: strncpy
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-c-summary-strcat
+  language: c
+  matcher:
+    exact: strcat
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-cpp-summary-strcat
+  language: cpp
+  matcher:
+    exact: strcat
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-c-summary-strncat
+  language: c
+  matcher:
+    exact: strncat
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-cpp-summary-strncat
+  language: cpp
+  matcher:
+    exact: strncat
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-c-summary-memcpy
+  language: c
+  matcher:
+    exact: memcpy
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-cpp-summary-memcpy
+  language: cpp
+  matcher:
+    exact: memcpy
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-c-summary-memmove
+  language: c
+  matcher:
+    exact: memmove
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-cpp-summary-memmove
+  language: cpp
+  matcher:
+    exact: memmove
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg1
+    to: return
+- id: mit-infer-c-summary-bcopy
+  language: c
+  matcher:
+    exact: bcopy
+  flows:
+  - from: arg0
+    to: arg1
+- id: mit-infer-cpp-summary-bcopy
+  language: cpp
+  matcher:
+    exact: bcopy
+  flows:
+  - from: arg0
+    to: arg1
+- id: mit-infer-c-summary-strdup
+  language: c
+  matcher:
+    exact: strdup
+  flows:
+  - from: arg0
+    to: return
+- id: mit-infer-cpp-summary-strdup
+  language: cpp
+  matcher:
+    exact: strdup
+  flows:
+  - from: arg0
+    to: return
+- id: mit-infer-c-summary-strndup
+  language: c
+  matcher:
+    exact: strndup
+  flows:
+  - from: arg0
+    to: return
+- id: mit-infer-cpp-summary-strndup
+  language: cpp
+  matcher:
+    exact: strndup
+  flows:
+  - from: arg0
+    to: return
+- id: mit-infer-c-summary-asprintf
+  language: c
+  matcher:
+    exact: asprintf
+  flows:
+  - from: arg1
+    to: arg0
+- id: mit-infer-cpp-summary-asprintf
+  language: cpp
+  matcher:
+    exact: asprintf
+  flows:
+  - from: arg1
+    to: arg0
+- id: mit-infer-c-summary-snprintf
+  language: c
+  matcher:
+    exact: snprintf
+  flows:
+  - from: arg2
+    to: arg0
+  - from: arg3
+    to: arg0
+- id: mit-infer-cpp-summary-snprintf
+  language: cpp
+  matcher:
+    exact: snprintf
+  flows:
+  - from: arg2
+    to: arg0
+  - from: arg3
+    to: arg0
+- id: mit-infer-c-summary-sprintf
+  language: c
+  matcher:
+    exact: sprintf
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg2
+    to: arg0
+- id: mit-infer-cpp-summary-sprintf
+  language: cpp
+  matcher:
+    exact: sprintf
+  flows:
+  - from: arg1
+    to: arg0
+  - from: arg2
+    to: arg0

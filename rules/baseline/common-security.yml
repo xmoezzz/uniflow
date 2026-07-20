@@ -1,0 +1,307 @@
+id: common-security
+title: Cross-language credential and transport baseline
+rules:
+- id: UF-COMMON-PRIVATE-KEY
+  title: Embedded private key material
+  languages:
+  - c
+  - cpp
+  - java
+  - python
+  severity: error
+  confidence: high
+  pattern: '-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'
+  cwe:
+  - CWE-321
+  standards:
+  - CWE-TOP-25
+  - OWASP-A02
+  message: Remove private key material from source and rotate the exposed credential.
+- id: UF-COMMON-AWS-ACCESS-KEY
+  title: Embedded AWS access key identifier
+  languages:
+  - c
+  - cpp
+  - java
+  - python
+  severity: error
+  confidence: high
+  pattern: \b(?:AKIA|ASIA)[A-Z0-9]{16}\b
+  cwe:
+  - CWE-798
+  standards:
+  - CWE-TOP-25
+  - OWASP-A07
+  message: Remove the credential from source and rotate it immediately.
+- id: UF-COMMON-HARDCODED-PASSWORD
+  title: Potential hardcoded password or secret
+  languages:
+  - c
+  - cpp
+  - java
+  - python
+  severity: warning
+  confidence: low
+  pattern: (?i)\b(?:password|passwd|pwd|secret|api[_-]?key|auth[_-]?token)\b\s*(?::|=)\s*[\"'][^\"'\n]{6,}[\"']
+  cwe:
+  - CWE-798
+  - CWE-259
+  standards:
+  - CWE-TOP-25
+  - OWASP-A07
+  message: Load credentials from an approved secret store instead of source code.
+- id: UF-COMMON-HTTP-URL
+  title: Cleartext HTTP endpoint
+  languages:
+  - c
+  - cpp
+  - java
+  - python
+  severity: warning
+  confidence: medium
+  pattern: http://[^\s\"']+
+  cwe:
+  - CWE-319
+  standards:
+  - OWASP-A02
+  message: Use authenticated TLS unless the endpoint is explicitly local and non-sensitive.
+- id: UF-COMMON-DISABLED-CERT-CHECK
+  title: Certificate verification disabled by literal configuration
+  languages:
+  - c
+  - cpp
+  - java
+  - python
+  severity: error
+  confidence: medium
+  pattern: (?i)\b(?:verify[_-]?(?:ssl|tls|cert)|check[_-]?hostname|certificate[_-]?validation)\b\s*(?::|=)\s*(?:false|0|none)
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Keep certificate and hostname verification enabled.
+- id: UF-COMMON-GITHUB-TOKEN
+  title: Embedded GitHub access token
+  languages: &id001
+  - c
+  - cpp
+  - java
+  - python
+  severity: error
+  confidence: high
+  pattern: \bgh[pousr]_[A-Za-z0-9]{36,255}\b
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove the token from source and revoke it immediately.
+- id: UF-COMMON-GITLAB-TOKEN
+  title: Embedded GitLab access token
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bglpat-[A-Za-z0-9_-]{20,}\b
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove the token from source and rotate it immediately.
+- id: UF-COMMON-SLACK-TOKEN
+  title: Embedded Slack token
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bxox[baprs]-[A-Za-z0-9-]{20,}\b
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove the Slack token from source and revoke it.
+- id: UF-COMMON-GOOGLE-API-KEY
+  title: Embedded Google API key
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bAIza[0-9A-Za-z_-]{35}\b
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Move the API key to an approved secret store and rotate it.
+- id: UF-COMMON-STRIPE-SECRET
+  title: Embedded Stripe secret key
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bsk_(?:live|test)_[0-9A-Za-z]{16,}\b
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove the Stripe key from source and rotate it.
+- id: UF-COMMON-SENDGRID-KEY
+  title: Embedded SendGrid API key
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bSG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{20,}\b
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove the SendGrid key from source and rotate it.
+- id: UF-COMMON-TWILIO-KEY
+  title: Embedded Twilio API key
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bSK[0-9a-fA-F]{32}\b
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove the Twilio key from source and rotate it.
+- id: UF-COMMON-JWT-LITERAL
+  title: Embedded JSON Web Token
+  languages: *id001
+  severity: warning
+  confidence: medium
+  pattern: \beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Do not embed bearer tokens in source; revoke exposed credentials.
+- id: UF-COMMON-BASIC-AUTH-URL
+  title: Credentials embedded in URL
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: https?://[^\s/:@"\']+:[^\s/@"\']+@
+  cwe:
+  - CWE-798
+  - CWE-522
+  standards:
+  - OWASP-A07
+  message: Remove credentials from the URL and use a secret store.
+- id: UF-COMMON-DATABASE-URL-CREDENTIALS
+  title: Database credentials embedded in connection URL
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: (?i)\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?)://[^\s/:@"\']+:[^\s/@"\']+@
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove database credentials from source and rotate them.
+- id: UF-COMMON-BEARER-LITERAL
+  title: Literal bearer authorization token
+  languages: *id001
+  severity: error
+  confidence: medium
+  pattern: (?i)\bAuthorization\b[^\n]{0,24}\bBearer\s+[A-Za-z0-9._~+/-]{16,}
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Do not embed bearer credentials in source.
+- id: UF-COMMON-AZURE-ACCOUNT-KEY
+  title: Embedded Azure storage account key
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: (?i)\bAccountKey=[A-Za-z0-9+/]{40,}={0,2}
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove the storage account key from source and rotate it.
+- id: UF-COMMON-AWS-SECRET-KEY
+  title: Embedded AWS secret access key
+  languages: *id001
+  severity: error
+  confidence: medium
+  pattern: (?i)\baws_secret_access_key\b\s*(?::|=)\s*["\'][A-Za-z0-9/+=]{32,}["\']
+  cwe:
+  - CWE-798
+  standards:
+  - OWASP-A07
+  message: Remove the AWS secret from source and rotate the credential pair.
+- id: UF-COMMON-HOSTNAME-VERIFY-OFF
+  title: Hostname verification disabled
+  languages: *id001
+  severity: error
+  confidence: medium
+  pattern: (?i)\b(?:verify_hostname|hostname_verification|verifyHost|verify_host)\b\s*(?::|=)\s*(?:false|0|none)
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Keep TLS hostname verification enabled.
+- id: UF-COMMON-OBSOLETE-TLS
+  title: Obsolete SSL or TLS protocol selected
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: (?i)["\'](?:SSLv2|SSLv3|TLSv1(?:\.0)?)["\']
+  cwe:
+  - CWE-326
+  standards:
+  - OWASP-A02
+  message: Require TLS 1.2 or newer according to deployment policy.
+- id: UF-COMMON-NODE-TLS-OFF
+  title: Node TLS verification disabled through environment configuration
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bNODE_TLS_REJECT_UNAUTHORIZED\b\s*(?::|=)\s*["\']?0["\']?
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Do not disable TLS certificate verification.
+- id: UF-COMMON-GIT-TLS-OFF
+  title: Git TLS verification disabled through environment configuration
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bGIT_SSL_NO_VERIFY\b\s*(?::|=)\s*["\']?(?:1|true)["\']?
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Do not disable Git TLS certificate verification.
+- id: UF-COMMON-EMPTY-CA-BUNDLE
+  title: CA bundle explicitly disabled
+  languages: *id001
+  severity: error
+  confidence: medium
+  pattern: \b(?:CURL_CA_BUNDLE|SSL_CERT_FILE)\b\s*(?::|=)\s*["\']["\']
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Configure a trusted CA bundle instead of disabling verification.
+- id: UF-COMMON-PYTHON-HTTPSVERIFY-OFF
+  title: Python HTTPS verification disabled through environment configuration
+  languages: *id001
+  severity: error
+  confidence: high
+  pattern: \bPYTHONHTTPSVERIFY\b\s*(?::|=)\s*["\']?0["\']?
+  cwe:
+  - CWE-295
+  standards:
+  - OWASP-A02
+  message: Keep Python HTTPS verification enabled.
+- id: UF-COMMON-HARDCODED-CRYPTO-KEY
+  title: Potential hardcoded cryptographic key or IV
+  languages: *id001
+  severity: warning
+  confidence: low
+  pattern: (?i)\b(?:encryption[_-]?key|crypto[_-]?key|secret[_-]?key|aes[_-]?key|initialization[_-]?vector|\biv)\b\s*(?::|=)\s*["\'][0-9A-Fa-f]{16,}["\']
+  cwe:
+  - CWE-321
+  standards:
+  - OWASP-A02
+  message: Load cryptographic key material from an approved key-management system.

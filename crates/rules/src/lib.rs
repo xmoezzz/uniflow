@@ -30,6 +30,11 @@ impl RuleSet {
         self.sanitizers.extend(other.sanitizers);
         self.propagators.extend(other.propagators);
         self.summaries.extend(other.summaries);
+        dedup_by_id(&mut self.sources, |rule| &rule.id);
+        dedup_by_id(&mut self.sinks, |rule| &rule.id);
+        dedup_by_id(&mut self.sanitizers, |rule| &rule.id);
+        dedup_by_id(&mut self.propagators, |rule| &rule.id);
+        dedup_by_id(&mut self.summaries, |rule| &rule.id);
     }
 
     pub fn validate(&self) -> AnyResult<()> {
@@ -44,13 +49,19 @@ impl RuleSet {
         }
         for rule in &self.sanitizers {
             if rule.inputs.is_empty() || rule.outputs.is_empty() {
-                bail!("sanitizer rule '{}' must define both inputs and outputs", rule.id);
+                bail!(
+                    "sanitizer rule '{}' must define both inputs and outputs",
+                    rule.id
+                );
             }
             rule.matcher.validate()?;
         }
         for rule in &self.propagators {
             if rule.flows.is_empty() {
-                bail!("propagator rule '{}' must define at least one flow", rule.id);
+                bail!(
+                    "propagator rule '{}' must define at least one flow",
+                    rule.id
+                );
             }
             rule.matcher.validate()?;
         }
@@ -62,6 +73,14 @@ impl RuleSet {
         }
         Ok(())
     }
+}
+
+fn dedup_by_id<T, F>(items: &mut Vec<T>, id: F)
+where
+    F: Fn(&T) -> &str,
+{
+    let mut seen = std::collections::HashSet::new();
+    items.retain(|item| seen.insert(id(item).to_string()));
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -187,7 +206,6 @@ fn match_string_constraints(
     true
 }
 
-
 fn match_receiver_constraints(
     exact: Option<&str>,
     contains: Option<&str>,
@@ -291,7 +309,9 @@ fn split_callee_name(callee_name: &str) -> (Option<String>, Option<String>) {
 }
 
 pub fn language_matches(rule_language: &Option<Language>, active_language: &Language) -> bool {
-    rule_language.as_ref().map_or(true, |lang| lang == active_language)
+    rule_language
+        .as_ref()
+        .map_or(true, |lang| lang == active_language)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -330,7 +350,9 @@ fn parse_port(s: &str) -> std::result::Result<Port, String> {
         "return" => Ok(Port::Return),
         _ => {
             if let Some(rest) = s.strip_prefix("arg") {
-                let idx = rest.parse::<usize>().map_err(|_| format!("invalid port: {s}"))?;
+                let idx = rest
+                    .parse::<usize>()
+                    .map_err(|_| format!("invalid port: {s}"))?;
                 Ok(Port::Arg(idx))
             } else {
                 Err(format!("invalid port: {s}"))

@@ -3,7 +3,10 @@ use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use uniflow_rules::{language_matches, RuleSet};
-use uniflow_value_flow::{FlowGraph, FlowNode};
+use uniflow_value_flow::{
+    DemandEngine, DemandQuery, DemandSeed, EdgeKind, FlowGraph, FlowNode, QueryCompleteness,
+    SparseDirection,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TaintStep {
@@ -30,6 +33,16 @@ pub struct TaintFinding {
     pub sink_location: String,
     pub path_labels: Vec<String>,
     pub steps: Vec<TaintStep>,
+    #[serde(default)]
+    pub finding_kind: String,
+    #[serde(default)]
+    pub severity: String,
+    #[serde(default)]
+    pub message: String,
+    #[serde(default = "default_true")]
+    pub analysis_complete: bool,
+    #[serde(default)]
+    pub completeness: QueryCompleteness,
 }
 
 #[derive(Clone, Debug)]
@@ -46,6 +59,16 @@ struct SanitizerEdge {
     kind: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct TraversalState {
+    node: NodeIndex,
+    call_stack: Vec<(u32, u32)>,
+    context_truncated: bool,
+}
+
+
+fn default_true() -> bool { true }
+
 pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
     let sanitizer_edges = build_sanitizer_map(flow, rules);
     let source_seeds = collect_source_seeds(flow);
@@ -53,52 +76,268 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
     let mut seen = HashSet::new();
 
     for source in source_seeds {
-        let mut queue = VecDeque::new();
-        let mut visited = HashSet::new();
-        let mut parent: HashMap<NodeIndex, (NodeIndex, String)> = HashMap::new();
+        let forward_query = DemandQuery {
+            seeds: vec![DemandSeed::Node(source.node.index())],
+            direction: SparseDirection::Forward,
+            engine: DemandEngine::Fixpoint,
+            include_heap: true,
+        };
+        let forward_plan = flow.solver_plan_for_query(&forward_query);
+        let Some(forward_summary) = flow.execute_solver_plan(&forward_plan) else {
+            continue;
+        };
+        let forward_nodes = forward_summary
+            .traversal
+            .visited
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
 
-        queue.push_back(source.node);
-        visited.insert(source.node);
+        for sink in collect_compatible_sinks(flow, &source.kind, &forward_nodes) {
+            // A forward demand summary tells us which nodes may be influenced by the source.  A
+            // sink-specific backward summary removes nodes that cannot contribute to this sink.
+            // The witness search is therefore constrained to the bidirectional demand slice,
+            // rather than falling back to an unrestricted whole-graph taint traversal.
+            let backward_query = DemandQuery {
+                seeds: vec![DemandSeed::Node(sink.node.index())],
+                direction: SparseDirection::Backward,
+                engine: DemandEngine::Fixpoint,
+                include_heap: true,
+            };
+            let backward_plan = flow.solver_plan_for_query(&backward_query);
+            let Some(backward_summary) = flow.execute_solver_plan(&backward_plan) else {
+                continue;
+            };
+            let backward_nodes = backward_summary
+                .traversal
+                .visited
+                .iter()
+                .copied()
+                .collect::<HashSet<_>>();
+            let mut allowed_nodes = forward_nodes
+                .intersection(&backward_nodes)
+                .copied()
+                .collect::<HashSet<_>>();
+            allowed_nodes.insert(source.node.index());
+            allowed_nodes.insert(sink.node.index());
 
-        while let Some(node) = queue.pop_front() {
-            for edge in flow.graph.edges(node) {
-                let next = edge.target();
-                if is_sanitized_transfer(&sanitizer_edges, &source.kind, edge.source(), next) {
-                    continue;
-                }
-                if visited.insert(next) {
-                    parent.insert(next, (node, format!("{:?}", edge.weight().kind)));
-                    queue.push_back(next);
-                }
-                if let FlowNode::SyntheticSink { rule_id, kind, .. } = &flow.graph[next] {
-                    if !kind_compatible(&source.kind, kind) {
-                        continue;
-                    }
-                    let path = reconstruct_path(source.node, next, &parent);
-                    let key = (
-                        source.rule_id.clone(),
-                        rule_id.clone(),
-                        source.kind.clone(),
-                        kind.clone(),
-                        path.clone(),
-                    );
-                    if seen.insert(key) {
-                        findings.push(build_finding(
-                            flow,
-                            &source.rule_id,
-                            rule_id,
-                            &source.kind,
-                            kind,
-                            next,
-                            &path,
-                        ));
-                    }
-                }
+            let context_limit = forward_plan
+                .max_depth
+                .max(backward_plan.max_depth)
+                .clamp(8, 32);
+            let Some((path, context_truncated)) = find_contextual_path_to_sink(
+                flow,
+                &sanitizer_edges,
+                &source,
+                &sink,
+                &allowed_nodes,
+                context_limit,
+            ) else {
+                continue;
+            };
+
+            let mut completeness = merge_completeness(
+                forward_summary.traversal.completeness,
+                backward_summary.traversal.completeness,
+            );
+            if context_truncated {
+                completeness = merge_completeness(
+                    completeness,
+                    QueryCompleteness::ContextLimitReached,
+                );
+            }
+            let finding = build_finding(
+                flow,
+                &source.rule_id,
+                &sink.rule_id,
+                &source.kind,
+                &sink.kind,
+                sink.node,
+                &path,
+                completeness,
+            );
+            let key = (
+                finding.source_rule_id.clone(),
+                finding.sink_rule_id.clone(),
+                finding.source_kind.clone(),
+                finding.sink_kind.clone(),
+                finding.source_location.clone(),
+                finding.sink_location.clone(),
+                finding.path_labels.clone(),
+            );
+            if seen.insert(key) {
+                findings.push(finding);
             }
         }
     }
 
+    findings.extend(lifetime_findings(flow));
     findings
+}
+
+#[derive(Clone, Debug)]
+struct SinkSeed {
+    node: NodeIndex,
+    rule_id: String,
+    kind: String,
+}
+
+fn collect_compatible_sinks(
+    flow: &FlowGraph,
+    source_kind: &str,
+    forward_nodes: &HashSet<usize>,
+) -> Vec<SinkSeed> {
+    flow.synthetic_sinks
+        .iter()
+        .filter(|node| forward_nodes.contains(&node.index()))
+        .filter_map(|node| match &flow.graph[*node] {
+            FlowNode::SyntheticSink { rule_id, kind, .. }
+                if kind_compatible(source_kind, kind) =>
+            {
+                Some(SinkSeed {
+                    node: *node,
+                    rule_id: rule_id.clone(),
+                    kind: kind.clone(),
+                })
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn find_contextual_path_to_sink(
+    flow: &FlowGraph,
+    sanitizer_edges: &[SanitizerEdge],
+    source: &SourceSeed,
+    sink: &SinkSeed,
+    allowed_nodes: &HashSet<usize>,
+    context_limit: usize,
+) -> Option<(Vec<usize>, bool)> {
+    let start = TraversalState {
+        node: source.node,
+        call_stack: Vec::new(),
+        context_truncated: false,
+    };
+    let mut queue = VecDeque::from([start.clone()]);
+    let mut visited = HashSet::from([start.clone()]);
+    let mut parent = HashMap::<TraversalState, TraversalState>::new();
+
+    while let Some(state) = queue.pop_front() {
+        if state.node == sink.node {
+            let path = reconstruct_contextual_path(&start, &state, &parent);
+            return Some((path, state.context_truncated));
+        }
+        for edge in flow.graph.edges(state.node) {
+            let next_node = edge.target();
+            if !allowed_nodes.contains(&next_node.index()) {
+                continue;
+            }
+            if is_sanitized_transfer(
+                sanitizer_edges,
+                &source.kind,
+                edge.source(),
+                next_node,
+            ) {
+                continue;
+            }
+            let Some(next_state) = transition_state(
+                flow,
+                &state,
+                next_node,
+                &edge.weight().kind,
+                context_limit,
+            ) else {
+                continue;
+            };
+            if visited.insert(next_state.clone()) {
+                parent.insert(next_state.clone(), state.clone());
+                queue.push_back(next_state);
+            }
+        }
+    }
+    None
+}
+
+fn merge_completeness(left: QueryCompleteness, right: QueryCompleteness) -> QueryCompleteness {
+    fn rank(value: QueryCompleteness) -> u8 {
+        match value {
+            QueryCompleteness::Complete => 0,
+            QueryCompleteness::HeapWidened => 1,
+            QueryCompleteness::ContextLimitReached => 2,
+            QueryCompleteness::DepthLimitReached => 3,
+            QueryCompleteness::VisitLimitReached => 4,
+        }
+    }
+    if rank(right) > rank(left) { right } else { left }
+}
+
+fn transition_state(
+    flow: &FlowGraph,
+    state: &TraversalState,
+    next_node: NodeIndex,
+    edge_kind: &EdgeKind,
+    context_limit: usize,
+) -> Option<TraversalState> {
+    let mut call_stack = state.call_stack.clone();
+    match edge_kind {
+        EdgeKind::ActualToFormal => {
+            let site = call_site_of(&flow.graph[state.node])?;
+            call_stack.push(site);
+            let mut context_truncated = state.context_truncated;
+            if call_stack.len() > context_limit {
+                let excess = call_stack.len() - context_limit;
+                call_stack.drain(0..excess);
+                context_truncated = true;
+            }
+            return Some(TraversalState {
+                node: next_node,
+                call_stack,
+                context_truncated,
+            });
+        }
+        EdgeKind::FormalToActual => {
+            let site = call_site_of(&flow.graph[next_node])?;
+            if let Some(active) = call_stack.last().copied() {
+                if active != site {
+                    return None;
+                }
+                call_stack.pop();
+            }
+        }
+        _ => {}
+    }
+    Some(TraversalState {
+        node: next_node,
+        call_stack,
+        context_truncated: state.context_truncated,
+    })
+}
+
+fn call_site_of(node: &FlowNode) -> Option<(u32, u32)> {
+    match node {
+        FlowNode::CallPort { func, inst, .. }
+        | FlowNode::SyntheticSource { func, inst, .. }
+        | FlowNode::SyntheticSink { func, inst, .. } => Some((func.0, inst.0)),
+        _ => None,
+    }
+}
+
+fn reconstruct_contextual_path(
+    start: &TraversalState,
+    end: &TraversalState,
+    parent: &HashMap<TraversalState, TraversalState>,
+) -> Vec<usize> {
+    let mut path = vec![end.node.index()];
+    let mut cur = end.clone();
+    while &cur != start {
+        let Some(prev) = parent.get(&cur) else {
+            break;
+        };
+        path.push(prev.node.index());
+        cur = prev.clone();
+    }
+    path.reverse();
+    path
 }
 
 pub fn pretty_findings(findings: &[TaintFinding]) -> String {
@@ -108,16 +347,20 @@ pub fn pretty_findings(findings: &[TaintFinding]) -> String {
             out.push('\n');
         }
         out.push_str(&format!(
-            "finding {}\n  source_rule: {}\n  sink_rule: {}\n  source_kind: {}\n  sink_kind: {}\n  source: {}\n  sink: {}\n  source_location: {}\n  sink_location: {}\n",
+            "finding {}\n  kind: {}\n  rule: {}\n  severity: {}\n  message: {}\n  source_kind: {}\n  sink_kind: {}\n  source: {}\n  sink: {}\n  source_location: {}\n  sink_location: {}\n  complete: {} ({:?})\n",
             idx + 1,
-            finding.source_rule_id,
+            finding.finding_kind,
             finding.sink_rule_id,
+            finding.severity,
+            finding.message,
             finding.source_kind,
             finding.sink_kind,
             finding.source_label,
             finding.sink_label,
             finding.source_location,
             finding.sink_location,
+            finding.analysis_complete,
+            finding.completeness,
         ));
         for step in &finding.steps {
             out.push_str(&format!(
@@ -158,6 +401,7 @@ fn build_finding(
     sink_kind: &str,
     sink: NodeIndex,
     path: &[usize],
+    completeness: QueryCompleteness,
 ) -> TaintFinding {
     let path_labels = path
         .iter()
@@ -205,25 +449,49 @@ fn build_finding(
             .unwrap_or_else(|| "@unknown".to_string()),
         path_labels,
         steps,
+        finding_kind: "taint".to_string(),
+        severity: if sink_kind == "command" { "error" } else { "warning" }.to_string(),
+        message: format!(
+            "Taint of kind '{}' reaches sink '{}' from source '{}'",
+            source_kind, sink_rule_id, source_rule_id
+        ),
+        analysis_complete: completeness == QueryCompleteness::Complete,
+        completeness,
     }
 }
 
-fn reconstruct_path(
-    start: NodeIndex,
-    end: NodeIndex,
-    parent: &HashMap<NodeIndex, (NodeIndex, String)>,
-) -> Vec<usize> {
-    let mut path = vec![end];
-    let mut cur = end;
-    while cur != start {
-        let Some((prev, _)) = parent.get(&cur) else {
-            break;
-        };
-        path.push(*prev);
-        cur = *prev;
-    }
-    path.reverse();
-    path.into_iter().map(|n| n.index()).collect()
+fn lifetime_findings(flow: &FlowGraph) -> Vec<TaintFinding> {
+    flow.lifetime_diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let node = flow
+                .values
+                .get(&(diagnostic.function, diagnostic.value))
+                .copied();
+            let path = node.map(|node| vec![node.index()]).unwrap_or_default();
+            let label = diagnostic.message.clone();
+            let location = flow.span_text(&diagnostic.span);
+            TaintFinding {
+                source_rule_id: diagnostic.rule_id.clone(),
+                sink_rule_id: diagnostic.rule_id.clone(),
+                source_kind: "lifetime".to_string(),
+                sink_kind: "lifetime".to_string(),
+                sink_node: node.map(NodeIndex::index).unwrap_or(0),
+                path: path.clone(),
+                source_label: label.clone(),
+                sink_label: label.clone(),
+                source_location: location.clone(),
+                sink_location: location,
+                path_labels: vec![label],
+                steps: Vec::new(),
+                finding_kind: "lifetime".to_string(),
+                severity: diagnostic.severity.clone(),
+                message: diagnostic.message.clone(),
+                analysis_complete: true,
+                completeness: QueryCompleteness::Complete,
+            }
+        })
+        .collect()
 }
 
 fn build_sanitizer_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<SanitizerEdge> {
@@ -233,13 +501,18 @@ fn build_sanitizer_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<SanitizerEdge> 
             continue;
         };
         for rule in &rules.sanitizers {
-            if !language_matches(&rule.language, &flow.language) || !rule.matcher.matches_call(&call_info) {
+            if !language_matches(&rule.language, &flow.language)
+                || !rule.matcher.matches_call(&call_info)
+            {
                 continue;
             }
             for input in &rule.inputs {
                 for output in &rule.outputs {
                     let from = flow.call_ports.get(&(*func, *inst, input.clone())).copied();
-                    let to = flow.call_ports.get(&(*func, *inst, output.clone())).copied();
+                    let to = flow
+                        .call_ports
+                        .get(&(*func, *inst, output.clone()))
+                        .copied();
                     if let (Some(from), Some(to)) = (from, to) {
                         blocked.push(SanitizerEdge {
                             from: from.index(),
@@ -261,7 +534,9 @@ fn is_sanitized_transfer(
     to: NodeIndex,
 ) -> bool {
     blocked.iter().any(|edge| {
-        edge.from == from.index() && edge.to == to.index() && kind_compatible(taint_kind, &edge.kind)
+        edge.from == from.index()
+            && edge.to == to.index()
+            && kind_compatible(taint_kind, &edge.kind)
     })
 }
 
@@ -303,4 +578,163 @@ fn node_location(flow: &FlowGraph, idx: NodeIndex) -> String {
             .map(|span| flow.span_text(span))
             .unwrap_or_else(|| "@unknown".to_string()),
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uniflow_frontend::parse_source;
+    use uniflow_hir::Language;
+    use uniflow_lowering::lower_program;
+    use uniflow_models::default_models_for;
+    use uniflow_value_flow::build;
+
+    fn analyze_source(language: Language, path: &str, source: &str) -> Vec<TaintFinding> {
+        let rules = default_models_for(language.clone());
+        let hir = parse_source(language, path, source).expect("source should parse");
+        let ir = lower_program(&hir);
+        let flow = build(&ir, &rules);
+        analyze(&flow, &rules)
+    }
+
+    #[test]
+    fn detects_c_getenv_to_system_end_to_end() {
+        let findings = analyze_source(
+            Language::C,
+            "smoke.c",
+            r#"
+char *getenv(const char *name);
+int system(const char *command);
+int main(void) {
+    char *cmd = getenv("CMD");
+    return system(cmd);
+}
+"#,
+        );
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].source_rule_id, "c-getenv");
+        assert_eq!(findings[0].sink_rule_id, "c-system");
+        assert!(findings[0].path_labels.len() >= 5);
+    }
+
+    #[test]
+    fn detects_cpp_getenv_to_system_end_to_end() {
+        let findings = analyze_source(
+            Language::Cpp,
+            "smoke.cpp",
+            r#"
+char *getenv(const char *name);
+int system(const char *command);
+int main() {
+    char *cmd = getenv("CMD");
+    return system(cmd);
+}
+"#,
+        );
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].source_rule_id, "c-getenv");
+        assert_eq!(findings[0].sink_rule_id, "c-system");
+        assert!(findings[0].path_labels.len() >= 5);
+    }
+
+    #[test]
+    fn detects_java_request_parameter_to_sql_end_to_end() {
+        let findings = analyze_source(
+            Language::Java,
+            "Controller.java",
+            r#"
+import javax.servlet.http.HttpServletRequest;
+import java.sql.Statement;
+
+class Controller {
+    void handle(HttpServletRequest req, Statement stmt) {
+        String sql = req.getParameter("q");
+        stmt.executeQuery(sql);
+    }
+}
+"#,
+        );
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].source_rule_id, "java-http-request-param");
+        assert_eq!(findings[0].sink_rule_id, "java-sql-statement-executequery");
+        assert!(findings[0].path_labels.len() >= 5);
+    }
+
+    #[test]
+    fn detects_python_getenv_to_system_once_end_to_end() {
+        let findings = analyze_source(
+            Language::Python,
+            "smoke.py",
+            r#"
+import os
+
+def handle():
+    cmd = os.getenv("CMD")
+    os.system(cmd)
+"#,
+        );
+
+        assert_eq!(
+            findings.len(),
+            1,
+            "equivalent model matches must be deduplicated"
+        );
+        assert_eq!(findings[0].source_rule_id, "python-os-getenv");
+        assert_eq!(findings[0].sink_rule_id, "python-os-system");
+        assert!(findings[0].path_labels.len() >= 5);
+    }
+
+    #[test]
+    fn taint_witness_is_constrained_by_bidirectional_demand_slices() {
+        let language = Language::C;
+        let rules = default_models_for(language.clone());
+        let hir = parse_source(
+            language,
+            "bidirectional.c",
+            r#"
+char *getenv(const char *name);
+int system(const char *command);
+int main(void) {
+    char *cmd = getenv("CMD");
+    return system(cmd);
+}
+"#,
+        )
+        .expect("source should parse");
+        let ir = lower_program(&hir);
+        let flow = build(&ir, &rules);
+        let findings = analyze(&flow, &rules);
+        let finding = findings
+            .iter()
+            .find(|finding| finding.finding_kind == "taint")
+            .expect("taint finding");
+        let source = *finding.path.first().expect("source node");
+        let sink = *finding.path.last().expect("sink node");
+        let forward = flow
+            .execute_solver_plan(&flow.solver_plan_for_query(&DemandQuery {
+                seeds: vec![DemandSeed::Node(source)],
+                direction: SparseDirection::Forward,
+                engine: DemandEngine::Fixpoint,
+                include_heap: true,
+            }))
+            .expect("forward demand summary");
+        let backward = flow
+            .execute_solver_plan(&flow.solver_plan_for_query(&DemandQuery {
+                seeds: vec![DemandSeed::Node(sink)],
+                direction: SparseDirection::Backward,
+                engine: DemandEngine::Fixpoint,
+                include_heap: true,
+            }))
+            .expect("backward demand summary");
+        let forward = forward.traversal.visited.into_iter().collect::<HashSet<_>>();
+        let backward = backward.traversal.visited.into_iter().collect::<HashSet<_>>();
+        assert!(finding
+            .path
+            .iter()
+            .all(|node| forward.contains(node) && backward.contains(node)));
+    }
+
 }

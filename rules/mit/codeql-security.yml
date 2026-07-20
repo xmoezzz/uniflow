@@ -1,0 +1,218 @@
+sources:
+- id: mit-codeql-source-django-http-httprequest-body
+  language: python
+  matcher:
+    exact: django.http.HttpRequest.body
+  out: return
+  kind: http
+- id: mit-codeql-source-flask-request-args-get
+  language: python
+  matcher:
+    exact: flask.request.args.get
+  out: return
+  kind: http
+- id: mit-codeql-source-flask-request-form-get
+  language: python
+  matcher:
+    exact: flask.request.form.get
+  out: return
+  kind: http
+- id: mit-codeql-source-fastapi-params-query
+  language: python
+  matcher:
+    exact: fastapi.params.Query
+  out: return
+  kind: http
+sinks:
+- id: mit-codeql-py-sink-django-db-connection-cursor-execute
+  language: python
+  matcher:
+    exact: django.db.connection.cursor.execute
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-codeql-py-sink-subprocess-getoutput
+  language: python
+  matcher:
+    exact: subprocess.getoutput
+  inputs:
+  - arg0
+  kind: command
+- id: mit-codeql-py-sink-tempfile-mktemp
+  language: python
+  matcher:
+    exact: tempfile.mktemp
+  inputs:
+  - arg0
+  kind: path
+- id: mit-codeql-py-sink-tarfile-tarfile-extractall
+  language: python
+  matcher:
+    exact: tarfile.TarFile.extractall
+  inputs:
+  - arg0
+  kind: path
+- id: mit-codeql-py-sink-zipfile-zipfile-extractall
+  language: python
+  matcher:
+    exact: zipfile.ZipFile.extractall
+  inputs:
+  - arg0
+  kind: path
+- id: mit-codeql-py-sink-hashlib-md5
+  language: python
+  matcher:
+    exact: hashlib.md5
+  inputs:
+  - arg0
+  kind: crypto
+- id: mit-codeql-py-sink-hashlib-sha1
+  language: python
+  matcher:
+    exact: hashlib.sha1
+  inputs:
+  - arg0
+  kind: crypto
+- id: mit-codeql-java-sink-initialcontext-lookup
+  language: java
+  matcher:
+    receiver_contains: InitialContext
+    method_name: lookup
+  inputs:
+  - arg0
+  kind: jndi
+- id: mit-codeql-java-sink-initialdircontext-search
+  language: java
+  matcher:
+    receiver_contains: InitialDirContext
+    method_name: search
+  inputs:
+  - arg1
+  kind: ldap
+- id: mit-codeql-java-sink-documentbuilder-parse
+  language: java
+  matcher:
+    receiver_contains: DocumentBuilder
+    method_name: parse
+  inputs:
+  - arg0
+  kind: xml
+- id: mit-codeql-java-sink-saxparser-parse
+  language: java
+  matcher:
+    receiver_contains: SAXParser
+    method_name: parse
+  inputs:
+  - arg0
+  kind: xml
+- id: mit-codeql-java-sink-transformer-transform
+  language: java
+  matcher:
+    receiver_contains: Transformer
+    method_name: transform
+  inputs:
+  - arg0
+  kind: xml
+- id: mit-codeql-java-sink-messagedigest-getinstance
+  language: java
+  matcher:
+    receiver_contains: MessageDigest
+    method_name: getInstance
+  inputs:
+  - arg0
+  kind: crypto
+- id: mit-codeql-java-sink-cipher-getinstance
+  language: java
+  matcher:
+    receiver_contains: Cipher
+    method_name: getInstance
+  inputs:
+  - arg0
+  kind: crypto
+- id: mit-codeql-c-sink-scanf
+  language: c
+  matcher:
+    exact: scanf
+  inputs:
+  - arg0
+  kind: format
+- id: mit-codeql-c-sink-fscanf
+  language: c
+  matcher:
+    exact: fscanf
+  inputs:
+  - arg1
+  kind: format
+- id: mit-codeql-c-sink-sscanf
+  language: c
+  matcher:
+    exact: sscanf
+  inputs:
+  - arg1
+  kind: format
+- id: mit-codeql-c-sink-mktemp
+  language: c
+  matcher:
+    exact: mktemp
+  inputs:
+  - arg0
+  kind: path
+- id: mit-codeql-c-sink-tmpnam
+  language: c
+  matcher:
+    exact: tmpnam
+  inputs:
+  - arg0
+  kind: path
+- id: mit-codeql-c-sink-realpath
+  language: c
+  matcher:
+    exact: realpath
+  inputs:
+  - arg0
+  kind: path
+- id: mit-codeql-cpp-sink-scanf
+  language: cpp
+  matcher:
+    exact: scanf
+  inputs:
+  - arg0
+  kind: format
+- id: mit-codeql-cpp-sink-fscanf
+  language: cpp
+  matcher:
+    exact: fscanf
+  inputs:
+  - arg1
+  kind: format
+- id: mit-codeql-cpp-sink-sscanf
+  language: cpp
+  matcher:
+    exact: sscanf
+  inputs:
+  - arg1
+  kind: format
+- id: mit-codeql-cpp-sink-mktemp
+  language: cpp
+  matcher:
+    exact: mktemp
+  inputs:
+  - arg0
+  kind: path
+- id: mit-codeql-cpp-sink-tmpnam
+  language: cpp
+  matcher:
+    exact: tmpnam
+  inputs:
+  - arg0
+  kind: path
+- id: mit-codeql-cpp-sink-realpath
+  language: cpp
+  matcher:
+    exact: realpath
+  inputs:
+  - arg0
+  kind: path
+sanitizers: []
+propagators: []
+summaries: []

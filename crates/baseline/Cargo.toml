@@ -1,0 +1,18 @@
+[package]
+name = "uniflow-baseline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+uniflow-hir = { path = "../hir" }
+
+[dev-dependencies]
+uniflow-lang-c = { path = "../lang_c" }
+uniflow-lang-java = { path = "../lang_java" }
+uniflow-parser-core = { path = "../parser_core" }

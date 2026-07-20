@@ -1,0 +1,600 @@
+sources:
+- id: mit-pysa-py-source-000
+  language: python
+  matcher:
+    exact: input
+  out: return
+  kind: user_input
+- id: mit-pysa-py-source-001
+  language: python
+  matcher:
+    exact: builtins.input
+  out: return
+  kind: user_input
+- id: mit-pysa-py-source-002
+  language: python
+  matcher:
+    exact: sys.stdin.read
+  out: return
+  kind: user_input
+- id: mit-pysa-py-source-003
+  language: python
+  matcher:
+    exact: sys.stdin.readline
+  out: return
+  kind: user_input
+- id: mit-pysa-py-source-004
+  language: python
+  matcher:
+    exact: os.getenv
+  out: return
+  kind: environment
+- id: mit-pysa-py-source-005
+  language: python
+  matcher:
+    exact: os.environ.get
+  out: return
+  kind: environment
+- id: mit-pysa-py-source-006
+  language: python
+  matcher:
+    exact: socket.socket.recv
+  out: return
+  kind: network
+- id: mit-pysa-py-source-007
+  language: python
+  matcher:
+    exact: socket.socket.recvfrom
+  out: return
+  kind: network
+- id: mit-pysa-py-source-008
+  language: python
+  matcher:
+    exact: requests.Response.text
+  out: return
+  kind: network
+- id: mit-pysa-py-source-009
+  language: python
+  matcher:
+    exact: requests.Response.json
+  out: return
+  kind: network
+- id: mit-pysa-py-source-010
+  language: python
+  matcher:
+    exact: urllib.request.urlopen
+  out: return
+  kind: network
+- id: mit-pysa-py-source-011
+  language: python
+  matcher:
+    exact: pathlib.Path.read_text
+  out: return
+  kind: file
+- id: mit-pysa-py-source-012
+  language: python
+  matcher:
+    exact: pathlib.Path.read_bytes
+  out: return
+  kind: file
+- id: mit-pysa-py-source-013
+  language: python
+  matcher:
+    exact: io.TextIOBase.read
+  out: return
+  kind: file
+- id: mit-pysa-py-source-014
+  language: python
+  matcher:
+    exact: io.TextIOBase.readline
+  out: return
+  kind: file
+- id: mit-pysa-py-flask-request-get_json
+  language: python
+  matcher:
+    receiver_contains: flask.Request
+    method_name: get_json
+  out: return
+  kind: http
+- id: mit-pysa-py-flask-request-get_data
+  language: python
+  matcher:
+    receiver_contains: flask.Request
+    method_name: get_data
+  out: return
+  kind: http
+- id: mit-pysa-py-django-http-httprequest-get_full_path
+  language: python
+  matcher:
+    receiver_contains: django.http.HttpRequest
+    method_name: get_full_path
+  out: return
+  kind: http
+- id: mit-pysa-py-django-http-httprequest-get_host
+  language: python
+  matcher:
+    receiver_contains: django.http.HttpRequest
+    method_name: get_host
+  out: return
+  kind: http
+- id: mit-pysa-py-starlette-requests-request-body
+  language: python
+  matcher:
+    receiver_contains: starlette.requests.Request
+    method_name: body
+  out: return
+  kind: http
+- id: mit-pysa-py-starlette-requests-request-json
+  language: python
+  matcher:
+    receiver_contains: starlette.requests.Request
+    method_name: json
+  out: return
+  kind: http
+- id: mit-pysa-py-starlette-requests-request-form
+  language: python
+  matcher:
+    receiver_contains: starlette.requests.Request
+    method_name: form
+  out: return
+  kind: http
+- id: mit-pysa-py-fastapi-request-body
+  language: python
+  matcher:
+    receiver_contains: fastapi.Request
+    method_name: body
+  out: return
+  kind: http
+- id: mit-pysa-py-fastapi-request-json
+  language: python
+  matcher:
+    receiver_contains: fastapi.Request
+    method_name: json
+  out: return
+  kind: http
+- id: mit-pysa-py-fastapi-request-form
+  language: python
+  matcher:
+    receiver_contains: fastapi.Request
+    method_name: form
+  out: return
+  kind: http
+- id: mit-pysa-py-werkzeug-datastructures-multidict-get
+  language: python
+  matcher:
+    receiver_contains: werkzeug.datastructures.MultiDict
+    method_name: get
+  out: return
+  kind: http
+- id: mit-pysa-py-werkzeug-datastructures-multidict-getlist
+  language: python
+  matcher:
+    receiver_contains: werkzeug.datastructures.MultiDict
+    method_name: getlist
+  out: return
+  kind: http
+- id: mit-pysa-py-django-http-querydict-get
+  language: python
+  matcher:
+    receiver_contains: django.http.QueryDict
+    method_name: get
+  out: return
+  kind: http
+- id: mit-pysa-py-django-http-querydict-getlist
+  language: python
+  matcher:
+    receiver_contains: django.http.QueryDict
+    method_name: getlist
+  out: return
+  kind: http
+sinks:
+- id: mit-pysa-py-sink-os-system
+  language: python
+  matcher:
+    exact: os.system
+  inputs:
+  - arg0
+  kind: command
+- id: mit-pysa-py-sink-os-popen
+  language: python
+  matcher:
+    exact: os.popen
+  inputs:
+  - arg0
+  kind: command
+- id: mit-pysa-py-sink-subprocess-call
+  language: python
+  matcher:
+    exact: subprocess.call
+  inputs:
+  - arg0
+  kind: command
+- id: mit-pysa-py-sink-subprocess-run
+  language: python
+  matcher:
+    exact: subprocess.run
+  inputs:
+  - arg0
+  kind: command
+- id: mit-pysa-py-sink-subprocess-popen
+  language: python
+  matcher:
+    exact: subprocess.Popen
+  inputs:
+  - arg0
+  kind: command
+- id: mit-pysa-py-sink-eval
+  language: python
+  matcher:
+    exact: eval
+  inputs:
+  - arg0
+  kind: code
+- id: mit-pysa-py-sink-exec
+  language: python
+  matcher:
+    exact: exec
+  inputs:
+  - arg0
+  kind: code
+- id: mit-pysa-py-sink-compile
+  language: python
+  matcher:
+    exact: compile
+  inputs:
+  - arg0
+  kind: code
+- id: mit-pysa-py-sink-pickle-loads
+  language: python
+  matcher:
+    exact: pickle.loads
+  inputs:
+  - arg0
+  kind: deserialization
+- id: mit-pysa-py-sink-pickle-load
+  language: python
+  matcher:
+    exact: pickle.load
+  inputs:
+  - arg0
+  kind: deserialization
+- id: mit-pysa-py-sink-yaml-load
+  language: python
+  matcher:
+    exact: yaml.load
+  inputs:
+  - arg0
+  kind: deserialization
+- id: mit-pysa-py-sink-marshal-loads
+  language: python
+  matcher:
+    exact: marshal.loads
+  inputs:
+  - arg0
+  kind: deserialization
+- id: mit-pysa-py-sink-shelve-open
+  language: python
+  matcher:
+    exact: shelve.open
+  inputs:
+  - arg0
+  kind: deserialization
+- id: mit-pysa-py-sink-sqlite3-cursor-execute
+  language: python
+  matcher:
+    exact: sqlite3.Cursor.execute
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-pysa-py-sink-sqlite3-cursor-executemany
+  language: python
+  matcher:
+    exact: sqlite3.Cursor.executemany
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-pysa-py-sink-sqlalchemy-engine-connection-execute
+  language: python
+  matcher:
+    exact: sqlalchemy.engine.Connection.execute
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-pysa-py-sink-django-db-backends-utils-cursorwrapper-execute
+  language: python
+  matcher:
+    exact: django.db.backends.utils.CursorWrapper.execute
+  inputs:
+  - arg0
+  kind: sql
+- id: mit-pysa-py-sink-requests-get
+  language: python
+  matcher:
+    exact: requests.get
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-pysa-py-sink-requests-post
+  language: python
+  matcher:
+    exact: requests.post
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-pysa-py-sink-requests-request
+  language: python
+  matcher:
+    exact: requests.request
+  inputs:
+  - arg1
+  kind: ssrf
+- id: mit-pysa-py-sink-urllib-request-urlopen
+  language: python
+  matcher:
+    exact: urllib.request.urlopen
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-pysa-py-sink-httpx-get
+  language: python
+  matcher:
+    exact: httpx.get
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-pysa-py-sink-httpx-post
+  language: python
+  matcher:
+    exact: httpx.post
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-pysa-py-sink-aiohttp-clientsession-get
+  language: python
+  matcher:
+    exact: aiohttp.ClientSession.get
+  inputs:
+  - arg0
+  kind: ssrf
+- id: mit-pysa-py-sink-open
+  language: python
+  matcher:
+    exact: open
+  inputs:
+  - arg0
+  kind: path
+- id: mit-pysa-py-sink-os-open
+  language: python
+  matcher:
+    exact: os.open
+  inputs:
+  - arg0
+  kind: path
+- id: mit-pysa-py-sink-pathlib-path
+  language: python
+  matcher:
+    exact: pathlib.Path
+  inputs:
+  - arg0
+  kind: path
+- id: mit-pysa-py-sink-os-remove
+  language: python
+  matcher:
+    exact: os.remove
+  inputs:
+  - arg0
+  kind: path
+- id: mit-pysa-py-sink-os-unlink
+  language: python
+  matcher:
+    exact: os.unlink
+  inputs:
+  - arg0
+  kind: path
+- id: mit-pysa-py-sink-shutil-copy
+  language: python
+  matcher:
+    exact: shutil.copy
+  inputs:
+  - arg0
+  - arg1
+  kind: path
+- id: mit-pysa-py-sink-flask-redirect
+  language: python
+  matcher:
+    exact: flask.redirect
+  inputs:
+  - arg0
+  kind: redirect
+- id: mit-pysa-py-sink-django-shortcuts-redirect
+  language: python
+  matcher:
+    exact: django.shortcuts.redirect
+  inputs:
+  - arg0
+  kind: redirect
+- id: mit-pysa-py-sink-logging-logger-info
+  language: python
+  matcher:
+    exact: logging.Logger.info
+  inputs:
+  - arg0
+  kind: log
+- id: mit-pysa-py-sink-logging-logger-warning
+  language: python
+  matcher:
+    exact: logging.Logger.warning
+  inputs:
+  - arg0
+  kind: log
+- id: mit-pysa-py-sink-logging-logger-error
+  language: python
+  matcher:
+    exact: logging.Logger.error
+  inputs:
+  - arg0
+  kind: log
+- id: mit-pysa-py-sink-re-compile
+  language: python
+  matcher:
+    exact: re.compile
+  inputs:
+  - arg0
+  kind: regex
+- id: mit-pysa-py-sink-re-search
+  language: python
+  matcher:
+    exact: re.search
+  inputs:
+  - arg0
+  kind: regex
+- id: mit-pysa-py-sink-lxml-etree-fromstring
+  language: python
+  matcher:
+    exact: lxml.etree.fromstring
+  inputs:
+  - arg0
+  kind: xml
+- id: mit-pysa-py-sink-xml-etree-elementtree-fromstring
+  language: python
+  matcher:
+    exact: xml.etree.ElementTree.fromstring
+  inputs:
+  - arg0
+  kind: xml
+- id: mit-pysa-py-sink-jinja2-environment-from_string
+  language: python
+  matcher:
+    exact: jinja2.Environment.from_string
+  inputs:
+  - arg0
+  kind: template
+- id: mit-pysa-py-sink-flask-render_template_string
+  language: python
+  matcher:
+    exact: flask.render_template_string
+  inputs:
+  - arg0
+  kind: template
+sanitizers:
+- id: mit-pysa-py-sanitize-html-escape
+  language: python
+  matcher:
+    exact: html.escape
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: xss
+- id: mit-pysa-py-sanitize-markupsafe-escape
+  language: python
+  matcher:
+    exact: markupsafe.escape
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: xss
+- id: mit-pysa-py-sanitize-urllib-parse-quote
+  language: python
+  matcher:
+    exact: urllib.parse.quote
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: url
+- id: mit-pysa-py-sanitize-shlex-quote
+  language: python
+  matcher:
+    exact: shlex.quote
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: command
+- id: mit-pysa-py-sanitize-werkzeug-utils-secure_filename
+  language: python
+  matcher:
+    exact: werkzeug.utils.secure_filename
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: path
+- id: mit-pysa-py-sanitize-bleach-clean
+  language: python
+  matcher:
+    exact: bleach.clean
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: xss
+- id: mit-pysa-py-sanitize-django-utils-html-escape
+  language: python
+  matcher:
+    exact: django.utils.html.escape
+  inputs:
+  - arg0
+  outputs:
+  - return
+  kind: xss
+propagators: []
+summaries:
+- id: mit-pysa-py-summary-str
+  language: python
+  matcher:
+    exact: str
+  flows:
+  - from: arg0
+    to: return
+- id: mit-pysa-py-summary-bytes
+  language: python
+  matcher:
+    exact: bytes
+  flows:
+  - from: arg0
+    to: return
+- id: mit-pysa-py-summary-repr
+  language: python
+  matcher:
+    exact: repr
+  flows:
+  - from: arg0
+    to: return
+- id: mit-pysa-py-summary-format
+  language: python
+  matcher:
+    exact: format
+  flows:
+  - from: arg0
+    to: return
+- id: mit-pysa-py-summary-json-dumps
+  language: python
+  matcher:
+    exact: json.dumps
+  flows:
+  - from: arg0
+    to: return
+- id: mit-pysa-py-summary-urllib-parse-urlencode
+  language: python
+  matcher:
+    exact: urllib.parse.urlencode
+  flows:
+  - from: arg0
+    to: return
+- id: mit-pysa-py-summary-os-path-join
+  language: python
+  matcher:
+    exact: os.path.join
+  flows:
+  - from: arg0
+    to: return
+- id: mit-pysa-py-summary-pathlib-Path-joinpath
+  language: python
+  matcher:
+    exact: pathlib.Path.joinpath
+  flows:
+  - from: arg0
+    to: return
