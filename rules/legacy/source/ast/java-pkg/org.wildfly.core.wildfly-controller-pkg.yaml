@@ -1,0 +1,10 @@
+id: org.wildfly.core.wildfly-controller
+language: Java
+message: pkg:maven/org.wildfly.core/wildfly-controller
+metadata:
+  purl: pkg:maven/org.wildfly.core/wildfly-controller
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jboss\.as\.controller\.operations\.global|org\.jboss\.as\.controller\.transform\.description|org\.jboss\.as\.controller\.registry|org\.jboss\.as\.controller\.access\.management|org\.jboss\.as\.controller\.management|org\.jboss\.as\.controller\.capability|org\.jboss\.as\.controller\.resource|org\.jboss\.as\.controller\.parsing|org\.jboss\.as\.controller\.remote|org\.jboss\.as\.controller\.operations\.validation|org\.jboss\.as\.controller\.access\.rbac|org\.jboss\.as\.controller\.security|org\.jboss\.as\.controller\.operations|org\.jboss\.as\.controller\.persistence|org\.jboss\.as\.controller\.persistence\.yaml|org\.jboss\.as\.controller\.extension|org\.jboss\.as\.controller\.services\.path|org\.jboss\.as\.controller\.access|org\.jboss\.as\.controller|org\.jboss\.as\.controller\.xml|org\.jboss\.as\.controller\.logging|org\.jboss\.as\.controller\.descriptions\.common|org\.jboss\.as\.controller\.access\.constraint|org\.jboss\.as\.controller\.descriptions|org\.jboss\.as\.controller\.operations\.common|org\.jboss\.as\.controller\.capability\.registry|org\.jboss\.as\.controller\.interfaces|org\.jboss\.as\.controller\.transform|org\.jboss\.as\.controller\._private|org\.jboss\.as\.controller\.audit|org\.jboss\.as\.controller\.access\.permission|org\.jboss\.as\.controller\.notification)\.

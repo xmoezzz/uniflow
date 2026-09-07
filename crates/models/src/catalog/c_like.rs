@@ -1,5 +1,8 @@
 fn c_like_models(language: Language) -> RuleSet {
     let mut rules = RuleSet {
+        metadata: Vec::new(),
+        sink_reports: Vec::new(),
+        index_sinks: Vec::new(),
         sources: vec![
             SourceRule {
                 id: "c-getenv".to_string(),
@@ -144,19 +147,17 @@ fn c_like_models(language: Language) -> RuleSet {
                 kind: "sql".to_string(),
             },
         ],
-        sanitizers: vec![
-            SanitizerRule {
-                id: "c-sql-escape".to_string(),
-                language: Some(language.clone()),
-                matcher: ApiMatcher {
-                    contains: Some("escape".to_string()),
-                    ..Default::default()
-                },
-                inputs: vec![Port::Arg(0)],
-                outputs: vec![Port::Return],
-                kind: "generic".to_string(),
+        sanitizers: vec![SanitizerRule {
+            id: "c-sql-escape".to_string(),
+            language: Some(language.clone()),
+            matcher: ApiMatcher {
+                contains: Some("escape".to_string()),
+                ..Default::default()
             },
-        ],
+            inputs: vec![Port::Arg(0)],
+            outputs: vec![Port::Return],
+            kind: "generic".to_string(),
+        }],
         propagators: vec![],
         summaries: vec![
             SummaryRule {
@@ -167,8 +168,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(2), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(3), to: Port::Arg(0) },
+                    FlowSpec {
+                        from: Port::Arg(2),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(3),
+                        to: Port::Arg(0),
+                    },
                 ],
             },
             SummaryRule {
@@ -179,8 +186,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(2), to: Port::Arg(0) },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(2),
+                        to: Port::Arg(0),
+                    },
                 ],
             },
             SummaryRule {
@@ -191,8 +204,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -203,8 +222,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -215,8 +240,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -227,8 +258,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -239,8 +276,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -251,8 +294,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -263,8 +312,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -275,8 +330,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -287,8 +348,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -298,7 +365,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strstr".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strcasestr".to_string(),
@@ -307,7 +377,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strcasestr".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strpbrk".to_string(),
@@ -316,7 +389,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strpbrk".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-basename".to_string(),
@@ -325,7 +401,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("basename".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-dirname".to_string(),
@@ -334,7 +413,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("dirname".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-rawmemchr".to_string(),
@@ -343,7 +425,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("rawmemchr".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-memrchr".to_string(),
@@ -352,7 +437,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("memrchr".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strchrnul".to_string(),
@@ -361,7 +449,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strchrnul".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-index".to_string(),
@@ -370,7 +461,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("index".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-rindex".to_string(),
@@ -379,7 +473,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("rindex".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-realpath".to_string(),
@@ -388,7 +485,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("realpath".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strtok".to_string(),
@@ -397,7 +497,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strtok".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strtok-r".to_string(),
@@ -406,7 +509,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strtok_r".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(1), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(1),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strsep".to_string(),
@@ -415,7 +521,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strsep".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strdup".to_string(),
@@ -424,9 +533,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strdup".to_string()),
                     ..Default::default()
                 },
-                flows: vec![
-                    FlowSpec { from: Port::Arg(0), to: Port::Return },
-                ],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strdupa".to_string(),
@@ -435,7 +545,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strdupa".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strndupa".to_string(),
@@ -444,7 +557,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strndupa".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-memccpy".to_string(),
@@ -454,8 +570,14 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -465,7 +587,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("bcopy".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Arg(1) }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Arg(1),
+                }],
             },
             SummaryRule {
                 id: "c-memmem".to_string(),
@@ -474,7 +599,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("memmem".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strnstr".to_string(),
@@ -483,7 +611,10 @@ fn c_like_models(language: Language) -> RuleSet {
                     exact: Some("strnstr".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "c-strcat".to_string(),
@@ -493,9 +624,18 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(0), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(0), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(0),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(0),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -506,11 +646,28 @@ fn c_like_models(language: Language) -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(1), to: Port::Arg(0) },
-                    FlowSpec { from: Port::Arg(2), to: Port::Arg(0) },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Arg(0),
+                    },
+                    FlowSpec {
+                        from: Port::Arg(2),
+                        to: Port::Arg(0),
+                    },
                 ],
             },
         ],
+        sink_conditions: Vec::new(),
+        call_conditions: Vec::new(),
+        taint_transforms: Vec::new(),
+        field_sources: Vec::new(),
+        unused_return_sinks: Vec::new(),
+        named_value_sources: Vec::new(),
+        field_sinks: Vec::new(),
+        field_sanitizers: Vec::new(),
+        function_sources: Vec::new(),
+        function_sinks: Vec::new(),
+        model_dependencies: Vec::new(),
     };
 
     if matches!(language, Language::Cpp) {
@@ -538,4 +695,3 @@ fn c_like_models(language: Language) -> RuleSet {
 
     rules
 }
-

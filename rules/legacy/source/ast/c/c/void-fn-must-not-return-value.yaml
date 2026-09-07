@@ -1,0 +1,13 @@
+id: void-fn-must-not-return-value
+message: '0601000010140073'
+language: C
+rule:
+  all:
+    - kind: return_statement
+    - not:
+        regex: "return\\s*;$"
+    - inside:
+        stopBy:
+          kind: function_definition
+        all:
+          - pattern: 'void $NAME($$$) { $$$ }'

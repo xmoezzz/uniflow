@@ -1,0 +1,10 @@
+id: org.apache.uima.uimaj-core
+language: Java
+message: pkg:maven/org.apache.uima/uimaj-core
+metadata:
+  purl: pkg:maven/org.apache.uima/uimaj-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.uima\.internal\.util|org\.apache\.uima\.cas\.admin|org\.apache\.uima\.analysis_engine\.metadata\.impl|org\.apache\.uima\.analysis_engine\.impl\.compatibility|org\.apache\.uima\.analysis_engine\.asb|org\.apache\.uima\.collection\.metadata|org\.apache\.uima\.flow|org\.apache\.uima\.search|org\.apache\.uima\.cas|org\.apache\.uima\.resource\.impl|org\.apache\.uima\.analysis_engine\.service\.impl|org\.apache\.uima\.examples|org\.apache\.uima\.internal\.util\.function|org\.apache\.uima\.cas_data\.impl|org\.apache\.uima\.cas_data|org\.apache\.uima\.resource|org\.apache\.uima\.resource\.service\.impl|org\.apache\.uima\.analysis_engine\.metadata|org\.apache\.uima\.spi|org\.apache\.uima\.analysis_engine\.impl|org\.apache\.uima\.collection\.impl|org\.apache\.uima\.collection\.base_cpm|org\.apache\.uima\.collection|org\.apache\.uima\.cas\.impl|org\.apache\.uima\.resource\.metadata|org\.apache\.uima\.uimacpp|org\.apache\.uima\.cas\.text|org\.apache\.uima\.jcas|org\.apache\.uima\.analysis_engine|org\.apache\.uima\.impl|org\.apache\.uima\.internal\.util\.rb_trees|org\.apache\.uima\.jcas\.impl|org\.apache\.uima\.analysis_component|org\.apache\.uima\.pear\.tools|org\.apache\.uima\.search\.impl|org\.apache\.uima\.jcas\.cas|org\.apache\.uima\.pear\.util|org\.apache\.uima\.resource\.metadata\.impl|org\.apache\.uima\.analysis_engine\.asb\.impl|org\.apache\.uima\.analysis_engine\.annotator|org\.apache\.uima\.util\.impl|org\.apache\.uima\.util|org\.apache\.uima\.flow\.impl|org\.apache\.uima|org\.apache\.uima\.jcas\.tcas)\.

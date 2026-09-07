@@ -1,0 +1,10 @@
+id: com.rabbitmq.amqp-client
+language: Java
+message: pkg:maven/com.rabbitmq/amqp-client
+metadata:
+  purl: pkg:maven/com.rabbitmq/amqp-client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.rabbitmq\.client\.impl\.nio|com\.rabbitmq\.client\.impl\.recovery|com\.rabbitmq\.client\.impl|com\.rabbitmq\.client\.observation|com\.rabbitmq\.utility|com\.rabbitmq\.tools|com\.rabbitmq\.tools\.jsonrpc|com\.rabbitmq\.client|com\.rabbitmq\.tools\.json|com\.rabbitmq\.client\.observation\.micrometer)\.

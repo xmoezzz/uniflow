@@ -1,0 +1,81 @@
+id: float-loop-var-ydt
+message: '0902000010160033'
+language: Java
+utils:
+  is-float-loopvar-decl:
+    all:
+      - any:
+          - kind: field_declaration
+          - kind: local_variable_declaration
+      - has:
+          kind: floating_point_type
+      - has:
+          kind: variable_declarator
+          stopBy: end
+          has:
+            field: name
+            pattern:
+              selector: identifier
+              context: '$VAR'
+  is-loopvar-decl:
+    all:
+      - any:
+          - kind: field_declaration
+          - kind: local_variable_declaration
+      - not:
+          has:
+            kind: floating_point_type
+      - has:
+          kind: variable_declarator
+          stopBy: end
+          has:
+            field: name
+            pattern:
+              selector: identifier
+              context: '$VAR'
+  recursion-find-loopvar-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-float-loopvar-decl
+          - all:
+            - not:
+                has:
+                  matches: is-loopvar-decl
+            - matches: recursion-find-loopvar-decl
+rule:
+  any:
+  - kind: for_statement
+  - kind: while_statement
+  - kind: do_statement
+  all:
+  - has:
+      field: condition
+      has:
+        stopBy: end
+        kind: identifier
+        pattern: $VAR
+        inside:
+          kind: binary_expression
+          has:
+            field: operator
+            any:
+              - pattern: '>='
+              - pattern: '<='
+              - pattern: '>'
+              - pattern: '<'
+              - pattern: '=='
+              - pattern: '!='
+  - any:
+    - has:
+        field: init
+        matches: is-float-loopvar-decl
+    - all:
+      - not:
+          has:
+            field: init
+            matches: is-loopvar-decl
+      - matches: recursion-find-loopvar-decl

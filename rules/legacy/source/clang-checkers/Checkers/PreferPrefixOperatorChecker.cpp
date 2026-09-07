@@ -1,0 +1,167 @@
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
+#include <clang/StaticAnalyzer/Core/BugReporter/BugType.h>
+#include <clang/StaticAnalyzer/Core/Checker.h>
+#include <clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h>
+#include <clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h>
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "../Utils.h"
+#include <unordered_set>
+#include <unordered_map>
+
+using namespace clang;
+using namespace ento;
+
+namespace {
+	class FindIncDecExprVisitor
+		: public RecursiveASTVisitor<FindIncDecExprVisitor> {
+		std::list<const Expr*> ExprList;
+
+	public:
+		const std::list<const Expr*>& getExprs() {
+			return ExprList;
+		}
+
+	public:
+		bool VisitIfStmt(const IfStmt* IS) {
+			if (auto Then = IS->getThen()) {
+				if (auto UO = dyn_cast<UnaryOperator>(Then)) {
+					if (UO->isPostfix()) {
+						ExprList.push_back(UO);
+					}
+				}
+			}
+			if (auto Else = IS->getElse()) {
+				if (auto UO = dyn_cast<UnaryOperator>(Else)) {
+					if (UO->isPostfix()) {
+						ExprList.push_back(UO);
+					}
+				}
+			}
+			return true;
+		}
+
+		bool VisitDoStmt(const DoStmt* DS) {
+			if (auto Body = DS->getBody()) {
+				if (auto UO = dyn_cast<UnaryOperator>(Body)) {
+					if (UO->isPostfix()) {
+						ExprList.push_back(UO);
+					}
+				}
+			}
+			return true;
+		}
+
+		bool VisitWhileStmt(const WhileStmt* WS) {
+			if (auto Body = WS->getBody()) {
+				if (auto UO = dyn_cast<UnaryOperator>(Body)) {
+					if (UO->isPostfix()) {
+						ExprList.push_back(UO);
+					}
+				}
+			}
+			return true;
+		}
+
+		bool VisitForStmt(const ForStmt* FS) {
+			if (auto Inc = FS->getInc()) {
+				if (auto UO = dyn_cast<UnaryOperator>(Inc)) {
+					if (UO->isPostfix()) {
+						ExprList.push_back(UO);
+					}
+				}
+			}
+			if (auto Body = FS->getBody()) {
+				if (auto UO = dyn_cast<UnaryOperator>(Body)) {
+					if (UO->isPostfix()) {
+						ExprList.push_back(UO);
+					}
+				}
+			}
+			return true;
+		}
+
+		bool VisitCompoundStmt(CompoundStmt* CS) {
+			for (auto Child : CS->children()) {
+				if (auto UO = dyn_cast<UnaryOperator>(Child)) {
+					if (UO->isPostfix()) {
+						ExprList.push_back(UO);
+					}
+				}
+			}
+
+			return true;
+		}
+	};
+
+	class PreferPrefixOperatorChecker : public Checker<check::ASTCodeBody> {
+		mutable std::unique_ptr<BuiltinBug> BT;
+
+	public:
+		void checkASTCodeBody(const Decl* D, AnalysisManager& Mgr, BugReporter& BR) const;
+		void reportBug(const FunctionDecl* FD, const SourceLocation& Loc, BugReporter& BR) const;
+	};
+}
+
+void PreferPrefixOperatorChecker::checkASTCodeBody(const Decl* D, AnalysisManager& Mgr, BugReporter& BR) const {
+	FindIncDecExprVisitor Visitor;
+	Visitor.TraverseDecl(const_cast<Decl*>(D));
+	auto& Exprs = Visitor.getExprs();
+	for (auto UO : Exprs) {
+		reportBug(dyn_cast<FunctionDecl>(D), UO->getBeginLoc(), BR);
+	}
+}
+
+void PreferPrefixOperatorChecker::reportBug(const FunctionDecl* FD, const SourceLocation& Loc, BugReporter& BR) const {
+	if (Loc.isMacroID())
+		return;
+			
+	if (!BT)
+		BT.reset(new BuiltinBug(this, "PreferPrefixOperatorChecker"));
+
+	// Report the issue
+	auto ls = anzulocalization::LocaleSetting::getInstance();
+	uint64_t lang = GetOutputLocaleSetting(BR.getAnalyzerOptions(), ls->getSupportedLangMask());
+	std::string Msg = ls->parseMsgs(anzulocalization::PreferPrefixOperatorChecker, lang);        
+	PathDiagnosticLocation DLoc(Loc, BR.getSourceManager());
+	auto Report = std::make_unique<BasicBugReport>(
+		*BT, Msg, createRuleExtData(1, "PreferPrefixOperatorChecker"), DLoc);
+	Report->setDeclWithIssue(FD);
+	BR.emitReport(std::move(Report));
+}
+
+/// Checker registration
+#if RELEASE_BUNDLE
+void ento::registerPreferPrefixOperatorChecker(CheckerManager& Mgr) {
+	Mgr.registerChecker<PreferPrefixOperatorChecker>();
+}
+
+bool ento::shouldRegisterPreferPrefixOperatorChecker(const CheckerManager& mgr) {
+	return IsEnableChecker(mgr.getAnalyzerOptions(), CheckerLanguage::CPP);
+}
+
+#else
+#include "clang/StaticAnalyzer/Frontend/CheckerRegistry.h"
+
+extern "C"
+#ifdef _WINDOWS
+_declspec(dllexport)
+#else
+__attribute__((visibility("default")))
+#endif
+const
+char clang_analyzerAPIVersionString[] = CLANG_ANALYZER_API_VERSION_STRING;
+
+extern "C"
+#ifdef _WINDOWS
+_declspec(dllexport)
+#else
+__attribute__((visibility("default")))
+#endif
+void clang_registerCheckers(CheckerRegistry & registry) {
+	registry.addChecker<PreferPrefixOperatorChecker>(
+		"anzu.PreferPrefixOperatorChecker",
+		"Checks for postfix versions of ++ and -- operators and suggests using prefix versions",
+		"");
+}
+
+#endif

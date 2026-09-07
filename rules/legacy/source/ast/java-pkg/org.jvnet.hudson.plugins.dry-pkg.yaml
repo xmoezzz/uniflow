@@ -1,0 +1,10 @@
+id: org.jvnet.hudson.plugins.dry
+language: Java
+message: pkg:maven/org.jvnet.hudson.plugins/dry
+metadata:
+  purl: pkg:maven/org.jvnet.hudson.plugins/dry
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(hudson\.plugins\.dry\.dashboard|hudson\.plugins\.dry\.parser\.cpd|hudson\.plugins\.dry\.parser|hudson\.plugins\.dry)\.

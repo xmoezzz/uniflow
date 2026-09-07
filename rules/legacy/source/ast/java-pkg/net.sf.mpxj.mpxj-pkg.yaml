@@ -1,0 +1,10 @@
+id: net.sf.mpxj.mpxj
+language: Java
+message: pkg:maven/net.sf.mpxj/mpxj
+metadata:
+  purl: pkg:maven/net.sf.mpxj/mpxj
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(net\.sf\.mpxj\.primavera\.suretrak|net\.sf\.mpxj\.ruby|net\.sf\.mpxj\.projectlibre|net\.sf\.mpxj\.ganttproject\.schema|net\.sf\.mpxj\.planner\.schema|net\.sf\.mpxj\.ganttdesigner|net\.sf\.mpxj\.mpx|net\.sf\.mpxj\.json|net\.sf\.mpxj|net\.sf\.mpxj\.mspdi|net\.sf\.mpxj\.ganttproject|net\.sf\.mpxj\.openplan|net\.sf\.mpxj\.listener|net\.sf\.mpxj\.conceptdraw|net\.sf\.mpxj\.mpp|net\.sf\.mpxj\.utility\.clean|net\.sf\.mpxj\.mspdi\.schema|net\.sf\.mpxj\.planner|net\.sf\.mpxj\.sage|net\.sf\.mpxj\.primavera\.p3|net\.sf\.mpxj\.mpd|net\.sf\.mpxj\.primavera\.schema|net\.sf\.mpxj\.phoenix|net\.sf\.mpxj\.primavera|net\.sf\.mpxj\.synchro|net\.sf\.mpxj\.ganttdesigner\.schema|net\.sf\.mpxj\.projectcommander|net\.sf\.mpxj\.writer|net\.sf\.mpxj\.sdef|net\.sf\.mpxj\.ikvm|net\.sf\.mpxj\.common|net\.sf\.mpxj\.phoenix\.schema\.phoenix5|net\.sf\.mpxj\.fasttrack|net\.sf\.mpxj\.primavera\.common|net\.sf\.mpxj\.reader|net\.sf\.mpxj\.merlin|net\.sf\.mpxj\.conceptdraw\.schema|net\.sf\.mpxj\.explorer|net\.sf\.mpxj\.utility|net\.sf\.mpxj\.sample|net\.sf\.mpxj\.phoenix\.schema\.phoenix4|net\.sf\.mpxj\.turboproject|net\.sf\.mpxj\.asta)\.

@@ -1,0 +1,10 @@
+id: com.jfinal.jfinal
+language: Java
+message: pkg:maven/com.jfinal/jfinal
+metadata:
+  purl: pkg:maven/com.jfinal/jfinal
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.jfinal\.validate|com\.jfinal\.plugin\.activerecord\.dialect|com\.jfinal\.plugin\.activerecord\.tx|com\.jfinal\.plugin\.cron4j|com\.jfinal\.proxy|com\.jfinal\.plugin\.c3p0|com\.jfinal\.json|com\.jfinal\.plugin\.activerecord\.sql|com\.jfinal\.kit|com\.jfinal\.captcha|com\.jfinal\.ext\.kit|com\.jfinal\.plugin\.activerecord\.builder|com\.jfinal\.server|com\.jfinal\.core\.converter|com\.jfinal\.plugin\.druid|com\.jfinal\.plugin\.activerecord|com\.jfinal\.template|com\.jfinal\.template\.source|com\.jfinal\.ext\.cors|com\.jfinal\.i18n|com\.jfinal\.template\.ext\.spring|com\.jfinal\.plugin\.hikaricp|com\.jfinal\.token|com\.jfinal\.plugin\.activerecord\.cache|com\.jfinal\.ext\.render|com\.jfinal\.template\.expr|com\.jfinal\.template\.stat|com\.jfinal\.plugin\.ehcache|com\.jfinal\.ext\.handler|com\.jfinal\.ext\.interceptor|com\.jfinal\.log|com\.jfinal\.core\.paragetter|com\.jfinal\.plugin\.redis\.serializer|com\.jfinal\.aop|com\.jfinal\.handler|com\.jfinal\.upload|com\.jfinal\.template\.ext\.sharedmethod|com\.jfinal\.config|com\.jfinal\.template\.stat\.ast|com\.jfinal\.template\.ext\.directive|com\.jfinal\.template\.expr\.ast|com\.jfinal\.template\.io|com\.jfinal\.template\.ext\.extensionmethod|com\.jfinal\.core|com\.jfinal\.plugin|com\.jfinal\.plugin\.redis|com\.jfinal\.render|com\.jfinal\.plugin\.activerecord\.generator|com\.jfinal\.ext\.proxy)\.

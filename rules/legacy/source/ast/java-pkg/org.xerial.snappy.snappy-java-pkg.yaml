@@ -1,0 +1,10 @@
+id: org.xerial.snappy.snappy-java
+language: Java
+message: pkg:maven/org.xerial.snappy/snappy-java
+metadata:
+  purl: pkg:maven/org.xerial.snappy/snappy-java
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.xerial\.snappy\.buffer|org\.xerial\.snappy\.pool|org\.xerial\.snappy)\.

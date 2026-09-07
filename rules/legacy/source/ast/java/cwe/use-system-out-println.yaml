@@ -1,0 +1,7 @@
+id: use-system-out-println
+message: '0202000010110034'
+language: Java
+
+rule:
+  kind: method_invocation
+  pattern: System.out.println($$$)

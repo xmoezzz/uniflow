@@ -1,0 +1,10 @@
+id: org.apache.james.james-server-guice-jmx
+language: Java
+message: pkg:maven/org.apache.james/james-server-guice-jmx
+metadata:
+  purl: pkg:maven/org.apache.james/james-server-guice-jmx
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.james\.utils|org\.apache\.james\.modules\.server)\.

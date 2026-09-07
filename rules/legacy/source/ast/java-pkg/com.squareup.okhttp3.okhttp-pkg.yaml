@@ -1,0 +1,10 @@
+id: com.squareup.okhttp3.okhttp
+language: Java
+message: pkg:maven/com.squareup.okhttp3/okhttp
+metadata:
+  purl: pkg:maven/com.squareup.okhttp3/okhttp
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(okhttp3\.internal\.platform|okhttp3\.internal\.idn|okhttp3\.internal\.cache|okhttp3\.internal\.http1|okhttp3\.internal\.connection|okhttp3\.internal\.proxy|okhttp3\.internal\.http2|okhttp3\.internal\.graal|okhttp3\.internal\.platform\.android|okhttp3\.internal\.tls|okhttp3\.internal\.url|okhttp3\.internal\.concurrent|okhttp3\.internal\.ws|okhttp3\.internal\.authenticator|okhttp3\.internal\.http|okhttp3\.internal\.cache2|okhttp3\.internal|okhttp3|okhttp3\.internal\.publicsuffix|okhttp3\.internal\.http2\.flowcontrol)\.

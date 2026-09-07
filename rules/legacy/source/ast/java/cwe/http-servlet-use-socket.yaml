@@ -1,0 +1,17 @@
+id: http-servlet-use-socket
+message: '0202000010110062'
+language: Java
+rule:
+  kind: object_creation_expression
+  pattern: new Socket($$$)
+  inside:
+    stopBy:
+      kind: method_declaration
+    kind: method_declaration
+    has:
+      field: parameters
+      has:
+        kind: formal_parameter
+        has:
+          field: type
+          regex: ^(.*\.)?HttpServletRequest$|^(.*\.)?HttpServletResponse$

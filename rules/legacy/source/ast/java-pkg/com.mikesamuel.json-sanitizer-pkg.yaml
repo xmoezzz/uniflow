@@ -1,0 +1,10 @@
+id: com.mikesamuel.json-sanitizer
+language: Java
+message: pkg:maven/com.mikesamuel/json-sanitizer
+metadata:
+  purl: pkg:maven/com.mikesamuel/json-sanitizer
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.google\.json)\.

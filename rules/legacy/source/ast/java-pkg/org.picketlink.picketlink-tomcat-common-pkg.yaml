@@ -1,0 +1,10 @@
+id: org.picketlink.picketlink-tomcat-common
+language: Java
+message: pkg:maven/org.picketlink/picketlink-tomcat-common
+metadata:
+  purl: pkg:maven/org.picketlink/picketlink-tomcat-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.picketlink\.identity\.federation\.bindings\.tomcat\.idp|org\.picketlink\.identity\.federation\.bindings\.tomcat\.sp\.holder|org\.picketlink\.identity\.federation\.bindings\.util|org\.picketlink\.identity\.federation\.bindings\.servlets|org\.picketlink\.identity\.federation\.bindings\.tomcat\.sp|org\.picketlink\.identity\.federation\.bindings\.tomcat\.sp\.plugins|org\.picketlink\.identity\.federation\.bindings\.stspool|org\.picketlink\.identity\.federation\.bindings\.tomcat)\.

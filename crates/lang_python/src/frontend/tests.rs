@@ -28,6 +28,21 @@ mod tests {
     }
 
     #[test]
+    fn unknown_factory_result_is_not_an_alias_of_the_factory() {
+        let program = parse_project_sources(&[
+            ("repo.py".into(), "def pick_cb(handlers):\n    return handlers[0]\n".into()),
+            ("app.py".into(), "from repo import pick_cb\n\ndef handle(handlers, value):\n    cb = pick_cb(handlers)\n    return cb(value)\n".into()),
+        ]).unwrap();
+        let function = program.modules.iter().find_map(|module| module_function(module, "handle")).unwrap();
+        let Stmt::Return { value: Some(Expr::Call(call)), .. } = function.body.stmts.last().unwrap() else { panic!("{function:#?}") };
+        assert!(matches!(call.target, CallTarget::Dynamic(_)), "{call:#?}");
+        let CallTarget::Dynamic(callee) = &call.target else { unreachable!() };
+        let Expr::VarRef { symbol, span, .. } = callee.as_ref() else { panic!("{callee:#?}") };
+        assert_eq!(program.symbols.iter().find(|s| s.id == *symbol).unwrap().name, "cb");
+        assert_eq!(span.file, function.span.file, "callee must belong to its caller file");
+    }
+
+    #[test]
     fn parses_python_class_methods_and_fields() {
         let src = r#"
 from flask import request

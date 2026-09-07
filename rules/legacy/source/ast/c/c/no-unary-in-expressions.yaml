@@ -1,0 +1,13 @@
+id: no-unary-in-expressions
+message: '0701000010130043,0601000010140067'
+language: C
+rule:
+  all:
+    - kind: update_expression
+    - any:
+        - inside:
+            kind: binary_expression
+            stopBy: end
+        - inside:
+            kind: argument_list
+            stopBy: end

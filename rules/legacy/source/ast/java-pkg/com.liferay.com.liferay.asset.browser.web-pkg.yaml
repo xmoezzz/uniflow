@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.asset.browser.web
+language: Java
+message: pkg:maven/com.liferay/com.liferay.asset.browser.web
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.asset.browser.web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.liferay\.asset\.browser\.web\.internal\.constants|com\.liferay\.asset\.browser\.web\.internal\.item\.selector|com\.liferay\.asset\.browser\.web\.internal\.search|com\.liferay\.asset\.browser\.web\.internal\.display\.context|com\.liferay\.asset\.browser\.web\.internal\.frontend\.taglib\.clay\.servlet\.taglib)\.

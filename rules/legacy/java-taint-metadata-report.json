@@ -1,0 +1,16 @@
+{
+  "enriched_sinks": 4512,
+  "mapped_sinks": 4512,
+  "chinese_messages": 4512,
+  "english_messages": 4512,
+  "traditional_chinese_messages": 4512,
+  "source_enriched_sinks": 4503,
+  "source_chinese_messages": 4503,
+  "source_english_messages": 631,
+  "source_traditional_chinese_messages": 0,
+  "unmapped_vulnerabilities": [],
+  "unresolved_knowledge_ids": [
+    "02000000060000",
+    "02000010020036"
+  ]
+}

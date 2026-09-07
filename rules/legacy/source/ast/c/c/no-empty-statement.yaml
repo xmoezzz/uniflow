@@ -1,0 +1,6 @@
+id: no-empty-statement
+message: '0601000010140070'
+language: C
+rule:
+  kind: expression_statement
+  regex: "^\\s*;$"

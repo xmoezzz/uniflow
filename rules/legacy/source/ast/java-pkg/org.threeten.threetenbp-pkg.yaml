@@ -1,0 +1,10 @@
+id: org.threeten.threetenbp
+language: Java
+message: pkg:maven/org.threeten/threetenbp
+metadata:
+  purl: pkg:maven/org.threeten/threetenbp
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.threeten\.bp\.temporal|org\.threeten\.bp\.zone|org\.threeten\.bp\.format|org\.threeten\.bp\.jdk8|org\.threeten\.bp\.chrono|org\.threeten\.bp)\.

@@ -1,0 +1,10 @@
+id: org.apache.kylin.kylin-server-base
+language: Java
+message: pkg:maven/org.apache.kylin/kylin-server-base
+metadata:
+  purl: pkg:maven/org.apache.kylin/kylin-server-base
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.kylin\.rest\.exception|org\.apache\.kylin\.rest\.response|org\.apache\.kylin\.rest\.security\.cas|org\.apache\.kylin\.rest\.security|org\.apache\.kylin\.rest\.metrics|org\.apache\.kylin\.rest\.service|org\.apache\.kylin\.rest\.security\.saml|org\.apache\.kylin\.rest\.init|org\.apache\.kylin\.rest\.model|org\.apache\.kylin\.rest\.util|org\.apache\.kylin\.rest\.broadcaster|org\.apache\.kylin\.rest\.job|org\.apache\.kylin\.rest\.constant|org\.apache\.kylin\.rest\.controller|org\.apache\.kylin\.rest\.service\.update|org\.apache\.kylin\.rest\.security\.springacl|org\.apache\.kylin\.rest\.request|org\.apache\.kylin\.rest\.signature|org\.apache\.kylin\.rest\.msg)\.

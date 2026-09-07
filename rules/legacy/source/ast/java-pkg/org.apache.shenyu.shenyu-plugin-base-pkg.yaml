@@ -1,0 +1,10 @@
+id: org.apache.shenyu.shenyu-plugin-base
+language: Java
+message: pkg:maven/org.apache.shenyu/shenyu-plugin-base
+metadata:
+  purl: pkg:maven/org.apache.shenyu/shenyu-plugin-base
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.shenyu\.plugin\.base\.fallback|org\.apache\.shenyu\.plugin\.base\.trie|org\.apache\.shenyu\.plugin\.base\.support|org\.apache\.shenyu\.plugin\.base\.alert|org\.apache\.shenyu\.plugin\.base\.condition\.strategy|org\.apache\.shenyu\.plugin\.base\.event|org\.apache\.shenyu\.plugin\.base\.cache|org\.apache\.shenyu\.plugin\.base\.condition\.judge|org\.apache\.shenyu\.plugin\.base\.handler|org\.apache\.shenyu\.plugin\.base|org\.apache\.shenyu\.plugin\.base\.condition\.data|org\.apache\.shenyu\.plugin\.base\.utils)\.

@@ -1,0 +1,13 @@
+id: anonymous-inner-class-call-method
+message: '0202000010000022'
+language: Java
+rule:
+  kind: object_creation_expression
+  pattern: new $A()
+  has:
+    kind: class_body
+    has:
+      kind: block
+      has:
+        stopBy: end
+        kind: method_invocation

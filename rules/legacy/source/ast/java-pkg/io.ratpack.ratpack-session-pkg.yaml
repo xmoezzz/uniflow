@@ -1,0 +1,10 @@
+id: io.ratpack.ratpack-session
+language: Java
+message: pkg:maven/io.ratpack/ratpack-session
+metadata:
+  purl: pkg:maven/io.ratpack/ratpack-session
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(ratpack\.session\.clientside|ratpack\.session\.clientside\.internal|ratpack\.session\.internal|ratpack\.session)\.

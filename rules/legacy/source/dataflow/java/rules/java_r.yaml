@@ -1,0 +1,3931 @@
+Name: Java语言缺陷规则集合
+Version: 1.1.1
+Date: 2019.12.05
+Note: 包含Java语言缺陷规则集合
+Locale: zh_CN
+RuleSets:
+  RuleSet:
+  - Name: code_correctness_call_to_thread_stop
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090009'
+      - type: cert
+        value: '0102000010141105'
+      - type: std
+        value: '0202000010150603'
+      - type: YD/T 3464-2019
+        value: '0902000010160096'
+      - type: guide
+        value: '0302000010170044'
+  - Name: dead_code_expression_is_always_true
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130005'
+  - Name: missing_check_for_null_parameter
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130023'
+      - type: cert
+        value: '0102000010140708'
+  - Name: key_parameter_tampering
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130155'
+  - Name: expression_language_injection_spring
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130145'
+  - Name: http_parameter_pollution
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110170'
+  - Name: http_request_smuggling
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020037'
+  - Name: access_control_anonymous_ldap_bind
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020038'
+  - Name: android_bad_practices_normal_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110119'
+  - Name: android_bad_practices_signature_signatureorsystem_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110160'
+  - Name: android_bad_practices_webview_enables_dom_storage
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110161'
+  - Name: android_bad_practices_webview_enables_content_access
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110162'
+  - Name: android_bad_practices_webview_enables_file_access
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110163'
+  - Name: android_bad_practices_tap_jacking
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110164'
+  - Name: do_not_synchronize_on_the_intrinsic_locks_of_high_level_concurrency_objects
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141003'
+      - type: YD/T 3464-2019
+        value: '0902000010160082'
+      - type: guide
+        value: '0302000010170037'
+  - Name: privilege_management_android_recording
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110131'
+  - Name: code_correctness_multiple_stream_commits
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070030'
+      - type: cert
+        value: '0102000010141415'
+  - Name: code_correctness_readobject_invokes_overridable_function
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110087'
+      - type: cert
+        value: '0102000010141506'
+  - Name: code_correctness_constructor_invokes_overridable_function
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110058'
+      - type: cert
+        value: '0102000010140705'
+      - type: YD/T 3464-2019
+        value: '0902000010160055'
+      - type: guide
+        value: '0302000010170030'
+  - Name: poor_style_explicit_call_to_finalize
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070021'
+      - type: cert
+        value: '0102000010140712'
+      - type: std
+        value: '0202000010150107'
+      - type: YD/T 3464-2019
+        value: '0902000010160062'
+  - Name: struts_erroneous_validate_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110018'
+  - Name: cookie_security_overly_broad_domain
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110005'
+  - Name: json_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060118'
+  - Name: specify_an_appropriate_locale_when_comparing_locale_dependent_data
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110085'
+      - type: cert
+        value: '0102000010142002'
+      - type: YD/T 3464-2019
+        value: '0902000010160010'
+      - type: guide
+        value: '0302000010170007'
+  - Name: file_disclosure_struts
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070028'
+  - Name: struts_misconfiguration_missing_form_bean
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100025'
+  - Name: android_bad_practices_just_provider_writepermission_defined
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110111'
+  - Name: empty_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130129'
+  - Name: spring_boot_misconfiguration_admin_mbean_enabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020136'
+  - Name: dynamic_code_evaluation_unsafe_beanutils_deserialization
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020027'
+  - Name: create_string_object
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130029'
+      - type: std
+        value: '0202000010150420'
+  - Name: unauthenticated_service_mongodb
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130146'
+  - Name: do_not_use_an_instance_lock_to_protect_shared_static_data
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141006'
+      - type: YD/T 3464-2019
+        value: '0902000010160085'
+      - type: guide
+        value: '0302000010170039'
+  - Name: privacy_violation_heap_inspection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000008'
+  - Name: cookie_security_overly_broad_path
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110006'
+  - Name: denial_of_service_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050004'
+      - type: guide
+        value: '0302000010170062'
+  - Name: password_management
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080002'
+      - type: guide
+        value: '0302000010170024'
+  - Name: weak_securitymanager_check_overridable_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110007'
+      - type: cert
+        value: '0102000010140703'
+      - type: YD/T 3464-2019
+        value: '0902000010160053'
+      - type: guide
+        value: '0302000010170031'
+  - Name: unreleased_resource_files
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130018'
+      - type: cert
+        value: '0102000010141404'
+      - type: YD/T 3464-2019
+        value: '0902000010160110'
+      - type: guide
+        value: '0302000010170065'
+  - Name: struts_misconfiguration_missing_form_bean_name
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100026'
+  - Name: path_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050011'
+      - type: cert
+        value: '0102000010141416'
+      - type: guide
+        value: '0302000010170068'
+      - type: GB/T 34944-2017
+        value: '0402000010170055'
+  - Name: path_manipulation_zip_entry_overwrite
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050050'
+  - Name: insecure_ssl_android_customized_implementation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060113'
+  - Name: reflected_file_download
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050051'
+  - Name: server_side_request_forgery
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050022'
+  - Name: server_side_request_forgery_retrofit
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050028'
+  - Name: android_misconfiguration_debug_information
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100101'
+  - Name: code_correctness_clone_invokes_overridable_function
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110059'
+      - type: cert
+        value: '0102000010140706'
+      - type: YD/T 3464-2019
+        value: '0902000010160056'
+  - Name: system_information_std_error
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110091'
+  - Name: serializable_sensitive_information_exists_in_serializable_classes
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130124'
+  - Name: xquery_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050015'
+  - Name: sensitive_information_leaked_in_clipboard
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110125'
+  - Name: struts_2_duplicate_action_field_validators
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110010'
+  - Name: system_information_leak_incomplete_servlet_error_handling
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110038'
+      - type: cert
+        value: '0102000010140801'
+      - type: YD/T 3464-2019
+        value: '0902000010160064'
+      - type: guide
+        value: '0302000010170055'
+  - Name: call_hashcode_on_the_array
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150116'
+  - Name: jfinal_configuration_error_enable_development_mode
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110140'
+  - Name: ensure_that_references_to_mutable_objects_are_not_exposed
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140613'
+      - type: guide
+        value: '0302000010170029'
+  - Name: cross_site_scripting_persistent_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030020'
+      - type: guide
+        value: '0302000010170010'
+  - Name: cross_site_scripting_dom
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030001'
+      - type: guide
+        value: '0302000010170009'
+  - Name: poor_style_identifier_contains_dollar_symbol
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130033'
+      - type: std
+        value: '0202000010150421'
+  - Name: code_correctness_call_to_thread_run
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110040'
+      - type: cert
+        value: '0102000010141100'
+      - type: std
+        value: '0202000010150109'
+      - type: YD/T 3464-2019
+        value: '0902000010160091'
+  - Name: poor_style_empty_synchronized_block
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130012'
+      - type: std
+        value: '0202000010150417'
+  - Name: struts_form_does_not_extend_validation_class
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110019'
+  - Name: query_string_injection_android_provider
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020101'
+  - Name: weak_encryption_user_controlled_key_size
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080017'
+  - Name: log_forging
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050005'
+      - type: cert
+        value: '0102000010140203'
+      - type: YD/T 3464-2019
+        value: '0902000010160004'
+      - type: guide
+        value: '0302000010170027'
+  - Name: j2ee_misconfiguration_insecure_transport
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100011'
+  - Name: command_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020001'
+  - Name: xml_external_entity_injection_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050023'
+      - type: cert
+        value: '0102000010140217'
+      - type: std
+        value: '0202000010150001'
+      - type: guide
+        value: '0302000010170006'
+  - Name: session_fixation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090015'
+  - Name: access_control_path
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090017'
+  - Name: spring_misconfiguration_html_escaping_disabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100103'
+  - Name: spring_security_misconfiguration_overly_permissive_firewall_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100104'
+  - Name: poor_error_handling_overly_broad_catch
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120001'
+  - Name: executed_code_after_the_redirect
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130120'
+  - Name: unsafe_mobile_code_inner_class
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130121'
+  - Name: missing_form_field_validation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050056'
+  - Name: incorrect_check_function_return_value
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130125'
+  - Name: release_synchronization_lock_for_the_same_resource_multiple_times
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130117'
+  - Name: call_system_exit__or_runtime_exit_
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110002'
+  - Name: struts_validator_without_form_field
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110026'
+  - Name: cross_site_scripting_content_sniffing
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030007'
+  - Name: mime_sniffing
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100107'
+  - Name: overly_permissive_referrer_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100108'
+  - Name: hsts_not_set
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100109'
+  - Name: insufficient_hsts_expiration_time
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100200'
+  - Name: hsts_does_not_include_subdomains
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100110'
+  - Name: unenforced_content_security_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100112'
+  - Name: overly_permissive_content_security_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100113'
+  - Name: missing_framing_protection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100114'
+  - Name: incorrect_request_matcher_type
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100115'
+  - Name: lack_of_fallback_check
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100116'
+  - Name: missing_content_security_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100117'
+  - Name: spring_security_misconfiguration_default_permit
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100111'
+  - Name: overly_broad_session_cookie_domain
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000005'
+  - Name: overly_broad_session_cookie_path
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000004'
+  - Name: persistent_session_cookie
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000003'
+  - Name: session_cookie_not_sent_over_ssl
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000002'
+  - Name: httponly_not_set_on_session_cookie
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000001'
+  - Name: ldap_entry_poisoning
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020030'
+  - Name: call_wait_and_await_outside_the_loop
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090008'
+      - type: cert
+        value: '0102000010141103'
+      - type: YD/T 3464-2019
+        value: '0902000010160094'
+      - type: guide
+        value: '0302000010170043'
+  - Name: use_static_thread_unsafe_field
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150441'
+  - Name: struts_unvalidated_action_form
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110024'
+  - Name: system_information_leak_overly_broad_sql_logging
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110039'
+  - Name: dynamic_code_evaluation_xmldecoder_injection_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020018'
+  - Name: password_management_weak_cryptography
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080008'
+      - type: guide
+        value: '0302000010170025'
+  - Name: key_management_empty_encryption_key
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130153'
+  - Name: spring_boot_misconfiguration_shutdown_actuator_endpoint_enabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020135'
+  - Name: poor_style_value_never_read
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130015'
+  - Name: denial_of_service_parse_double
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050003'
+      - type: guide
+        value: '0302000010170072'
+  - Name: ensure_conversions_of_numeric_types_to_narrower_types_do_not_result_in_lost_or_misinterpreted_data
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140512'
+      - type: YD/T 3464-2019
+        value: '0902000010160036'
+  - Name: create_empty_threadpoolexecutor
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150427'
+  - Name: gets_the_index_position_using_a_single_character_string
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000023'
+  - Name: struts_validator_turned_off
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110025'
+  - Name: spring_beans_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020032'
+  - Name: object_model_violation_erroneous_clone_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070015'
+  - Name: html5_overly_permissive_cors_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020142'
+  - Name: obtain_synchronization_lock_for_the_same_resource_multiple_times
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130118'
+  - Name: denial_of_service_uncontrolled_memory_allocation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130135'
+  - Name: integer_overflow_or_underflow
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130167'
+  - Name: code_correctness_class_does_not_implement_cloneable
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110042'
+  - Name: insecure_storage_s3_read_acp_anonymous_access
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110146'
+  - Name: hardcode_bank_card_number
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110135'
+  - Name: query_string_injection_android_provider_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020107'
+  - Name: code_correctness_double_checked_locking
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090011'
+      - type: cert
+        value: '0102000010141010'
+      - type: std
+        value: '0202000010150305'
+      - type: guide
+        value: '0302000010170051'
+  - Name: struts_2_unvalidated_action
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110014'
+  - Name: html5_overly_permissive_cors_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090016'
+  - Name: missing_default_statement_in_switch_statement
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130112'
+  - Name: not_disabled_ldap_deserialization
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150438'
+  - Name: do_not_exhaust_heap_space
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141805'
+      - type: YD/T 3464-2019
+        value: '0902000010160153'
+  - Name: distinguish_between_characters_or_bytes_read_from_a_stream_and__1
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141408'
+      - type: YD/T 3464-2019
+        value: '0902000010160114'
+  - Name: privilege_management_missing_api_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110104'
+  - Name: ldap_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020004'
+  - Name: synchronization_based_on_non_final_objects
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150309'
+      - type: guide
+        value: '0302000010170035'
+  - Name: call_classloader_to_load_the_class
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110067'
+  - Name: the_tostring_or_clone_method_returns_null
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150436'
+  - Name: struts_2_action_field_without_validator
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110009'
+  - Name: file_disclosure_spring
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070027'
+  - Name: denial_of_service_unchecked_array_index
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130136'
+  - Name: dynamic_code_evaluation_unsafe_xstream_deserialization
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060117'
+  - Name: dynamic_code_evaluation_code_injection_webview
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020103'
+  - Name: html5_overly_permissive_message_posting_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130144'
+  - Name: not_synchronize_getter_and_setter_methods
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150308'
+      - type: guide
+        value: '0302000010170050'
+  - Name: obsolete
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130009'
+      - type: cert
+        value: '0102000010140702'
+      - type: std
+        value: '0202000010150416'
+      - type: YD/T 3464-2019
+        value: '0902000010160052'
+  - Name: access_control_acl_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130162'
+  - Name: portability_flaw_file_separator
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110064'
+  - Name: empty_case_block
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130133'
+  - Name: j2ee_bad_practices_system_exit
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070032'
+      - type: cert
+        value: '0102000010140809'
+      - type: std
+        value: '0202000010150404'
+      - type: YD/T 3464-2019
+        value: '0902000010160072'
+  - Name: password_management_weak_redundancy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070020'
+  - Name: android_bad_practices_missing_broadcaster_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110101'
+  - Name: android_bad_practices_dangerous_dynamic_broadcaster
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110168'
+  - Name: android_bad_practices_dangerous_send_broadcast
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110169'
+  - Name: poor_style_confusing_namingmember_and_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130011'
+  - Name: use_empty_infinite_loop
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110061'
+      - type: cert
+        value: '0102000010141801'
+      - type: std
+        value: '0202000010150413'
+      - type: YD/T 3464-2019
+        value: '0902000010160149'
+  - Name: insecure_ssl_server_identity_verification_disabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110084'
+      - type: std
+        value: '0202000010150435'
+      - type: guide
+        value: '0302000010170020'
+  - Name: j2ee_misconfiguration_insufficient_session_id_length
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100012'
+  - Name: do_not_deviate_from_the_proper_signatures_of_serialization_methods
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110153'
+      - type: cert
+        value: '0102000010141501'
+      - type: YD/T 3464-2019
+        value: '0902000010160122'
+  - Name: j2ee_misconfiguration_missing_authentication_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110154'
+  - Name: unchecked_return_value
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070022'
+      - type: cert
+        value: '0102000010140400'
+      - type: std
+        value: '0202000010150114'
+      - type: YD/T 3464-2019
+        value: '0902000010160018'
+      - type: guide
+        value: '0302000010170067'
+  - Name: j2ee_bad_practices_threads
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110003'
+      - type: std
+        value: '0202000010150402'
+  - Name: dangerous_file_inclusion
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050001'
+  - Name: android_bad_practices_missing_receiver_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110102'
+  - Name: sql_injection_persistence
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020008'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: unreleased_resource_streams
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130020'
+      - type: cert
+        value: '0102000010141404'
+      - type: YD/T 3464-2019
+        value: '0902000010160110'
+      - type: guide
+        value: '0302000010170060'
+  - Name: dynamic_code_evaluation_unsafe_json_deserialization
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020026'
+  - Name: using_invalid_index
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000021'
+      - type: std
+        value: '0202000010150429'
+  - Name: using_wrong_loop_condition
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130168'
+  - Name: using_wrong_array_index
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130169'
+  - Name: privacy_violation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130106'
+  - Name: classloader_manipulation_struts_1
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110139'
+  - Name: cross_site_scripting_external_links
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030006'
+  - Name: cross_site_scripting_reflected_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030021'
+      - type: guide
+        value: '0302000010170008'
+  - Name: android_bad_practices_missing_network_security_configuration
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020138'
+  - Name: use_floating_point_variables_as_loop_counters
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110054'
+      - type: cert
+        value: '0102000010140509'
+      - type: std
+        value: '0202000010150412'
+      - type: YD/T 3464-2019
+        value: '0902000010160033'
+  - Name: dynamic_code_evaluation_unsafe_deserialization_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060201'
+  - Name: pending_intents_contain_implicit_intent_risks
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130107'
+  - Name: insecure_storage_http_response_cache_leak
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110130'
+  - Name: insecure_storage_android_world_readable_or_writeable
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110107'
+  - Name: temporary_file_not_deleted
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130035'
+      - type: cert
+        value: '0102000010141403'
+      - type: YD/T 3464-2019
+        value: '0902000010160109'
+      - type: guide
+        value: '0302000010170066'
+  - Name: android_bad_practices_missing_google_play_services_updated_security_provider
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020137'
+  - Name: mass_assignment_request_parameters_bound_into_persisted_objects
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020145'
+  - Name: often_misused_boolean_getboolean
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070018'
+  - Name: dynamic_code_evaluation_unsafe_deserialization
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060116'
+  - Name: click_hijacking
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110171'
+  - Name: j2ee_misconfiguration_weak_access_permissions
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100019'
+  - Name: same_origin_method_execution
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020033'
+  - Name: nosql_injection_mongodb
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020025'
+  - Name: xml_entity_expansion_injection_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050024'
+  - Name: do_not_follow_a_write_by_a_subsequent_write_or_read_of_the_same_object_within_an_expression
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140405'
+      - type: YD/T 3464-2019
+        value: '0902000010160023'
+  - Name: code_correctness_erroneous_string_compare
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110044'
+      - type: std
+        value: '0202000010150408'
+  - Name: cross_site_scripting_persistent
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030002'
+      - type: guide
+        value: '0302000010170010'
+  - Name: weak_cryptographic_hash
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080009'
+      - type: std
+        value: '0202000010150201'
+      - type: guide
+        value: '0302000010170012'
+  - Name: class_implements_externalizable_has_no_parameterless_constructor
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150449'
+  - Name: insecure_ssl_webview_ignores_ssl_certificate_error_detection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060114'
+  - Name: sql_injection_jfinal
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020002'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: denial_of_service_stringbuilder
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050055'
+  - Name: poor_error_handling_program_catches_nullpointerexception
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120003'
+      - type: cert
+        value: '0102000010140808'
+      - type: std
+        value: '0202000010150501'
+      - type: YD/T 3464-2019
+        value: '0902000010160071'
+  - Name: android_bad_practices_missing_exported_flag_or_component_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110113'
+  - Name: save_the_url_in_the_map_and_set
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110202'
+      - type: std
+        value: '0202000010150453'
+  - Name: code_correctness_incorrect_serialpersistentfields_modifier
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110046'
+      - type: std
+        value: '0202000010150433'
+  - Name: do_not_use_background_threads_during_class_initialization
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141302'
+      - type: YD/T 3464-2019
+        value: '0902000010160104'
+      - type: guide
+        value: '0302000010170046'
+  - Name: android_bad_practices_use_of_released_camera_resource
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110109'
+  - Name: use_empty_loops
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130128'
+  - Name: struts_2_duplicate_validators
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110012'
+  - Name: code_correctness_erroneous_class_compare
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130001'
+      - type: cert
+        value: '0102000010140609'
+      - type: YD/T 3464-2019
+        value: '0902000010160047'
+      - type: guide
+        value: '0302000010170028'
+  - Name: poor_logging_practice_use_of_a_system_output_stream
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110034'
+      - type: std
+        value: '0202000010150406'
+  - Name: process_control_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050025'
+  - Name: file_permission_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020052'
+      - type: cert
+        value: '0102000010141401'
+      - type: YD/T 3464-2019
+        value: '0902000010160107'
+      - type: guide
+        value: '0302000010170026'
+  - Name: insecure_randomness_user_controlled_seed
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080021'
+  - Name: insecure_randomness
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080001'
+      - type: cert
+        value: '0102000010141802'
+      - type: YD/T 3464-2019
+        value: '0902000010160150'
+      - type: guide
+        value: '0302000010170011'
+  - Name: poor_logging_practice_multiple_loggers
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110033'
+  - Name: j2ee_misconfiguration_incomplete_error_handling___throwable
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100008'
+  - Name: missing_xml_validation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050007'
+      - type: cert
+        value: '0102000010140216'
+      - type: guide
+        value: '0302000010170005'
+  - Name: deserialization_bad_practice_blacklist
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130119'
+  - Name: error_regular_expression
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150450'
+  - Name: race_condition_app_download
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090013'
+  - Name: denial_of_service_uncontrolled_loops
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130140'
+  - Name: password_management_empty_password_in_configuration_file
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080014'
+  - Name: do_not_expose_buffers_created_using_the_wrap_or_duplicate_methods_to_untrusted_code
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141405'
+      - type: YD/T 3464-2019
+        value: '0902000010160111'
+  - Name: dynamic_code_evaluation_script_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020031'
+  - Name: insecure_database
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020132'
+  - Name: xml_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020011'
+      - type: cert
+        value: '0102000010140216'
+      - type: guide
+        value: '0302000010170005'
+  - Name: expose_private_fields_of_external_classes_in_nested_classes
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110056'
+      - type: cert
+        value: '0102000010140608'
+  - Name: system_information_leak_servlet
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110093'
+      - type: cert
+        value: '0102000010140801'
+  - Name: do_not_expose_private_members_of_an_outer_class_from_within_a_nested_class
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110056'
+      - type: cert
+        value: '0102000010140608'
+      - type: YD/T 3464-2019
+        value: '0902000010160046'
+  - Name: hardcode_email_address
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110099'
+      - type: cert
+        value: '0102000010141803'
+      - type: YD/T 3464-2019
+        value: '0902000010160151'
+      - type: guide
+        value: '0302000010170018'
+  - Name: j2ee_bad_practices_getconnection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110063'
+  - Name: create_objects_in_loop
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110137'
+  - Name: file_disclosure_j2ee
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070026'
+  - Name: public_finalize_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110069'
+  - Name: privilege_management_android_telephony
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060103'
+  - Name: the_class_of_the_transient_modified_field_is_not_serializable
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150455'
+  - Name: struts_misconfiguration_invalid_path
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100022'
+  - Name: incorrect_httpsecurity_url_sort
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150446'
+  - Name: mass_assignment_insecure_binder_configuration
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070033'
+  - Name: privilege_management_unnecessary_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110122'
+  - Name: do_not_modify_the_collection_elements_during_an_enhanced_for_statement
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140302'
+      - type: YD/T 3464-2019
+        value: '0902000010160017'
+  - Name: often_misused_android_permission_check
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060107'
+  - Name: denial_of_service_divide_by_zero
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130137'
+  - Name: xml_external_entity_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050019'
+      - type: cert
+        value: '0102000010140217'
+      - type: guide
+        value: '0302000010170006'
+  - Name: weak_xml_schema_type_any
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100033'
+  - Name: weak_xml_schema_unbounded_occurrences
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100034'
+  - Name: intent_invoked_implicitly
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110133'
+  - Name: overriding_the_next_method_does_not_throw_nosuchelementexception
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150448'
+  - Name: session_puzzling_spring
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130150'
+  - Name: dead_code_expression_is_always_false
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130004'
+  - Name: android_bad_practices_provider_permission_defined
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110115'
+  - Name: string_comparison_of_float
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130039'
+      - type: cert
+        value: '0102000010140511'
+  - Name: user_controlled_pbe_salt
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110155'
+  - Name: overly_permissive_cross_domain_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110157'
+  - Name: insecure_transport_sender
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110158'
+  - Name: insecure_transport_receiver
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110159'
+  - Name: inbound_ws_security_not_enabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110180'
+  - Name: insecure_message_security
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110181'
+  - Name: outbound_ws_security_not_enabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110182'
+  - Name: ws_security_not_enabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110183'
+  - Name: default_url_invoke_disallowed_setting
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110184'
+  - Name: build_misconfiguration_external_ant_dependency_repository
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110185'
+  - Name: websphere_misconfiguration_servlets_served_by_class_name
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110186'
+  - Name: privacy_violation_shoulder_surfing
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110187'
+  - Name: overly_permissive_custom_headers_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110156'
+  - Name: memory_leak_in_non_static_inner_classes
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130108'
+  - Name: code_correctness_non_static_inner_class_implements_serializable
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110049'
+      - type: cert
+        value: '0102000010141505'
+      - type: std
+        value: '0202000010150307'
+      - type: YD/T 3464-2019
+        value: '0902000010160126'
+  - Name: sql_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020006'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: enable_serialization_compatibility_during_class_evolution
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141500'
+      - type: YD/T 3464-2019
+        value: '0902000010160121'
+  - Name: use_weekyear_date_formatting
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150430'
+  - Name: weak_cryptographic_hash_user_controlled_algorithm
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080059'
+  - Name: system_information_leak_debug
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110094'
+      - type: cert
+        value: '0102000010140801'
+  - Name: cookie_security_cookie_not_sent_over_ssl
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110004'
+  - Name: wrong_getter_or_setter_method
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150426'
+  - Name: use_bigdecimaldouble
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150117'
+  - Name: untrusted_search_path
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020040'
+  - Name: spring_boot_misconfiguration_devtools_enabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020144'
+  - Name: build_misconfiguration_external_ivy_dependency_repository
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020140'
+  - Name: build_misconfiguration_dynamic_dependency_version
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020143'
+  - Name: j2ee_misconfiguration_duplicate_servlet_mapping
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100005'
+  - Name: often_misused_authentication
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070031'
+      - type: guide
+        value: '0302000010170019'
+  - Name: rely_on_referer_for_authentication
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070034'
+  - Name: rely_on_not_verified_or_integrity_checked_cookie
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070035'
+  - Name: password_management_password_in_redirect
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080007'
+  - Name: dead_code_unused_field
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130006'
+  - Name: android_bad_practices_weak_authentication
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110118'
+  - Name: j2ee_misconfiguration_missing_servlet_mapping
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100018'
+  - Name: header_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020003'
+  - Name: poor_error_handling_overly_broad_throws
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120002'
+      - type: cert
+        value: '0102000010140807'
+      - type: YD/T 3464-2019
+        value: '0902000010160070'
+      - type: guide
+        value: '0302000010170058'
+  - Name: do_not_reuse_public_identifiers_from_the_java_standard_library
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140301'
+      - type: YD/T 3464-2019
+        value: '0902000010160016'
+  - Name: content_provider_uri_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020104'
+  - Name: log_forging_debug
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050102'
+  - Name: non_serializable_parent_of_serializable_class_none_parameterless_constructor
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150442'
+  - Name: dynamic_code_evaluation_xmldecoder_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020013'
+  - Name: system_information_leak_internal
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110082'
+      - type: cert
+        value: '0102000010140801'
+  - Name: unsafe_jni
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130115'
+      - type: cert
+        value: '0102000010141900'
+  - Name: code_correctness_negative_content_length
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070005'
+      - type: std
+        value: '0202000010150432'
+  - Name: optional_does_not_get_the_value_after_calling_ispresent
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000024'
+  - Name: insecure_randomness_poor_seed
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080016'
+      - type: cert
+        value: '0102000010141803'
+      - type: std
+        value: '0202000010150205'
+      - type: YD/T 3464-2019
+        value: '0902000010160151'
+      - type: guide
+        value: '0302000010170018'
+  - Name: use_equals_to_determine_if_the_string_is_null
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130026'
+  - Name: spring_boot_misconfiguration_actuator_endpoint_security_disabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100102'
+  - Name: struts_misconfiguration_missing_form_property_type
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100028'
+  - Name: privilege_management_android_network
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060110'
+  - Name: weak_encryption
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080011'
+      - type: std
+        value: '0202000010150202'
+      - type: guide
+        value: '0302000010170014'
+  - Name: j2ee_misconfiguration_invalid_servlet_name
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100013'
+  - Name: privilege_management_overly_broad_access_specifier
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110123'
+  - Name: weak_cryptographic_hash_insecure_pbe_iteration_count
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080050'
+  - Name: cross_site_scripting_inter_component_communication
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030102'
+  - Name: access_control_database
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090006'
+      - type: guide
+        value: '0302000010170064'
+  - Name: sql_injection_jdo
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020007'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: missing_check_against_null
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130022'
+  - Name: j2ee_misconfiguration_duplicate_security_role
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100004'
+  - Name: detect_and_handle_file_related_errors
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141402'
+      - type: YD/T 3464-2019
+        value: '0902000010160108'
+  - Name: unsafe_reflection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020058'
+  - Name: do_not_rely_on_the_write_method_to_output_integers_outside_the_range_0_to_255
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141409'
+      - type: YD/T 3464-2019
+        value: '0902000010160115'
+  - Name: disable_spring_csrf_protection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110100'
+  - Name: insecure_ssl_inadequate_certificate_verification
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060120'
+  - Name: do_not_synchronize_on_the_class_object_returned_by_getclass
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141002'
+      - type: YD/T 3464-2019
+        value: '0902000010160081'
+      - type: guide
+        value: '0302000010170036'
+  - Name: null_dereference
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130008'
+  - Name: android_bad_practices_system_permission_defined
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110116'
+  - Name: incorrect_block_division
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130126'
+  - Name: poor_logging_practice_logger_not_declared_static_final
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110032'
+  - Name: unreleased_resource_database
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130017'
+      - type: cert
+        value: '0102000010141404'
+      - type: YD/T 3464-2019
+        value: '0902000010160110'
+      - type: guide
+        value: '0302000010170063'
+  - Name: sql_injection_mybatis_mapper_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020005'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: missing_securitymanager_check_cloneable
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110065'
+  - Name: struts_misconfiguration_missing_forward_name
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100029'
+  - Name: wakelock_unreleased
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130104'
+      - type: cert
+        value: '0102000010141008'
+      - type: YD/T 3464-2019
+        value: '0902000010160087'
+      - type: guide
+        value: '0302000010170040'
+  - Name: nosql_injection_neo4j
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020130'
+  - Name: sql_injection_hibernate
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020009'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: j2ee_misconfiguration_excessive_servlet_mappings
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100006'
+  - Name: mica_xss
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030001'
+  - Name: javaee_frees_the_resource_using_deleteonexit
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130034'
+      - type: cert
+        value: '0102000010141403'
+      - type: std
+        value: '0202000010150113'
+  - Name: unreleased_resource_sockets
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130019'
+      - type: cert
+        value: '0102000010141404'
+      - type: YD/T 3464-2019
+        value: '0902000010160110'
+      - type: guide
+        value: '0302000010170061'
+  - Name: insecure_storage_s3_full_anonymous_access
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110142'
+  - Name: race_condition_singleton_member_field_servlet
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090004'
+      - type: cert
+        value: '0102000010141811'
+      - type: std
+        value: '0202000010150302'
+      - type: guide
+        value: '0302000010170047'
+  - Name: race_condition_singleton_member_field
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090004'
+      - type: std
+        value: '0202000010150302'
+      - type: guide
+        value: '0302000010170049'
+  - Name: bean_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020148'
+  - Name: sql_injection_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020020'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: poor_error_handling_swallowed_threaddeath
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120005'
+  - Name: not_static_long_serialversionuid_
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150451'
+  - Name: insecure_transport_rfcomm_bluetooth_socket
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110095'
+  - Name: code_correctness_comparison_with_nan
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110053'
+      - type: cert
+        value: '0102000010140507'
+      - type: std
+        value: '0202000010150411'
+      - type: YD/T 3464-2019
+        value: '0902000010160031'
+  - Name: weak_encryption_insecure_initialization_vector
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080020'
+      - type: std
+        value: '0202000010150206'
+  - Name: system_information_leak_overly_broad_debug
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110043'
+  - Name: android_bad_practices_encryption_secret_held_in_static_field
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110097'
+  - Name: immutable_classes_non_final_fields
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070024'
+  - Name: assert_statement_is_always_false
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130116'
+  - Name: use_floating_point_numbers_for_precise_calculations
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110068'
+      - type: cert
+        value: '0102000010140504'
+      - type: YD/T 3464-2019
+        value: '0902000010160028'
+  - Name: android_class_loading_hijacking_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020108'
+  - Name: android_bad_practices_use_of_file_scheme_cookies
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110132'
+  - Name: insecure_storage_android_backup_storage
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110124'
+  - Name: android_allow_taskreparenting
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110165'
+  - Name: android_use_path
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110166'
+  - Name: android_launchMode_singleTask
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110167'
+  - Name: code_correctness_class_does_not_implement_equals
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070002'
+      - type: std
+        value: '0202000010150102'
+  - Name: do_not_let_external_processes_block_on_io_buffers
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141407'
+      - type: YD/T 3464-2019
+        value: '0902000010160113'
+  - Name: struts2_s2_048
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010500001'
+      - type: guide
+        value: '0302000010170071'
+  - Name: http_verb_tampering
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100009'
+  - Name: unreleased_resource_android_media
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130101'
+  - Name: saved_plain_text_password_in_webview
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080101'
+  - Name: weak_encryption_insecure_mode_of_operation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080019'
+      - type: std
+        value: '0202000010150208'
+      - type: guide
+        value: '0302000010170015'
+  - Name: poor_error_handling_empty_catch_block
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120008'
+      - type: cert
+        value: '0102000010140800'
+      - type: YD/T 3464-2019
+        value: '0902000010160063'
+      - type: guide
+        value: '0302000010170054'
+  - Name: cross_site_request_forgery
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030004'
+  - Name: cross_site_scripting_protection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100106'
+  - Name: spring_security_misconfiguration_disabled_security_headers
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100105'
+  - Name: poor_style_non_final_public_static_field
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110035'
+      - type: cert
+        value: '0102000010140610'
+      - type: YD/T 3464-2019
+        value: '0902000010160048'
+  - Name: hidden_field
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110029'
+      - type: cert
+        value: '0102000010140214'
+      - type: guide
+        value: '0302000010170004'
+  - Name: excessive_memory_allocation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130138'
+  - Name: insecure_storage_missing_database_encryption
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110141'
+  - Name: system_information_leak_struts_2
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110150'
+  - Name: system_information_leak_druid
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110147'
+  - Name: system_information_leak_springfox_swagger
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110148'
+  - Name: create_boolean_objects
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130028'
+      - type: std
+        value: '0202000010150419'
+  - Name: sql_injection_mybatis_mapper
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020016'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: disable_ldap_authentication
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150443'
+  - Name: serialize_not_implement_serializable_classe
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150440'
+  - Name: concatenate_string_in_a_loop
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130027'
+      - type: std
+        value: '0202000010150418'
+  - Name: safely_extract_files_from_zipinputstream
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050050'
+      - type: cert
+        value: '0102000010140204'
+      - type: YD/T 3464-2019
+        value: '0902000010160005'
+      - type: guide
+        value: '0302000010170002'
+  - Name: denial_of_service_format_string
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050054'
+      - type: cert
+        value: '0102000010140206'
+      - type: YD/T 3464-2019
+        value: '0902000010160007'
+      - type: guide
+        value: '0302000010170052'
+  - Name: insecure_transport_mail_transmission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110083'
+      - type: cert
+        value: '0102000010141800'
+      - type: std
+        value: '0202000010150422'
+  - Name: unsafe_deserialization_components
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020146'
+  - Name: java_content_library_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020131'
+  - Name: dynamic_code_evaluation_unsafe_yaml_deserialization
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020035'
+  - Name: sql_injection_ibatis_data_map_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020010'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: redundant_null_check
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130016'
+  - Name: hardcode_id_number
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110134'
+  - Name: privilege_management_amazon_web_services_unchecked_permissions
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060108'
+  - Name: j2ee_misconfiguration_excessive_session_timeout
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100007'
+      - type: guide
+        value: '0302000010170069'
+  - Name: setting_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050017'
+  - Name: build_misconfiguration_external_maven_dependency_repository
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100050'
+  - Name: the_class_inherited_from_thread_does_not_override_the_run_method
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150310'
+  - Name: system_information_leak_external
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110081'
+      - type: cert
+        value: '0102000010110081'
+  - Name: android_class_loading_hijacking
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020102'
+  - Name: javascript_hijacking
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130110'
+  - Name: password_management_null_password
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080005'
+      - type: std
+        value: '0202000010150211'
+      - type: guide
+        value: '0302000010170022'
+  - Name: expressions_used_in_assertions_must_not_produce_side_effects
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140406'
+  - Name: trust_boundary_violation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050020'
+  - Name: poor_error_handling_return_inside_finally
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120004'
+      - type: cert
+        value: '0102000010140804'
+      - type: std
+        value: '0202000010150502'
+      - type: YD/T 3464-2019
+        value: '0902000010160067'
+      - type: guide
+        value: '0302000010170056'
+  - Name: weak_encryption_insufficient_key_size
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080013'
+      - type: std
+        value: '0202000010150204'
+      - type: guide
+        value: '0302000010170013'
+  - Name: open_android_app_service
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060121'
+  - Name: denial_of_service_regular_expression
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020015'
+      - type: cert
+        value: '0102000010140208'
+      - type: YD/T 3464-2019
+        value: '0902000010160009'
+      - type: guide
+        value: '0302000010170053'
+  - Name: not_public_in_request_response_method
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150437'
+  - Name: system_information_leak
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110036'
+      - type: cert
+        value: '0102000010140801'
+  - Name: tomcat_configuration_insecure_transport
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020147'
+  - Name: dockerfile_misconfiguration_privileged_port
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020149'
+  - Name: dockerfile_misconfiguration_sensitive_host_directory
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020150'
+  - Name: dockerfile_misconfiguration_privileged_container
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020151'
+  - Name: dockerfile_misconfiguration_default_user_privilege
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020152'
+  - Name: dockerfile_misconfiguration_ssh_service
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020153'
+  - Name: disclosure_of_sensitive_information
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130142'
+  - Name: unreleased_resource_android_sqlite_database
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130103'
+  - Name: code_correctness_non_synchronized_method_overrides_synchronized_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110048'
+      - type: cert
+        value: '0102000010141300'
+      - type: YD/T 3464-2019
+        value: '0902000010160102'
+      - type: guide
+        value: '0302000010170045'
+  - Name: fragment_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050101'
+  - Name: useless_assignment
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130132'
+  - Name: code_correctness_call_to_sleep_in_lock
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090001'
+      - type: cert
+        value: '0102000010141009'
+      - type: YD/T 3464-2019
+        value: '0902000010160088'
+  - Name: privilege_management_android_data_storage
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110121'
+  - Name: often_misused_privilege_management
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000010'
+  - Name: ognl_expression_injection_double_evaluation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050027'
+  - Name: ognl_expression_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050014'
+  - Name: access_control_securitymanager_bypass
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130161'
+      - type: cert
+        value: '0102000010141605'
+  - Name: j2ee_bad_practices_non_serializable_object_stored_in_session
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110001'
+      - type: cert
+        value: '0102000010141808'
+      - type: std
+        value: '0202000010150401'
+  - Name: synchronization_based_on_reusable_objects
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090010'
+      - type: cert
+        value: '0102000010141001'
+      - type: std
+        value: '0202000010150304'
+      - type: YD/T 3464-2019
+        value: '0902000010160080'
+      - type: guide
+        value: '0302000010170034'
+  - Name: access_control_weak_security_constraint
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100010'
+  - Name: access_control_android_provider
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090101'
+  - Name: struts_misconfiguration_missing_exception_type
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100024'
+  - Name: often_misused_string_tostring
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110089'
+  - Name: insecure_storage_s3_write_anonymous_access
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110144'
+  - Name: struts_unused_action_form
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110022'
+  - Name: intent_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020105'
+  - Name: privilege_management_android_calendar
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060122'
+  - Name: privilege_management_android_contacts
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060123'
+  - Name: privilege_management_android_camera
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060124'
+  - Name: privilege_management_android_callLog
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060125'
+  - Name: privilege_management_android_sensors
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060126'
+  - Name: privilege_management_android_microphone
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060127'
+  - Name: privilege_management_android_activity_recognition
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060128'
+  - Name: sql_injection_partiql
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090028'
+  - Name: privilege_management_missing_content_provider_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110105'
+  - Name: often_misused_file_upload
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000009'
+  - Name: obsolete_deprecated_by_esapi
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130025'
+  - Name: android_bad_practices_use_of_internal_apis
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110129'
+  - Name: numeric_truncation_error
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130141'
+      - type: cert
+        value: '0102000010140512'
+      - type: YD/T 3464-2019
+        value: '0902000010160036'
+  - Name: code_correctness_call_to_system_gc
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070001'
+      - type: std
+        value: '0202000010150101'
+  - Name: unauthenticated_service_redis
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130147'
+  - Name: javaee_input_password_plaintext
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080102'
+  - Name: j2ee_bad_practices_leftover_debug_code
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110031'
+      - type: cert
+        value: '0102000010141706'
+      - type: std
+        value: '0202000010150403'
+  - Name: struts_duplicate_validation_forms
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110017'
+  - Name: class_does_not_declaration_final
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130113'
+  - Name: hardcoded_ip
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110092'
+      - type: cert
+        value: '0102000010141803'
+      - type: YD/T 3464-2019
+        value: '0902000010160151'
+      - type: guide
+        value: '0302000010170018'
+  - Name: hardcoded_url
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110098'
+      - type: cert
+        value: '0102000010141803'
+      - type: YD/T 3464-2019
+        value: '0902000010160151'
+      - type: guide
+        value: '0302000010170018'
+  - Name: use_unnecessary_thread_safe_class
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000020'
+  - Name: ognl_expression_injection_struts_2
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050026'
+  - Name: avoid_loss_of_precision_when_converting_primitive_integers_to_floating_point
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140513'
+      - type: YD/T 3464-2019
+        value: '0902000010160037'
+  - Name: do_not_increase_the_accessibility_of_overridden_or_hidden_methods
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140704'
+      - type: YD/T 3464-2019
+        value: '0902000010160054'
+      - type: guide
+        value: '0302000010170032'
+  - Name: j2ee_bad_practices_sockets
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110062'
+  - Name: formula_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020024'
+  - Name: privilege_management_dangerous_intent_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060112'
+  - Name: weak_encryption_missing_required_step
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080018'
+  - Name: object_model_violation_just_one_of_restorestate_and_savestate_defined
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130024'
+  - Name: wrong_order_of_parameters
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130160'
+  - Name: struts_misconfiguration_duplicate_form_bean
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100021'
+  - Name: j2ee_bad_practices_insufficient_session_expiration
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110070'
+      - type: std
+        value: '0202000010150405'
+  - Name: unsafe_mobile_code_unsafe_public_field
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110071'
+  - Name: unsafe_mobile_code_access_violation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110072'
+  - Name: insecure_storage_android_external_storage
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110103'
+  - Name: sanitize_untrusted_data_passed_to_the_runtime_exec_method_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020022'
+      - type: cert
+        value: '0102000010140207'
+      - type: YD/T 3464-2019
+        value: '0902000010160008'
+      - type: guide
+        value: '0302000010170003'
+  - Name: print_error_message_using_printstacktrace
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110091'
+      - type: cert
+        value: '0102000010140801'
+      - type: std
+        value: '0202000010150428'
+  - Name: cross_site_scripting_poor_validation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030101'
+  - Name: command_injection_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020022'
+  - Name: unhandled_error
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120009'
+  - Name: server_side_template_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020029'
+  - Name: axis_2_misconfiguration_debug_information
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100031'
+  - Name: code_correctness_byte_array_to_string_conversion
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130032'
+      - type: cert
+        value: '0102000010142003'
+  - Name: poor_error_handling_throw_inside_finally
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120006'
+      - type: cert
+        value: '0102000010140805'
+      - type: std
+        value: '0202000010150504'
+      - type: YD/T 3464-2019
+        value: '0902000010160068'
+      - type: guide
+        value: '0302000010170057'
+  - Name: empty_block
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130130'
+  - Name: missing_break_statement_in_switch_statement
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130111'
+  - Name: anonymous_inner_classes_use_non_static_initializer
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000022'
+  - Name: denial_of_service
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050002'
+      - type: guide
+        value: '0302000010170062'
+  - Name: call_to_condition_wait
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070029'
+      - type: std
+        value: '0202000010150108'
+  - Name: unsafe_mobile_code_unsafe_array_declaration
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130114'
+      - type: cert
+        value: '0102000010140613'
+      - type: guide
+        value: '0302000010170029'
+  - Name: race_condition_class_initialization_cycle
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110090'
+      - type: cert
+        value: '0102000010140300'
+      - type: YD/T 3464-2019
+        value: '0902000010160015'
+  - Name: j2ee_misconfiguration_unsafe_bean_declaration
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100020'
+  - Name: cookie_security_httponly_not_set
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000006'
+      - type: std
+        value: '0202000010150447'
+  - Name: struts_2_validation_file_without_action
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110015'
+  - Name: cookie_security_persistent_cookie
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110008'
+  - Name: insecure_transport_database
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020134'
+  - Name: struts_misconfiguration_missing_action_input
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100023'
+  - Name: use_weak_ssl_protocol
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150439'
+  - Name: android_bad_practices_sticky_broadcast
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060104'
+  - Name: unsafe_mutable_object_declarations
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130143'
+      - type: cert
+        value: '0102000010140613'
+      - type: guide
+        value: '0302000010170029'
+  - Name: do_not_synchronize_on_a_collection_view_if_the_backing_collection_is_accessible
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141004'
+      - type: YD/T 3464-2019
+        value: '0902000010160083'
+      - type: guide
+        value: '0302000010170038'
+  - Name: use_equals_or_hashcode_methods_on_urls
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110202'
+      - type: std
+        value: '0202000010150452'
+  - Name: provide_methods_to_read_and_write_little_endian_data
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141412'
+      - type: YD/T 3464-2019
+        value: '0902000010160118'
+  - Name: android_bad_practices_mixed_component_functionality
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110114'
+  - Name: use_nullcipher
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150115'
+  - Name: preserve_the_equality_contract_when_overriding_the_equals_method
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140708'
+  - Name: j2ee_misconfiguration_missing_error_handling
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100015'
+  - Name: immutable_classes_field_mutation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070023'
+  - Name: poor_style_redundant_initialization
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130014'
+  - Name: dead_code_unused_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130007'
+  - Name: mass_assignment_sensitive_field_exposure
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130149'
+  - Name: return_generic_wildcard_type_in_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000026'
+  - Name: password_management_password_in_configuration_file
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080015'
+  - Name: insecure_ssl_overly_broad_certificate_trust
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060119'
+  - Name: struts_unused_validation_form
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110023'
+  - Name: process_control
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050016'
+      - type: GB/T 34944-2017
+        value: '0402000010050025'
+  - Name: nosql_injection_dynamodb
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020034'
+  - Name: set_the_scheduledthreadpoolexecutor_maximum_number_of_threads
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150118'
+  - Name: struts_misconfiguration_missing_form_bean_type
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100027'
+  - Name: ensure_the_array_is_filled_when_using_read_to_fill_an_array
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141410'
+      - type: YD/T 3464-2019
+        value: '0902000010160116'
+  - Name: use_the_number_constructor
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110201'
+      - type: std
+        value: '0202000010150454'
+  - Name: empty_if_block
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130030'
+  - Name: unsafe_jsni
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130148'
+  - Name: poor_style_confusing_namingclass_and_member
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130010'
+  - Name: race_condition_static_database_connection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090005'
+      - type: std
+        value: '0202000010150303'
+  - Name: code_correctness_invalid_call_to_object_equals
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110088'
+      - type: cert
+        value: '0102000010140402'
+      - type: std
+        value: '0202000010150112'
+      - type: YD/T 3464-2019
+        value: '0902000010160020'
+  - Name: try_block_in_loop
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110138'
+  - Name: struts_form_field_without_validator
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110020'
+  - Name: do_not_use_reflection_to_increase_accessibility_of_classes_methods_or_fields
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141605'
+      - type: YD/T 3464-2019
+        value: '0902000010160138'
+  - Name: header_manipulation_cookies
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020106'
+  - Name: struts_plugin_framework_not_in_use
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110021'
+  - Name: key_management_null_encryption_key
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130152'
+  - Name: privilege_management_android_location
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060102'
+  - Name: j2ee_misconfiguration_direct_jsp_access
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100003'
+  - Name: access_specifier_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050053'
+      - type: cert
+        value: '0102000010141605'
+      - type: YD/T 3464-2019
+        value: '0902000010160138'
+  - Name: object_model_violation_just_one_of_equals_and_hashcode_defined
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070016'
+      - type: cert
+        value: '0102000010140709'
+      - type: YD/T 3464-2019
+        value: '0902000010160059'
+  - Name: insecure_sanitizer_policy
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030005'
+  - Name: privilege_management_overriding_permission_verification
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060111'
+  - Name: missing_xml_validation_untyped_response
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050052'
+      - type: cert
+        value: '0102000010140216'
+      - type: guide
+        value: '0302000010170005'
+  - Name: never_use_assertions_to_validate_method_arguments
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140701'
+      - type: YD/T 3464-2019
+        value: '0902000010160051'
+  - Name: file_based_cross_zone_scripting
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130105'
+  - Name: weak_cryptographic_hash_missing_required_step
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080052'
+  - Name: privilege_management_missing_intent_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110106'
+  - Name: code_correctness_erroneous_finalize_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070003'
+      - type: cert
+        value: '0102000010140712'
+      - type: YD/T 3464-2019
+        value: '0902000010160062'
+  - Name: password_management_hardcoded_password
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080004'
+      - type: cert
+        value: '0102000010141803'
+      - type: YD/T 3464-2019
+        value: '0902000010160151'
+      - type: guide
+        value: '0302000010170018'
+  - Name: open_redirect
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050010'
+  - Name: weak_encryption_inadequate_rsa_padding
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080012'
+      - type: std
+        value: '0202000010150203'
+  - Name: prevent_exceptions_while_logging_data
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010140802'
+      - type: YD/T 3464-2019
+        value: '0902000010160065'
+  - Name: code_correctness_hidden_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110086'
+      - type: cert
+        value: '0102000010140707'
+      - type: std
+        value: '0202000010150423'
+      - type: YD/T 3464-2019
+        value: '0902000010160057'
+      - type: guide
+        value: '0302000010170033'
+  - Name: code_correctness_misleading_method_signature
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110047'
+  - Name: hardcoded_password_std
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080004'
+      - type: cert
+        value: '0102000010141803'
+      - type: std
+        value: '0202000010150210'
+      - type: YD/T 3464-2019
+        value: '0902000010160151'
+      - type: guide
+        value: '0302000010170018'
+  - Name: application_map_tampering
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130038'
+  - Name: android_bad_practices_use_of_released_sqlite_resource
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110110'
+  - Name: j2ee_misconfiguration_debug_information
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100002'
+  - Name: struts_2_validator_without_action_field
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110016'
+  - Name: system_information_leak_spring_boot_actuator
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020141'
+  - Name: struts_2_duplicate_validation_files
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110011'
+  - Name: sql_injection_persistence_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020021'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: code_correctness_comparison_of_boxed_primitive_types
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110051'
+      - type: cert
+        value: '0102000010140403'
+      - type: std
+        value: '0202000010150410'
+      - type: YD/T 3464-2019
+        value: '0902000010160021'
+  - Name: define_wrappers_around_native_methods
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141900'
+  - Name: resource_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050009'
+  - Name: android_bad_practices_unnecessary_component_exposure
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110117'
+  - Name: hardcode_phone_number
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110136'
+  - Name: activity_hijacked
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110126'
+  - Name: ldap_injection_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020023'
+  - Name: struts_2_undeclared_validator
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110013'
+  - Name: code_correctness_call_to_notify
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110041'
+      - type: cert
+        value: '0102000010141102'
+      - type: std
+        value: '0202000010150110'
+      - type: YD/T 3464-2019
+        value: '0902000010160093'
+      - type: guide
+        value: '0302000010170041'
+  - Name: android_bad_practices_leftover_debug_code
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110096'
+  - Name: j2ee_misconfiguration_missing_data_transport_constraint
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100014'
+  - Name: xml_entity_expansion_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050021'
+  - Name: privacy_violation_android_internal_storage
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110120'
+  - Name: call_a_dangerous_method_in_the_serialized_class
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060115'
+  - Name: cross_site_scripting_reflected
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010030003'
+      - type: guide
+        value: '0302000010170008'
+  - Name: insecure_transport
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110030'
+      - type: cert
+        value: '0102000010141800'
+  - Name: create_folders_using_temporary_files
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150445'
+  - Name: struts_misconfiguration_missing_forward_path
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100030'
+  - Name: code_correctness_tostring_on_array
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070006'
+      - type: std
+        value: '0202000010150104'
+  - Name: session_fixation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090012'
+  - Name: missing_securitymanager_check_serializable
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110066'
+  - Name: portability_flaw_locale_dependent_comparison
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110085'
+      - type: cert
+        value: '0102000010142002'
+      - type: YD/T 3464-2019
+        value: '0902000010160010'
+      - type: guide
+        value: '0302000010170007'
+  - Name: empty_else_block
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130031'
+  - Name: incorrect_comparison_operator
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130109'
+  - Name: xslt_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050018'
+  - Name: optional_may_be_null
+    Maps:
+      Map:
+      - type: std
+        value: '0202000010150431'
+  - Name: call_unsafe_threadgroup_methods
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090007'
+      - type: cert
+        value: '0102000010141101'
+      - type: std
+        value: '0202000010150602'
+      - type: YD/T 3464-2019
+        value: '0902000010160092'
+      - type: guide
+        value: '0302000010170042'
+  - Name: j2ee_misconfiguration_missing_filter_definition
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100016'
+  - Name: weak_cryptographic_hash_hardcoded_pbe_salt
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080053'
+      - type: std
+        value: '0202000010150207'
+  - Name: unreleased_resource_android_camera
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130102'
+  - Name: system_information_leak_html_comment_in_jsp
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110037'
+  - Name: insecure_ssl_android_hostname_verification_disabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060106'
+      - type: std
+        value: '0202000010150434'
+  - Name: dynamic_code_evaluation_jndi_reference_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020028'
+  - Name: nested_for_depth_check
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130163'
+  - Name: nested_if_depth_check
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130164'
+  - Name: constant_name_check
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130165'
+  - Name: method_length_check
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130166'
+  - Name: dead_code_empty_try_block
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130003'
+      - type: std
+        value: '0202000010150415'
+  - Name: key_management_hardcoded_encryption_key
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130122'
+      - type: cert
+        value: '0102000010141803'
+      - type: YD/T 3464-2019
+        value: '0902000010160151'
+      - type: guide
+        value: '0302000010170016'
+  - Name: key_management_hardcoded_oss_sdk_credential
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130154'
+  - Name: javaee_unsafe_get_requests
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130134'
+      - type: cert
+        value: '0102000010141800'
+  - Name: equals_method_does_not_detect_parameter_types
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000025'
+  - Name: weak_xml_schema_lax_processing
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100032'
+  - Name: immutable_classes_public_mutable_fields
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010070025'
+  - Name: weak_encryption_byte_array_to_string_conversion
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080056'
+      - type: cert
+        value: '0102000010142003'
+  - Name: sql_injection_hibernate_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020019'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: divide_by_zero
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130139'
+  - Name: use_gethost_to_determine_the_domain_name
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110127'
+  - Name: store_sensitive_information_in_clear_text_in_cookies
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130123'
+  - Name: insecure_ssl_overly_broad_certificate_trust_possible
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060200'
+  - Name: struts_2_bad_practices_dynamic_method_invocation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130040'
+  - Name: request_map_tampering
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130037'
+  - Name: call_system_runfinalizersonexit
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060002'
+      - type: std
+        value: '0202000010150601'
+  - Name: password_management_empty_password
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080003'
+      - type: std
+        value: '0202000010150209'
+      - type: guide
+        value: '0302000010170023'
+  - Name: unreleased_resource_synchronization
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130021'
+      - type: cert
+        value: '0102000010141008'
+      - type: YD/T 3464-2019
+        value: '0902000010160087'
+      - type: guide
+        value: '0302000010170040'
+  - Name: insecure_ssl_android_socket
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060105'
+      - type: guide
+        value: '0302000010170070'
+  - Name: weak_cryptographic_hash_hardcoded_salt
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080010'
+      - type: cert
+        value: '0102000010141803'
+      - type: YD/T 3464-2019
+        value: '0902000010160151'
+      - type: guide
+        value: '0302000010170018'
+  - Name: code_correctness_null_argument_to_equals
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130002'
+      - type: std
+        value: '0202000010150414'
+  - Name: race_condition_format_flaw
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090003'
+      - type: std
+        value: '0202000010150301'
+      - type: guide
+        value: '0302000010170048'
+  - Name: poor_error_handling_unhandled_ssl_exception
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010120007'
+      - type: std
+        value: '0202000010150503'
+      - type: guide
+        value: '0302000010170059'
+  - Name: dynamic_code_evaluation_code_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020014'
+  - Name: often_misused_file_system
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010000011'
+  - Name: privilege_management_android_disable
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060109'
+  - Name: do_not_convert_between_strings_and_bytes_without_specifying_a_valid_character_encoding
+    Maps:
+      Map:
+      - type: YD/T 3464-2019
+        value: '0902000010160117'
+  - Name: insecure_storage_s3_write_acp_anonymous_access
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110145'
+  - Name: ldap_manipulation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020036'
+  - Name: internal_rule
+    Maps:
+      Map:
+      - type: bug
+        value: '02000000060000'
+  - Name: access_control_case_insensitive_package_name_comparison
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010090014'
+  - Name: useless_semicolon
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130131'
+  - Name: remove_temporary_files_before_termination
+    Maps:
+      Map:
+      - type: cert
+        value: '0102000010141403'
+      - type: YD/T 3464-2019
+        value: '0902000010160109'
+      - type: guide
+        value: '0302000010170066'
+  - Name: privilege_management_android_messaging
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010060101'
+  - Name: insecure_storage_s3_read_anonymous_access
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110143'
+  - Name: use_reclaimed_bitmaps
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110128'
+  - Name: ognl_expression_injection_dynamic_method_invocation
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010050057'
+  - Name: j2ee_misconfiguration_missing_security_role
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100017'
+  - Name: weak_cryptographic_signature_missing_required_step
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080051'
+      - type: guide
+        value: '0302000010170021'
+  - Name: xpath_injection
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020012'
+  - Name: sanitize_untrusted_data_passed_to_the_runtime_exec_method
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020001'
+      - type: cert
+        value: '0102000010140207'
+      - type: YD/T 3464-2019
+        value: '0902000010160008'
+      - type: guide
+        value: '0302000010170003'
+      - type: GB/T 34944-2017
+        value: '0402000010020022'
+  - Name: password_management_password_in_comment
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010080006'
+      - type: guide
+        value: '0302000010170017'
+  - Name: android_bad_practices_missing_component_permission
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110112'
+  - Name: incorrect_assignment_operator
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130127'
+  - Name: session_map_tampering
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010130036'
+  - Name: android_bad_practices_use_of_released_media_resource
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110108'
+  - Name: header_manipulation_smtp
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020051'
+  - Name: j2ee_misconfiguration_cookies_disabled
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010100001'
+  - Name: sql_injection_ibatis_data_map
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020017'
+      - type: cert
+        value: '0102000010140230'
+      - type: YD/T 3464-2019
+        value: '0902000010160001'
+      - type: guide
+        value: '0302000010170001'
+  - Name: sql_injection_mybatis_plus
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010020039'
+  - Name: often_misused_spring_web_service
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110151'
+  - Name: often_misused_spring_remote_service
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110152'
+  - Name: use_guomi_algorithm
+    Maps:
+      Map:
+      - type: bug
+        value: '02000010110172'

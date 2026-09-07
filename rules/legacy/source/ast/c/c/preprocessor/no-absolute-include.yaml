@@ -1,0 +1,10 @@
+id: no-absolute-include
+message: '0701000010130022,0601000010140013'
+language: C
+rule:
+  all:
+    - kind: preproc_include
+    - has:
+        kind: string_literal
+        regex: "^\"([A-Za-z]:|\\/)"
+

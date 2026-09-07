@@ -1,0 +1,12 @@
+id: final-public-static-field
+message: '0202000010110035'
+language: Java
+rule:
+  kind: field_declaration
+  has:
+    kind: modifiers
+    all:
+      - regex: public
+      - regex: static
+      - not:
+          regex: final

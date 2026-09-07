@@ -1,0 +1,10 @@
+id: org.apache.uima.uima-ducc-web
+language: Java
+message: pkg:maven/org.apache.uima/uima-ducc-web
+metadata:
+  purl: pkg:maven/org.apache.uima/uima-ducc-web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.uima\.ducc\.ws\.cli|org\.apache\.uima\.ducc\.ws\.registry|org\.apache\.uima\.ducc\.ws\.utils\.commands|org\.apache\.uima\.ducc\.ws\.server\.nodeviz|org\.apache\.uima\.ducc\.ws|org\.apache\.uima\.ducc\.ws\.utils\.alien|org\.apache\.uima\.ducc\.ws\.server|org\.apache\.uima\.ducc\.ws\.cli\.json|org\.apache\.uima\.ducc\.ws\.config|org\.apache\.uima\.ducc\.ws\.authentication|org\.apache\.uima\.ducc\.ws\.standardize|org\.apache\.uima\.ducc\.ws\.jconsole|org\.apache\.uima\.ducc\.ws\.registry\.sort|org\.apache\.uima\.ducc\.ws\.types|org\.apache\.uima\.ducc\.ws\.sort|org\.apache\.uima\.ducc\.ws\.utils|org\.apache\.uima\.ducc\.ws\.self\.message|org\.apache\.uima\.ducc\.ws\.db|org\.apache\.uima\.ducc\.ws\.helper|org\.apache\.uima\.ducc\.ws\.state\.monitoring|org\.apache\.uima\.ducc\.ws\.event)\.

@@ -1,0 +1,10 @@
+id: com.sap.scimono.scimono-server
+language: Java
+message: pkg:maven/com.sap.scimono/scimono-server
+metadata:
+  purl: pkg:maven/com.sap.scimono/scimono-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.sap\.scimono\.entity|com\.sap\.scimono\.api|com\.sap\.scimono\.entity\.bulk\.validation|com\.sap\.scimono\.api\.patch|com\.sap\.scimono\.callback\.bulk|com\.sap\.scimono\.entity\.bulk|com\.sap\.scimono\.entity\.schema\.validation|com\.sap\.scimono\.entity\.validation|com\.sap\.scimono\.api\.preprocessor|com\.sap\.scimono\.entity\.data|com\.sap\.scimono\.entity\.patch|com\.sap\.scimono\.api\.request|com\.sap\.scimono\.filter\.patch|com\.sap\.scimono\.entity\.base|com\.sap\.scimono\.entity\.config|com\.sap\.scimono\.entity\.schema|com\.sap\.scimono\.callback\.resourcetype|com\.sap\.scimono\.api\.helper|com\.sap\.scimono\.entity\.definition|com\.sap\.scimono\.callback\.config|com\.sap\.scimono\.helper|com\.sap\.scimono\.callback\.schemas|com\.sap\.scimono\.callback\.users|com\.sap\.scimono\.entity\.paging|com\.sap\.scimono\.entity\.schema\.resources|com\.sap\.scimono\.entity\.validation\.patch|com\.sap\.scimono\.filter|com\.sap\.scimono\.callback\.groups|com\.sap\.scimono\.exception|com\.sap\.scimono)\.

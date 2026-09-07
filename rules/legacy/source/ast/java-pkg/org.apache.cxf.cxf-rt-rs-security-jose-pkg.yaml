@@ -1,0 +1,10 @@
+id: org.apache.cxf.cxf-rt-rs-security-jose
+language: Java
+message: pkg:maven/org.apache.cxf/cxf-rt-rs-security-jose
+metadata:
+  purl: pkg:maven/org.apache.cxf/cxf-rt-rs-security-jose
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.rs\.security\.jose\.jwt|org\.apache\.cxf\.rs\.security\.jose\.jwe|org\.apache\.cxf\.rs\.security\.jose\.jwa|org\.apache\.cxf\.rs\.security\.jose\.jwk|org\.apache\.cxf\.rs\.security\.jose\.common|org\.apache\.cxf\.rs\.security\.jose\.jws)\.

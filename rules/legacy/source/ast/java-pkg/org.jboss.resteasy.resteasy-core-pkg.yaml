@@ -1,0 +1,10 @@
+id: org.jboss.resteasy.resteasy-core
+language: Java
+message: pkg:maven/org.jboss.resteasy/resteasy-core
+metadata:
+  purl: pkg:maven/org.jboss.resteasy/resteasy-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jboss\.resteasy\.plugins\.interceptors|org\.jboss\.resteasy\.core\.request|org\.jboss\.resteasy\.plugins\.delegates|org\.jboss\.resteasy\.plugins\.server|org\.jboss\.resteasy\.core|org\.jboss\.resteasy\.mock|org\.jboss\.resteasy\.core\.registry|org\.jboss\.resteasy\.core\.providerfactory|org\.jboss\.resteasy\.core\.scanner|org\.jboss\.resteasy\.plugins\.providers\.sse|org\.jboss\.resteasy\.util|org\.jboss\.resteasy\.plugins\.server\.resourcefactory|org\.jboss\.resteasy\.core\.interception\.jaxrs|org\.jboss\.resteasy\.core\.concurrent|org\.jboss\.resteasy\.core\.messagebody|org\.jboss\.resteasy\.statistics|org\.jboss\.resteasy\.core\.se|org\.jboss\.resteasy\.tracing|org\.jboss\.resteasy\.specimpl|org\.jboss\.resteasy\.util\.snapshot|org\.jboss\.resteasy\.plugins\.server\.embedded|org\.jboss\.resteasy\.plugins\.server\.servlet|org\.jboss\.resteasy\.plugins\.providers|org\.jboss\.resteasy\.plugins\.touri)\.

@@ -1,0 +1,41 @@
+id: invalid-var-init
+message: '0202000010130014'
+language: Java
+rule:
+  any:
+    - kind: expression_statement
+      pattern: $A = $_;
+      precedes:
+        stopBy:
+          not:
+            any:
+            - kind: line_comment
+            - kind: block_comment
+        kind: expression_statement
+        pattern: $A = $_;
+        has:
+          kind: assignment_expression
+          not:
+            has:
+              field: right
+              has:
+                stopBy: end
+                pattern: $A
+    - kind: local_variable_declaration
+      pattern: $T $A = $_;
+      precedes:
+        stopBy:
+          not:
+            any:
+            - kind: line_comment
+            - kind: block_comment
+        kind: expression_statement
+        pattern: $A = $_;
+        has:
+          kind: assignment_expression
+          not:
+            has:
+              field: right
+              has:
+                stopBy: end
+                pattern: $A

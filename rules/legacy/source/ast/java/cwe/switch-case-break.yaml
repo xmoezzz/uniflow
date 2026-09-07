@@ -1,0 +1,17 @@
+id: switch-case-break
+message: '0202000010130111'
+language: Java
+rule:
+  kind: switch_block_statement_group
+  has:
+    kind: switch_label
+    precedes:
+      precedes:
+        pattern: $_
+  not:
+    has:
+      stopBy: end
+      any:
+      - kind: break_statement
+      - kind: return_statement
+      - kind: throw_statement

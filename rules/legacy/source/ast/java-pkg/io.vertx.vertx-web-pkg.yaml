@@ -1,0 +1,10 @@
+id: io.vertx.vertx-web
+language: Java
+message: pkg:maven/io.vertx/vertx-web
+metadata:
+  purl: pkg:maven/io.vertx/vertx-web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.vertx\.ext\.web|io\.vertx\.ext\.web\.impl|io\.vertx\.ext\.web\.sstore|io\.vertx\.ext\.web\.handler|io\.vertx\.ext\.web\.sstore\.impl|io\.vertx\.ext\.web\.handler\.impl|io\.vertx\.ext\.web\.handler\.sockjs\.impl|io\.vertx\.ext\.web\.handler\.sockjs)\.

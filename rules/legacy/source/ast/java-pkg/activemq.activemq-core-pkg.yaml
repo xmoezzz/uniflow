@@ -1,0 +1,10 @@
+id: activemq.activemq-core
+language: Java
+message: pkg:maven/activemq/activemq-core
+metadata:
+  purl: pkg:maven/activemq/activemq-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.activemq\.broker\.region|org\.activemq\.broker\.jmx|org\.activemq\.security|org\.activemq\.store\.journal|org\.activemq\.pool|org\.activemq\.transport\.peer|org\.activemq\.transport\.discovery\.rendezvous|org\.activemq\.thread|org\.activemq\.transport\.failover|org\.activemq\.memory|org\.activemq\.network|org\.activemq\.advisory|org\.activemq\.transport\.discovery\.multicast|org\.activemq\.command|org\.activemq\.transport\.discovery\.simple|org\.activemq\.proxy|org\.activemq\.store\.memory|org\.activemq|org\.activemq\.memory\.buffer|org\.activemq\.transport\.mock|org\.activemq\.util|org\.activemq\.transport\.fanout|org\.activemq\.network\.jms|org\.activemq\.store|org\.activemq\.transport|org\.activemq\.transport\.stomp|org\.activemq\.transport\.vm|org\.activemq\.selector|org\.activemq\.jndi|org\.activemq\.memory\.list|org\.activemq\.state|org\.activemq\.transport\.tcp|org\.activemq\.broker|org\.activemq\.store\.jdbc|org\.activemq\.filter|org\.activemq\.management|org\.activemq\.transaction|org\.activemq\.broker\.region\.policy|org\.activemq\.transport\.discovery|org\.activemq\.openwire|org\.activemq\.xbean|org\.activemq\.store\.jdbc\.adapter|org\.activemq\.transport\.activeio|org\.activemq\.openwire\.v1)\.

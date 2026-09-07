@@ -1,0 +1,19 @@
+id: weak-ssl-protocol
+message: '0202000010150439'
+language: Java
+rule:
+  kind: method_invocation
+  all:
+  - has:
+      field: object
+      any:
+      - pattern: SSLContext
+      - pattern: $_.SSLContext
+  - has:
+      field: name
+      pattern: getInstance
+  - has:
+      field: arguments
+      has:
+        kind: string_literal
+        regex: ^\"SSL\"$

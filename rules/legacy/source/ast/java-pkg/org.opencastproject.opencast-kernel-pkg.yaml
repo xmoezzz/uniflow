@@ -1,0 +1,10 @@
+id: org.opencastproject.opencast-kernel
+language: Java
+message: pkg:maven/org.opencastproject/opencast-kernel
+metadata:
+  purl: pkg:maven/org.opencastproject/opencast-kernel
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.security\.oauth\.consumer\.nonce|org\.springframework\.security\.oauth\.provider\.expression|org\.springframework\.security\.oauth\.provider|org\.springframework\.security\.oauth\.provider\.filter|org\.opencastproject\.kernel\.security|org\.opencastproject\.kernel\.security\.persistence|org\.springframework\.security\.oauth\.consumer|org\.opencastproject\.kernel\.filter\.https|org\.opencastproject\.kernel\.mail|org\.opencastproject\.kernel\.rest|org\.springframework\.security\.oauth\.common|org\.springframework\.security\.oauth\.provider\.nonce|org\.springframework\.security\.oauth\.common\.signature|org\.springframework\.security\.oauth\.consumer\.filter|org\.springframework\.security\.oauth\.consumer\.token|org\.springframework\.security\.oauth\.config|org\.springframework\.security\.oauth\.provider\.attributes|org\.springframework\.security\.oauth\.consumer\.client|org\.opencastproject\.kernel\.http|org\.opencastproject\.kernel\.bundleinfo|org\.springframework\.security\.oauth\.consumer\.rememberme|org\.springframework\.security\.oauth\.provider\.token|org\.springframework\.security\.oauth\.provider\.verifier|org\.opencastproject\.kernel\.filter\.proxy|org\.opencastproject\.kernel\.scanner|org\.springframework\.security\.oauth\.consumer\.net)\.

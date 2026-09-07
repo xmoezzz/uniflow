@@ -9,7 +9,10 @@ pub(crate) fn prepare_source<'a>(
     source: &'a str,
     options: &FrontendOptions,
 ) -> Cow<'a, str> {
-    if matches!(language, Language::C | Language::Cpp) {
+    if matches!(
+        language,
+        Language::C | Language::Cpp | Language::ObjC | Language::ObjCpp
+    ) {
         let mut profile = options.platform.clone();
         for (name, value) in &options.defines {
             profile.defines.insert(name.clone(), value.clone());
@@ -23,10 +26,14 @@ pub(crate) fn prepare_source<'a>(
         if let Some(standard) = options.language_standard.as_deref() {
             if matches!(language, Language::Cpp) {
                 if let Some(value) = cpp_standard_value(standard) {
-                    profile.defines.insert("__cplusplus".to_string(), Some(value.to_string()));
+                    profile
+                        .defines
+                        .insert("__cplusplus".to_string(), Some(value.to_string()));
                 }
             } else if let Some(value) = c_standard_value(standard) {
-                profile.defines.insert("__STDC_VERSION__".to_string(), Some(value.to_string()));
+                profile
+                    .defines
+                    .insert("__STDC_VERSION__".to_string(), Some(value.to_string()));
             }
         }
         Cow::Owned(simulate_c_family_conditionals(source, &profile))

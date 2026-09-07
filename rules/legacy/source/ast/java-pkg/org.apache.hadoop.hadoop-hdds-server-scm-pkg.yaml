@@ -1,0 +1,10 @@
+id: org.apache.hadoop.hadoop-hdds-server-scm
+language: Java
+message: pkg:maven/org.apache.hadoop/hadoop-hdds-server-scm
+metadata:
+  purl: pkg:maven/org.apache.hadoop/hadoop-hdds-server-scm
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hadoop\.hdds\.scm\.block|org\.apache\.hadoop\.hdds\.scm\.command|org\.apache\.hadoop\.hdds\.scm\.metadata|org\.apache\.hadoop\.hdds\.scm\.pipeline\.choose\.algorithms|org\.apache\.hadoop\.hdds\.scm\.pipeline|org\.apache\.hadoop\.hdds\.scm\.events|org\.apache\.hadoop\.hdds\.scm\.pipeline\.leader\.choose\.algorithms|org\.apache\.hadoop\.hdds\.scm|org\.apache\.hadoop\.hdds\.scm\.container\.replication|org\.apache\.hadoop\.hdds\.scm\.container\.metrics|org\.apache\.hadoop\.hdds\.scm\.container\.states|org\.apache\.hadoop\.hdds\.scm\.protocol|org\.apache\.hadoop\.hdds\.scm\.safemode|org\.apache\.hadoop\.hdds\.scm\.server|org\.apache\.hadoop\.hdds\.scm\.container\.placement\.algorithms|org\.apache\.hadoop\.hdds\.scm\.container\.placement\.metrics|org\.apache\.hadoop\.hdds\.scm\.node|org\.apache\.hadoop\.hdds\.scm\.node\.states|org\.apache\.hadoop\.ozone\.protocol\.commands|org\.apache\.hadoop\.hdds\.scm\.container)\.

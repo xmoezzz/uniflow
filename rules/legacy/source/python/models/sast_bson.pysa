@@ -1,0 +1,22 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                bson
+
+# DataflowSinkRule bson 2
+# [{'NamespaceName': 'bson.code', 'ClassName': 'Code', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.dynamic_code_evaluation_code_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'bson.regex', 'ClassName': 'Regex', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.denial_of_service_regular_expression', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_bson_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^bson\.code\.Code\.__init__"),
+      name.matches("^bson\.regex\.Regex\.__init__")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_denial_of_service_regular_expression]
+    )
+  ]
+)

@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.users.admin.web
+language: Java
+message: pkg:maven/com.liferay/com.liferay.users.admin.web
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.users.admin.web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.liferay\.users\.admin\.web\.internal\.portlet\.action|com\.liferay\.users\.admin\.web\.internal\.frontend\.taglib\.servlet\.taglib|com\.liferay\.users\.admin\.web\.internal\.configuration\.admin\.definition|com\.liferay\.users\.admin\.web\.internal\.portlet\.configuration\.icon|com\.liferay\.users\.admin\.web\.internal\.upgrade\.registry|com\.liferay\.users\.admin\.web\.internal\.liveusers\.messaging|com\.liferay\.users\.admin\.web\.internal\.product\.navigation\.personal\.menu|com\.liferay\.users\.admin\.web\.internal\.frontend\.taglib\.clay\.servlet\.taglib|org\.apache\.jsp\.configuration\.icon|org\.apache\.jsp\.user|com\.liferay\.users\.admin\.web\.internal\.search|com\.liferay\.users\.admin\.web\.internal\.template|org\.apache\.jsp|com\.liferay\.users\.admin\.web\.internal\.change\.tracking\.spi\.display|com\.liferay\.users\.admin\.web\.internal\.servlet\.taglib\.util|com\.liferay\.users\.admin\.web\.internal\.change\.tracking\.spi\.reference|com\.liferay\.users\.admin\.web\.internal\.util|com\.liferay\.users\.admin\.web\.internal\.portlet|com\.liferay\.users\.admin\.web\.internal\.display\.context|org\.apache\.jsp\.common|com\.liferay\.users\.admin\.web\.internal\.application\.list|org\.apache\.jsp\.organization|com\.liferay\.users\.admin\.web\.internal\.upgrade\.v1_0_0|com\.liferay\.users\.admin\.web\.internal\.users\.admin\.management\.toolbar|com\.liferay\.users\.admin\.web\.internal\.constants|com\.liferay\.users\.admin\.web\.internal\.custom\.attributes|com\.liferay\.users\.admin\.web\.internal\.dao\.search|com\.liferay\.users\.admin\.web\.internal\.manager|com\.liferay\.users\.admin\.web\.internal\.util\.comparator)\.

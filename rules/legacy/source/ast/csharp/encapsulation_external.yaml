@@ -1,0 +1,98 @@
+# YAML Rule is more powerful!
+# https://ast-grep.github.io/guide/rule-config.html#rule
+id: encapsulation_external
+message: '0503000012000046'
+language: cs
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: try_statement
+        - has:
+            kind: catch_declaration
+            stopBy: end
+            all:
+              - has:
+                  field: type
+                  regex: ^(.*\.)?Exception$
+              - has: 
+                  field: name
+                  pattern: '$VAR'
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?Exception$
+            - has:
+                field: name
+                pattern: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?Exception$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              kind: variable_declarator
+              pattern: $VAR
+              stopBy: end
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?Exception$
+            - has:
+                field: name
+                pattern: '$VAR'
+
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: compilation_unit
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+    kind: invocation_expression
+    pattern: Reponse.Write($$$)
+    inside: 
+      kind: catch_clause
+      stopBy: end
+    has:
+      kind: argument
+      stopBy: end
+      all:
+        - has:
+            stopBy: end
+            any:
+            - all:
+                - kind: member_access_expression
+                - has:
+                    filed: expression
+                    pattern: $VAR
+                    inside:
+                        matches: recursion-find-object-decl
+            - all:
+                - kind: identifier
+                - pattern: $VAR
+                - inside:
+                        matches: recursion-find-object-decl

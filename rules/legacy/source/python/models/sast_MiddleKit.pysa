@@ -1,0 +1,32 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                MiddleKit
+
+# DataflowSourceRule MiddleKit 1
+# [{'NamespaceName': 'MiddleKit.Run', 'ClassName': 'SQLObjectStore', 'FunctionName': 'fetch(Object|ObjectsOfClass)', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_MiddleKit_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^MiddleKit\.Run\.SQLObjectStore\.(fetch(Object|ObjectsOfClass))")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule MiddleKit 1
+# [{'NamespaceName': 'MiddleKit.Run', 'ClassName': '(My|MS|Postgres)SQLObjectStore', 'FunctionName': 'executeSQL', 'RuleName': 'desc.dataflow.python.sql_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_MiddleKit_methods_sinks",
+  find="methods",
+  where=[
+    name.matches("^MiddleKit\.Run\.((My|MS|Postgres)SQLObjectStore)\.executeSQL$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_sql_injection]
+    )
+  ]
+)

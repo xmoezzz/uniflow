@@ -1,0 +1,12 @@
+id: no-extern-declaration-in-function
+message: '0701000010130010'
+language: C
+rule:
+  all:
+    - kind: declaration
+    - has:
+        kind: storage_class_specifier
+        regex: "extern"
+    - inside:
+        kind: function_definition
+        stopBy: end

@@ -1,0 +1,29 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                subprocess
+
+# DataflowSourceRule subprocess 2
+# [{'NamespaceName': 'subprocess', 'ClassName': '', 'FunctionName': 'check_output', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'subprocess', 'ClassName': 'Popen', 'FunctionName': 'communicate', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_subprocess_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^subprocess.*\.check_output$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+
+ModelQuery(
+  name="get_subprocess_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^subprocess\.Popen\.communicate$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

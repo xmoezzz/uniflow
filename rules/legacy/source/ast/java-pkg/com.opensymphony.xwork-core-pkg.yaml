@@ -1,0 +1,10 @@
+id: com.opensymphony.xwork-core
+language: Java
+message: pkg:maven/com.opensymphony/xwork-core
+metadata:
+  purl: pkg:maven/com.opensymphony/xwork-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.opensymphony\.xwork2\.ognl\.accessor|com\.opensymphony\.xwork2\.conversion\.impl|com\.opensymphony\.xwork2\.mock|com\.opensymphony\.xwork2\.util\.profiling|ognl|com\.opensymphony\.xwork2\.util\.classloader|com\.opensymphony\.xwork2\.conversion\.metadata|javassist\.bytecode\.stackmap|javassist\.util|com\.opensymphony\.xwork2\.spring|org\.apache\.commons\.lang\.xwork\.exception|org\.objectweb\.asm\.xwork|com\.opensymphony\.xwork2\.util|com\.opensymphony\.xwork2\.util\.location|ognl\.internal|com\.opensymphony\.xwork2\.conversion\.annotations|com\.opensymphony\.xwork2\.conversion|javassist\.tools\.web|com\.opensymphony\.xwork2\.util\.logging|javassist\.tools|org\.objectweb\.asm\.xwork\.commons|com\.opensymphony\.xwork2\.validator\.metadata|javassist\.scopedpool|org\.objectweb\.asm\.xwork\.signature|com\.opensymphony\.xwork2\.inject\.util|com\.opensymphony\.xwork2\.interceptor\.annotations|com\.opensymphony\.xwork2\.ognl|com\.opensymphony\.xwork2\.util\.finder|javassist\.bytecode|com\.opensymphony\.xwork2\.util\.reflection|javassist\.compiler|com\.opensymphony\.xwork2\.validator|com\.opensymphony\.xwork2|javassist\.util\.proxy|org\.objectweb\.asm\.xwork\.tree|com\.opensymphony\.xwork2\.config\.providers|javassist\.bytecode\.annotation|javassist\.compiler\.ast|com\.opensymphony\.xwork2\.config\.entities|javassist\.runtime|com\.opensymphony\.xwork2\.interceptor|com\.opensymphony\.xwork2\.inject|javassist|com\.opensymphony\.xwork2\.spring\.interceptor|com\.opensymphony\.xwork2\.validator\.validators|ognl\.enhance|javassist\.convert|com\.opensymphony\.xwork2\.validator\.annotations|com\.opensymphony\.xwork2\.util\.logging\.commons|com\.opensymphony\.xwork2\.util\.logging\.jdk|org\.apache\.commons\.lang\.xwork|javassist\.tools\.reflect|javassist\.expr|com\.opensymphony\.xwork2\.config|javassist\.tools\.rmi|com\.opensymphony\.xwork2\.config\.impl|com\.opensymphony\.xwork2\.test)\.

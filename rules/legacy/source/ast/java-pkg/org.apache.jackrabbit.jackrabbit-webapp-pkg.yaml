@@ -1,0 +1,10 @@
+id: org.apache.jackrabbit.jackrabbit-webapp
+language: Java
+message: pkg:maven/org.apache.jackrabbit/jackrabbit-webapp
+metadata:
+  purl: pkg:maven/org.apache.jackrabbit/jackrabbit-webapp
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.jackrabbit\.j2ee)\.

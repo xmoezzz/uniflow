@@ -1,0 +1,10 @@
+id: org.richfaces.richfaces-a4j
+language: Java
+message: pkg:maven/org.richfaces/richfaces-a4j
+metadata:
+  purl: pkg:maven/org.richfaces/richfaces-a4j
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.richfaces\.component\.behavior|org\.richfaces\.application|org\.richfaces\.view\.facelets|org\.richfaces\.event|org\.richfaces\.json|org\.richfaces\.renderkit|org\.richfaces\.renderkit\.util|org\.ajax4jsf\.component|org\.richfaces\.view\.facelets\.html|org\.richfaces\.component|org\.richfaces|org\.richfaces\.renderkit\.html\.iconimages|org\.ajax4jsf\.component\.behavior|org\.richfaces\.renderkit\.html|org\.richfaces\.component\.event|org\.richfaces\.component\.attribute|org\.richfaces\.resource|org\.richfaces\.component\.util|org\.ajax4jsf\.renderkit|org\.richfaces\.view\.facelets\.tag)\.

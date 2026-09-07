@@ -1,0 +1,10 @@
+id: org.apache.nifi.nifi-web-utils
+language: Java
+message: pkg:maven/org.apache.nifi/nifi-web-utils
+metadata:
+  purl: pkg:maven/org.apache.nifi/nifi-web-utils
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.nifi\.web\.util|org\.apache\.nifi\.web\.filter)\.

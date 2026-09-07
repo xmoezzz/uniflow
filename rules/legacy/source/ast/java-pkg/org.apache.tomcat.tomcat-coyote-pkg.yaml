@@ -1,0 +1,10 @@
+id: org.apache.tomcat.tomcat-coyote
+language: Java
+message: pkg:maven/org.apache.tomcat/tomcat-coyote
+metadata:
+  purl: pkg:maven/org.apache.tomcat/tomcat-coyote
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.tomcat\.util\.net\.openssl\.ciphers|org\.apache\.tomcat\.util\.log|org\.apache\.tomcat\.util\.http|org\.apache\.tomcat\.util\.http\.fileupload\.disk|org\.apache\.tomcat\.util\.http\.fileupload\.util\.mime|org\.apache\.tomcat\.util\.bcel\.classfile|org\.apache\.coyote\.http11\.filters|org\.apache\.tomcat\.util\.net\.openssl|org\.apache\.tomcat\.util\.http\.fileupload\.util|org\.apache\.coyote\.http11\.upgrade|org\.apache\.tomcat\.util\.http\.parser|org\.apache\.tomcat\.util\.modeler|org\.apache\.tomcat\.util\.bcel|org\.apache\.coyote\.http2|org\.apache\.coyote\.http11|org\.apache\.tomcat\.util\.http\.fileupload|org\.apache\.tomcat\.util\.http\.fileupload\.servlet|org\.apache\.tomcat\.util\.modeler\.modules|org\.apache\.coyote\.ajp|org\.apache\.tomcat\.util\.net|org\.apache\.tomcat\.util\.net\.jsse|org\.apache\.tomcat\.util\.http\.fileupload\.impl|org\.apache\.coyote)\.

@@ -1,0 +1,10 @@
+id: xalan.xalan
+language: Java
+message: pkg:maven/xalan/xalan
+metadata:
+  purl: pkg:maven/xalan/xalan
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.xalan\.xsltc\.util|org\.apache\.xalan\.xsltc\.compiler|org\.apache\.xalan\.xsltc\.cmdline\.getopt|org\.apache\.xalan\.templates|org\.apache\.xml\.utils|org\.apache\.xpath\.domapi|org\.apache\.xalan\.xsltc|org\.apache\.xpath\.res|org\.apache\.xalan\.xsltc\.runtime\.output|org\.apache\.xpath\.objects|org\.apache\.xalan\.res|org\.apache\.xalan\.trace|org\.apache\.xalan\.extensions|org\.apache\.bcel\.generic|org\.apache\.xpath\.operations|org\.apache\.xalan\.lib|org\.apache\.bcel\.util|java_cup\.runtime|org\.apache\.xalan|org\.apache\.xalan\.lib\.sql|org\.apache\.xml\.res|org\.apache\.xpath\.jaxp|org\.apache\.xpath|org\.apache\.xalan\.processor|org\.apache\.xalan\.xsltc\.dom|org\.apache\.bcel|org\.apache\.xpath\.axes|org\.apache\.xalan\.xslt\.util|org\.apache\.xpath\.compiler|org\.apache\.xalan\.transformer|org\.apache\.xml\.dtm\.ref|org\.apache\.bcel\.verifier\.statics|org\.apache\.regexp|org\.apache\.bcel\.verifier|org\.apache\.xml\.dtm\.ref\.dom2dtm|org\.apache\.xalan\.xsltc\.compiler\.util|org\.apache\.xpath\.functions|org\.apache\.bcel\.verifier\.structurals|org\.apache\.bcel\.verifier\.exc|org\.apache\.xalan\.client|org\.apache\.xalan\.xsltc\.trax|org\.apache\.xalan\.xsltc\.cmdline|org\.apache\.xml\.dtm|org\.apache\.xalan\.serialize|org\.apache\.xalan\.xsltc\.runtime|org\.apache\.bcel\.classfile|org\.apache\.xml\.dtm\.ref\.sax2dtm|org\.apache\.xml\.utils\.res|org\.apache\.xalan\.xslt|org\.apache\.xpath\.patterns)\.

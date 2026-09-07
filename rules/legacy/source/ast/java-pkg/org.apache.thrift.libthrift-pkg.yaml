@@ -1,0 +1,10 @@
+id: org.apache.thrift.libthrift
+language: Java
+message: pkg:maven/org.apache.thrift/libthrift
+metadata:
+  purl: pkg:maven/org.apache.thrift/libthrift
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.thrift\.partial|org\.apache\.thrift\.server|org\.apache\.thrift\.transport|org\.apache\.thrift\.protocol|org\.apache\.thrift\.scheme|org\.apache\.thrift\.utils|org\.apache\.thrift\.transport\.layered|org\.apache\.thrift\.annotation|org\.apache\.thrift\.async|org\.apache\.thrift\.transport\.sasl|org\.apache\.thrift\.meta_data|org\.apache\.thrift)\.

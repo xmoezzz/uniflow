@@ -1,0 +1,41 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                io
+
+# DataflowSourceRule io 8
+# [{'NamespaceName': '(_)?io', 'ClassName': 'IOBase', 'FunctionName': 'readline(s)?', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '(_)?io', 'ClassName': 'RawIOBase', 'FunctionName': 'read|readall', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '(_)?io', 'ClassName': 'RawIOBase', 'FunctionName': 'readinto', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '(_)?io', 'ClassName': 'BufferedIOBase', 'FunctionName': 'read1|read', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '(_)?io', 'ClassName': 'BufferedIOBase', 'FunctionName': 'readinto', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '(_)?io', 'ClassName': 'BytesIO', 'FunctionName': 'getvalue', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '(_)?io', 'ClassName': 'TextIOBase', 'FunctionName': 'read', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '(_)?io', 'ClassName': 'StringIO', 'FunctionName': 'getvalue', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_io_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("(_)?io\.BufferedIOBase\.(read1|read)"),
+      name.matches("(_)?io\.TextIOBase\.read$"),
+      name.matches("(_)?io\.StringIO\.getvalue$"),
+      name.matches("(_)?io\.RawIOBase\.readinto$"),
+      name.matches("(_)?io\.BytesIO\.getvalue$"),
+      name.matches("(_)?io\.BufferedIOBase\.readinto$"),
+      name.matches("(_)?io\.IOBase\.readline(s)?"),
+      name.matches("(_)?io\.RawIOBase\.(read|readall)")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule io 1
+# [{'NamespaceName': '(_)?io', 'ClassName': '', 'FunctionName': 'open', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_io_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("(_)?io.*\.open$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_path_manipulation]
+    )
+  ]
+)

@@ -1,0 +1,37 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                pymongo
+
+# DataflowSourceRule pymongo 1
+# [{'NamespaceName': 'pymongo.collection', 'ClassName': 'Collection', 'FunctionName': 'find|find_one|find_one_and_delete|find_one_and_replace|find_one_and_update|find_raw_batches|find_and_modify', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pymongo_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^pymongo\.collection\.Collection\.(find|find_one|find_one_and_delete|find_one_and_replace|find_one_and_update|find_raw_batches|find_and_modify)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule pymongo 4
+# [{'NamespaceName': 'pymongo.collection', 'ClassName': 'Collection', 'FunctionName': 'find|find_raw_batches|find_one', 'RuleName': 'desc.dataflow.python.nosql_injection_mongodb', 'Origin': 'Fortify'}, {'NamespaceName': 'pymongo.collection', 'ClassName': 'Collection', 'FunctionName': 'find_one_and_replace|find_one_and_update|find_and_modify|update', 'RuleName': 'desc.dataflow.python.nosql_injection_mongodb', 'Origin': 'Fortify'}, {'NamespaceName': 'pymongo.collection', 'ClassName': 'Collection', 'FunctionName': 'find_one_and_delete|delete_one|delete|delete_many|remove', 'RuleName': 'desc.dataflow.python.nosql_injection_mongodb', 'Origin': 'Fortify'}, {'NamespaceName': 'pymongo.mongo_client', 'ClassName': 'MongoClient', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.connection_string_parameter_pollution', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pymongo_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^pymongo\.collection\.Collection\.(find|find_raw_batches|find_one)"),
+      name.matches("^pymongo\.mongo_client\.MongoClient\.__init__"),
+      name.matches("^pymongo\.collection\.Collection\.(find_one_and_delete|delete_one|delete|delete_many|remove)"),
+      name.matches("^pymongo\.collection\.Collection\.(find_one_and_replace|find_one_and_update|find_and_modify|update)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_connection_string_parameter_pollution]
+    )
+  ]
+)

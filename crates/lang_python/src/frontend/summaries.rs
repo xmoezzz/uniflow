@@ -1114,15 +1114,17 @@ fn infer_project_callable_value_type(
             }
         }
     }
-    if let Some(path) = infer_project_callable_path(trimmed, &env.current_module, imports, &env.project_index) {
-        return Some(path);
-    }
-    if let Some(ty) = resolve_dotted_type(trimmed, imports, env, known_classes) {
-        if env.project_index.function_path_exists(&ty) {
-            return Some(env.project_index.resolve_canonical_member_path(&ty, &mut HashSet::new()));
+    if parse_call_parts(trimmed).is_none() {
+        if let Some(path) = infer_project_callable_path(trimmed, &env.current_module, imports, &env.project_index) {
+            return Some(path);
         }
-        if let Some(call_path) = env.project_index.method_path(&ty, "__call__") {
-            return Some(call_path);
+        if let Some(ty) = resolve_dotted_type(trimmed, imports, env, known_classes) {
+            if env.project_index.function_path_exists(&ty) {
+                return Some(env.project_index.resolve_canonical_member_path(&ty, &mut HashSet::new()));
+            }
+            if let Some(call_path) = env.project_index.method_path(&ty, "__call__") {
+                return Some(call_path);
+            }
         }
     }
     if let Some((callee_text, arg_text)) = parse_call_parts(trimmed) {
@@ -1180,6 +1182,12 @@ fn infer_project_callable_value_type(
         }
     }
 
+    // A call returns a value; its callee's symbol is not the identity of that
+    // value. Only an actual inferred callable return may establish an alias.
+    if parse_call_parts(trimmed).is_some() {
+        return infer_simple_python_type(trimmed, imports, env, known_classes)
+            .and_then(|ty| callable_path_from_type(&env.project_index, &ty));
+    }
     if let Some((prefix, method)) = split_last_top_level_dot(trimmed) {
         let field_ty = if env.self_name.as_deref() == Some(prefix.as_str()) {
             direct_env_field_access_type(env, &method)
@@ -1269,4 +1277,3 @@ fn infer_project_method_returns(
     }
     returns
 }
-

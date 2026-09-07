@@ -1,0 +1,16 @@
+id: sync-object-notify-method
+message: '0202000010110041'
+language: Java
+utils:
+  recursion-find-sync-object:
+    inside:
+      all:
+        - not:
+            kind: method_declaration
+        - any:
+          - pattern: synchronized ($VAR) {$$$}
+          - matches: recursion-find-sync-object
+rule:
+  kind: method_invocation
+  pattern: $VAR.notify()
+  matches: recursion-find-sync-object

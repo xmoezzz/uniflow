@@ -1,0 +1,10 @@
+id: io.netty.netty-codec
+language: Java
+message: pkg:maven/io.netty/netty-codec
+metadata:
+  purl: pkg:maven/io.netty/netty-codec
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.netty\.handler\.codec\.json|io\.netty\.handler\.codec\.compression|io\.netty\.handler\.codec\.marshalling|io\.netty\.handler\.codec|io\.netty\.handler\.codec\.protobuf|io\.netty\.handler\.codec\.base64|io\.netty\.handler\.codec\.bytes|io\.netty\.handler\.codec\.serialization|io\.netty\.handler\.codec\.string|io\.netty\.handler\.codec\.xml)\.

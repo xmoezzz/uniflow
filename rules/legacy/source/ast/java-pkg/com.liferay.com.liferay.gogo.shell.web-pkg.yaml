@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.gogo.shell.web
+language: Java
+message: pkg:maven/com.liferay/com.liferay.gogo.shell.web
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.gogo.shell.web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.jsp|com\.liferay\.gogo\.shell\.web\.internal\.portlet|com\.liferay\.gogo\.shell\.web\.internal\.application\.list|com\.liferay\.gogo\.shell\.web\.internal\.constants)\.

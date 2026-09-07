@@ -1,0 +1,10 @@
+id: org.jfree.jfreechart
+language: Java
+message: pkg:maven/org.jfree/jfreechart
+metadata:
+  purl: pkg:maven/org.jfree/jfreechart
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jfree\.chart\.text|org\.jfree\.chart\.annotations|org\.jfree\.data\.json|org\.jfree\.chart\.renderer\.xy|org\.jfree\.chart\.entity|org\.jfree\.data\.xml|org\.jfree\.data\.resources|org\.jfree\.chart\.labels|org\.jfree\.chart\.plot\.dial|org\.jfree\.data\.time\.ohlc|org\.jfree\.data\.flow|org\.jfree\.data\.function|org\.jfree\.chart\.servlet|org\.jfree\.data\.gantt|org\.jfree\.chart\.plot\.flow|org\.jfree\.chart\.panel|org\.jfree\.data\.json\.impl|org\.jfree\.data\.category|org\.jfree\.chart\.ui|org\.jfree\.chart\.block|org\.jfree\.chart\.date|org\.jfree\.chart\.event|org\.jfree\.data\.io|org\.jfree\.chart\.util|org\.jfree\.chart\.plot|org\.jfree\.chart\.title|org\.jfree\.chart\.imagemap|org\.jfree\.chart|org\.jfree\.chart\.encoders|org\.jfree\.chart\.editor|org\.jfree\.data\.statistics|org\.jfree\.data\.jdbc|org\.jfree\.chart\.needle|org\.jfree\.chart\.urls|org\.jfree\.data|org\.jfree\.data\.xy|org\.jfree\.chart\.renderer\.category|org\.jfree\.data\.time|org\.jfree\.chart\.axis|org\.jfree\.data\.general|org\.jfree\.chart\.renderer)\.

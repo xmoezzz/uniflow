@@ -1,0 +1,15 @@
+id: static-final-logger
+message: '0202000010110032'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+    - has:
+        field: type
+        regex: ^(.*\.)?Logger$
+    - not:
+        has:
+          kind: modifiers
+          all:
+            - regex: static
+            - regex: final

@@ -1,0 +1,10 @@
+id: org.apache.linkis.linkis-common
+language: Java
+message: pkg:maven/org.apache.linkis/linkis-common
+metadata:
+  purl: pkg:maven/org.apache.linkis/linkis-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.linkis\.common\.errorcode|org\.apache\.linkis\.common\.listener|org\.apache\.linkis\.common\.io\.resultset|org\.apache\.linkis\.common\.io|org\.apache\.linkis\.common\.conf|org\.apache\.linkis\.common\.exception|org\.apache\.linkis\.common\.collection|org\.apache\.linkis\.common\.utils|org\.apache\.linkis\.common\.log|org\.apache\.linkis\.common|org\.apache\.linkis\.common\.variable)\.

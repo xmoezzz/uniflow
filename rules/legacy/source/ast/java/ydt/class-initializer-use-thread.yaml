@@ -1,0 +1,15 @@
+id: class-initializer-use-thread
+message: '0902000010160104'
+language: Java
+rule:
+  kind: object_creation_expression
+  all:
+  - has:
+      field: type
+      regex: ^Thread$
+  - inside:
+      kind: static_initializer
+      stopBy: 
+        any:
+        - kind: class_body
+        - kind: method_declaration

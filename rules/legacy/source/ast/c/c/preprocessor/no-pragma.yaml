@@ -1,0 +1,6 @@
+id: no-pragma
+message: '0601000010140101'
+language: C
+rule:
+  kind: preproc_directive
+  regex: '#pragma'

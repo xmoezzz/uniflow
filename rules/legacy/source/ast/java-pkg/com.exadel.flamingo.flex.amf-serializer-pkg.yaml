@@ -1,0 +1,10 @@
+id: com.exadel.flamingo.flex.amf-serializer
+language: Java
+message: pkg:maven/com.exadel.flamingo.flex/amf-serializer
+metadata:
+  purl: pkg:maven/com.exadel.flamingo.flex/amf-serializer
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.exadel\.flamingo\.flex\.messaging\.util|com\.exadel\.flamingo\.flex\.amf|com\.exadel\.flamingo\.flex\.messaging\.amf\.io|com\.exadel\.flamingo\.flex\.amf\.process|com\.exadel\.flamingo\.flex\.messaging\.amf\.io\.util\.externalizer|com\.exadel\.flamingo\.flex\.messaging\.amf\.io\.util|com\.exadel\.flamingo\.flex\.seam\.amf|flex\.messaging\.io|com\.exadel\.flamingo\.flex\.collections|flex\.messaging\.messages|com\.exadel\.flamingo\.flex\.messaging\.amf\.io\.util\.instanciator|com\.exadel\.flamingo\.flex\.messaging\.security)\.

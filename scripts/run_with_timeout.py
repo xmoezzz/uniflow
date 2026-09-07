@@ -13,10 +13,18 @@ def main() -> int:
         return 2
     timeout = float(sys.argv[1])
     command = sys.argv[2:]
+    process = subprocess.Popen(command, start_new_session=True)
     try:
-        completed = subprocess.run(command, timeout=timeout, check=False)
-        return completed.returncode
+        return process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
+        # subprocess.run terminates the direct child, but build tools commonly
+        # leave the actual test binary running. Kill the dedicated process
+        # group so a short focused test can never leak an orphan worker.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
         print(f"command exceeded {timeout:g}s: {' '.join(command)}", file=sys.stderr)
         return 124
 

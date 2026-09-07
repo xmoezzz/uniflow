@@ -13,7 +13,32 @@ A checker exports `uniflow_checker_entry_v2` and returns a static `uniflow_check
 
 The manifest and event protocol are UTF-8 JSON. Strings returned by a checker must be allocated by the checker and released by its `free_string` callback. The manifest ID must be nonempty and contain only ASCII alphanumeric characters, `.`, `_`, or `-`. Event subscriptions must not contain duplicates.
 
-The host validates every finding: rule ID, message, level, URI, one-based line/column, related locations, and code-flow locations. It prefixes local rule IDs with the checker ID, records checker metadata, computes a stable fingerprint when absent, and deduplicates identical findings.
+The optional manifest field `kind` declares the checker execution model:
+
+- `frontend` subscribes to `analysis_start`, one `source_file` event per input, `hir_program`, and `analysis_end` for coding-style and local source/HIR checks;
+- `unified_dataflow` (the backward-compatible default) may also subscribe to `ir_program`, `flow_summary`, `call`, and `taint_finding` for clang-style semantic and interprocedural checks.
+
+The host rejects unknown event names and rejects a frontend checker that requests dataflow-only events. Both kinds return the same validated finding format and feed the same JSON/SARIF reporting pipeline.
+
+Production checkers should declare every implemented rule in the optional `rules` array. Each rule contains a stable local `id`, a nonempty `title`, and optional `description`, `tags`, `help_uri`, custom `properties`, and `default_level` (`error`, `warning`, `note`, or `none`). Once a checker declares at least one rule, the host rejects findings for undeclared rule IDs. Manifests without `rules` remain accepted for ABI v1 and existing plugins.
+
+```json
+{
+  "id": "company.security",
+  "kind": "unified_dataflow",
+  "rules": [{
+    "id": "sql-injection",
+    "title": "SQL injection",
+    "default_level": "error",
+    "tags": ["security", "cwe-89"],
+    "help_uri": "https://example.invalid/rules/sql-injection"
+  }]
+}
+```
+
+Each `source_file` payload is `{ "path": string, "language": string, "source": string }`. It contains the original file text, including JSP/PHP host markup, rather than the parser's layout-preserving embedded-code view.
+
+The host validates every finding: declared rule ID when a rule catalog is present, message, level, URI, one-based line/column, related locations, and code-flow locations. It prefixes local rule IDs with the checker ID, records checker metadata, computes a stable fingerprint when absent, and deduplicates identical findings.
 
 ## Isolation and failures
 
@@ -25,7 +50,7 @@ The default `process` mode starts one worker process per checker. It contains ch
 
 Implement `uniflow_checker_api::Checker`, derive or implement `Default`, and invoke `uniflow_checker_api::export_checker!(YourChecker)`. The macro exports ABI v2 and v1 entry points and catches Rust panics at callbacks.
 
-See `examples/checkers/banned_function_checker`.
+See `examples/checkers/banned_function_checker` for a unified-dataflow checker and `examples/checkers/style_checker` for a frontend source-style checker.
 
 ## C and C++
 

@@ -1,0 +1,10 @@
+id: org.apache.tiles.tiles-core
+language: Java
+message: pkg:maven/org.apache.tiles/tiles-core
+metadata:
+  purl: pkg:maven/org.apache.tiles/tiles-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.tiles\.impl|org\.apache\.tiles\.definition\.pattern\.regexp|org\.apache\.tiles\.definition\.pattern\.wildcard|org\.apache\.tiles\.definition|org\.apache\.tiles\.util|org\.apache\.tiles\.context|org\.apache\.tiles\.evaluator\.impl|org\.apache\.tiles\.locale|org\.apache\.tiles\.renderer|org\.apache\.tiles\.definition\.dao|org\.apache\.tiles\.awareness|org\.apache\.tiles\.definition\.digester|org\.apache\.tiles\.impl\.mgmt|org\.apache\.tiles\.preparer\.factory|org\.apache\.tiles\.definition\.pattern|org\.apache\.tiles\.factory|org\.apache\.tiles\.locale\.impl|org\.apache\.tiles\.startup|org\.apache\.tiles\.evaluator)\.

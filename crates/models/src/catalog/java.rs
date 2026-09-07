@@ -1,5 +1,8 @@
 fn java_models() -> RuleSet {
     RuleSet {
+        metadata: Vec::new(),
+        sink_reports: Vec::new(),
+        index_sinks: Vec::new(),
         sources: vec![
             SourceRule {
                 id: "java-http-request-param".to_string(),
@@ -367,8 +370,14 @@ fn java_models() -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Receiver, to: Port::Receiver },
-                    FlowSpec { from: Port::Arg(0), to: Port::Receiver },
+                    FlowSpec {
+                        from: Port::Receiver,
+                        to: Port::Receiver,
+                    },
+                    FlowSpec {
+                        from: Port::Arg(0),
+                        to: Port::Receiver,
+                    },
                 ],
             },
             PropagatorRule {
@@ -380,8 +389,14 @@ fn java_models() -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Receiver, to: Port::Return },
-                    FlowSpec { from: Port::Arg(0), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Receiver,
+                        to: Port::Return,
+                    },
+                    FlowSpec {
+                        from: Port::Arg(0),
+                        to: Port::Return,
+                    },
                 ],
             },
         ],
@@ -394,7 +409,10 @@ fn java_models() -> RuleSet {
                     method_name: Some("valueOf".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "java-stringbuilder-tostring".to_string(),
@@ -404,7 +422,10 @@ fn java_models() -> RuleSet {
                     method_name: Some("toString".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Receiver, to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Receiver,
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "java-string-format".to_string(),
@@ -415,8 +436,14 @@ fn java_models() -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(0), to: Port::Return },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(0),
+                        to: Port::Return,
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -427,7 +454,10 @@ fn java_models() -> RuleSet {
                     method_name: Some("requireNonNull".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "java-jpa-query-setparameter".to_string(),
@@ -438,8 +468,14 @@ fn java_models() -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Receiver, to: Port::Receiver },
-                    FlowSpec { from: Port::Arg(1), to: Port::Receiver },
+                    FlowSpec {
+                        from: Port::Receiver,
+                        to: Port::Receiver,
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Receiver,
+                    },
                 ],
             },
             SummaryRule {
@@ -450,7 +486,10 @@ fn java_models() -> RuleSet {
                     method_name: Some("getResultList".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Receiver, to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Receiver,
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "java-jpa-query-getsingleresult".to_string(),
@@ -460,7 +499,10 @@ fn java_models() -> RuleSet {
                     method_name: Some("getSingleResult".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Receiver, to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Receiver,
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "java-mybatis-sqlsession-selectone".to_string(),
@@ -471,7 +513,10 @@ fn java_models() -> RuleSet {
                     arg_count: Some(2),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(1), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(1),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "java-mybatis-sqlsession-selectlist".to_string(),
@@ -482,7 +527,10 @@ fn java_models() -> RuleSet {
                     arg_count: Some(2),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(1), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(1),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "java-springdata-repository-read-heuristic".to_string(),
@@ -493,9 +541,18 @@ fn java_models() -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(0), to: Port::Return },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
-                    FlowSpec { from: Port::Arg(2), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(0),
+                        to: Port::Return,
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
+                    FlowSpec {
+                        from: Port::Arg(2),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -506,7 +563,10 @@ fn java_models() -> RuleSet {
                     method_regex: Some(r"^(save|insert|update|merge).*".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
             SummaryRule {
                 id: "java-mybatis-mapper-read-heuristic".to_string(),
@@ -517,9 +577,18 @@ fn java_models() -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![
-                    FlowSpec { from: Port::Arg(0), to: Port::Return },
-                    FlowSpec { from: Port::Arg(1), to: Port::Return },
-                    FlowSpec { from: Port::Arg(2), to: Port::Return },
+                    FlowSpec {
+                        from: Port::Arg(0),
+                        to: Port::Return,
+                    },
+                    FlowSpec {
+                        from: Port::Arg(1),
+                        to: Port::Return,
+                    },
+                    FlowSpec {
+                        from: Port::Arg(2),
+                        to: Port::Return,
+                    },
                 ],
             },
             SummaryRule {
@@ -530,9 +599,22 @@ fn java_models() -> RuleSet {
                     method_regex: Some(r"^(save|insert|update|merge).*".to_string()),
                     ..Default::default()
                 },
-                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+                flows: vec![FlowSpec {
+                    from: Port::Arg(0),
+                    to: Port::Return,
+                }],
             },
         ],
+        sink_conditions: Vec::new(),
+        call_conditions: Vec::new(),
+        taint_transforms: Vec::new(),
+        field_sources: Vec::new(),
+        unused_return_sinks: Vec::new(),
+        named_value_sources: Vec::new(),
+        field_sinks: Vec::new(),
+        field_sanitizers: Vec::new(),
+        function_sources: Vec::new(),
+        function_sinks: Vec::new(),
+        model_dependencies: Vec::new(),
     }
 }
-

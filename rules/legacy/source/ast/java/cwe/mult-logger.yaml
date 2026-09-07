@@ -1,0 +1,14 @@
+id: mult-logger
+message: '0202000010110033'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+    - has:
+        field: type
+        regex: ^(.*\.)?Logger$
+    - follows:
+        kind: field_declaration
+        has:
+          field: type
+          regex: ^(.*\.)?Logger$

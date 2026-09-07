@@ -1,0 +1,10 @@
+id: org.jeecgframework.boot.jeecg-boot-common
+language: Java
+message: pkg:maven/org.jeecgframework.boot/jeecg-boot-common
+metadata:
+  purl: pkg:maven/org.jeecgframework.boot/jeecg-boot-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jeecg\.common\.config\.mqtoken|org\.jeecg\.common\.enums|org\.jeecg\.common\.modules\.redis\.client|org\.jeecg\.common\.modules\.redis\.config|org\.jeecg\.common\.modules\.redis\.receiver|org\.jeecg\.common\.constant|org\.jeecg\.common\.annotation|org\.jeecg\.common\.exception|org\.jeecg\.common\.modules\.redis\.listener|org\.jeecg\.common\.config|org\.jeecg\.common\.base|org\.jeecg\.common\.util|org\.jeecg\.common\.modules\.redis\.writer)\.

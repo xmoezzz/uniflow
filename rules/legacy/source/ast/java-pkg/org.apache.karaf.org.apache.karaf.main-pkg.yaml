@@ -1,0 +1,10 @@
+id: org.apache.karaf.org.apache.karaf.main
+language: Java
+message: pkg:maven/org.apache.karaf/org.apache.karaf.main
+metadata:
+  purl: pkg:maven/org.apache.karaf/org.apache.karaf.main
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.karaf\.main\.lock|org\.apache\.karaf\.util\.locks|org\.apache\.felix\.utils\.properties|org\.apache\.karaf\.main\.util|org\.apache\.karaf\.util\.maven|org\.apache\.karaf\.info|org\.apache\.karaf\.main|org\.apache\.karaf\.jpm\.impl|org\.apache\.karaf\.jpm|org\.apache\.karaf\.util\.config|org\.apache\.karaf\.main\.internal)\.

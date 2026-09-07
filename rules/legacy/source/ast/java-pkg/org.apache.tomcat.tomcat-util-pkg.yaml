@@ -1,0 +1,10 @@
+id: org.apache.tomcat.tomcat-util
+language: Java
+message: pkg:maven/org.apache.tomcat/tomcat-util
+metadata:
+  purl: pkg:maven/org.apache.tomcat/tomcat-util
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.tomcat\.util\.json|org\.apache\.tomcat\.util|org\.apache\.tomcat\.util\.file|org\.apache\.tomcat\.util\.buf|org\.apache\.tomcat\.util\.threads|org\.apache\.tomcat\.util\.compat|org\.apache\.tomcat\.util\.res|org\.apache\.tomcat\.util\.security|org\.apache\.tomcat\.util\.collections)\.

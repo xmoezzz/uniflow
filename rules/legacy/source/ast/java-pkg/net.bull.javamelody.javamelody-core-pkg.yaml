@@ -1,0 +1,10 @@
+id: net.bull.javamelody.javamelody-core
+language: Java
+message: pkg:maven/net.bull.javamelody/javamelody-core
+metadata:
+  purl: pkg:maven/net.bull.javamelody/javamelody-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(net\.bull\.javamelody\.internal\.publish|net\.bull\.javamelody\.internal\.web|net\.bull\.javamelody|net\.bull\.javamelody\.internal\.model|net\.bull\.javamelody\.internal\.web\.html|net\.bull\.javamelody\.internal\.web\.pdf|net\.bull\.javamelody\.internal\.common)\.

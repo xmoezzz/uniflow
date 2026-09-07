@@ -1,0 +1,10 @@
+id: function-like-macros-must-have-braces
+message: '0601000010140008,0101000010110299,0901000010110299'
+language: C
+rule:
+  all:
+    - kind: preproc_function_def
+    - has:
+        kind: preproc_arg
+        field: value
+        regex: '^[^(].*[^)]$'

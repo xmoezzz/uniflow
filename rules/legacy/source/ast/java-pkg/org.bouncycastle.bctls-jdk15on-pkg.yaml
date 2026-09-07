@@ -1,0 +1,10 @@
+id: org.bouncycastle.bctls-jdk15on
+language: Java
+message: pkg:maven/org.bouncycastle/bctls-jdk15on
+metadata:
+  purl: pkg:maven/org.bouncycastle/bctls-jdk15on
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(META-INF\.versions\.9\.org\.bouncycastle\.jsse|META-INF\.versions\.9\.org\.bouncycastle\.jsse\.java\.security|org\.bouncycastle\.tls\.crypto\.impl|org\.bouncycastle\.tls|org\.bouncycastle\.jsse\.provider|org\.bouncycastle\.jsse|META-INF\.versions\.9|META-INF\.versions\.9\.org\.bouncycastle\.tls\.crypto|META-INF\.versions\.9\.org\.bouncycastle\.tls\.crypto\.impl\.jcajce|META-INF\.versions\.9\.org\.bouncycastle\.tls\.crypto\.impl\.jcajce\.srp|org\.bouncycastle\.tls\.crypto\.impl\.bc|META-INF\.versions\.9\.org\.bouncycastle\.tls\.crypto\.impl|META-INF\.versions\.9\.org\.bouncycastle\.tls|org\.bouncycastle\.tls\.crypto\.impl\.jcajce\.srp|org\.bouncycastle\.tls\.crypto|META-INF\.versions\.9\.org\.bouncycastle\.jsse\.provider|org\.bouncycastle\.tls\.crypto\.impl\.jcajce|org\.bouncycastle\.jsse\.java\.security|org\.bouncycastle\.jsse\.util)\.

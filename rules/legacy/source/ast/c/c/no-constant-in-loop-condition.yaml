@@ -1,0 +1,12 @@
+id: no-constant-in-loop-condition
+message: '0601000010140080'
+language: C
+
+rule:
+  any:
+    - pattern: "while ($A) {}"
+    - pattern: "do { $$$ } while ($A);"
+
+constraints:
+  A:
+    kind: number_literal

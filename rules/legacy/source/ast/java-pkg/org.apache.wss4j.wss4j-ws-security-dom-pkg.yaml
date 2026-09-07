@@ -1,0 +1,10 @@
+id: org.apache.wss4j.wss4j-ws-security-dom
+language: Java
+message: pkg:maven/org.apache.wss4j/wss4j-ws-security-dom
+metadata:
+  purl: pkg:maven/org.apache.wss4j/wss4j-ws-security-dom
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.wss4j\.dom\.util|org\.apache\.wss4j\.dom\.transform|org\.apache\.wss4j\.dom\.saml|org\.apache\.wss4j\.dom|org\.apache\.wss4j\.dom\.handler|org\.apache\.wss4j\.dom\.str|org\.apache\.wss4j\.dom\.action|org\.apache\.wss4j\.dom\.message|org\.apache\.wss4j\.dom\.callback|org\.apache\.wss4j\.dom\.validate|org\.apache\.wss4j\.dom\.resolvers|org\.apache\.wss4j\.dom\.message\.token|org\.apache\.wss4j\.dom\.processor|org\.apache\.wss4j\.dom\.engine)\.

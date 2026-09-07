@@ -1,0 +1,32 @@
+id: unused-method
+message: '0202000010130007'
+language: Java
+
+rule:
+  kind: method_declaration
+  all:
+  - not:
+      has:
+        stopBy: end
+        kind: marker_annotation
+  - has:
+      kind: modifiers
+      regex: private
+  - has:
+      field: name
+      pattern: $NAME
+  - inside:
+      kind: class_body
+      not:
+        has:
+          stopBy: end
+          all:
+          - kind: identifier
+          - pattern: $NAME
+          - not:
+              inside:
+                all:
+                - kind: method_declaration
+                - has:
+                    field: name
+                    kind: identifier

@@ -458,6 +458,20 @@ impl FlowGraph {
         if left == right {
             return true;
         }
+        // Shared pointees/regions do not make distinct storage slots alias.
+        // Do this before broad points-to labels, which include stored values.
+        // Native unions and pointer offsets require layout evidence. Managed
+        // Java/Python slots have disjoint projections without that evidence.
+        if matches!(self.language, Language::Java | Language::Jsp | Language::Python) {
+            match (&self.graph[left], &self.graph[right]) {
+                (FlowNode::FieldCell { field: a, .. }, FlowNode::FieldCell { field: b, .. }) if a != b => return false,
+                (FlowNode::IndexCell { abstract_key: a, .. }, FlowNode::IndexCell { abstract_key: b, .. })
+                    if a != b && a != "*" && b != "*" => return false,
+                (FlowNode::FieldCell { .. }, FlowNode::IndexCell { .. }) |
+                (FlowNode::IndexCell { .. }, FlowNode::FieldCell { .. }) => return false,
+                _ => {}
+            }
+        }
         let left_unit = precise_memory_unit_key_for_cell(self, left);
         let right_unit = precise_memory_unit_key_for_cell(self, right);
         if left_unit.is_some() && right_unit.is_some() {
@@ -2380,8 +2394,46 @@ impl FlowGraph {
             for visited in &summary.traversal.visited {
                 let node = NodeIndex::new(*visited);
                 match &self.graph[node] {
-                    FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. } => {
-                        for region in self.cell_memory_regions_of(node) {
+                    FlowNode::FieldCell { base, .. } | FlowNode::IndexCell { base, .. } => {
+                        let param_root = self
+                            .value_alias_roots
+                            .get(&(func, param_value))
+                            .copied()
+                            .unwrap_or(param_value);
+                        let cell_root = self
+                            .value_alias_roots
+                            .get(&(func, *base))
+                            .copied()
+                            .unwrap_or(*base);
+                        let rooted_at_different_formal = self.function_params.iter().any(
+                            |((owner, other_index), node)| {
+                                if *owner != func || *other_index == *index {
+                                    return false;
+                                }
+                                let FlowNode::Param { value, .. } = self.graph[*node] else {
+                                    return false;
+                                };
+                                value == *base
+                            },
+                        );
+                        if rooted_at_different_formal {
+                            continue;
+                        }
+                        let cell_regions = self.cell_memory_regions_of(node);
+                        let relative_paths = cell_regions
+                            .iter()
+                            .flat_map(|region| {
+                                region_relative_access_paths(&param_root_regions, region)
+                            })
+                            .collect::<Vec<_>>();
+                        // A forward may-alias traversal can encounter cells rooted at a
+                        // different unknown parameter.  Such a traversal is useful for
+                        // conservative points-to queries, but it is not a value-flow
+                        // transfer from parameter A into parameter B's fields.
+                        if cell_root != param_root && relative_paths.is_empty() {
+                            continue;
+                        }
+                        for region in &cell_regions {
                             param_to_read_regions.insert((*index, region.clone()));
                             for path in region_relative_access_paths(&param_root_regions, &region) {
                                 param_to_read_paths.insert((*index, path));
@@ -3301,4 +3353,3 @@ impl FlowGraph {
         format!("@{}:{}:{}", path, span.start_line, span.start_col)
     }
 }
-

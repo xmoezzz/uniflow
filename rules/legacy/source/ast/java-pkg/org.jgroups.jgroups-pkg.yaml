@@ -1,0 +1,10 @@
+id: org.jgroups.jgroups
+language: Java
+message: pkg:maven/org.jgroups/jgroups
+metadata:
+  purl: pkg:maven/org.jgroups/jgroups
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jgroups\.protocols\.dns|org\.jgroups\.tests\.perf|org\.jgroups\.blocks\.cs|org\.jgroups\.protocols\.relay\.config|org\.jgroups\.logging|org\.jgroups\.client|org\.jgroups\.demos|org\.jgroups\.protocols\.pbcast|org\.jgroups\.jmx|org\.jgroups\.blocks|org\.jgroups|org\.jgroups\.protocols|org\.jgroups\.tests\.rt\.transports|org\.jgroups\.tests|org\.jgroups\.nio|org\.jgroups\.tests\.rt|org\.jgroups\.auth|org\.jgroups\.fork|org\.jgroups\.blocks\.locking|org\.jgroups\.annotations|org\.jgroups\.protocols\.relay|org\.jgroups\.stack|org\.jgroups\.blocks\.atomic|org\.jgroups\.util|org\.jgroups\.conf)\.

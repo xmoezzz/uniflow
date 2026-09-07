@@ -1,0 +1,73 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                urllib
+
+# DataflowSourceRule urllib 5
+# [{'NamespaceName': 'urllib', 'ClassName': '', 'FunctionName': 'urlopen', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': '', 'FunctionName': 'urlretrieve', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': 'addinfourl|addbase', 'FunctionName': 'read|readline(s)?|geturl', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': 'URLopener', 'FunctionName': 'open', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': 'URLopener', 'FunctionName': 'retrieve', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_urllib_functions_sources",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^urllib.*\.urlopen$"),
+      name.matches("^urllib.*\.urlretrieve$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+
+ModelQuery(
+  name="get_urllib_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^urllib\.URLopener\.open$"),
+      name.matches("^urllib\.(addinfourl|addbase)\.(read|readline(s)?|geturl)"),
+      name.matches("^urllib\.URLopener\.retrieve$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule urllib 10
+# [{'NamespaceName': 'urllib', 'ClassName': '', 'FunctionName': 'urlopen|urlretrieve', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': 'URLopener', 'FunctionName': 'open|open_unknown|retrieve', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': '', 'FunctionName': 'urlopen', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': '', 'FunctionName': 'urlretrieve', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': 'URLopener', 'FunctionName': 'open(_unknown)?', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': 'URLopener', 'FunctionName': 'retrieve', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': '', 'FunctionName': 'urlopen', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': '', 'FunctionName': 'urlretrieve', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': 'URLopener', 'FunctionName': 'open(_unknown)?', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib', 'ClassName': 'URLopener', 'FunctionName': 'retrieve', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_urllib_functions_sinks",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^urllib.*\.(urlopen|urlretrieve)"),
+      name.matches("^urllib.*\.urlopen$"),
+      name.matches("^urllib.*\.urlretrieve$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_system_information_leak_external]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_urllib_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^urllib\.URLopener\.retrieve$"),
+      name.matches("^urllib\.URLopener\.(open|open_unknown|retrieve)"),
+      name.matches("^urllib\.URLopener\.open(_unknown)?")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_system_information_leak_external]
+    )
+  ]
+)

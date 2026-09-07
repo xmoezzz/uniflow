@@ -1,0 +1,10 @@
+id: org.jvnet.hudson.plugins.warnings
+language: Java
+message: pkg:maven/org.jvnet.hudson.plugins/warnings
+metadata:
+  purl: pkg:maven/org.jvnet.hudson.plugins/warnings
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(hudson\.plugins\.warnings\.dashboard|hudson\.plugins\.warnings|hudson\.plugins\.warnings\.parser)\.

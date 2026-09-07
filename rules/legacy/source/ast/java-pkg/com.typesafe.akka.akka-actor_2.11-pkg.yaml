@@ -1,0 +1,10 @@
+id: com.typesafe.akka.akka-actor_2.11
+language: Java
+message: pkg:maven/com.typesafe.akka/akka-actor_2.11
+metadata:
+  purl: pkg:maven/com.typesafe.akka/akka-actor_2.11
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(akka\.dispatch\.forkjoin|akka\.pattern\.extended|akka\.japi\.tuple|akka\.util\.ccompat|akka\.routing|akka\.actor\.dungeon|akka\.event|akka|akka\.actor|akka\.serialization|akka\.actor\.setup|akka\.dispatch|akka\.japi\.function|akka\.compat|akka\.event\.japi|akka\.io|akka\.annotation|akka\.dispatch\.sysmsg|akka\.event\.jul|akka\.pattern|akka\.pattern\.internal|akka\.dispatch\.affinity|akka\.io\.dns\.internal|akka\.japi|akka\.util|akka\.japi\.pf|akka\.io\.dns|akka\.actor\.dsl)\.

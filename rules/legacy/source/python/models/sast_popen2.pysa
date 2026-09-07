@@ -1,0 +1,33 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                popen2
+
+# DataflowSinkRule popen2 2
+# [{'NamespaceName': 'popen2', 'ClassName': 'Popen3|Popen4', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.command_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'popen2', 'ClassName': '', 'FunctionName': 'popen(2|3|4)?', 'RuleName': 'desc.dataflow.python.command_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_popen2_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^popen2.*\.(popen(2|3|4)?)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_command_injection]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_popen2_methods_sinks",
+  find="methods",
+  where=[
+    name.matches("^popen2\.(Popen3|Popen4)\.__init__")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_command_injection]
+    )
+  ]
+)

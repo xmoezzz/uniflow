@@ -1,0 +1,10 @@
+id: org.apache.wicket.wicket-util
+language: Java
+message: pkg:maven/org.apache.wicket/wicket-util
+metadata:
+  purl: pkg:maven/org.apache.wicket/wicket-util
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.wicket\.util\.crypt|org\.apache\.wicket\.util\.xml|org\.apache\.wicket\.util\.visit|org\.apache\.wicket\.util\.string|org\.apache\.wicket\.util\.io|org\.apache\.wicket\.util\.license|org\.apache\.wicket\.util\.time|org\.apache\.wicket\.util\.encoding|org\.apache\.wicket\.util\.file|org\.apache\.wicket\.util\.parse\.metapattern|org\.apache\.wicket\.util\.listener|org\.apache\.wicket\.util\.parse\.metapattern\.parsers|org\.apache\.wicket\.util\.value|org\.apache\.wicket\.util\.collections|org\.apache\.wicket\.util\.resource|org\.apache\.wicket\.util\.convert|org\.apache\.wicket\.util\.lang|org\.apache\.wicket\.util\.watch|org\.apache\.wicket\.util\.convert\.converter|org\.apache\.wicket\.util\.diff|org\.apache\.wicket\.util\.diff\.myers|org\.apache\.wicket\.util\.thread|org\.apache\.wicket\.util|org\.apache\.wicket\.util\.string\.interpolator|org\.apache\.wicket\.util\.markup\.xhtml)\.

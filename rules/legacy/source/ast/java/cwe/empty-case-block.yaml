@@ -1,0 +1,16 @@
+id: empty-case-block
+message: '0202000010130133'
+language: Java
+rule:
+  kind: switch_block_statement_group
+  all:
+  - has:
+      kind: switch_label
+      regex: ^case
+      not:
+        precedes:
+          precedes:
+            pattern: $_
+  - not:
+      precedes:
+          pattern: $_

@@ -1,0 +1,10 @@
+id: org.jsoup.jsoup
+language: Java
+message: pkg:maven/org.jsoup/jsoup
+metadata:
+  purl: pkg:maven/org.jsoup/jsoup
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(META-INF\.versions\.9\.org\.jsoup\.helper|org\.jsoup\.parser|META-INF\.versions\.9|org\.jsoup\.select|org\.jsoup|org\.jsoup\.nodes|org\.jsoup\.helper|org\.jsoup\.internal|org\.jsoup\.safety)\.

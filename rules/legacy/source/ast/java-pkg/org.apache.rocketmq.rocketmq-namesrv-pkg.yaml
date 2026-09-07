@@ -1,0 +1,10 @@
+id: org.apache.rocketmq.rocketmq-namesrv
+language: Java
+message: pkg:maven/org.apache.rocketmq/rocketmq-namesrv
+metadata:
+  purl: pkg:maven/org.apache.rocketmq/rocketmq-namesrv
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.rocketmq\.namesrv\.kvconfig|org\.apache\.rocketmq\.namesrv|org\.apache\.rocketmq\.namesrv\.processor|org\.apache\.rocketmq\.namesrv\.routeinfo|org\.apache\.rocketmq\.namesrv\.route)\.

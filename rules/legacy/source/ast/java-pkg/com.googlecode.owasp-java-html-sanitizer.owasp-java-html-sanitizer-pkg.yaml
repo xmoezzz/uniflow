@@ -1,0 +1,10 @@
+id: com.googlecode.owasp-java-html-sanitizer.owasp-java-html-sanitizer
+language: Java
+message: pkg:maven/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer
+metadata:
+  purl: pkg:maven/com.googlecode.owasp-java-html-sanitizer/owasp-java-html-sanitizer
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.owasp\.html|org\.owasp\.html\.examples)\.

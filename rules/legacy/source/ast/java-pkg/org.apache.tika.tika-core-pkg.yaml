@@ -1,0 +1,10 @@
+id: org.apache.tika.tika-core
+language: Java
+message: pkg:maven/org.apache.tika/tika-core
+metadata:
+  purl: pkg:maven/org.apache.tika/tika-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.tika\.utils|org\.apache\.tika\.language\.detect|org\.apache\.tika\.parser|org\.apache\.tika\.pipes\.pipesiterator\.filelist|org\.apache\.tika\.metadata\.writefilter|org\.apache\.tika\.pipes\.fetcher|org\.apache\.tika\.sax|org\.apache\.tika\.pipes\.pipesiterator|org\.apache\.tika\.parser\.digest|org\.apache\.tika\.pipes\.fetcher\.config|org\.apache\.tika\.fork|org\.apache\.tika\.parser\.external|org\.apache\.tika\.pipes\.fetcher\.fs|org\.apache\.tika\.renderer|org\.apache\.tika\.metadata\.filter|org\.apache\.tika|org\.apache\.tika\.pipes\.pipesiterator\.fs|org\.apache\.tika\.pipes\.extractor|org\.apache\.tika\.exception|org\.apache\.tika\.embedder|org\.apache\.tika\.pipes\.emitter|org\.apache\.tika\.detect|org\.apache\.tika\.pipes\.async|org\.apache\.tika\.pipes\.fetcher\.fs\.config|org\.apache\.tika\.pipes|org\.apache\.tika\.extractor|org\.apache\.tika\.config|org\.apache\.tika\.language\.translate|org\.apache\.tika\.mime|org\.apache\.tika\.io|org\.apache\.tika\.pipes\.fetcher\.url|org\.apache\.tika\.concurrent|org\.apache\.tika\.parser\.external2|org\.apache\.tika\.parser\.multiple|org\.apache\.tika\.sax\.xpath|org\.apache\.tika\.metadata)\.

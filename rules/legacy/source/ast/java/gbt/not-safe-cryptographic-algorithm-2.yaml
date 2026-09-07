@@ -1,0 +1,15 @@
+id: not-safe-cryptographic-algorithm-2
+message: '0402000010170012,0402000010150201'
+language: Java
+
+rule:
+  kind: method_invocation
+  pattern: $$$.getInstance($$$)
+  has:
+    field: arguments
+    any:
+    - regex: \"(MD2|MD2/.*)\"
+    - regex: \"(MD4|MD4/.*)\"
+    - regex: \"(MD5|MD5/.*)\"
+    - regex: \"(SHA|SHA/.*)\"
+    - regex: \"(SHA1|SHA1/.*)\"

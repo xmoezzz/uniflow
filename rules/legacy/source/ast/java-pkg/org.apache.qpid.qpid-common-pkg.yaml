@@ -1,0 +1,10 @@
+id: org.apache.qpid.qpid-common
+language: Java
+message: pkg:maven/org.apache.qpid/qpid-common
+metadata:
+  purl: pkg:maven/org.apache.qpid/qpid-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.qpid\.transport\.network\.security\.sasl|org\.apache\.qpid\.transport\.codec|org\.apache\.qpid\.url|org\.apache\.qpid\.transport\.network|org\.apache\.qpid\.pool|org\.apache\.qpid\.ssl|org\.apache\.qpid\.framing|org\.apache\.qpid\.streams|org\.apache\.qpid\.transport\.network\.security|org\.apache\.qpid|org\.apache\.qpid\.thread|org\.apache\.qpid\.transport\.network\.io|org\.apache\.qpid\.codec|org\.apache\.qpid\.protocol|org\.apache\.qpid\.transport\.util|org\.apache\.qpid\.transport|org\.apache\.qpid\.filter|org\.apache\.qpid\.typedmessage|org\.apache\.qpid\.messaging|org\.apache\.qpid\.filter\.selector|org\.apache\.qpid\.messaging\.util|org\.apache\.qpid\.exchange|org\.apache\.qpid\.transport\.network\.security\.ssl|org\.apache\.qpid\.dtx|org\.apache\.qpid\.configuration|org\.apache\.qpid\.util|org\.apache\.qpid\.common|org\.apache\.qpid\.properties|org\.apache\.qpid\.bytebuffer)\.

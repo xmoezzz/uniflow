@@ -155,6 +155,14 @@ pub enum InstKind {
         dst: ValueId,
         src: ValueId,
     },
+    /// Numeric successor/predecessor, converted back to the operand's numeric
+    /// type (including Java narrowing). Produces a new value, not an alias.
+    /// The frontend/lowerer separately models storage and prefix/postfix result.
+    NumericStep {
+        dst: ValueId,
+        src: ValueId,
+        increment: bool,
+    },
     /// C++ ownership transfer. Unlike Copy, the source enters MovedFrom state.
     Move {
         dst: ValueId,
@@ -532,6 +540,7 @@ fn defined_value(kind: &InstKind) -> Option<ValueId> {
         InstKind::ConstInt { dst, .. }
         | InstKind::ConstString { dst, .. }
         | InstKind::Copy { dst, .. }
+        | InstKind::NumericStep { dst, .. }
         | InstKind::Move { dst, .. }
         | InstKind::Cast { dst, .. }
         | InstKind::Phi { dst, .. }
@@ -546,6 +555,7 @@ fn used_values(kind: &InstKind) -> Vec<ValueId> {
     match kind {
         InstKind::ConstInt { .. } | InstKind::ConstString { .. } => Vec::new(),
         InstKind::Copy { src, .. } | InstKind::Move { src, .. } | InstKind::Cast { src, .. } => vec![*src],
+        InstKind::NumericStep { src, .. } => vec![*src],
         InstKind::Lifetime { value, .. } => vec![*value],
         InstKind::Phi { inputs, .. } => inputs.clone(),
         InstKind::LoadField { base, .. } => vec![*base],

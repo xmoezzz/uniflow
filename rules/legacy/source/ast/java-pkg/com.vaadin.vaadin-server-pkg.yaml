@@ -1,0 +1,10 @@
+id: com.vaadin.vaadin-server
+language: Java
+message: pkg:maven/com.vaadin/vaadin-server
+metadata:
+  purl: pkg:maven/com.vaadin/vaadin-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.vaadin\.ui\.components\.grid|com\.vaadin\.ui\.declarative|com\.vaadin\.util|com\.vaadin\.data\.converter|com\.vaadin\.server\.widgetsetutils|com\.vaadin\.event|com\.vaadin\.ui\.declarative\.converters|com\.vaadin\.data\.util|com\.vaadin\.data\.provider|com\.vaadin\.server\.communication|com\.vaadin\.navigator|com\.vaadin\.data|com\.vaadin\.server\.themeutils|com\.vaadin\.event\.dd|com\.vaadin\.ui\.dnd|com\.vaadin\.event\.selection|com\.vaadin\.data\.validator|com\.vaadin\.annotations|com\.vaadin\.event\.dd\.acceptcriteria|com\.vaadin\.ui\.themes|com\.vaadin\.ui\.renderers|com\.vaadin\.ui|com\.vaadin\.icons|com\.vaadin\.server|com\.vaadin\.server\.osgi|com\.vaadin\.ui\.dnd\.event|com\.vaadin\.ui\.components\.colorpicker)\.

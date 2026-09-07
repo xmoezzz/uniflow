@@ -1,0 +1,10 @@
+id: org.apache.activemq.activemq-broker
+language: Java
+message: pkg:maven/org.apache.activemq/activemq-broker
+metadata:
+  purl: pkg:maven/org.apache.activemq/activemq-broker
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.activemq\.transport\.protocol|org\.apache\.activemq\.broker\.region\.policy|org\.apache\.activemq\.store\.memory|org\.apache\.activemq\.broker\.region\.group|org\.apache\.activemq\.broker\.scheduler|org\.apache\.activemq\.broker\.region\.cursors|org\.apache\.activemq\.network|org\.apache\.activemq\.memory\.buffer|org\.apache\.activemq\.broker\.util|org\.apache\.activemq\.util\.osgi|org\.apache\.activemq\.broker\.scheduler\.memory|org\.apache\.activemq\.util|org\.apache\.activemq\.broker|org\.apache\.activemq\.usage|org\.apache\.activemq\.memory|org\.apache\.activemq\.store|org\.apache\.activemq\.plugin|org\.apache\.activemq\.broker\.cluster|org\.apache\.activemq\.memory\.list|org\.apache\.activemq\.transport\.logwriters|org\.apache\.activemq\.advisory|org\.apache\.activemq\.network\.jms|org\.apache\.activemq\.transaction|org\.apache\.activemq\.transport\.auto|org\.apache\.activemq\.transport\.vm|org\.apache\.activemq\.broker\.view|org\.apache\.activemq\.transport\.nio|org\.apache\.activemq\.broker\.region\.virtual|org\.apache\.activemq\.transport\.peer|org\.apache\.activemq\.transport|org\.apache\.activemq\.security|org\.apache\.activemq\.filter|org\.apache\.activemq\.broker\.inteceptor|org\.apache\.activemq\.broker\.jmx|org\.apache\.activemq\.proxy|org\.apache\.activemq\.broker\.region|org\.apache\.activemq\.transport\.auto\.nio)\.

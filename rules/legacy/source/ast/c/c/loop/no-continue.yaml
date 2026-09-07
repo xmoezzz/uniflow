@@ -1,0 +1,6 @@
+id: no-continue
+message: '0601000010140068'
+language: C
+rule:
+  kind: continue_statement
+  

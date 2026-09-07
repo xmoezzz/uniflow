@@ -1,0 +1,43 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                logging
+
+# DataflowSinkRule logging 12
+# [{'NamespaceName': 'logging', 'ClassName': 'Logger', 'FunctionName': 'info|warning|error|critical|exception', 'RuleName': 'desc.dataflow.python.log_forging', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': 'Logger', 'FunctionName': 'debug', 'RuleName': 'desc.dataflow.python.log_forging__debug_', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': '', 'FunctionName': 'info|warning|error|critical|exception', 'RuleName': 'desc.dataflow.python.log_forging', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': '', 'FunctionName': 'debug', 'RuleName': 'desc.dataflow.python.log_forging__debug_', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': 'Logger', 'FunctionName': 'debug|info|warning|error|critical|exception', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': '', 'FunctionName': 'debug|info|warning|error|critical|exception', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': 'Logger', 'FunctionName': 'log', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': '', 'FunctionName': 'log', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': 'Logger', 'FunctionName': 'debug|info|warning|error|critical|exception', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': '', 'FunctionName': 'debug|info|warning|error|critical|exception', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': 'Logger', 'FunctionName': 'log', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'logging', 'ClassName': '', 'FunctionName': 'log', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_logging_functions_sinks",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^logging.*\.debug$"),
+      name.matches("^logging.*\.(debug|info|warning|error|critical|exception)"),
+      name.matches("^logging.*\.(info|warning|error|critical|exception)"),
+      name.matches("^logging.*\.log$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_privacy_violation]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_logging_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^logging\.Logger\.(debug|info|warning|error|critical|exception)"),
+      name.matches("^logging\.Logger\.(info|warning|error|critical|exception)"),
+      name.matches("^logging\.Logger\.debug$"),
+      name.matches("^logging\.Logger\.log$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_privacy_violation]
+    )
+  ]
+)

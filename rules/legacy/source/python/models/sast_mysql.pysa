@@ -1,0 +1,46 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                mysql
+
+# DataflowSourceRule mysql 1
+# [{'NamespaceName': '_mysql', 'ClassName': 'result', 'FunctionName': 'fetch_row', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_mysql_methods_sources",
+  find="methods",
+  where=[
+    name.matches("_mysql\.result\.fetch_row$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule mysql 4
+# [{'NamespaceName': '_mysql', 'ClassName': 'connection', 'FunctionName': 'query', 'RuleName': 'desc.dataflow.python.sql_injection', 'Origin': 'Fortify'}, {'NamespaceName': '_mysql', 'ClassName': 'connection', 'FunctionName': 'query', 'RuleName': 'desc.dataflow.python.access_control_database', 'Origin': 'Fortify'}, {'NamespaceName': '_mysql', 'ClassName': '', 'FunctionName': 'connect', 'RuleName': 'desc.dataflow.python.password_management', 'Origin': 'Fortify'}, {'NamespaceName': '_mysql', 'ClassName': '', 'FunctionName': 'connect', 'RuleName': 'desc.dataflow.python.password_management_weak_cryptography', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_mysql_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("_mysql.*\.connect$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_password_management_weak_cryptography]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_mysql_methods_sinks",
+  find="methods",
+  where=[
+    name.matches("_mysql\.connection\.query$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_password_management_weak_cryptography]
+    )
+  ]
+)

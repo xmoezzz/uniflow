@@ -1,0 +1,10 @@
+id: io.dropwizard.dropwizard-validation
+language: Java
+message: pkg:maven/io.dropwizard/dropwizard-validation
+metadata:
+  purl: pkg:maven/io.dropwizard/dropwizard-validation
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.dropwizard\.validation\.selfvalidating|io\.dropwizard\.validation\.valuehandling|io\.dropwizard\.validation)\.

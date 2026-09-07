@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
-use uniflow_checker_api::{CheckerFinding, CheckerLocation};
+use uniflow_checker_api::{CheckerFinding, CheckerLocation, CheckerManifest, CheckerRule};
 use uniflow_taint::TaintFinding;
 use uniflow_value_flow::{FlowGraph, FlowStats};
 
@@ -13,24 +13,33 @@ pub fn export_sarif_with_checkers(
     findings: &[TaintFinding],
     checker_findings: &[CheckerFinding],
 ) -> Value {
-    let mut rule_ids = BTreeSet::new();
+    export_sarif_with_checker_manifests(tool_name, findings, checker_findings, &[])
+}
+
+pub fn export_sarif_with_checker_manifests(
+    tool_name: &str,
+    findings: &[TaintFinding],
+    checker_findings: &[CheckerFinding],
+    checker_manifests: &[CheckerManifest],
+) -> Value {
+    let mut rules = BTreeMap::new();
     for finding in findings {
-        rule_ids.insert(finding.sink_rule_id.clone());
+        rules
+            .entry(finding.sink_rule_id.clone())
+            .or_insert_with(|| taint_sarif_rule(finding));
     }
     for finding in checker_findings {
-        rule_ids.insert(finding.rule_id.clone());
+        rules
+            .entry(finding.rule_id.clone())
+            .or_insert_with(|| fallback_sarif_rule(&finding.rule_id));
     }
-
-    let rules = rule_ids
-        .into_iter()
-        .map(|id| {
-            json!({
-                "id": id,
-                "shortDescription": { "text": format!("UniFlow finding for {id}") },
-                "fullDescription": { "text": "Source analysis finding emitted by UniFlow or an external checker" },
-            })
-        })
-        .collect::<Vec<_>>();
+    for manifest in checker_manifests {
+        for rule in &manifest.rules {
+            let id = qualified_checker_rule_id(manifest, rule);
+            rules.insert(id.clone(), checker_sarif_rule(manifest, rule, id));
+        }
+    }
+    let rules = rules.into_values().collect::<Vec<_>>();
 
     let mut results = findings
         .iter()
@@ -67,6 +76,9 @@ pub fn export_sarif_with_checkers(
                     "analysisComplete": finding.analysis_complete,
                     "queryCompleteness": format!("{:?}", finding.completeness),
                     "findingKind": finding.finding_kind,
+                    "cwe": finding.cwe,
+                    "standards": finding.standards,
+                    "translations": finding.translations,
                 },
                 "codeFlows": [{
                     "threadFlows": [{
@@ -93,6 +105,87 @@ pub fn export_sarif_with_checkers(
             "results": results,
         }]
     })
+}
+
+fn taint_sarif_rule(finding: &TaintFinding) -> Value {
+    if finding.rule_title.trim().is_empty() {
+        return fallback_sarif_rule(&finding.sink_rule_id);
+    }
+    let description = if finding.message.trim().is_empty() {
+        finding.rule_title.as_str()
+    } else {
+        finding.message.as_str()
+    };
+    let mut tags = finding.cwe.clone();
+    for standard in &finding.standards {
+        if !tags.iter().any(|tag| tag == standard) {
+            tags.push(standard.clone());
+        }
+    }
+    json!({
+        "id": finding.sink_rule_id,
+        "shortDescription": { "text": finding.rule_title },
+        "fullDescription": { "text": description },
+        "defaultConfiguration": {
+            "level": if finding.severity.is_empty() {
+                sarif_level_for_kind(&finding.sink_kind)
+            } else {
+                finding.severity.as_str()
+            }
+        },
+        "properties": {
+            "tags": tags,
+            "cwe": finding.cwe,
+            "standards": finding.standards,
+            "translations": finding.translations,
+        }
+    })
+}
+
+fn fallback_sarif_rule(id: &str) -> Value {
+    json!({
+        "id": id,
+        "shortDescription": { "text": format!("UniFlow finding for {id}") },
+        "fullDescription": { "text": "Source analysis finding emitted by UniFlow or an external checker" },
+    })
+}
+
+fn qualified_checker_rule_id(manifest: &CheckerManifest, rule: &CheckerRule) -> String {
+    if rule.id.starts_with(&format!("{}.", manifest.id)) {
+        rule.id.clone()
+    } else {
+        format!("{}.{}", manifest.id, rule.id)
+    }
+}
+
+fn checker_sarif_rule(manifest: &CheckerManifest, rule: &CheckerRule, id: String) -> Value {
+    let mut properties = serde_json::Map::new();
+    properties.insert("checkerId".to_string(), json!(manifest.id));
+    properties.insert("checkerName".to_string(), json!(manifest.name));
+    properties.insert("checkerVersion".to_string(), json!(manifest.version));
+    if !rule.tags.is_empty() {
+        properties.insert("tags".to_string(), json!(rule.tags));
+    }
+    for (key, value) in &rule.properties {
+        properties.insert(key.clone(), value.clone());
+    }
+    let description = if rule.description.trim().is_empty() {
+        rule.title.as_str()
+    } else {
+        rule.description.as_str()
+    };
+    let mut value = json!({
+        "id": id,
+        "name": rule.id,
+        "shortDescription": { "text": rule.title },
+        "fullDescription": { "text": description },
+        "defaultConfiguration": { "level": rule.default_level },
+        "properties": properties,
+    });
+    if let Some(help_uri) = rule.help_uri.as_deref() {
+        value["helpUri"] = json!(help_uri);
+    }
+    value
 }
 
 fn checker_sarif_result(finding: &CheckerFinding) -> Value {
@@ -534,7 +627,7 @@ fn escape_md_cell(s: &str) -> String {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
-    use uniflow_checker_api::{CheckerFinding, CheckerLocation};
+    use uniflow_checker_api::{CheckerFinding, CheckerLocation, CheckerManifest, CheckerRule};
 
     #[test]
     fn external_checker_finding_is_emitted_as_sarif() {
@@ -564,6 +657,69 @@ mod tests {
             sarif["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["region"]
                 ["startLine"],
             7
+        );
+    }
+
+    #[test]
+    fn external_checker_rule_metadata_is_emitted_as_sarif() {
+        let mut manifest = CheckerManifest::new("example.security", "Security", "2.1.0");
+        let mut rule = CheckerRule::new("sql-injection", "SQL injection");
+        rule.description = "Untrusted data reaches a SQL execution sink.".to_string();
+        rule.default_level = "error".to_string();
+        rule.tags = vec!["security".to_string(), "cwe-89".to_string()];
+        rule.help_uri = Some("https://example.invalid/sql-injection".to_string());
+        rule.properties
+            .insert("precision".to_string(), json!("high"));
+        manifest.rules.push(rule);
+
+        let sarif = export_sarif_with_checker_manifests("uniflow", &[], &[], &[manifest]);
+        let descriptor = &sarif["runs"][0]["tool"]["driver"]["rules"][0];
+        assert_eq!(descriptor["id"], "example.security.sql-injection");
+        assert_eq!(descriptor["shortDescription"]["text"], "SQL injection");
+        assert_eq!(descriptor["defaultConfiguration"]["level"], "error");
+        assert_eq!(descriptor["properties"]["precision"], "high");
+        assert_eq!(
+            descriptor["helpUri"],
+            "https://example.invalid/sql-injection"
+        );
+    }
+
+    #[test]
+    fn localized_taint_rule_metadata_is_emitted_as_sarif() {
+        let finding: TaintFinding = serde_json::from_value(json!({
+            "source_rule_id": "request-input",
+            "sink_rule_id": "command-injection",
+            "source_kind": "command",
+            "sink_kind": "command",
+            "sink_node": 2,
+            "path": [1, 2],
+            "source_label": "source",
+            "sink_label": "sink",
+            "source_location": "demo.c:1:1",
+            "sink_location": "demo.c:2:1",
+            "path_labels": ["source", "sink"],
+            "steps": [],
+            "severity": "error",
+            "message": "Untrusted data reaches command execution.",
+            "rule_title": "Command injection",
+            "cwe": ["CWE-78"],
+            "standards": ["GJB-8114"],
+            "translations": {
+                "zh-CN": { "title": "命令注入", "message": "不可信数据到达命令执行接口。" },
+                "en": { "title": "Command injection", "message": "Untrusted data reaches command execution." },
+                "zh-TW": { "title": "命令注入", "message": "不可信資料到達命令執行介面。" }
+            }
+        }))
+        .expect("taint finding");
+        let sarif = export_sarif("uniflow", &[finding]);
+        let descriptor = &sarif["runs"][0]["tool"]["driver"]["rules"][0];
+        assert_eq!(descriptor["shortDescription"]["text"], "Command injection");
+        assert_eq!(descriptor["defaultConfiguration"]["level"], "error");
+        assert_eq!(descriptor["properties"]["cwe"][0], "CWE-78");
+        assert_eq!(descriptor["properties"]["standards"][0], "GJB-8114");
+        assert_eq!(
+            descriptor["properties"]["translations"]["zh-TW"]["message"],
+            "不可信資料到達命令執行介面。"
         );
     }
 }

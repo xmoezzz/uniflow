@@ -1,0 +1,18 @@
+id: if-else-braces
+message: "0701000010130016,0601000010140019"
+language: C
+rule:
+  any:
+    - all:
+        - kind: else_clause
+        - not:
+            has:
+              any:
+                - kind: compound_statement
+                - kind: if_statement
+    - all:
+        - kind: if_statement
+        - not:
+            has:
+              field: consequence
+              kind: compound_statement

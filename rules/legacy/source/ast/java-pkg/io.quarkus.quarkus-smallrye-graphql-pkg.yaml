@@ -1,0 +1,10 @@
+id: io.quarkus.quarkus-smallrye-graphql
+language: Java
+message: pkg:maven/io.quarkus/quarkus-smallrye-graphql
+metadata:
+  purl: pkg:maven/io.quarkus/quarkus-smallrye-graphql
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.quarkus\.smallrye\.graphql\.runtime\.spi\.datafetcher|io\.quarkus\.smallrye\.graphql\.runtime\.spi|io\.quarkus\.smallrye\.graphql\.runtime)\.

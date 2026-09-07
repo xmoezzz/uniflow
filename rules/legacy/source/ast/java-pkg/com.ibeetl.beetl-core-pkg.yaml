@@ -1,0 +1,10 @@
+id: com.ibeetl.beetl-core
+language: Java
+message: pkg:maven/com.ibeetl/beetl-core
+metadata:
+  purl: pkg:maven/com.ibeetl/beetl-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.beetl\.ow2\.asm\.optimizer|org\.beetl\.ow2\.asm\.util|org\.beetl\.core\.impl\.cache|org\.beetl\.core\.cache|org\.beetl\.core\.tag|org\.beetl\.ow2\.asm\.tree\.analysis|org\.beetl\.core\.misc|org\.beetl\.core\.statement|org\.beetl\.core\.impl|org\.beetl\.core\.fun|org\.beetl\.core\.engine|org\.beetl\.core\.parser|org\.beetl\.core\.resource|org\.beetl\.core|org\.beetl\.ow2\.asm|org\.beetl\.ow2\.asm\.signature|org\.beetl\.ow2\.asm\.tree|org\.beetl\.core\.io|org\.beetl\.core\.config|org\.beetl\.core\.event|org\.beetl\.core\.text|org\.beetl\.core\.runtime|org\.beetl\.core\.statement\.nat|org\.beetl\.ow2\.asm\.commons|org\.beetl\.core\.om|org\.beetl\.core\.exception|org\.beetl\.core\.util|org\.beetl\.core\.annotation|org\.beetl\.core\.om\.asm|org\.beetl\.core\.statement\.optimal|org\.beetl\.ow2\.asm\.xml)\.

@@ -1,0 +1,10 @@
+id: org.apache.deltaspike.modules.deltaspike-jsf-module-impl
+language: Java
+message: pkg:maven/org.apache.deltaspike.modules/deltaspike-jsf-module-impl
+metadata:
+  purl: pkg:maven/org.apache.deltaspike.modules/deltaspike-jsf-module-impl
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.deltaspike\.jsf\.impl\.component\.window|org\.apache\.deltaspike\.jsf\.impl\.navigation|org\.apache\.deltaspike\.jsf\.impl\.exception\.control|org\.apache\.deltaspike\.jsf\.impl\.listener\.request|org\.apache\.deltaspike\.jsf\.impl\.scope\.window|org\.apache\.deltaspike\.jsf\.impl\.view|org\.apache\.deltaspike\.jsf\.impl\.component\.token|org\.apache\.deltaspike\.jsf\.impl\.config\.view|org\.apache\.deltaspike\.jsf\.impl\.resource|org\.apache\.deltaspike\.jsf\.impl\.scope\.viewaccess|org\.apache\.deltaspike\.jsf\.impl\.listener\.phase|org\.apache\.deltaspike\.jsf\.impl\.config\.view\.navigation|org\.apache\.deltaspike\.jsf\.impl\.clientwindow|org\.apache\.deltaspike\.jsf\.impl\.util|org\.apache\.deltaspike\.jsf\.impl\.listener\.system|org\.apache\.deltaspike\.jsf\.impl\.security|org\.apache\.deltaspike\.jsf\.impl\.listener\.action|org\.apache\.deltaspike\.jsf\.impl\.message|org\.apache\.deltaspike\.jsf\.impl\.token)\.

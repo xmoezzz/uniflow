@@ -1,0 +1,58 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                pickle
+
+# DataflowSourceRule pickle 2
+# [{'NamespaceName': 'pickle', 'ClassName': 'Unpickler', 'FunctionName': 'load', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'pickle|cPickle', 'ClassName': '', 'FunctionName': 'load(s)?', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pickle_functions_sources",
+  find="functions",
+  where=[
+    name.matches("(pickle|cPickle).*\.load(s)?")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+
+ModelQuery(
+  name="get_pickle_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^pickle\.Unpickler\.load$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule pickle 2
+# [{'NamespaceName': 'pickle', 'ClassName': 'Unpickler', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.dynamic_code_evaluation_unsafe_pickle_deserialization', 'Origin': 'Fortify'}, {'NamespaceName': 'pickle|cPickle', 'ClassName': '', 'FunctionName': 'load(s)?', 'RuleName': 'desc.dataflow.python.dynamic_code_evaluation_unsafe_pickle_deserialization', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pickle_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("(pickle|cPickle).*\.load(s)?")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_dynamic_code_evaluation_unsafe_pickle_deserialization]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_pickle_methods_sinks",
+  find="methods",
+  where=[
+    name.matches("^pickle\.Unpickler\.__init__")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_dynamic_code_evaluation_unsafe_pickle_deserialization]
+    )
+  ]
+)

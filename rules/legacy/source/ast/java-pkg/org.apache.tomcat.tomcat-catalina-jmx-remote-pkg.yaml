@@ -1,0 +1,10 @@
+id: org.apache.tomcat.tomcat-catalina-jmx-remote
+language: Java
+message: pkg:maven/org.apache.tomcat/tomcat-catalina-jmx-remote
+metadata:
+  purl: pkg:maven/org.apache.tomcat/tomcat-catalina-jmx-remote
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.catalina\.mbeans)\.

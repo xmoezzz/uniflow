@@ -1,0 +1,10 @@
+id: org.javadelight.delight-nashorn-sandbox
+language: Java
+message: pkg:maven/org.javadelight/delight-nashorn-sandbox
+metadata:
+  purl: pkg:maven/org.javadelight/delight-nashorn-sandbox
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(delight\.nashornsandbox|delight\.nashornsandbox\.exceptions|delight\.nashornsandbox\.internal)\.

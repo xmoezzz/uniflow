@@ -1,0 +1,10 @@
+id: org.apache.spark.spark-network-common_2.12
+language: Java
+message: pkg:maven/org.apache.spark/spark-network-common_2.12
+metadata:
+  purl: pkg:maven/org.apache.spark/spark-network-common_2.12
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.spark\.network\.server|org\.sparkproject\.guava\.reflect|org\.apache\.spark\.network\.shuffledb|org\.sparkproject\.guava\.eventbus|org\.sparkproject\.guava\.collect|org\.sparkproject\.guava\.base|org\.sparkproject\.guava\.base\.internal|org\.apache\.spark\.network\.protocol|org\.apache\.spark\.network|org\.sparkproject\.guava\.util\.concurrent|org\.sparkproject\.guava\.primitives|org\.sparkproject\.guava\.io|org\.apache\.spark\.network\.client|org\.apache\.spark\.unused|org\.sparkproject\.guava\.hash|org\.apache\.spark\.network\.util|org\.sparkproject\.guava\.math|org\.apache\.spark\.network\.crypto|org\.apache\.spark\.network\.sasl|org\.sparkproject\.guava\.cache|org\.sparkproject\.guava\.annotations|org\.sparkproject\.guava\.net|org\.apache\.spark\.network\.buffer)\.

@@ -1,0 +1,6 @@
+id: no-long-long
+message: '2401000010120098'
+language: C
+rule:
+  kind: sized_type_specifier
+  regex: "^long long$"

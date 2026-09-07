@@ -1,0 +1,10 @@
+id: org.apache.zookeeper.zookeeper
+language: Java
+message: pkg:maven/org.apache.zookeeper/zookeeper
+metadata:
+  purl: pkg:maven/org.apache.zookeeper/zookeeper
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.zookeeper|org\.apache\.zookeeper\.server\.embedded|org\.apache\.zookeeper\.server\.command|org\.apache\.zookeeper\.version|org\.apache\.zookeeper\.server\.quorum\.auth|org\.apache\.zookeeper\.cli|org\.apache\.zookeeper\.server|org\.apache\.zookeeper\.metrics|org\.apache\.zookeeper\.server\.quorum|org\.apache\.zookeeper\.server\.watch|org\.apache\.zookeeper\.metrics\.impl|org\.apache\.zookeeper\.server\.persistence|org\.apache\.zookeeper\.server\.controller|org\.apache\.zookeeper\.server\.util|org\.apache\.zookeeper\.common|org\.apache\.zookeeper\.compat|org\.apache\.zookeeper\.jmx|org\.apache\.zookeeper\.util|org\.apache\.zookeeper\.server\.admin|org\.apache\.zookeeper\.server\.quorum\.flexible|org\.apache\.zookeeper\.client|org\.apache\.zookeeper\.audit|org\.apache\.zookeeper\.server\.metric|org\.apache\.zookeeper\.admin|org\.apache\.zookeeper\.server\.auth)\.

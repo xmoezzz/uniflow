@@ -1,0 +1,10 @@
+id: com.usthe.sureness.sureness-core
+language: Java
+message: pkg:maven/com.usthe.sureness/sureness-core
+metadata:
+  purl: pkg:maven/com.usthe.sureness/sureness-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.usthe\.sureness\.processor\.support|com\.usthe\.sureness\.matcher\.util|com\.usthe\.sureness\.matcher|com\.usthe\.sureness\.subject\.support|com\.usthe\.sureness\.processor|com\.usthe\.sureness\.provider|com\.usthe\.sureness\.provider\.annotation|com\.usthe\.sureness\.mgt|com\.usthe\.sureness\.processor\.exception|com\.usthe\.sureness|com\.usthe\.sureness\.subject|com\.usthe\.sureness\.util|com\.usthe\.sureness\.handler|com\.usthe\.sureness\.security|com\.usthe\.sureness\.subject\.creater|com\.usthe\.sureness\.provider\.ducument)\.

@@ -11,7 +11,7 @@ use uniflow_ir::{
     BlockId, CallInst, Callee, Function, FunctionId, InstId, InstKind, Instruction, LifetimeEvent,
     Program, Terminator, ValueId,
 };
-use uniflow_rules::{language_matches, CallInfo, FlowSpec, Port, RuleSet};
+use uniflow_rules::{expand_port, language_matches, CallInfo, FlowSpec, Port, RuleSet};
 
 include!("types.rs");
 include!("aliasing.rs");

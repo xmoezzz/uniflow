@@ -1,0 +1,10 @@
+id: org.codelibs.nekohtml
+language: Java
+message: pkg:maven/org.codelibs/nekohtml
+metadata:
+  purl: pkg:maven/org.codelibs/nekohtml
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.codelibs\.xerces\.xerces\.impl\.dv\.dtd|org\.codelibs\.xerces\.xerces\.util|org\.codelibs\.nekohtml\.xercesbridge|org\.codelibs\.xerces\.xerces\.xni\.grammars|org\.codelibs\.xerces\.xerces\.impl\.xs\.util|org\.codelibs\.xerces\.xerces\.impl\.dv\.util|org\.codelibs\.xerces\.xerces\.impl\.dtd|org\.codelibs\.xerces\.xerces\.impl\.xs|org\.codelibs\.xerces\.xerces\.jaxp\.datatype|org\.codelibs\.xerces\.xml\.serialize|org\.codelibs\.xerces\.xerces\.jaxp|org\.codelibs\.xerces\.xerces\.jaxp\.validation|org\.codelibs\.xerces\.xerces\.impl\.xs\.models|org\.codelibs\.xerces\.xerces\.impl\.xpath|org\.codelibs\.xerces\.xerces\.impl\.dv|org\.codelibs\.xerces\.xerces\.dom3\.as|org\.codelibs\.nekohtml\.filters|org\.codelibs\.xerces\.xerces\.xni\.parser|org\.codelibs\.xerces\.xerces\.impl\.validation|org\.codelibs\.xerces\.wml|org\.codelibs\.xerces\.xerces\.xs\.datatypes|org\.codelibs\.xerces\.xerces\.dom|org\.codelibs\.xerces\.xerces\.impl\.xs\.opti|org\.codelibs\.xerces\.xerces\.impl\.xs\.identity|org\.codelibs\.xerces\.html\.dom|org\.codelibs\.xerces\.xerces\.xpointer|org\.codelibs\.nekohtml|org\.codelibs\.nekohtml\.parsers|org\.codelibs\.xerces\.xerces\.stax\.events|org\.codelibs\.xerces\.xerces\.impl\.msg|org\.codelibs\.xerces\.wml\.dom|org\.codelibs\.xerces\.xerces\.impl\.xs\.traversers|org\.codelibs\.xerces\.xerces\.stax|org\.codelibs\.xerces\.xerces\.xinclude|org\.codelibs\.xerces\.xerces\.impl\.dv\.xs|org\.codelibs\.xerces\.xerces\.impl\.xpath\.regex|org\.codelibs\.xerces\.xerces\.impl|org\.codelibs\.xerces\.xerces\.impl\.io|org\.codelibs\.xerces\.xerces\.impl\.dtd\.models|org\.codelibs\.xerces\.xerces\.dom\.events|org\.codelibs\.xerces\.xerces\.parsers|org\.codelibs\.xerces\.xerces\.xni|org\.codelibs\.xerces\.xerces\.xs)\.

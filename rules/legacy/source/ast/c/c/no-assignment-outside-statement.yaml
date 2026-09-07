@@ -1,0 +1,9 @@
+id: no-assignment-outside-statement
+message: '0601000010140036,0601000010140048,2401000010120097'
+language: C
+rule:
+  all:
+    - kind: assignment_expression
+    - not:
+        inside:
+          kind: expression_statement

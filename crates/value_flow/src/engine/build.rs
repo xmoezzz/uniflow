@@ -14,7 +14,11 @@ where
 {
     on_progress(BuildProgress {
         stage: "init",
-        detail: format!("{} source files, {} functions", program.source_files.len(), program.functions.len()),
+        detail: format!(
+            "{} source files, {} functions",
+            program.source_files.len(),
+            program.functions.len()
+        ),
     });
     let mut fg = FlowGraph::default();
     fg.language = program.language.clone();
@@ -31,7 +35,8 @@ where
     fg.lifetime_diagnostics = lifetime_diagnostics;
     for function in &program.functions {
         for (value, semantics) in &function.value_cpp {
-            fg.value_cpp.insert((function.id, *value), semantics.clone());
+            fg.value_cpp
+                .insert((function.id, *value), semantics.clone());
         }
     }
 
@@ -48,7 +53,29 @@ where
         for (value, ty) in &func.value_types {
             fg.value_types.insert((func.id, *value), ty.clone());
         }
+        if let Some(names) = func.attrs.get("value_names") {
+            for entry in names.split('\u{1f}') {
+                let Some((value, name)) = entry.split_once('=') else {
+                    continue;
+                };
+                let Ok(value) = value.parse::<u32>() else {
+                    continue;
+                };
+                fg.value_names
+                    .insert((func.id, ValueId(value)), name.to_string());
+            }
+        }
+        if let Some(names) = func.attrs.get("param_names") {
+            let receiver_offset = function_receiver_offset(func);
+            for (value, name) in func.params.iter().skip(receiver_offset).zip(names.split('\u{1f}')) {
+                if !name.is_empty() {
+                    fg.value_names.insert((func.id, *value), name.to_string());
+                }
+            }
+        }
         create_function_nodes(&mut fg, func);
+        attach_function_sources_and_sinks(&mut fg, rules, func);
+        attach_named_value_sources(&mut fg, rules, func);
     }
 
     on_progress(BuildProgress {
@@ -68,8 +95,26 @@ where
             .expect("return node must exist");
         let alias_roots = compute_value_alias_representatives(func);
         let heap_alias_roots = compute_heap_alias_representatives(func);
-        let (object_identity_roots, object_identity_sites) = compute_object_identity_representatives(func);
-        let literal_index_keys = compute_literal_index_keys(func);
+        let (object_identity_roots, object_identity_sites) =
+            compute_object_identity_representatives(func);
+        let literal_index_keys = compute_literal_index_keys(func, &program.language);
+        for (value, literal) in &literal_index_keys {
+            let literal = if func
+                .value_types
+                .get(value)
+                .is_some_and(|ty| matches!(ty.as_str(), "bool" | "boolean" | "Boolean" | "java.lang.Boolean"))
+            {
+                match literal.as_str() {
+                    "0" => "false",
+                    "1" => "true",
+                    _ => literal,
+                }
+            } else {
+                literal
+            };
+            fg.value_constants
+                .insert((func.id, *value), literal.to_string());
+        }
         for (value, root) in &alias_roots {
             fg.value_alias_roots.insert((func.id, *value), *root);
         }
@@ -80,7 +125,8 @@ where
             fg.object_identity_roots.insert((func.id, *value), *root);
         }
         for (value, site) in &object_identity_sites {
-            fg.object_identity_sites.insert((func.id, *value), site.clone());
+            fg.object_identity_sites
+                .insert((func.id, *value), site.clone());
         }
         let mut abstract_field_cells: HashMap<(ValueId, String), NodeIndex> = HashMap::new();
         let mut abstract_index_cells: HashMap<(ValueId, String), NodeIndex> = HashMap::new();
@@ -90,7 +136,7 @@ where
                 fg.inst_spans.insert((func.id, inst.id), inst.span);
                 match &inst.kind {
                     InstKind::ConstInt { .. } | InstKind::ConstString { .. } => {}
-                    InstKind::Copy { dst, src } => {
+                    InstKind::Copy { dst, src } | InstKind::NumericStep { dst, src, .. } => {
                         edge_value_to_value(&mut fg, func.id, *src, *dst, EdgeKind::Assign);
                     }
                     InstKind::Move { dst, src } => {
@@ -106,7 +152,15 @@ where
                         };
                         let src_node = value_node(&fg, func.id, *src);
                         let dst_node = value_node(&fg, func.id, *dst);
-                        fg.graph.add_edge(src_node, dst_node, FlowEdge { kind: EdgeKind::Summary { rule_id: rule_id.to_string() } });
+                        fg.graph.add_edge(
+                            src_node,
+                            dst_node,
+                            FlowEdge {
+                                kind: EdgeKind::Summary {
+                                    rule_id: rule_id.to_string(),
+                                },
+                            },
+                        );
                     }
                     InstKind::Lifetime { .. } => {
                         // Lifetime events are consumed by the CFG-sensitive lifetime solver.
@@ -119,17 +173,20 @@ where
                     InstKind::LoadField { dst, base, field } => {
                         let canonical_base = canonical_heap_value(&fg, func.id, *base);
                         let field_key = (canonical_base, field.clone());
-                        let field_cell = *abstract_field_cells.entry(field_key.clone()).or_insert_with(|| {
-                            let node = fg.graph.add_node(FlowNode::FieldCell {
-                                func: func.id,
-                                block: block.id,
-                                inst: inst.id,
-                                base: canonical_base,
-                                field: field.clone(),
+                        let field_cell = *abstract_field_cells
+                            .entry(field_key.clone())
+                            .or_insert_with(|| {
+                                let node = fg.graph.add_node(FlowNode::FieldCell {
+                                    func: func.id,
+                                    block: block.id,
+                                    inst: inst.id,
+                                    base: canonical_base,
+                                    field: field.clone(),
+                                });
+                                fg.field_cells
+                                    .insert((func.id, canonical_base, field.clone()), node);
+                                node
                             });
-                            fg.field_cells.insert((func.id, canonical_base, field.clone()), node);
-                            node
-                        });
                         let base_node = value_node(&fg, func.id, *base);
                         fg.graph.add_edge(
                             base_node,
@@ -149,21 +206,25 @@ where
                                 field: field.clone(),
                             },
                         );
+                        attach_field_sources(&mut fg, rules, func.id, inst.id, *base, field, *dst);
                     }
                     InstKind::StoreField { base, field, src } => {
                         let canonical_base = canonical_heap_value(&fg, func.id, *base);
                         let field_key = (canonical_base, field.clone());
-                        let field_cell = *abstract_field_cells.entry(field_key.clone()).or_insert_with(|| {
-                            let node = fg.graph.add_node(FlowNode::FieldCell {
-                                func: func.id,
-                                block: block.id,
-                                inst: inst.id,
-                                base: canonical_base,
-                                field: field.clone(),
+                        let field_cell = *abstract_field_cells
+                            .entry(field_key.clone())
+                            .or_insert_with(|| {
+                                let node = fg.graph.add_node(FlowNode::FieldCell {
+                                    func: func.id,
+                                    block: block.id,
+                                    inst: inst.id,
+                                    base: canonical_base,
+                                    field: field.clone(),
+                                });
+                                fg.field_cells
+                                    .insert((func.id, canonical_base, field.clone()), node);
+                                node
                             });
-                            fg.field_cells.insert((func.id, canonical_base, field.clone()), node);
-                            node
-                        });
                         let src_node = value_node(&fg, func.id, *src);
                         fg.graph.add_edge(
                             src_node,
@@ -174,67 +235,140 @@ where
                                 },
                             },
                         );
+                        attach_field_sinks(&mut fg, rules, func.id, inst.id, *base, field, *src);
                     }
                     InstKind::LoadIndex { dst, base, index } => {
                         let canonical_base = canonical_heap_value(&fg, func.id, *base);
                         let key = abstract_index_key(&literal_index_keys, *index);
-                        let cell = *abstract_index_cells.entry((canonical_base, key.clone())).or_insert_with(|| {
-                            let node = fg.graph.add_node(FlowNode::IndexCell {
-                                func: func.id,
-                                block: block.id,
-                                inst: inst.id,
-                                base: canonical_base,
-                                index: *index,
-                                abstract_key: key.clone(),
+                        let cell = *abstract_index_cells
+                            .entry((canonical_base, key.clone()))
+                            .or_insert_with(|| {
+                                let node = fg.graph.add_node(FlowNode::IndexCell {
+                                    func: func.id,
+                                    block: block.id,
+                                    inst: inst.id,
+                                    base: canonical_base,
+                                    index: *index,
+                                    abstract_key: key.clone(),
+                                });
+                                fg.index_cells
+                                    .insert((func.id, canonical_base, key.clone()), node);
+                                node
                             });
-                            fg.index_cells.insert((func.id, canonical_base, key.clone()), node);
-                            node
-                        });
                         let base_node = value_node(&fg, func.id, *base);
-                        fg.graph.add_edge(base_node, cell, FlowEdge { kind: EdgeKind::LoadIndex });
-                        connect_cell_projected_values_to_dst(&mut fg, cell, func.id, *dst, EdgeKind::LoadIndex);
+                        fg.graph.add_edge(
+                            base_node,
+                            cell,
+                            FlowEdge {
+                                kind: EdgeKind::LoadIndex,
+                            },
+                        );
+                        connect_cell_projected_values_to_dst(
+                            &mut fg,
+                            cell,
+                            func.id,
+                            *dst,
+                            EdgeKind::LoadIndex,
+                        );
+                        attach_index_sinks(
+                            &mut fg,
+                            rules,
+                            func.id,
+                            inst.id,
+                            *base,
+                            *index,
+                            true,
+                        );
                     }
                     InstKind::StoreIndex { base, index, src } => {
                         let canonical_base = canonical_heap_value(&fg, func.id, *base);
                         let key = abstract_index_key(&literal_index_keys, *index);
-                        let cell = *abstract_index_cells.entry((canonical_base, key.clone())).or_insert_with(|| {
-                            let node = fg.graph.add_node(FlowNode::IndexCell {
-                                func: func.id,
-                                block: block.id,
-                                inst: inst.id,
-                                base: canonical_base,
-                                index: *index,
-                                abstract_key: key.clone(),
+                        let cell = *abstract_index_cells
+                            .entry((canonical_base, key.clone()))
+                            .or_insert_with(|| {
+                                let node = fg.graph.add_node(FlowNode::IndexCell {
+                                    func: func.id,
+                                    block: block.id,
+                                    inst: inst.id,
+                                    base: canonical_base,
+                                    index: *index,
+                                    abstract_key: key.clone(),
+                                });
+                                fg.index_cells
+                                    .insert((func.id, canonical_base, key.clone()), node);
+                                node
                             });
-                            fg.index_cells.insert((func.id, canonical_base, key.clone()), node);
-                            node
-                        });
                         let src_node = value_node(&fg, func.id, *src);
-                        fg.graph.add_edge(src_node, cell, FlowEdge { kind: EdgeKind::StoreIndex });
+                        fg.graph.add_edge(
+                            src_node,
+                            cell,
+                            FlowEdge {
+                                kind: EdgeKind::StoreIndex,
+                            },
+                        );
+                        attach_index_sinks(
+                            &mut fg,
+                            rules,
+                            func.id,
+                            inst.id,
+                            *base,
+                            *index,
+                            false,
+                        );
                     }
                     InstKind::Call(call) => {
                         let meta = build_call_meta(&fg, func, inst.id, call, inst.span);
                         fg.call_meta.insert((func.id, inst.id), meta.clone());
                         connect_call_value_ports(&mut fg, func.id, inst.id, call);
+                        connect_registered_lambda_captures(&mut fg, program, func.id, call);
 
-                        connect_builtin_python_container_semantics(&mut fg, func.id, call, &meta, &literal_index_keys);
-                        connect_python_container_semantics(&mut fg, func.id, call, &meta, &literal_index_keys);
+                        connect_builtin_python_container_semantics(
+                            &mut fg,
+                            func.id,
+                            call,
+                            &meta,
+                            &literal_index_keys,
+                        );
+                        connect_python_container_semantics(
+                            &mut fg,
+                            func.id,
+                            call,
+                            &meta,
+                            &literal_index_keys,
+                        );
+                        connect_builtin_language_call_semantics(&mut fg, func, call);
                         let mut resolved_targets = Vec::new();
                         for callee_func in func_index.resolve_call(&meta) {
-                            if !resolved_targets.iter().any(|existing| existing == &callee_func.name) {
+                            if !resolved_targets
+                                .iter()
+                                .any(|existing| existing == &callee_func.name)
+                            {
                                 resolved_targets.push(callee_func.name.clone());
                             }
-                            connect_internal_call(&mut fg, func.id, inst.id, call, callee_func, ret_node);
+                            connect_internal_call(
+                                &mut fg,
+                                func.id,
+                                inst.id,
+                                call,
+                                callee_func,
+                                ret_node,
+                            );
                         }
                         if !resolved_targets.is_empty() {
-                            fg.resolved_internal_targets.insert((func.id, inst.id), resolved_targets);
+                            fg.resolved_internal_targets
+                                .insert((func.id, inst.id), resolved_targets);
                         } else if matches!(&program.language, uniflow_hir::Language::Cpp) {
                             connect_unknown_cpp_call_effects(&mut fg, func, call);
                             // Escape/consume effects are handled by the CFG-sensitive lifetime
                             // solver using typed reference and ownership semantics.
                         }
-                        connect_rule_summaries(&mut fg, rules, func.id, inst.id, &meta);
-                        attach_rule_sources_and_sinks(&mut fg, rules, func.id, inst.id, &meta);
+                        connect_rule_summaries(&mut fg, rules, func.id, inst.id, call, &meta);
+                        attach_rule_sources_and_sinks(
+                            &mut fg, rules, func.id, inst.id, call, &meta,
+                        );
+                        attach_unused_return_sinks(
+                            &mut fg, rules, func.id, inst.id, call, &meta,
+                        );
                     }
                 }
             }
@@ -242,7 +376,13 @@ where
             match &block.term {
                 Terminator::Return(Some(value)) => {
                     let src_node = value_node(&fg, func.id, *value);
-                    fg.graph.add_edge(src_node, ret_node, FlowEdge { kind: EdgeKind::Assign });
+                    fg.graph.add_edge(
+                        src_node,
+                        ret_node,
+                        FlowEdge {
+                            kind: EdgeKind::Assign,
+                        },
+                    );
                 }
                 Terminator::Throw(Some(value)) => {
                     // Preserve exceptional value flow for callers and catch summaries.  Control
@@ -297,6 +437,14 @@ where
     materialize_points_to_targets_fixpoint(&mut fg);
     materialize_points_to_object_ids(&mut fg);
     materialize_points_to_partitions(&mut fg);
+    on_progress(BuildProgress {
+        stage: "bridge-internal-heap-cells",
+        detail: format!("{} functions", program.functions.len()),
+    });
+    // Return projections must exist before resolving a callback returned from
+    // an internal function. Bridges only consult direct IR-derived cells.
+    bridge_internal_heap_cells(&mut fg, program);
+    materialize_sparse_data_adjacency(&mut fg);
     resolve_dynamic_internal_calls(&mut fg, program, &func_index, rules);
     materialize_sparse_data_adjacency(&mut fg);
     on_progress(BuildProgress {
@@ -304,37 +452,10 @@ where
         detail: format!("{} functions", program.functions.len()),
     });
     materialize_global_solver_closure(&mut fg, program);
-    on_progress(BuildProgress {
-        stage: "aggregate-partitions-1",
-        detail: format!("{} contextual states", fg.contextual_points_to_targets.len()),
-    });
-    aggregate_partitioned_points_to_state(&mut fg);
-    on_progress(BuildProgress {
-        stage: "sparse-adjacency-2",
-        detail: format!("{} graph nodes", fg.graph.node_count()),
-    });
-    materialize_sparse_data_adjacency(&mut fg);
-    on_progress(BuildProgress {
-        stage: "bridge-internal-heap-cells",
-        detail: format!("{} functions", program.functions.len()),
-    });
-    bridge_internal_heap_cells(&mut fg, program);
-    on_progress(BuildProgress {
-        stage: "global-closure-2",
-        detail: format!("{} functions", program.functions.len()),
-    });
-    // The first global closure has already reached a fixed point. Heap bridging adds
-    // connectivity but no new source-level values. Rebuilding every contextual and
-    // partitioned state here causes explosive recomputation on shape-rich objects;
-    // the following sparse refresh materializes the bridge-derived heap/shape indexes.
-    on_progress(BuildProgress {
-        stage: "aggregate-partitions-2",
-        detail: format!("{} contextual states", fg.contextual_points_to_targets.len()),
-    });
-    aggregate_partitioned_points_to_state(&mut fg);
+    // All existing structural bridges participate in the global closure.
     on_progress(BuildProgress {
         stage: "sparse-adjacency-3",
-        detail: format!("{} graph nodes", fg.graph.node_count()),
+        detail: format!("{} graph nodes, {} edges", fg.graph.node_count(), fg.graph.edge_count()),
     });
     materialize_sparse_data_adjacency(&mut fg);
     on_progress(BuildProgress {
@@ -343,6 +464,366 @@ where
     });
 
     fg
+}
+
+fn attach_named_value_sources(fg: &mut FlowGraph, rules: &RuleSet, func: &Function) {
+    let synthetic_inst = InstId(u32::MAX);
+    for rule in &rules.named_value_sources {
+        if !language_matches(&rule.language, &fg.language) {
+            continue;
+        }
+        for value in fg
+            .value_names
+            .iter()
+            .filter(|((candidate, _), name)| {
+                *candidate == func.id && rule.matches_name(name)
+            })
+            .map(|((_, value), _)| *value)
+            .collect::<Vec<_>>()
+        {
+            let Some(&target) = fg.values.get(&(func.id, value)) else {
+                continue;
+            };
+            let source = fg.graph.add_node(FlowNode::SyntheticSource {
+                func: func.id,
+                inst: synthetic_inst,
+                rule_id: rule.id.clone(),
+                kind: rule.kind.clone(),
+                out: Port::Return,
+            });
+            fg.synthetic_sources.push(source);
+            fg.graph.add_edge(
+                source,
+                target,
+                FlowEdge {
+                    kind: EdgeKind::Source {
+                        rule_id: rule.id.clone(),
+                    },
+                },
+            );
+        }
+    }
+}
+
+fn field_owner_candidates(fg: &FlowGraph, func: FunctionId, base: ValueId) -> Vec<String> {
+    let mut owners = fg.value_types
+        .get(&(func, base))
+        .map(|owner| expand_receiver_type_candidates(&fg.type_hierarchy, owner, false))
+        .unwrap_or_default();
+    if let Some(symbol) = fg
+        .value_constants
+        .get(&(func, base))
+        .and_then(|value| external_symbol_name(value))
+    {
+        if !owners.iter().any(|owner| owner == symbol) {
+            owners.push(symbol.to_string());
+        }
+    }
+    if let Some(name) = fg.value_names.get(&(func, base)) {
+        if !owners.iter().any(|owner| owner == name) {
+            owners.push(name.clone());
+        }
+    }
+    owners
+}
+
+fn connect_registered_lambda_captures(
+    fg: &mut FlowGraph,
+    program: &Program,
+    caller_func: FunctionId,
+    call: &CallInst,
+) {
+    for argument in &call.args {
+        let Some(function_name) = fg.value_types.get(&(caller_func, *argument)) else {
+            continue;
+        };
+        let Some(callback) = program
+            .functions
+            .iter()
+            .find(|function| function.name == *function_name && function.name.contains("__lambda_"))
+        else {
+            continue;
+        };
+        connect_lambda_capture_bindings(fg, caller_func, *argument, callback);
+    }
+}
+
+fn attach_field_sources(
+    fg: &mut FlowGraph,
+    rules: &RuleSet,
+    func: FunctionId,
+    inst: InstId,
+    base: ValueId,
+    field: &str,
+    dst: ValueId,
+) {
+    let owners = field_owner_candidates(fg, func, base);
+    if owners.is_empty() {
+        return;
+    }
+    for rule in &rules.field_sources {
+        if !language_matches(&rule.language, &fg.language) || !rule.matcher.matches(&owners, field)
+        {
+            continue;
+        }
+        let source = fg.graph.add_node(FlowNode::SyntheticSource {
+            func,
+            inst,
+            rule_id: rule.id.clone(),
+            kind: rule.kind.clone(),
+            out: Port::Member(field.to_string()),
+        });
+        fg.synthetic_sources.push(source);
+        let destination = value_node(fg, func, dst);
+        fg.graph.add_edge(
+            source,
+            destination,
+            FlowEdge {
+                kind: EdgeKind::Source {
+                    rule_id: rule.id.clone(),
+                },
+            },
+        );
+    }
+}
+
+fn attach_field_sinks(
+    fg: &mut FlowGraph,
+    rules: &RuleSet,
+    func: FunctionId,
+    inst: InstId,
+    base: ValueId,
+    field: &str,
+    src: ValueId,
+) {
+    let owners = field_owner_candidates(fg, func, base);
+    if owners.is_empty() {
+        return;
+    }
+    for rule in &rules.field_sinks {
+        if !language_matches(&rule.language, &fg.language) || !rule.matcher.matches(&owners, field)
+        {
+            continue;
+        }
+        let sink = fg.graph.add_node(FlowNode::SyntheticSink {
+            func,
+            inst,
+            rule_id: rule.id.clone(),
+            kind: rule.kind.clone(),
+            input: Port::Member(field.to_string()),
+        });
+        fg.synthetic_sinks.push(sink);
+        let source = value_node(fg, func, src);
+        fg.graph.add_edge(
+            source,
+            sink,
+            FlowEdge {
+                kind: EdgeKind::Sink {
+                    rule_id: rule.id.clone(),
+                },
+            },
+        );
+    }
+}
+
+fn attach_index_sinks(
+    fg: &mut FlowGraph,
+    rules: &RuleSet,
+    func: FunctionId,
+    inst: InstId,
+    base: ValueId,
+    index: ValueId,
+    is_load: bool,
+) {
+    for rule in &rules.index_sinks {
+        if !language_matches(&rule.language, &fg.language) {
+            continue;
+        }
+        if (is_load && !rule.on_load) || (!is_load && !rule.on_store) {
+            continue;
+        }
+        if !rule.matches_base_name(fg.value_names.get(&(func, base)).map(String::as_str)) {
+            continue;
+        }
+        if rule.direct_only && fg.value_constants.contains_key(&(func, index)) {
+            continue;
+        }
+        let sink = fg.graph.add_node(FlowNode::SyntheticSink {
+            func,
+            inst,
+            rule_id: rule.id.clone(),
+            kind: rule.kind.clone(),
+            input: Port::Member("<computed-index>".to_string()),
+        });
+        fg.synthetic_sinks.push(sink);
+        fg.graph.add_edge(
+            value_node(fg, func, index),
+            sink,
+            FlowEdge {
+                kind: EdgeKind::Sink {
+                    rule_id: rule.id.clone(),
+                },
+            },
+        );
+    }
+}
+
+fn attach_function_sources_and_sinks(fg: &mut FlowGraph, rules: &RuleSet, func: &Function) {
+    let owners = func
+        .attrs
+        .get("owner_type")
+        .map(|owner| expand_receiver_type_candidates(&fg.type_hierarchy, owner, false))
+        .unwrap_or_default();
+    let decorators = func
+        .attrs
+        .get("python.decorators")
+        .map(|value| {
+            value
+                .split('\u{1f}')
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let receiver_offset = function_receiver_offset(func);
+    let visible_args = func.params.len().saturating_sub(receiver_offset);
+    let synthetic_inst = InstId(u32::MAX);
+
+    for rule in &rules.function_sources {
+        if !language_matches(&rule.language, &fg.language)
+            || !rule.matcher.matches(&func.name, &owners, &decorators)
+        {
+            continue;
+        }
+        for output in expand_port(&rule.out, visible_args) {
+            let Some(target) = function_rule_port_node(fg, func, receiver_offset, &output) else {
+                continue;
+            };
+            let source = fg.graph.add_node(FlowNode::SyntheticSource {
+                func: func.id,
+                inst: synthetic_inst,
+                rule_id: rule.id.clone(),
+                kind: rule.kind.clone(),
+                out: output,
+            });
+            fg.synthetic_sources.push(source);
+            fg.graph.add_edge(
+                source,
+                target,
+                FlowEdge {
+                    kind: EdgeKind::Source {
+                        rule_id: rule.id.clone(),
+                    },
+                },
+            );
+        }
+    }
+    for rule in &rules.function_sinks {
+        if !language_matches(&rule.language, &fg.language)
+            || !rule.matcher.matches(&func.name, &owners, &decorators)
+        {
+            continue;
+        }
+        for input in rule
+            .inputs
+            .iter()
+            .flat_map(|input| expand_port(input, visible_args))
+        {
+            let Some(source) = function_rule_port_node(fg, func, receiver_offset, &input) else {
+                continue;
+            };
+            let sink = fg.graph.add_node(FlowNode::SyntheticSink {
+                func: func.id,
+                inst: synthetic_inst,
+                rule_id: rule.id.clone(),
+                kind: rule.kind.clone(),
+                input,
+            });
+            fg.synthetic_sinks.push(sink);
+            fg.graph.add_edge(
+                source,
+                sink,
+                FlowEdge {
+                    kind: EdgeKind::Sink {
+                        rule_id: rule.id.clone(),
+                    },
+                },
+            );
+        }
+    }
+}
+
+fn function_rule_port_node(
+    fg: &FlowGraph,
+    func: &Function,
+    receiver_offset: usize,
+    port: &Port,
+) -> Option<NodeIndex> {
+    match port {
+        Port::Receiver if receiver_offset == 1 => fg.function_params.get(&(func.id, 0)).copied(),
+        Port::Arg(index) => fg
+            .function_params
+            .get(&(func.id, index + receiver_offset))
+            .copied(),
+        Port::Return => fg.function_returns.get(&func.id).copied(),
+        Port::Receiver
+        | Port::NamedArg(_)
+        | Port::NamedArgOrAll(_)
+        | Port::Member(_)
+        | Port::ArgsFrom(_)
+        | Port::ArgsRange { .. } => None,
+    }
+}
+
+fn connect_builtin_language_call_semantics(
+    fg: &mut FlowGraph,
+    function: &Function,
+    call: &CallInst,
+) {
+    let is_javascript_composition = matches!(fg.language, uniflow_hir::Language::JavaScript)
+        && matches!(
+            &call.callee,
+            Callee::Static(name)
+                if name == "__uniflow.compose.string" || name == "__uniflow.compose.map"
+        );
+    if is_javascript_composition {
+        let (Some(dst), Some(input)) = (call.dst, call.args.first().copied()) else {
+            return;
+        };
+        fg.graph.add_edge(
+            value_node(fg, function.id, input),
+            value_node(fg, function.id, dst),
+            FlowEdge {
+                kind: EdgeKind::Summary {
+                    rule_id: "builtin.javascript.expression-composition".to_string(),
+                },
+            },
+        );
+        return;
+    }
+    let is_shell_command_substitution = matches!(fg.language, uniflow_hir::Language::Shell)
+        && matches!(
+            &call.callee,
+            Callee::Static(name) if name == "shell.command_substitution"
+        );
+    if !is_shell_command_substitution {
+        return;
+    }
+    let Some(dst) = call.dst else {
+        return;
+    };
+    let dst_node = value_node(fg, function.id, dst);
+    for input in call.receiver.iter().chain(call.args.iter()) {
+        fg.graph.add_edge(
+            value_node(fg, function.id, *input),
+            dst_node,
+            FlowEdge {
+                kind: EdgeKind::Summary {
+                    rule_id: "builtin.shell.command-substitution".to_string(),
+                },
+            },
+        );
+    }
 }
 
 fn connect_unknown_cpp_call_effects(fg: &mut FlowGraph, function: &Function, call: &CallInst) {
@@ -416,7 +897,6 @@ fn cpp_unknown_call_may_write(function: &Function, value: ValueId) -> bool {
     })
 }
 
-
 #[derive(Default)]
 struct FunctionIndex<'a> {
     exact: HashMap<&'a str, Vec<&'a Function>>,
@@ -455,7 +935,11 @@ impl<'a> FunctionIndex<'a> {
             .collect();
         for func in &program.functions {
             let supported_arities = function_supported_arities(func);
-            index.exact.entry(func.name.as_str()).or_default().push(func);
+            index
+                .exact
+                .entry(func.name.as_str())
+                .or_default()
+                .push(func);
             for arity in &supported_arities {
                 index
                     .exact_arity
@@ -466,7 +950,11 @@ impl<'a> FunctionIndex<'a> {
             for key in candidate_names(&func.name) {
                 index.simple.entry(key.clone()).or_default().push(func);
                 for arity in &supported_arities {
-                    index.simple_arity.entry((key.clone(), *arity)).or_default().push(func);
+                    index
+                        .simple_arity
+                        .entry((key.clone(), *arity))
+                        .or_default()
+                        .push(func);
                 }
             }
             if let Some(method) = func
@@ -504,7 +992,9 @@ impl<'a> FunctionIndex<'a> {
         while changed {
             changed = false;
             for (child, parents) in &self.type_hierarchy {
-                if (parents.iter().any(|parent| parent == owner || out.iter().any(|known| known == parent)))
+                if (parents
+                    .iter()
+                    .any(|parent| parent == owner || out.iter().any(|known| known == parent)))
                     && !out.iter().any(|known| known == child)
                 {
                     out.push(child.clone());
@@ -529,10 +1019,15 @@ impl<'a> FunctionIndex<'a> {
             callee_name: Some(name.to_string()),
             receiver_type: None,
             receiver_type_candidates: Vec::new(),
+            receiver_parameter: None,
             method_name: None,
             arg_count,
             arg_types: arg_types.to_vec(),
             arg_type_candidates: arg_type_candidates.to_vec(),
+            receiver_constant: None,
+            receiver_symbol: None,
+            arg_constants: Vec::new(),
+            return_is_used: false,
             span: Span::default(),
         };
         self.resolve_call(&meta)
@@ -556,11 +1051,8 @@ impl<'a> FunctionIndex<'a> {
                 // virtual declaration is not a concrete call target, but it still establishes
                 // dynamic dispatch and must therefore bring compatible overrides from derived
                 // classes into the candidate set.
-                let refined_contracts = refine_by_argument_types(
-                    exact.clone(),
-                    meta,
-                    &self.type_hierarchy,
-                );
+                let refined_contracts =
+                    refine_by_argument_types(exact.clone(), meta, &self.type_hierarchy);
                 let selected_contracts = if refined_contracts.is_empty() {
                     exact.clone()
                 } else {
@@ -595,10 +1087,11 @@ impl<'a> FunctionIndex<'a> {
             owners.sort();
             owners.dedup();
             for owner in &owners {
-                if let Some(found) = self
-                    .owner_method_arity
-                    .get(&(owner.clone(), method_name.to_string(), meta.arg_count))
-                {
+                if let Some(found) = self.owner_method_arity.get(&(
+                    owner.clone(),
+                    method_name.to_string(),
+                    meta.arg_count,
+                )) {
                     for function in found {
                         if cpp_method_is_pure_virtual(function) {
                             continue;
@@ -611,7 +1104,10 @@ impl<'a> FunctionIndex<'a> {
             }
             if out.is_empty() {
                 for owner in &owners {
-                    if let Some(found) = self.owner_method.get(&(owner.clone(), method_name.to_string())) {
+                    if let Some(found) = self
+                        .owner_method
+                        .get(&(owner.clone(), method_name.to_string()))
+                    {
                         for function in found {
                             if cpp_method_is_pure_virtual(function) {
                                 continue;
@@ -645,6 +1141,12 @@ impl<'a> FunctionIndex<'a> {
             if found.len() == 1 {
                 return found.clone();
             }
+        }
+        // Calls on unresolved global/module receivers are external. Falling
+        // back to a same-suffix local function (Object.assign -> assign)
+        // creates false interprocedural edges and cross-call taint.
+        if meta.receiver_symbol.is_some() {
+            return out;
         }
         for key in candidate_names(name) {
             if let Some(found) = self.simple_arity.get(&(key.clone(), meta.arg_count)) {
@@ -684,13 +1186,22 @@ fn cpp_method_is_virtual(function: &Function) -> bool {
         .cpp
         .as_ref()
         .is_some_and(|cpp| cpp.is_virtual || cpp.is_override)
-        || function.attrs.get("cpp.virtual").is_some_and(|value| value == "true")
-        || function.attrs.get("cpp.override").is_some_and(|value| value == "true")
+        || function
+            .attrs
+            .get("cpp.virtual")
+            .is_some_and(|value| value == "true")
+        || function
+            .attrs
+            .get("cpp.override")
+            .is_some_and(|value| value == "true")
 }
 
 fn cpp_method_is_final(function: &Function) -> bool {
     function.cpp.as_ref().is_some_and(|cpp| cpp.is_final)
-        || function.attrs.get("cpp.final").is_some_and(|value| value == "true")
+        || function
+            .attrs
+            .get("cpp.final")
+            .is_some_and(|value| value == "true")
 }
 
 fn cpp_method_is_pure_virtual(function: &Function) -> bool {
@@ -750,12 +1261,18 @@ fn score_function_signature(
             continue;
         };
         let actual_ty = meta.arg_types.get(idx).and_then(|ty| ty.clone());
-        let actual_candidates = meta.arg_type_candidates.get(idx).cloned().unwrap_or_default();
+        let actual_candidates = meta
+            .arg_type_candidates
+            .get(idx)
+            .cloned()
+            .unwrap_or_default();
         let Some(actual_ty) = actual_ty else {
             continue;
         };
         seen_known = true;
-        let Some(rank) = cpp_conversion_rank(&actual_ty, expected_ty, &actual_candidates, hierarchy) else {
+        let Some(rank) =
+            cpp_conversion_rank(&actual_ty, expected_ty, &actual_candidates, hierarchy)
+        else {
             return None;
         };
         // Higher scores are better. Exact binding dominates qualification, inheritance and
@@ -779,7 +1296,10 @@ fn cpp_conversion_rank(
     if strip_cpp_cv_ref(&actual) == strip_cpp_cv_ref(&expected) {
         return Some(1);
     }
-    if candidates.iter().any(|candidate| normalize_cpp_type(candidate) == expected) {
+    if candidates
+        .iter()
+        .any(|candidate| normalize_cpp_type(candidate) == expected)
+    {
         return Some(2);
     }
     let actual_unqualified = strip_cpp_cv_ref(&actual);
@@ -866,7 +1386,11 @@ fn cpp_numeric_rank(value: &str) -> Option<u8> {
 fn function_param_type_names(func: &Function) -> Vec<Option<String>> {
     function_param_specs(func)
         .into_iter()
-        .map(|spec| func.params.get(spec.ir_index).and_then(|value| func.value_types.get(value).cloned()))
+        .map(|spec| {
+            func.params
+                .get(spec.ir_index)
+                .and_then(|value| func.value_types.get(value).cloned())
+        })
         .collect()
 }
 
@@ -874,8 +1398,7 @@ fn function_receiver_offset(func: &Function) -> usize {
     func.attrs
         .get("has_receiver")
         .map(|value| value == "1")
-        .unwrap_or_else(|| func.attrs.contains_key("owner_type"))
-        as usize
+        .unwrap_or_else(|| func.attrs.contains_key("owner_type")) as usize
 }
 
 fn function_param_specs(func: &Function) -> Vec<ParamBindingSpec> {
@@ -902,22 +1425,40 @@ fn function_param_specs(func: &Function) -> Vec<ParamBindingSpec> {
     let kinds = func
         .attrs
         .get("param_kinds")
-        .map(|value| value.split('\u{1f}').map(|part| part.to_string()).collect::<Vec<_>>())
+        .map(|value| {
+            value
+                .split('\u{1f}')
+                .map(|part| part.to_string())
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
     let defaults = func
         .attrs
         .get("param_defaults")
-        .map(|value| value.split('\u{1f}').map(|part| part.to_string()).collect::<Vec<_>>())
+        .map(|value| {
+            value
+                .split('\u{1f}')
+                .map(|part| part.to_string())
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
     let keyword_only = func
         .attrs
         .get("param_keyword_only")
-        .map(|value| value.split('\u{1f}').map(|part| part.to_string()).collect::<Vec<_>>())
+        .map(|value| {
+            value
+                .split('\u{1f}')
+                .map(|part| part.to_string())
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
 
     (0..count)
         .map(|idx| ParamBindingSpec {
-            name: names.get(idx).cloned().unwrap_or_else(|| format!("arg{idx}")),
+            name: names
+                .get(idx)
+                .cloned()
+                .unwrap_or_else(|| format!("arg{idx}")),
             kind: match kinds.get(idx).map(|value| value.as_str()) {
                 Some("var") => ParamBindingKind::VarArgs,
                 Some("kw") => ParamBindingKind::KwArgs,
@@ -1011,4 +1552,3 @@ fn candidate_names(name: &str) -> Vec<String> {
     out.dedup();
     out
 }
-

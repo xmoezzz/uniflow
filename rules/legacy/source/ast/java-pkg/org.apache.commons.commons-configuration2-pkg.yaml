@@ -1,0 +1,10 @@
+id: org.apache.commons.commons-configuration2
+language: Java
+message: pkg:maven/org.apache.commons/commons-configuration2
+metadata:
+  purl: pkg:maven/org.apache.commons/commons-configuration2
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.commons\.configuration2\.builder\.fluent|org\.apache\.commons\.configuration2\.reloading|org\.apache\.commons\.configuration2\.io|org\.apache\.commons\.configuration2\.tree|org\.apache\.commons\.configuration2\.builder|org\.apache\.commons\.configuration2\.web|org\.apache\.commons\.configuration2\.interpol|org\.apache\.commons\.configuration2\.ex|org\.apache\.commons\.configuration2\.spring|org\.apache\.commons\.configuration2\.sync|org\.apache\.commons\.configuration2\.plist|org\.apache\.commons\.configuration2\.event|org\.apache\.commons\.configuration2\.tree\.xpath|org\.apache\.commons\.configuration2\.builder\.combined|org\.apache\.commons\.configuration2\.beanutils|META-INF\.versions\.9|org\.apache\.commons\.configuration2|org\.apache\.commons\.configuration2\.convert|org\.apache\.commons\.configuration2\.resolver)\.

@@ -1,0 +1,10 @@
+id: io.netty.netty-handler
+language: Java
+message: pkg:maven/io.netty/netty-handler
+metadata:
+  purl: pkg:maven/io.netty/netty-handler
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.netty\.handler\.stream|io\.netty\.handler\.timeout|io\.netty\.handler\.logging|io\.netty\.handler\.ssl|io\.netty\.handler\.ipfilter|io\.netty\.handler\.ssl\.util|io\.netty\.handler\.traffic)\.

@@ -1,0 +1,10 @@
+id: io.spray.spray-json_2.12
+language: Java
+message: pkg:maven/io.spray/spray-json_2.12
+metadata:
+  purl: pkg:maven/io.spray/spray-json_2.12
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(spray\.json)\.

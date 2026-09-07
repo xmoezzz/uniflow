@@ -1,0 +1,10 @@
+id: org.springframework.webflow.spring-webflow
+language: Java
+message: pkg:maven/org.springframework.webflow/spring-webflow
+metadata:
+  purl: pkg:maven/org.springframework.webflow/spring-webflow
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.webflow\.engine\.builder\.support|org\.springframework\.webflow\.engine\.model\.builder|org\.springframework\.webflow\.core\.collection|org\.springframework\.webflow\.config|org\.springframework\.webflow\.mvc\.builder|org\.springframework\.webflow\.core|org\.springframework\.webflow\.executor|org\.springframework\.webflow\.engine\.builder|org\.springframework\.webflow\.test\.execution|org\.springframework\.webflow\.expression\.spel|org\.springframework\.webflow\.definition\.registry|org\.springframework\.webflow\.scope|org\.springframework\.webflow\.execution\.repository\.snapshot|org\.springframework\.webflow\.execution\.repository|org\.springframework\.webflow\.persistence|org\.springframework\.webflow\.expression\.el|org\.springframework\.webflow\.engine|org\.springframework\.webflow\.execution|org\.springframework\.webflow\.test|org\.springframework\.webflow\.upgrade|org\.springframework\.webflow\.engine\.builder\.model|org\.springframework\.webflow\.definition|org\.springframework\.webflow\.engine\.support|org\.springframework\.webflow\.engine\.impl|org\.springframework\.webflow\.mvc\.servlet|org\.springframework\.webflow\.execution\.factory|org\.springframework\.webflow\.validation|org\.springframework\.webflow\.execution\.repository\.impl|org\.springframework\.webflow\.mvc\.view|org\.springframework\.webflow\.context\.servlet|org\.springframework\.webflow\.engine\.model\.registry|org\.springframework\.webflow\.context|org\.springframework\.webflow\.execution\.repository\.support|org\.springframework\.webflow\.engine\.model|org\.springframework\.webflow\.conversation\.impl|org\.springframework\.webflow\.security|org\.springframework\.webflow\.context\.web|org\.springframework\.webflow\.action|org\.springframework\.webflow\.conversation|org\.springframework\.webflow\.engine\.model\.builder\.xml)\.

@@ -1,0 +1,1523 @@
+[
+    {
+        "kname": "AbsolutePathChecker",
+        "msg_en": "Path is not absolute, which can lead to security vulnerabilities.",
+        "msg_zh": "非绝对路径可能造成安全漏洞。"
+    },
+    {
+        "kname": "AddOrSubAssignChecker",
+        "msg_en": "Avoid using the '+=' or '-=' operators.",
+        "msg_zh": "避免使用‘+-’或‘-=’操作符。"
+    },
+    {
+        "kname": "AlignedAllocReallocChecker",
+        "msg_en": "Memory allocated by aligned_alloc should not be resized using realloc().",
+        "msg_zh": "使用 aligned_alloc 分配的内存不应该用 realloc() 改变大小。"
+    },
+    {
+        "kname": "AllocationDeallocationChecker",
+        "msg_en": "When overloading one of the allocation/deallocation functions like {}, both should be overloaded in the same scope.",
+        "msg_zh": "应该在同一作用域中重载类似于 {} 的分配/释放函数。"
+    },
+    {
+        "kname": "AnonymousNameStructChecker",
+        "msg_en": "The definition of structures, unions, and enumerations must include the definition of an identifier.",
+        "msg_zh": "结构体、联合体、枚举的定义必须包含标识符。"
+    },
+    {
+        "kname": "ArgumentCountChecker",
+        "msg_en": "Argument count mismatch: Expected {} arguments but provided {}.",
+        "msg_zh": "参数数量不匹配：期望提供 {} 个参数，实际提供 {} 个参数。"
+    },
+    {
+        "kname": "ArgumentTypeChecker",
+        "msg_en": "Argument type mismatch: Expected '{}' but provided '{}'.",
+        "msg_zh": "参数类型不匹配：期望 ‘{}’类型，实际得到‘{}’类型。"
+    },
+    {
+        "kname": "ArgumentValidationChecker",
+        "msg_en": "Pointer argument '{}' might be null and should be validated.",
+        "msg_zh": "指针参数 ‘{}’需要确认是否为空指针。"
+    },
+    {
+        "kname": "ArrayBoundChecker2",
+        "msg_en": "Array bound read/write exceeds size",
+        "msg_zh": "数组读写越界。"
+    },
+    {
+        "kname": "ArrayIndexChecker2",
+        "msg_en": "Array index is less than zero",
+        "msg_zh": "数组索引小于0。"
+    },
+    {
+        "kname": "ArrayVarBoundDefinedChecker",
+        "msg_en": "Array '{}' is not specified with a size.",
+        "msg_zh": "数组 ‘{}’ 没有指定大小。"
+    },
+    {
+        "kname": "ASCIIChecker",
+        "msg_en": "Non-ASCII character detected in a non-wide string literal.",
+        "msg_zh": "在非宽字符串文本中检测到非ASCII字符。"
+    },
+    {
+        "kname": "AssertAndAtexitChecker",
+        "msg_en": "Understand the termination behavior of assert() and abort().",
+        "msg_zh": "注意 assert() 和 abort() 的终止行为。"
+    },
+    {
+        "kname": "AssertChecker",
+        "msg_en": "Assertion will always be {}.",
+        "msg_zh": "断言总是为{}。"
+    },
+    {
+        "kname": "AssignInSizeofChecker",
+        "msg_en": "It is prohibited to use assignment within sizeof.",
+        "msg_zh": "禁止在sizeof中进行赋值。"
+    },
+    {
+        "kname": "AssignmentInConditionChecker",
+        "msg_en": "Assignment in condition expression.",
+        "msg_zh": "在条件表达式中进行了赋值。"
+    },
+    {
+        "kname": "AssignmentInLogicalOpChecker",
+        "msg_en": "Assignment operator used with && or || .",
+        "msg_zh": "赋值操作符和 && 或 || 操作符混用。"
+    },
+    {
+        "kname": "AssignmentSafetyChecker",
+        "msg_en": "Shallow copying raw pointer in user-defined assignment operator can lead to issues.",
+        "msg_zh": "在用户定义的赋值运算符中浅拷贝裸指针可能导致问题。"
+    },
+    {
+        "kname": "AssignTypeChecker",
+        "msg_en": "Prohibit assigning values to variables that are inconsistent with the type of the variable.",
+        "msg_zh": "禁止将值赋给类型不一致的变量。"
+    },
+    {
+        "kname": "AvoidParamNameInProtoChecker",
+        "msg_en": "Avoid naming parameter {} in function prototype",
+        "msg_zh": "避免在函数原型中给参数 {} 命名。"
+    },
+    {
+        "kname": "AvoidProceduresAsParametersChecker",
+        "msg_en": "Avoid defining procedures as parameters, as it can make control flow unclear.",
+        "msg_zh": "避免将过程定义为参数，这会使控制流不清晰。"
+    },
+    {
+        "kname": "AvoidReinterpretCastWithMultipleInheritanceChecker",
+        "msg_en": "Avoid using reinterpret_cast with objects of a class with multiple inheritance.",
+        "msg_zh": "避免对使用多重继承的类的对象使用reinterpret_cast。"
+    },
+    {
+        "kname": "BCryptParamChecker",
+        "msg_en": [
+            "dwLength must is {}.",
+            "dwLength must in [{}, {}]."
+        ],
+        "msg_zh": [
+            "dwLength 必须是 {}。",
+            "dwLength 必须在 [] 中。"
+        ]
+    },
+    {
+        "kname": "BitFieldPointerUseChecker",
+        "msg_en": "Don’t make assumptions about the structure’s segment layout",
+        "msg_zh": "不要对结构体的段布局做假设。"
+    },
+    {
+        "kname": "BitFieldSizeChecker",
+        "msg_en": "Bit-field '{}' has a width of {} bits, which is less than 2.",
+        "msg_zh": "位域‘{}’宽度为小于 2，为 {}。"
+    },
+    {
+        "kname": "BitOpExprParenChecker",
+        "msg_en": "Use parentheses for precedence of operation",
+        "msg_zh": "使用括号来表示运算的优先级。"
+    },
+    {
+        "kname": "BitSizeTypeChecker",
+        "msg_en": "The definition of a bit must be a signed or unsigned integer",
+        "msg_zh": "位的定义必须是有符号或无符号整数"
+    },
+    {
+        "kname": "BitTypeWithCondChecker",
+        "msg_en": "Disable only 1 signed integer",
+        "msg_zh": "禁用只有1位的有符号整数"
+    },
+    {
+        "kname": "BitwiseOnBoolChecker",
+        "msg_en": "Bitwise operator used with boolean operand",
+        "msg_zh": "位运算符和布尔类型操作数一起使用"
+    },
+    {
+        "kname": "BitwiseOnBooleanChecker",
+        "msg_en": "Bitwise operator used on boolean value",
+        "msg_zh": "对布尔值使用位运算符"
+    },
+    {
+        "kname": "BoolArithChecker",
+        "msg_en": "Disable boolean arithmetic operations",
+        "msg_zh": "禁止对布尔值进行算术运算"
+    },
+    {
+        "kname": "BooleanArithmeticChecker",
+        "msg_en": "Boolean arithmetic operation detected",
+        "msg_zh": "检测到布尔值算术运算操作"
+    },
+    {
+        "kname": "BoolSwitchChecker",
+        "msg_en": "It is prohibited to use a switch statement with a bool variable.",
+        "msg_zh": "禁止对布尔变量使用switch语句"
+    },
+    {
+        "kname": "BranchBodyParenChecker",
+        "msg_en": "Branch stmt body must use paren",
+        "msg_zh": "分支语句主体必须使用括号"
+    },
+    {
+        "kname": "BreakUseChecker",
+        "msg_en": "Avoid using the break statement within loops.",
+        "msg_zh": "避免在循环内使用break语句"
+    },
+    {
+        "kname": "BSTRUsageChecker",
+        "msg_en": [
+            "Arithmetic operation on BSTR",
+            "Improper use of BSTR with Sys* function.",
+            "Improper cast from wchar_t* to BSTR",
+            "Improper use of BSTR with SysAllocString"
+        ],
+        "msg_zh": [
+            "对BSTR进行算术运算操作",
+            "在Sys*函数中不当使用BSTR",
+            "从wchar_t*到BSTR的不当转换",
+            "BSTR和SysAllocString一起不当使用"
+        ]
+    },
+    {
+        "kname": "BreakUseChecker",
+        "msg_en": "Disable using built-in limit value macros",
+        "msg_zh": "禁用内置限定值的宏"
+    },
+    {
+        "kname": "CaseSensitiveChecker",
+        "msg_en": "Variable names should not differ only by case",
+        "msg_zh": "变量名不能只用大小写来区分"
+    },
+    {
+        "kname": "CastPreferenceChecker",
+        "msg_en": "Prefer dynamic_cast over static_cast over reinterpret_cast",
+        "msg_zh": "相较于 static_cast 和 reinterpret_cast，优先考虑 dynamic_cast"
+    },
+    {
+        "kname": "CatchOrderChecker",
+        "msg_en": "Catch handlers should order their parameter types from most derived to least derived",
+        "msg_zh": "catch处理程序应该按照派生程度从高到低对参数类型进行排序"
+    },
+    {
+        "kname": "CharArrayInitChecker",
+        "msg_en": "Variable '{}' must be terminated with '\\0'.",
+        "msg_zh": "变量 ‘{}’ 应该以‘\\0’ 结束。"
+    },
+    {
+        "kname": "CharArraySizeInitChecker",
+        "msg_en": "Do not specify the bound of a character array initialized with a string literal",
+        "msg_zh": "不要指定用字符串字面量初始化的字符数组的边界"
+    },
+    {
+        "kname": "CharCastIntChecker",
+        "msg_en": [
+            "Cast characters to unsigned char before converting to larger integer sizes",
+            "Arguments to character-handling functions must be representable as an unsigned char"
+        ],
+        "msg_zh": [
+            "在转换为更大的整数大小之前，将字符转换为 unsigned char",
+            "字符处理函数的参数必须用 unsigned char 表示"
+        ]
+    },
+    {
+        "kname": "CharCondChecker",
+        "msg_en": "Don't assume numeric values for expressions with type plain character",
+        "msg_zh": "不要假设纯字符表达式为数值"
+    },
+    {
+        "kname": "CharSignChecker",
+        "msg_en": "Character type must be explicitly marked as signed or unsigned",
+        "msg_zh": "字符类型必须显式标记为 signed 或者 unsigned"
+    },
+    {
+        "kname": "CharTypeChecker",
+        "msg_en": "Use plain char for characters in the basic character set",
+        "msg_zh": "对基本字符集中的字符使用plain char"
+    },
+    {
+        "kname": "CharTypeOperatorChecker",
+        "msg_en": "Character variables used for numerical calculations must be explicitly defined as signed or unsigned.",
+        "msg_zh": "用于数值计算的字符变量必须明确定义为 signed 或 unsigned。"
+    },
+    {
+        "kname": "CheckCaseBreakChecker",
+        "msg_en": "Case statement without break termination",
+        "msg_zh": "Case语句没有以 break 终结。"
+    },
+    {
+        "kname": "CheckCaseEmptyChecker",
+        "msg_en": "Case statement without executable statements",
+        "msg_zh": "Case语句中没有可执行的语句"
+    },
+    {
+        "kname": "CheckEmptyBranchChecker",
+        "msg_en": "Conditional branch has no executable statements",
+        "msg_zh": "条件分支没有可执行的语句"
+    },
+    {
+        "kname": "CheckEmptyElseBranchChecker",
+        "msg_en": "Else branch has no executable statements",
+        "msg_zh": "else分支没有可执行的语句"
+    },
+    {
+        "kname": "CheckMainSignatureChecker",
+        "msg_en": "The 'main' function must be defined as 'int main(void)' or 'int main(int, char*[])'",
+        "msg_zh": "‘main’ 函数必须定义为 ‘int main(void)’ 或者 ‘int main(int, char[])’"
+    },
+    {
+        "kname": "CMemFunctionsInCppChecker",
+        "msg_en": "Use new and delete rather than raw memory allocation and deallocation",
+        "msg_zh": "使用 new 和 delete 代替原始内存分配和回收"
+    },
+    {
+        "kname": "CommaExprChecker",
+        "msg_en": "Avoid using the comma operator.",
+        "msg_zh": "避免使用逗号操作符"
+    },
+    {
+        "kname": "CompleteStructDeclarationChecker",
+        "msg_en": "Structures must be completely declared",
+        "msg_zh": "结构体必须完整声明"
+    },
+    {
+        "kname": "ComplexTypeChecker",
+        "msg_en": "\"{}\" Use typedefs to improve code readability",
+        "msg_zh": "“{}” 使用typedefs以提高代码可读性"
+    },
+    {
+        "kname": "ConditionExprParenChecker",
+        "msg_en": "Operands in logical discriminant expressions must use parentheses",
+        "msg_zh": "逻辑判别表达式中的操作数必须使用括号"
+    },
+    {
+        "kname": "ConditionExprUseChecker",
+        "msg_en": "Use ternary expressions with caution.",
+        "msg_zh": "慎用三元表达式"
+    },
+    {
+        "kname": "ConfusingNamesChecker",
+        "msg_en": "The identifier may be visually confusing",
+        "msg_zh": "慎用三元表达式"
+    },
+    {
+        "kname": "ConfusingNamesChecker",
+        "msg_en": "The identifier may be visually confusing",
+        "msg_zh": "此标识符可能造成视觉迷惑"
+    },
+    {
+        "kname": "ConfusingNamingChecker",
+        "msg_en": [
+            "Variable names should not mix lowercase 'l' and digit '1'",
+            "Variable names should not mix uppercase 'O' and digit '0'"
+        ],
+        "msg_zh": [
+            "变量名中不能混用小写字母 ‘l’ 和 数字 ‘1’",
+            "变量名中不能混用大写字母 ‘O’ 和 数字 ‘0’"
+        ]
+    },
+    {
+        "kname": "ConfusingNamingO01lChecker",
+        "msg_en": "Variable names should not mix uppercase 'O' and digit '0', '1' and digit 'l'",
+        "msg_zh": "变量名中不能混用大写字母 ‘O’ 和 数字 ‘0’，小写字母 ‘l’ 和 数字 ‘1’"
+    },
+    {
+        "kname": "ConstObjectChecker",
+        "msg_en": "Consider declaring the variable as 'const'",
+        "msg_zh": "考虑将变量声明为‘const’"
+    },
+    {
+        "kname": "ConstructorDestructorTryCatchChecker",
+        "msg_en": "Do not reference class members in function-try-block of constructor/destructor",
+        "msg_zh": "不要在构造函数/析构函数的function-try-block中引用类成员"
+    },
+    {
+        "kname": "ConstStrAssignChecker",
+        "msg_en": "Use pointers to const when referring to string literals",
+        "msg_zh": "引用字符串字面值时使用常量指针"
+    },
+    {
+        "kname": "ConstStrJoinChecker",
+        "msg_en": "Do not concatenate different type of string literals",
+        "msg_zh": "不要拼接不同类型的字符串字面值"
+    },
+    {
+        "kname": "ConstValueNotLogicOpChecker",
+        "msg_en": "logical negation operation on constant values.",
+        "msg_zh": "对常数值进行逻辑否操作"
+    },
+    {
+        "kname": "ConstVarWriteOpChecker",
+        "msg_en": [
+            "Do not attempt to modify string literals",
+            "Do not cast away a const qualification"
+        ],
+        "msg_zh": [
+            "不要尝试修改字符串字面值",
+            "不要丢弃const限定符"
+        ]
+    },
+    {
+        "kname": "ContinueUseChecker",
+        "msg_en": "Avoid using the continue statement.",
+        "msg_zh": "避免使用continue语句"
+    },
+    {
+        "kname": "CopyWithoutResizeChecker",
+        "msg_en": "Guarantee that library functions do not form invalid iterators",
+        "msg_zh": "保证库函数不会组成无效的迭代器"
+    },
+    {
+        "kname": "CppImplicitConversionChecker",
+        "msg_en": "Be careful with the definition of conversion operators '{}'",
+        "msg_zh": "谨慎定义转换操作符 ‘{}’"
+    },
+    {
+        "kname": "CStyleCastChecker",
+        "msg_en": "Consider using C++ style casts (static_cast, dynamic_cast, const_cast, reinterpret_cast) instead of C-style casts",
+        "msg_zh": "考虑使用C++风格的转换符 (static_cast, dynamic_cast, const_cast reinterpret_cast) 代替C-style转换符"
+    },
+    {
+        "kname": "CtypeFuncUseChecker",
+        "msg_en": "Pass parameters that cannot be represented as unsigned characters to character processing functions",
+        "msg_zh": "将不能表示为无符号字符的参数传递给字符处理函数"
+    },
+    {
+        "kname": "CvQualificationChecker",
+        "msg_en": [
+            "Accessing const-qualified object through non-const type",
+            "Accessing volatile-qualified object through non-volatile type"
+        ],
+        "msg_zh": [
+            "通过非const类型访问const限定对象",
+            "通过非volatile类型访问volatile限定对象"
+        ]
+    },
+    {
+        "kname": "DecimalismNumString0Checker",
+        "msg_en": "When specifying a decimal number, do not start the integer constant with 0",
+        "msg_zh": "指定十进制数时，整数常量不要以0开头"
+    },
+    {
+        "kname": "DefaultArgInVirtualFuncChecker",
+        "msg_en": "Virtual function '{}' should not have a default argument",
+        "msg_zh": "虚函数 ‘{}’ 不该有默认参数"
+    },
+    {
+        "kname": "DeleteArrayChecker",
+        "msg_en": "Do not delete an array through a pointer of the incorrect type",
+        "msg_zh": "不要通过错误类型的指针删除数组"
+    },
+    {
+        "kname": "DeleteThisChecker",
+        "msg_en": "Avoid deleting 'this'",
+        "msg_zh": "避免释放 ‘this’"
+    },
+    {
+        "kname": "DeprecatedFunctionChecker",
+        "msg_en": "Do not use deprecated or obsolescent functionality",
+        "msg_zh": "不要使用过时或弃用的功能"
+    },
+    {
+        "kname": "DestructorNoexceptChecker",
+        "msg_en": "Destructors and deallocation functions must be declared noexcept",
+        "msg_zh": "析构函数和回收函数必须声明为noexcept"
+    },
+    {
+        "kname": "DisableCallCStyleStreamChecker",
+        "msg_en": "Prefer streams to C-style input and output",
+        "msg_zh": "优先使用streams代替C-style的输入输出"
+    },
+    {
+        "kname": "DisableForBodyModifyCtrlVarChecker",
+        "msg_en": "Modifying the loop control variable inside the body of a for loop is prohibited.",
+        "msg_zh": "禁止修改for循环体内的循环控制变量。"
+    },
+    {
+        "kname": "DisableForInfinityLoopChecker",
+        "msg_en": "The infinite loop must be written using the while(1) statement; other forms such as for(;;) are prohibited.",
+        "msg_zh": "必须使用while(1)语句编写无限循环;禁止使用其他形式，如for(;;)。"
+    },
+    {
+        "kname": "DisableFunctionChecker",
+        "msg_en": "Disable use function '{}'",
+        "msg_zh": "禁止使用函数 ‘{}’。"
+    },
+    {
+        "kname": "DisableGotoChecker",
+        "msg_en": "The use of goto statements is prohibited.",
+        "msg_zh": "禁止使用goto语句。"
+    },
+    {
+        "kname": "DoubleAssignFloatChecker",
+        "msg_en": "Double value assigned to float without an explicit cast",
+        "msg_zh": "赋给float类型的double值没有显式强制转换"
+    },
+    {
+        "kname": "DynamicAllocPointerUseChecker",
+        "msg_en": "Dynamic pointer must be checked for NULL before usage",
+        "msg_zh": "动态指针在使用前必须检查是否为NULL"
+    },
+    {
+        "kname": "EmptyBranchChecker",
+        "msg_en": "If a conditional branch is empty, it must be explicitly documented on a separate line with a semicolon and a comment.",
+        "msg_zh": "如果条件分支为空，则必须用分号和注释显式地将其记录在单独的行中。"
+    },
+    {
+        "kname": "EmptySwitchChecker",
+        "msg_en": "Empty switch statements are prohibited.",
+        "msg_zh": "禁止空的switch语句。"
+    },
+    {
+        "kname": "EnumElementRepValueChecker",
+        "msg_en": "Ensure enumeration constants map to unique values",
+        "msg_zh": "确保枚举常量映射到唯一的值"
+    },
+    {
+        "kname": "EnumInitializationChecker2",
+        "msg_en": "The initialization of enumeration elements must be complete",
+        "msg_zh": "枚举元素的初始化必须完整"
+    },
+    {
+        "kname": "EnumNameChecker",
+        "msg_en": "Variable name '{}' matches an enumerator name",
+        "msg_zh": "变量名称 ‘{}’ 匹配到枚举器名称"
+    },
+    {
+        "kname": "EnumRangeChecker",
+        "msg_en": "Do not cast to an out-of-range enumeration value",
+        "msg_zh": "不要强制转换为超出范围的枚举值"
+    },
+    {
+        "kname": "EnumUsageChecker",
+        "msg_en": "Enum types should only be compared with other enum types",
+        "msg_zh": "枚举类型只能与其他枚举类型进行比较"
+    },
+    {
+        "kname": "EnumValueChecker",
+        "msg_en": "Non-enum variable is assigned an enum value",
+        "msg_zh": "非枚举变量被赋值一个枚举值"
+    },
+    {
+        "kname": "EOFComparisonChecker",
+        "msg_en": "Incorrect comparison with EOF or WEOF.",
+        "msg_zh": "错误比较EOF与WEOF"
+    },
+    {
+        "kname": "ErrnoResultChecker",
+        "msg_en": "Set errno to zero before calling a library function known to set errno, and check errno only after the function returns a value indicating failure",
+        "msg_zh": "在调用已知设置errno的库函数之前将errno设置为零，并且只在函数返回指示失败的值之后才检查errno"
+    },
+    {
+        "kname": "ErrnoReturnTypeChecker",
+        "msg_en": "The return type of function '{}' must be errno_t when returning errno code.",
+        "msg_zh": "当返回errno代码时，函数 ‘{}’ 的返回类型必须为errno_t。"
+    },
+    {
+        "kname": "ExitHandlerChecker",
+        "msg_en": "All exit handlers must return normally",
+        "msg_zh": "所有退出处理程序必须正常返回"
+    },
+    {
+        "kname": "ExplicitLogicalExpressionChecker",
+        "msg_en": "Suggests using explicit expressions for logical conditions",
+        "msg_zh": "建议对逻辑条件使用显式表达式"
+    },
+    {
+        "kname": "ExternVarHasInitChecker",
+        "msg_en": "Extern variable '{}' cannot be initialized.",
+        "msg_zh": "外部变量 ‘{}’ 无法被初始化"
+    },
+    {
+        "kname": "ExternVarHasInitChecker",
+        "msg_en": "extern variable '{}' is prohibited from being declared inside a function.",
+        "msg_zh": "外部变量 ‘{}’ 无法被初始化"
+    },
+    {
+        "kname": "FileHandleCopyChecker",
+        "msg_en": "Do not copy a FILE object",
+        "msg_zh": "不要拷贝文件对象"
+    },
+    {
+        "kname": "FileOpenChecker",
+        "msg_en": "Take care when specifying the mode parameter of fopen()",
+        "msg_zh": "谨慎指定 fopen() 的模式参数"
+    },
+    {
+        "kname": "FilePointerLeakChecker",
+        "msg_en": "file handler leak.",
+        "msg_zh": "文件句柄泄露"
+    },
+    {
+        "kname": "FileStreamReadWriteChecker",
+        "msg_en": "Interleaved stream inputs and outputs without refreshing or locating calls",
+        "msg_zh": "在没有刷新或定位调用的情况下交替进行流输入输出"
+    },
+    {
+        "kname": "FloatAssignToIntChecker",
+        "msg_en": "Floating-point constant assigned to integer variable",
+        "msg_zh": "浮点数常量赋值给整数变量"
+    },
+    {
+        "kname": "FloatEqualityComparisonChecker",
+        "msg_en": "Equality comparison between floating-point numbers is prohibited",
+        "msg_zh": "禁止浮点数之间的相等比较"
+    },
+    {
+        "kname": "FloatingPointComparisonChecker",
+        "msg_en": "Floating-point comparison without precision limit",
+        "msg_zh": "没有精度限制的浮点数比较"
+    },
+    {
+        "kname": "FloatingPointLoopVariableChecker",
+        "msg_en": "Floating-point loop variable found",
+        "msg_zh": "找到浮点循环变量"
+    },
+    {
+        "kname": "ForcedPointerCastChecker",
+        "msg_en": "Forced cast to pointer type detected",
+        "msg_zh": "检测到转换为指针类型的强制转换"
+    },
+    {
+        "kname": "FormatSpecifierTypeMismatchChecker",
+        "msg_en": "Mismatched format specifier and argument type",
+        "msg_zh": "格式说明符和参数类型不匹配"
+    },
+    {
+        "kname": "FormatStringChecker",
+        "msg_en": "Illegal format specifier: %{}",
+        "msg_zh": "非法的格式说明符：%{}"
+    },
+    {
+        "kname": "FSetposArgChecker",
+        "msg_en": "Only use values for fsetpos() that are returned from fgetpos()",
+        "msg_zh": "fsetpos()只能使用从fgetpos()返回的值"
+    },
+    {
+        "kname": "FunctionArgNameExistChecker",
+        "msg_en": "The parameter types must be declared and accompanied by variable names in function declarations.",
+        "msg_zh": "在函数声明中，必须声明参数类型并附带变量名。"
+    },
+    {
+        "kname": "FunctionLengthChecker",
+        "msg_en": "The function has {} lines, which exceeds the maximum allowed {} lines",
+        "msg_zh": "函数有 {} 行， 超出了最大允许的行数量 {}。"
+    },
+    {
+        "kname": "FunctionNameAsIdentifierChecker",
+        "msg_en": "Function name '{}' used as an identifier can lead to confusion",
+        "msg_zh": "函数名 ‘{}’ 用作标识符可能会导致混淆"
+    },
+    {
+        "kname": "FunctionPointerChecker",
+        "msg_en": "Function declared as pointer type",
+        "msg_zh": "函数被声明为指针类型"
+    },
+    {
+        "kname": "FunctionPointerExplicitChecker",
+        "msg_en": "Function pointer assignment must use & symbol.",
+        "msg_zh": "函数指针赋值必须使用 & 符号"
+    },
+    {
+        "kname": "FunctionVarArgsTypeCheckerChecker",
+        "msg_en": "Disallow defined variable function",
+        "msg_zh": "不允许定义变量函数"
+    },
+    {
+        "kname": "FunctionVoidParamTypeChecker",
+        "msg_en": "Function '{}' needs to explicitly specify the void parameter type.",
+        "msg_zh": "函数 ‘{}’ 需要显式指定void参数类型"
+    },
+    {
+        "kname": "GotoChecker",
+        "msg_en": "Goto jumping into compound statement or from bottom to top is prohibited",
+        "msg_zh": "函数 ‘{}’ 需要显式指定void参数类型"
+    },
+    {
+        "kname": "HardcodedCryptoKeyChecker",
+        "msg_en": "Hardcoded encryption keys can lead to potential security issues.",
+        "msg_zh": "硬编码的加密密钥可能导致潜在的安全问题。"
+    },
+    {
+        "kname": "HidingNonVirtualFuncChecker",
+        "msg_en": "Derived class method '{}' hides non-virtual base class method",
+        "msg_zh": "派生类的方法 ‘{}’ 隐藏非虚拟基类方法"
+    },
+    {
+        "kname": "INT05CPPChecker",
+        "msg_en": "Do not use input functions to convert character data if they cannot handle all possible inputs",
+        "msg_zh": "如果无法处理所有可能的输入，请勿使用输入函数转换字符数据"
+    },
+    {
+        "kname": "IfElseIfElseChecker",
+        "msg_en": "The else branch must be used in an if-else if statement.",
+        "msg_zh": "else分支必须在if-else if语句中使用。"
+    },
+    {
+        "kname": "IncDecUseChecker",
+        "msg_en": "Be cautious when using the '++' or '--' operators.",
+        "msg_zh": "谨慎使用 ‘++’ 或 ‘--’ 运算符"
+    },
+    {
+        "kname": "IncludeFileAbsPathChecker",
+        "msg_en": "It is prohibited to use absolute paths in the #include directive.",
+        "msg_zh": "禁止在#include中使用绝对路径。"
+    },
+    {
+        "kname": "IncludeFilePathChecker",
+        "msg_en": "The use of characters such as \"'\", \"\\\", and \"/*\" is prohibited in header file names.",
+        "msg_zh": "禁止在标题文件名中使用 ‘'’ ， ‘\\’ 和 ‘/*’ 之类的字符"
+    },
+    {
+        "kname": "InfinityLoopChecker",
+        "msg_en": "Use infinite loop statements with caution.",
+        "msg_zh": "慎用无限循环语句。"
+    },
+    {
+        "kname": "IntAssignCharTypeChecker",
+        "msg_en": "Use only explicitly signed or unsigned char type for numeric values",
+        "msg_zh": "仅使用显式的 signed 或 unsigned char 类型作为数字值"
+    },
+    {
+        "kname": "IntAssignFloatTypeChecker",
+        "msg_en": "Convert integers to floating point for floating-point operations",
+        "msg_zh": "浮点数操作中将整数转换为浮点数"
+    },
+    {
+        "kname": "IntAssignmentPointerChecker",
+        "msg_en": "Pointer assignment from different types",
+        "msg_zh": "来自不同类型的指针赋值"
+    },
+    {
+        "kname": "IntegerAssignIntegerChecker",
+        "msg_en": "Assigned value is too large integer for the variable",
+        "msg_zh": "对于变量赋值的整数太大"
+    },
+    {
+        "kname": "IntegerAssignIntegerExChecker",
+        "msg_en": "Assigned value is too large integer for the variable",
+        "msg_zh": "对于变量赋值的整数太大"
+    },
+    {
+        "kname": "IntegerOverflowChecker",
+        "msg_en": "Assigned value is too large for the variable",
+        "msg_zh": "对变量赋的值太大"
+    },
+    {
+        "kname": "IteratorInvalidationChecker",
+        "msg_en": "Use valid references, pointers, and iterators to reference elements of a container",
+        "msg_zh": "使用有效的引用，指针和迭代器来引用容器的元素"
+    },
+    {
+        "kname": "KeywordRefinedChecker",
+        "msg_en": "Disallow redefined c/c++ keywords",
+        "msg_zh": "禁止重定义 c/c++ 关键字"
+    },
+    {
+        "kname": "KeywordRefinedKeywordChecker",
+        "msg_en": "Disallow redefined c/c++ keywords to keywords",
+        "msg_zh": "禁止重定义 c/c++ 关键字到关键字"
+    },
+    {
+        "kname": "LabelNameChecker",
+        "msg_en": "Duplicate label name",
+        "msg_zh": "重复的标签名"
+    },
+    {
+        "kname": "LimitFunctionParametersChecker",
+        "msg_en": "Function has {} parameters, which exceeds the recommended maximum of {}",
+        "msg_zh": "函数具有 {} 个参数，超过了建议的最大值 {}"
+    },
+    {
+        "kname": "LocalLoopVariableChecker",
+        "msg_en": "Loop variable must be locally declared",
+        "msg_zh": "循环变量必须在本地声明"
+    },
+    {
+        "kname": "LogicalAndRelComparisonChecker",
+        "msg_en": "Treat relational and equality operators as if they were nonassociative",
+        "msg_zh": "将关系和平等运营商视为非社交方式"
+    },
+    {
+        "kname": "LogicalBitwiseOperationChecker",
+        "msg_en": "Logical expression involved in bitwise operation",
+        "msg_zh": "逻辑表达式涉及位操作"
+    },
+    {
+        "kname": "LogicalComparisonChecker",
+        "msg_en": "Comparison between logical and non-logical types",
+        "msg_zh": "逻辑类型和非逻辑类型之间进行比较"
+    },
+    {
+        "kname": "LogicalExprParenChecker",
+        "msg_en": "Expression in if statement should be a logical expression",
+        "msg_zh": "if语句中的表达应为逻辑表达式"
+    },
+    {
+        "kname": "LogicalExpressionChecker",
+        "msg_en": "Sub logic expr need use paren in logic expr",
+        "msg_zh": "子逻辑表达式需要在逻辑表达式中使用括号"
+    },
+    {
+        "kname": "LogicalNotOnConstantChecker",
+        "msg_en": "Applying logical not operation on a constant value is not allowed",
+        "msg_zh": "不允许将逻辑非操作应用于常量值"
+    },
+    {
+        "kname": "LongLongTypeChecker",
+        "msg_en": "Mismatched argument type",
+        "msg_zh": "参数类型不匹配"
+    },
+    {
+        "kname": "LongNumStringlLChecker",
+        "msg_en": "",
+        "msg_zh": ""
+    },
+    {
+        "kname": "LoopCondConstantChecker",
+        "msg_en": "Use infinite loop statements with caution.",
+        "msg_zh": "谨用无限循环语句"
+    },
+    {
+        "kname": "LoopInequalityChecker",
+        "msg_en": "Use inequality to terminate a loop whose counter changes by more than one",
+        "msg_zh": "使用不等式终止一个其计数器会更改多个循环的循环"
+    },
+    {
+        "kname": "MacroBodyHashChecker",
+        "msg_en": "Use '##' or '#' cautiously in macros.",
+        "msg_zh": "在宏中谨慎使用 ‘##’ 或 ‘#’。"
+    },
+    {
+        "kname": "MacroBodyKeywordsChecker",
+        "msg_en": "Macro body not use statement keywords",
+        "msg_zh": "宏定义体没有使用语句关键字"
+    },
+    {
+        "kname": "MacroBodyMultHashChecker",
+        "msg_en": "Prohibit using multiple '#' or '##' in the same macro.",
+        "msg_zh": "在同一宏中禁止使用多个 ‘#’ 或 ‘##’"
+    },
+    {
+        "kname": "MacroBodyMultStmtChecker",
+        "msg_en": "Wrap multistatement macros in a do-while loop",
+        "msg_zh": "在do-while循环中包装多行宏"
+    },
+    {
+        "kname": "MacroBodyParenChecker",
+        "msg_en": "Macro body need use paren",
+        "msg_zh": "宏定义体需要使用括号"
+    },
+    {
+        "kname": "MacroBodySemiEndChecker",
+        "msg_en": "Do not conclude macro definitions with a semicolon",
+        "msg_zh": "不要用分号来结束宏定义"
+    },
+    {
+        "kname": "MacroParamParenChecker",
+        "msg_en": "Macro param need use paren",
+        "msg_zh": "宏参数需要使用括号"
+    },
+    {
+        "kname": "MacroRedefinedTypesChecker",
+        "msg_en": "Prohibit redefining reserved keywords.",
+        "msg_zh": "禁止重新定义保留的关键字"
+    },
+    {
+        "kname": "MagicNumbersChecker",
+        "msg_en": "{} is a magic number; consider replacing it with a named constant",
+        "msg_zh": "{} 是一个魔数，考虑用常量替换"
+    },
+    {
+        "kname": "MainFileNotUseFuncChecker",
+        "msg_en": "The main file function '{}' is defined but not used.",
+        "msg_zh": "主文件函数 ‘{}’ 定义但未使用。"
+    },
+    {
+        "kname": "MallocFreeChecker",
+        "msg_en": "Pointer must be allocated by malloc or calloc",
+        "msg_zh": "指针必须由malloc或calloc分配"
+    },
+    {
+        "kname": "MallocResultExplictCastChecker",
+        "msg_en": "Immediately cast the result of a memory allocation function call into a pointer to the allocated type",
+        "msg_zh": "内存分配函数的结果要立即强制转换到分配类型的指针"
+    },
+    {
+        "kname": "ManualMemoryManagementChecker",
+        "msg_en": "Memory allocated for an object with non-trivial constructor but constructor is not called.",
+        "msg_zh": "为具有non-trivial构造函数的对象分配内存但未调用构造函数。"
+    },
+    {
+        "kname": "MemberInitializedListChecker",
+        "msg_en": "The order of the initialization list is incorrect",
+        "msg_zh": "初始化列表的顺序不正确"
+    },
+    {
+        "kname": "MisusedFunctionAddressChecker",
+        "msg_en": "Improper usage of function addresses",
+        "msg_zh": "函数地址使用不当"
+    },
+    {
+        "kname": "MisusedFunctionAddressVisitor",
+        "msg_en": "Improper usage of function addresses",
+        "msg_zh": "函数地址使用不当"
+    },
+    {
+        "kname": "MixedBitwiseAndArithmeticChecker",
+        "msg_en": "Avoid performing bitwise and arithmetic operations on the same data",
+        "msg_zh": "避免在相同数据上进行位和算术操作"
+    },
+    {
+        "kname": "MixedTypeOperationChecker",
+        "msg_en": "Mixed type operation",
+        "msg_zh": "混合类型操作"
+    },
+    {
+        "kname": "MultPointerTypeDefChecker",
+        "msg_en": "Prohibit pointers to pointers beyond two levels",
+        "msg_zh": "禁止嵌套指针超过两层"
+    },
+    {
+        "kname": "MultiLabelChecker",
+        "msg_en": "Using multi-labels is redundant, one label can be used instead",
+        "msg_zh": "使用多标签是多余的，可以只使用一个标签"
+    },
+    {
+        "kname": "MultipleInheritanceChecker",
+        "msg_en": "Class '{0}' has base classes '{1}' with member named '{2}' same.",
+        "msg_zh": "类 ‘{0}’ 具有基类 ‘{1}’ 与成员 ‘{2}’ 命名相同。"
+    },
+    {
+        "kname": "MultipleRelatedFunctionCallsChecker",
+        "msg_en": "Multiple related functions are called in the same expression, which might produce different results depending on the order of execution.",
+        "msg_zh": "在同一表达式中调用多个相关函数，这可能会根据执行顺序产生不同的结果。"
+    },
+    {
+        "kname": "MutexTypeChecker",
+        "msg_en": "Avoid using PTHREAD_MUTEX_NORMAL type mutex locks",
+        "msg_zh": "避免使用PTHREAD_MUTEX_NORMAL类型的mutex锁"
+    },
+    {
+        "kname": "NegativeShiftChecker",
+        "msg_en": "Use negative shift counts",
+        "msg_zh": "使用负的移位数"
+    },
+    {
+        "kname": "NoOpConversionChecker",
+        "msg_en": "Type conversion has no effect",
+        "msg_zh": "类型转换没有生效"
+    },
+    {
+        "kname": "NoPrivateDataReturnChecker",
+        "msg_en": "Do not return references to private data",
+        "msg_zh": "不要返回私有数据的引用"
+    },
+    {
+        "kname": "NoReturnWithReturnChecker",
+        "msg_en": "Functions declared with [[noreturn]] must return void",
+        "msg_zh": "用 [[noreturn]] 声明的函数必须返回void"
+    },
+    {
+        "kname": "NotMatchTypePointerAccessChecker",
+        "msg_en": "Do not access a variable through a pointer of an incompatible type",
+        "msg_zh": "不要通过不兼容类型的指针访问变量"
+    },
+    {
+        "kname": "NullAsIntChecker",
+        "msg_en": "NULL should not be used as an integer 0",
+        "msg_zh": "NULL不能当作整数0来使用"
+    },
+    {
+        "kname": "NullCharTraitsChecker",
+        "msg_en": "Null pointer passed to char_traits::length",
+        "msg_zh": "将空指针传递给char_traits::length"
+    },
+    {
+        "kname": "NullStmtUseChecker",
+        "msg_en": "Avoid using empty statements.",
+        "msg_zh": "避免使用空语句块"
+    },
+    {
+        "kname": "NumZeroCastPointerChecker",
+        "msg_en": "0 should not be used as an pointer",
+        "msg_zh": "0不应该被用作指针"
+    },
+    {
+        "kname": "ObjectSlicingChecker",
+        "msg_en": "Slicing derived object of type '{}' to base type '{}'.",
+        "msg_zh": "剪切 ‘{}’ 类型的派生对象到基类 ‘{}’。"
+    },
+    {
+        "kname": "OnlyNonPointerTypeTypedefChecker",
+        "msg_en": "Typedef is applied to a pointer type",
+        "msg_zh": "Typedef应用于指针类型"
+    },
+    {
+        "kname": "OverflowChecker",
+        "msg_en": "Potential integer overflow detected",
+        "msg_zh": "检测到潜在的整数溢出"
+    },
+    {
+        "kname": "OverloadAllVirtualFuncChecker",
+        "msg_en": "Prefer not to overload virtual functions '{}'",
+        "msg_zh": "尽量不要重载虚函数 ‘{}’"
+    },
+    {
+        "kname": "OverrideStdLibFunctionChecker",
+        "msg_en": "Overriding a standard library function can lead to undefined behavior",
+        "msg_zh": "覆盖标准库函数会导致未定义的行为"
+    },
+    {
+        "kname": "ParameterAssignmentChecker",
+        "msg_en": "Assignment to parameter pointer is not allowed.",
+        "msg_zh": "禁止赋值给参数指针。"
+    },
+    {
+        "kname": "ParameterShadowingChecker",
+        "msg_en": "Parameter '{}' shadows a global variable",
+        "msg_zh": "参数 ‘{}’ 隐藏了全局变量"
+    },
+    {
+        "kname": "ParameterTypeChecker",
+        "msg_en": "Parameter must use type declaration",
+        "msg_zh": "参数必须使用类型声明"
+    },
+    {
+        "kname": "PointerAlignChecker",
+        "msg_en": [
+            "Do not convert pointers to pointer types with stricter alignment requirements",
+            "Possible erroneous pointer scaling"
+        ],
+        "msg_zh": [
+            "不要将指针转换为具有更严格对齐要求的指针类型",
+            "可能的错误指针缩放"
+        ]
+    },
+    {
+        "kname": "PointerArithmeticChecker",
+        "msg_en": "Pointer arithmetic detected",
+        "msg_zh": "检测到指针算术运算"
+    },
+    {
+        "kname": "PointerArithmeticExChecker",
+        "msg_en": "Pointer arithmetic detected",
+        "msg_zh": "检测到指针算术运算"
+    },
+    {
+        "kname": "PointerAssignmentPointerChecker",
+        "msg_en": "The assignment type of a pointer variable must be consistent with the type of the pointer variable.",
+        "msg_zh": "赋值给指针变量的类型必须与指针变量的类型一致。"
+    },
+    {
+        "kname": "PointerCastAlignChecker",
+        "msg_en": "Do not convert pointers to pointer types with stricter alignment requirements",
+        "msg_zh": "不要将指针转换为具有更严格对齐要求的指针类型"
+    },
+    {
+        "kname": "PointerCastIntegerChecker",
+        "msg_en": "Converting a pointer to integer or integer to pointer",
+        "msg_zh": "将指针转换为整数或整数转换为指针"
+    },
+    {
+        "kname": "PointerComparisonChecker",
+        "msg_en": "Comparison between pointers with relational operators is prohibited",
+        "msg_zh": "禁止指针与关系运算符之间的比较"
+    },
+    {
+        "kname": "PointerInitializationChecker",
+        "msg_en": "Pointer not initialized to NULL",
+        "msg_zh": "指针没有初始化为NULL"
+    },
+    {
+        "kname": "PointerMustBeNullAfterFreeChecker",
+        "msg_en": "{} should be set to NULL",
+        "msg_zh": "{} 应该设置为NULL"
+    },
+    {
+        "kname": "PointerTypeCastChecker",
+        "msg_en": "Unsafe pointer type conversion",
+        "msg_zh": "不安全的指针类型转换"
+    },
+    {
+        "kname": "PostfixOpChecker",
+        "msg_en": "Overloaded postfix increment and decrement operators should return a const object",
+        "msg_zh": "重载后缀自增和自减操作应返回const对象"
+    },
+    {
+        "kname": "PragmaUseChecker",
+        "msg_en": "Use '#pragma' with caution.",
+        "msg_zh": "谨慎使用 ‘#pragma’"
+    },
+    {
+        "kname": "PreferPrefixOperatorChecker",
+        "msg_en": "Prefer the prefix forms of ++ and --",
+        "msg_zh": "优先使用 ++ 和 -- 的参数形式"
+    },
+    {
+        "kname": "PreferVectorOverArrayChecker",
+        "msg_en": "Understand when to prefer vectors over arrays",
+        "msg_zh": "了解何时更倾向于使用vector而不用array"
+    },
+    {
+        "kname": "PrintFunctionArgCountChecker",
+        "msg_en": "Too few arguments for format string",
+        "msg_zh": "格式化字符串参数数量不足"
+    },
+    {
+        "kname": "PrintfScanfFormatStringChecker",
+        "msg_en": "Format string must be a string literal",
+        "msg_zh": "格式化字符串必须是字符串字面值"
+    },
+    {
+        "kname": "PrintfStarChecker",
+        "msg_en": [
+            "Missing argument(s) for '*' in printf",
+            "Non-integer argument for '*' in printf"
+        ],
+        "msg_zh": [
+            "printf中的 ‘*’ 缺少参数",
+            "printf中的 ‘*’ 有非整数参数"
+        ]
+    },
+    {
+        "kname": "PrivateMemberChecker",
+        "msg_en": "Member variable '{}' should be declared as private.",
+        "msg_zh": "成员变量 ‘{}’ 应将其声明为 private。"
+    },
+    {
+        "kname": "PrivateStaticMemberChecker",
+        "msg_en": "Do not define static private members",
+        "msg_zh": "不要定义静态私有类成员"
+    },
+    {
+        "kname": "PutEnvChecker",
+        "msg_en": "Do not call putenv() with a pointer to an automatic variable as the argument",
+        "msg_zh": "请勿用指向自动变量的指针作为 putenv() 的参数"
+    },
+    {
+        "kname": "RandUsageChecker",
+        "msg_en": "{} should not be used for generating pseudo-random numbers due to potential predictability.",
+        "msg_zh": "{} 由于潜在的可预测性而不应该用于生成伪随机数。"
+    },
+    {
+        "kname": "RawPointerCopyChecker",
+        "msg_en": "Class '{}' contains a raw pointer but does not declare a private or deleted copy constructor or copy assignment operator.",
+        "msg_zh": "类 ‘{}’ 包含一个原始指针，但没有声明为私有或者删除掉复制构造函数和复制赋值运算符。"
+    },
+    {
+        "kname": "ReadlinkChecker",
+        "msg_en": "Use the readlink() function properly",
+        "msg_zh": "合理使用 readlink() 函数"
+    },
+    {
+        "kname": "RedefinedMacroChecker",
+        "msg_en": "Prevent #define from being redefined.",
+        "msg_zh": "防止#define被重新定义"
+    },
+    {
+        "kname": "RedefinitionChecker",
+        "msg_en": "Variable redefined in an inner block",
+        "msg_zh": "在内部块中重新定义变量"
+    },
+    {
+        "kname": "RedefinitionInInnerBlockChecker",
+        "msg_en": "Disallow redefinition of variables in inner blocks",
+        "msg_zh": "禁止在内部块中重新定义变量"
+    },
+    {
+        "kname": "RedundantVoidCastChecker",
+        "msg_en": "Redundant cast to '(void)' for a function call that already returns 'void'.",
+        "msg_zh": "对于已经返回 ‘void’ 的函数调用强制转换到 ‘(void)’ 是多余的。"
+    },
+    {
+        "kname": "ReentryChecker",
+        "msg_en": "Do not recursively reenter a function during the initialization of one of its static objects",
+        "msg_zh": "在其一个静态对象的初始化过程中，请勿递归调用函数"
+    },
+    {
+        "kname": "RefAlreadyFreePinterChecker",
+        "msg_en": [
+            "double free pointer",
+            "use dangling pointer",
+            "use undefined pointer"
+        ],
+        "msg_zh": [
+            "重复释放指针",
+            "使用悬空指针",
+            "使用未定义的指针"
+        ]
+    },
+    {
+        "kname": "RefUndefOrAlreadyFreePinterChecker",
+        "msg_en": [
+            "release undefined pointer",
+            "double free pointer",
+            "use dangling pointer",
+            "use undefined pointer"
+        ],
+        "msg_zh": [
+            "释放未定义的指针",
+            "重复释放指针",
+            "使用悬空指针",
+            "使用未定义的指针"
+        ]
+    },
+    {
+        "kname": "RegisterUseChecker",
+        "msg_en": "Use register variables with caution",
+        "msg_zh": "谨慎使用寄存器变量"
+    },
+    {
+        "kname": "ResourceAllocAndReleaseChecker",
+        "msg_en": [
+            "the resource '{}' already closed",
+            "the resource '{}' uninitialized"
+        ],
+        "msg_zh": [
+            "资源 ‘{}’ 已经关闭",
+            "资源 ‘{}’ 未初始化"
+        ]
+    },
+    {
+        "kname": "RestrictArgChecker",
+        "msg_en": "Passing pointers to the same object as parameters({}) to different restrict type parameters",
+        "msg_zh": "将指针传递给与参数（{}）对象相同但限定类型不同的参数"
+    },
+    {
+        "kname": "ReturnTypeChecker",
+        "msg_en": "Return type mismatch between return and definition. Expected '{0}' but defined as '{1}'.",
+        "msg_zh": "返回类型和定义不匹配。期望 ‘{0}’ 实际定义为 ‘{1}’"
+    },
+    {
+        "kname": "ReturnUseChecker",
+        "msg_en": "Functions must have return statements",
+        "msg_zh": "函数必须有return语句"
+    },
+    {
+        "kname": "ScanfWidthLimitChecker",
+        "msg_en": "Found '%s' in scanf without width limit",
+        "msg_zh": "在 scanf 中找到没有宽度限制的 ‘%s’"
+    },
+    {
+        "kname": "SensitiveDataPlacementChecker",
+        "msg_en": "String placed before sensitive data in memory",
+        "msg_zh": "在内存中的敏感数据前放置字符串"
+    },
+    {
+        "kname": "ShiftOnCharOrShortChecker",
+        "msg_en": "Beware of integer promotion when performing bitwise operations on integer types smaller than int",
+        "msg_zh": "对整数类型进行按位操作时，注意整型提升"
+    },
+    {
+        "kname": "ShiftOverflowChecker",
+        "msg_en": "Shift count is greater than the type size",
+        "msg_zh": "移位数比类型大小更大"
+    },
+    {
+        "kname": "ShortAssignLongTypeChecker",
+        "msg_en": "Evaluate integer expressions in a larger size before comparing or assigning to that size",
+        "msg_zh": "在与该大小比较或赋值之前整数表达式得出更大的值"
+    },
+    {
+        "kname": "SignalHandlerChecker",
+        "msg_en": "A signal handler must be a Plain Old Function",
+        "msg_zh": "信号句柄必须是plain old函数"
+    },
+    {
+        "kname": "SignedBitFieldWidthChecker",
+        "msg_en": "Signed bit-field width must be greater than 1.",
+        "msg_zh": "带符号位域宽度必须大于1"
+    },
+    {
+        "kname": "SignedIntegerOverflowChecker",
+        "msg_en": "Signed integer overflow",
+        "msg_zh": "有符号整数溢出"
+    },
+    {
+        "kname": "SignedIntOddEvenChecker",
+        "msg_en": "Do not make assumptions about representation of signed integers",
+        "msg_zh": "不要对有符号整数的表示做假设"
+    },
+    {
+        "kname": "SignedShiftChecker",
+        "msg_en": "Signed integer shift detected",
+        "msg_zh": "检测到有符号整数移位"
+    },
+    {
+        "kname": "SingleDeclarationChecker",
+        "msg_en": "Disallow multiple declarations in a single statement",
+        "msg_zh": "不允许在单个语句中写多个声明"
+    },
+    {
+        "kname": "SingleParamConstructorChecker",
+        "msg_en": "Constructor with a single parameter should be marked 'explicit'.",
+        "msg_zh": "具有单个参数的构造函数应标记为 ‘explicit’。"
+    },
+    {
+        "kname": "SizeofChecker",
+        "msg_en": "Do not rely on side effects in operands to sizeof, _Alignof, or _Generic",
+        "msg_zh": "请勿依靠 sizeof，_Alignof 或 _Generic 操作中的副作用"
+    },
+    {
+        "kname": "SizeofParamArrayChecker",
+        "msg_en": "Prohibit using pointer size to determine the size of the pointed type",
+        "msg_zh": "禁止使用指针大小确定指向类型的大小"
+    },
+    {
+        "kname": "StaticAssertUseChecker",
+        "msg_en": "Test the value of constant expressions using static assertions.",
+        "msg_zh": "使用静态断言测试常数表达式的值。"
+    },
+    {
+        "kname": "StdFindUseChecker",
+        "msg_en": "Do not confuse the find() method with the find() algorithm",
+        "msg_zh": "请勿将 find() 方法与 find() 算法混淆"
+    },
+    {
+        "kname": "StdNamespaceChecker",
+        "msg_en": "Do not modify the standard namespaces",
+        "msg_zh": "不要修改标准库命名空间"
+    },
+    {
+        "kname": "StringOpFuncReturnUseChecker",
+        "msg_en": "Avoid in-band error indicators",
+        "msg_zh": "避免带内错误指示器"
+    },
+    {
+        "kname": "StrongTypedefArgumentMismatchChecker",
+        "msg_en": "Strong typedef argument mismatch",
+        "msg_zh": "强类型定义参数不匹配"
+    },
+    {
+        "kname": "StrongTypedefMismatchChecker",
+        "msg_en": "Strong typedef mismatch",
+        "msg_zh": "强类型定义不匹配"
+    },
+    {
+        "kname": "StrongTypedefReturnMismatchChecker",
+        "msg_en": "Strong typedef return mismatch",
+        "msg_zh": "强类型定义返回值类型不匹配"
+    },
+    {
+        "kname": "StructPaddingChecker",
+        "msg_en": "Sizeof used on sub-struct '{0}' of struct '{1}' which might have padding, leading to potentially incorrect results.",
+        "msg_zh": "结构体 ‘{1}’ 的子结构体 ‘{0}’ 可能带有填充，使用Sizeof可能导致不正确的结果。"
+    },
+    {
+        "kname": "StructSizeofChecker",
+        "msg_en": "Do not assume the size of a class or struct is the sum of the sizes of its members",
+        "msg_zh": "不要假设类或结构体的大小是其成员大小的总和"
+    },
+    {
+        "kname": "SuspiciousSemicolonChecker",
+        "msg_en": "A suspicious semicolon appears at the end of the same line as if, while, and other statements.",
+        "msg_zh": "一个可疑的分号出现在if，while和其他语句的同一行末尾"
+    },
+    {
+        "kname": "SwitchDeclInFirstCasePreChecker",
+        "msg_en": "Do not declare variables before the first case label in the switch statement",
+        "msg_zh": "请勿在switch语句中的第一个case标签之前声明变量"
+    },
+    {
+        "kname": "SwitchDefaultChecker",
+        "msg_en": "Switch must cover all enum cases or include a default branch",
+        "msg_zh": "switch语句必须覆盖所有枚举cases或者包括一个default分支"
+    },
+    {
+        "kname": "SwitchLogicalExpressionChecker",
+        "msg_en": "Expression in switch statement should not be a logical expression",
+        "msg_zh": "switch语句中的表达式不应是逻辑表达式"
+    },
+    {
+        "kname": "SwitchOnlyDefaultChecker",
+        "msg_en": "Switch statements containing only the default case are prohibited.",
+        "msg_zh": "禁止仅包含default case的switch语句。"
+    },
+    {
+        "kname": "TaintLoopVariableChecker",
+        "msg_en": "loop var '{}' is tainted value",
+        "msg_zh": "循环变量 ‘{}’ 是被污染的值"
+    },
+    {
+        "kname": "ThrowChecker",
+        "msg_en": "Throw anonymous temporaries and catch by reference",
+        "msg_zh": "抛出匿名的临时变量并使用引用捕获"
+    },
+    {
+        "kname": "TimeOpChecker",
+        "msg_en": "Do not manipulate time_t typed values directly",
+        "msg_zh": "请勿直接操作time_t类型的值"
+    },
+    {
+        "kname": "TypedefKeywordChecker",
+        "msg_en": "disable typedef keyword '{}'",
+        "msg_zh": "禁止对关键字 ‘{}’ 进行typedef"
+    },
+    {
+        "kname": "TypedefNameChecker",
+        "msg_en": "Variable name '{}' matches a typedef name",
+        "msg_zh": "变量名 ‘{}’ 匹配到一个typedef名称"
+    },
+    {
+        "kname": "TypedefRedefinitionChecker",
+        "msg_en": "A typedef-defined type must not be redefined",
+        "msg_zh": "不得重新定义typedef已经定义的类型"
+    },
+    {
+        "kname": "UnPointerAndPointerAssignChecker",
+        "msg_en": "When assigning a pointer variable to a non-pointer variable or assigning a non-pointer value to a pointer variable, a cast must be used.",
+        "msg_zh": "当将指针变量赋值给非指针变量或将非指针值赋值给指针变量时，必须使用类型转换。"
+    },
+    {
+        "kname": "UngetChecker",
+        "msg_en": "Never push back anything other than one read character",
+        "msg_zh": "除了一个读到的字符以外，切勿回退任何东西"
+    },
+    {
+        "kname": "UnicodeMappingChecker",
+        "msg_en": "Output buffer is NULL but its size is not 0.",
+        "msg_zh": "输出缓冲区为空，但其大小不是0。"
+    },
+    {
+        "kname": "UninitializedMemberChecker",
+        "msg_en": "Uninitialized member '{}'",
+        "msg_zh": "未初始化成员 ‘{}’"
+    },
+    {
+        "kname": "UninitializedPointerChecker",
+        "msg_en": "Passing uninitialized pointer or reference",
+        "msg_zh": "传递未初始化的指针或引用"
+    },
+    {
+        "kname": "UnnecessaryCastChecker",
+        "msg_en": "Unnecessary type cast",
+        "msg_zh": "非必要的类型转换"
+    },
+    {
+        "kname": "UnsecurityFunctionChecker",
+        "msg_en": "Do not use deprecated or obsolescent functions",
+        "msg_zh": "不要使用已经过时或废弃的函数"
+    },
+    {
+        "kname": "UnsignedTypeAssignNegativeChecker",
+        "msg_en": "Prohibit assigning negative values to unsigned type variables",
+        "msg_zh": "禁止将负值赋值给无符号类型变量"
+    },
+    {
+        "kname": "UnsignedComparisonChecker",
+        "msg_en": "Comparison of unsigned integer with 0 using >= or < is prohibited",
+        "msg_zh": "禁止使用 >= 或 < 将无符号整数与0比较"
+    },
+    {
+        "kname": "UnsignedIntegerOverflowChecker",
+        "msg_en": "Unsigned integer wraparound",
+        "msg_zh": "无符号整数绕回"
+    },
+    {
+        "kname": "UnsignedSignedComparisonChecker",
+        "msg_en": "Comparison between signed and unsigned integers is prohibited",
+        "msg_zh": "禁止将有符号整数和无符号整数比较"
+    },
+    {
+        "kname": "UnusedLabelChecker",
+        "msg_en": "Unused label detected",
+        "msg_zh": "检测到未使用的标签"
+    },
+    {
+        "kname": "UnusedParameterChecker",
+        "msg_en": "This parameter is not used in the function body",
+        "msg_zh": "此参数没有在函数体中使用"
+    },
+    {
+        "kname": "UnusedReturnValueChecker",
+        "msg_en": "The return value from the call to '{}' is unused. If this is expected, cast the result to '(void)' to suppress this warning.",
+        "msg_zh": "来自 ‘{}’ 调用的返回值未使用。 如果这在预期内，将结果转换为 ‘(void)’ 来抑制此警告。"
+    },
+    {
+        "kname": "UnusedStaticFunctionChecker",
+        "msg_en": "The static function '{}' is defined but not used.",
+        "msg_zh": "静态函数 ‘{}’ 定义但未使用。"
+    },
+    {
+        "kname": "UseSizeofCalLengthChecker",
+        "msg_en": "Use sizeof to determine the size of a type or variable",
+        "msg_zh": "使用sizeof来确定类型或变量的大小"
+    },
+    {
+        "kname": "UseUninitializedVariableChecker",
+        "msg_en": "Variable used before initialization",
+        "msg_zh": "变量在初始化之前就已经使用"
+    },
+    {
+        "kname": "ValueDependSequencePointChecker",
+        "msg_en": "Do not rely on the evaluation order between sequence points",
+        "msg_zh": "不依赖序列点之间的生成顺序"
+    },
+    {
+        "kname": "VarArraySizeChecker",
+        "msg_en": "Ensure size arguments for variable length arrays are in a valid range",
+        "msg_zh": "确保可变长度数组的大小参数在有效范围内"
+    },
+    {
+        "kname": "VariableShadowingChecker",
+        "msg_en": "Local variable '{}' shadows a global variable",
+        "msg_zh": "局部变量 ‘{}’ 隐藏了全局变量"
+    },
+    {
+        "kname": "VariadicChecker",
+        "msg_en": "Do not pass a reference or nontrivially-copyable type to va_start",
+        "msg_zh": "请勿将引用或非平凡可复制类型传递给VA_START"
+    },
+    {
+        "kname": "VforkExChecker",
+        "msg_en": "Do not use vfork()",
+        "msg_zh": "不要使用 vfork()"
+    },
+    {
+        "kname": "VirtualCallChecker2",
+        "msg_en": "Do not invoke virtual functions from constructors or destructors",
+        "msg_zh": "请勿在构造函数或析构函数中调用虚函数"
+    },
+    {
+        "kname": "VirtualDtorChecker",
+        "msg_en": "Deleting polymorphic object type '{}' which has non-virtual destructor might cause undefined behavior.",
+        "msg_zh": "删除具有非虚析构函数的多态对象类型 ‘{}’ 可能会导致未定义的行为。"
+    },
+    {
+        "kname": "VirtualOverrideConstFunction",
+        "msg_en": "Possible erroneous pointer scaling",
+        "msg_zh": "可能存在错误的指针缩放"
+    },
+    {
+        "kname": "WeakCryptoChecker",
+        "msg_en": "Do not use weak encryption algorithms or hash functions.",
+        "msg_zh": "请勿使用弱加密算法或哈希函数。"
+    },
+    {
+        "kname": "WhileBodyParenChecker",
+        "msg_en": "While stmt body must use paren",
+        "msg_zh": "while语句体必须使用括号"
+    },
+    {
+        "kname": "WhileCtrlVarDeclChecker",
+        "msg_en": "The control variable of a for loop must be a local variable.",
+        "msg_zh": "for循环的控制变量必须是局部变量。"
+    }
+]

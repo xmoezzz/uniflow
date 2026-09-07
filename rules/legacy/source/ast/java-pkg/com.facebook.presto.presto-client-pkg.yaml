@@ -1,0 +1,10 @@
+id: com.facebook.presto.presto-client
+language: Java
+message: pkg:maven/com.facebook.presto/presto-client
+metadata:
+  purl: pkg:maven/com.facebook.presto/presto-client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.facebook\.presto\.client)\.

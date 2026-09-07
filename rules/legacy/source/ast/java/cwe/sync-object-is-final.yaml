@@ -1,0 +1,26 @@
+id: sync-object-is-final
+message: '0202000010150309'
+language: Java
+rule:
+  pattern: synchronized ($A) {$$$}
+  inside:
+    kind: class_declaration
+    stopBy:
+      kind: class_declaration
+    has:
+      field: body
+      has:
+        kind: field_declaration
+        all:
+          - has:
+              kind: variable_declarator
+              stopBy:
+                kind: variable_declarator
+              has:
+                kind: identifier
+                field: name
+                pattern: $A
+          - not:
+              has:
+                kind: modifiers
+                regex: final

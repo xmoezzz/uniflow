@@ -30,3 +30,6 @@ serde_yaml.workspace = true
 uniflow-baseline = { path = "../baseline" }
 uniflow-checker-api = { path = "../checker_api" }
 uniflow-checker-host = { path = "../checker_host" }
+
+[dev-dependencies]
+regex-syntax.workspace = true

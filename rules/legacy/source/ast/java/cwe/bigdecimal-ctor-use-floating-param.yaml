@@ -1,0 +1,11 @@
+id: bigdecimal-ctor-use-floating-param
+message: '0202000010150117'
+language: Java
+rule:
+  any:
+  - pattern: new BigDecimal($_)
+  - pattern: new $_.BigDecimal($_)
+  has:
+    field: arguments
+    has:
+      kind: decimal_floating_point_literal

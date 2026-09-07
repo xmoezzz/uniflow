@@ -1,0 +1,17 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                optparse
+
+# DataflowSourceRule optparse 1
+# [{'NamespaceName': 'optparse', 'ClassName': 'OptionParser', 'FunctionName': 'parse_args', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_optparse_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^optparse\.OptionParser\.parse_args$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

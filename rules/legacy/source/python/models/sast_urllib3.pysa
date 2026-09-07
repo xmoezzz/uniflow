@@ -1,0 +1,59 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                urllib3
+
+# DataflowSourceRule urllib3 4
+# [{'NamespaceName': 'urllib3.connection', 'ClassName': '((Unv|V)erified)?HTTP(S)?Connection', 'FunctionName': 'getresponse', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.request', 'ClassName': 'RequestMethods', 'FunctionName': 'request(_encode_(url|body))?', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.connectionpool', 'ClassName': 'HTTP(S)?ConnectionPool', 'FunctionName': 'urlopen', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.poolmanager', 'ClassName': '(Proxy|Pool)Manager', 'FunctionName': 'urlopen', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_urllib3_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^urllib3\.connectionpool\.HTTP(S)?ConnectionPool\.urlopen$"),
+      name.matches("^urllib3\.request\.RequestMethods\.(request(_encode_(url|body))?)"),
+      name.matches("^urllib3\.connection\.(((Unv|V)erified)?HTTP(S)?Connection)\.getresponse$"),
+      name.matches("^urllib3\.poolmanager\.((Proxy|Pool)Manager)\.urlopen$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule urllib3 8
+# [{'NamespaceName': 'urllib3.connection', 'ClassName': '((Unv|V)erified)?HTTP(S)?Connection', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.connection', 'ClassName': '((Unv|V)erified)?HTTP(S)?Connection', 'FunctionName': 'request', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.request', 'ClassName': 'RequestMethods', 'FunctionName': 'request(_encode_(url|body))?', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.connectionpool', 'ClassName': 'HTTP(S)?ConnectionPool', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.connectionpool', 'ClassName': 'HTTP(S)?ConnectionPool', 'FunctionName': 'urlopen', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.connectionpool', 'ClassName': '', 'FunctionName': 'connection_from_url', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.poolmanager', 'ClassName': '(Proxy|Pool)Manager', 'FunctionName': 'urlopen', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib3.poolmanager', 'ClassName': '(Proxy|Pool)Manager', 'FunctionName': '__init__|connection_from_url', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_urllib3_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^urllib3\.connectionpool.*\.connection_from_url$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_server_side_request_forgery]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_urllib3_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^urllib3\.poolmanager\.((Proxy|Pool)Manager)\.urlopen$"),
+      name.matches("^urllib3\.poolmanager\.((Proxy|Pool)Manager)\.(__init__|connection_from_url)"),
+      name.matches("^urllib3\.connectionpool\.HTTP(S)?ConnectionPool\.urlopen$"),
+      name.matches("^urllib3\.connectionpool\.HTTP(S)?ConnectionPool\.__init__"),
+      name.matches("^urllib3\.connection\.(((Unv|V)erified)?HTTP(S)?Connection)\.__init__"),
+      name.matches("^urllib3\.connection\.(((Unv|V)erified)?HTTP(S)?Connection)\.request$"),
+      name.matches("^urllib3\.request\.RequestMethods\.(request(_encode_(url|body))?)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_server_side_request_forgery]
+    )
+  ]
+)

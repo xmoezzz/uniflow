@@ -1,0 +1,10 @@
+id: com.itextpdf.kernel
+language: Java
+message: pkg:maven/com.itextpdf/kernel
+metadata:
+  purl: pkg:maven/com.itextpdf/kernel
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.itextpdf\.kernel\.exceptions|com\.itextpdf\.kernel\.pdf\.collection|com\.itextpdf\.kernel\.events|com\.itextpdf\.kernel\.colors\.gradients|com\.itextpdf\.kernel\.xmp|com\.itextpdf\.kernel\.pdf\.canvas\.draw|com\.itextpdf\.kernel\.utils\.checkers|com\.itextpdf\.kernel\.pdf|com\.itextpdf\.kernel\.pdf\.colorspace|com\.itextpdf\.kernel\.pdf\.statistics|com\.itextpdf\.kernel\.pdf\.tagging|com\.itextpdf\.kernel\.xmp\.options|com\.itextpdf\.kernel\.pdf\.canvas|com\.itextpdf\.kernel\.geom|com\.itextpdf\.kernel\.pdf\.extgstate|com\.itextpdf\.kernel\.pdf\.function\.utils|com\.itextpdf\.kernel\.pdf\.tagutils|com\.itextpdf\.kernel\.pdf\.layer|com\.itextpdf\.kernel\.pdf\.navigation|com\.itextpdf\.kernel\.xmp\.impl|com\.itextpdf\.kernel\.utils\.annotationsflattening|com\.itextpdf\.kernel\.pdf\.canvas\.parser\.data|com\.itextpdf\.kernel\.pdf\.canvas\.parser|com\.itextpdf\.kernel\.crypto\.securityhandler|com\.itextpdf\.kernel\.pdf\.action|com\.itextpdf\.kernel\.pdf\.filespec|com\.itextpdf\.kernel\.logs|com\.itextpdf\.kernel\.pdf\.canvas\.parser\.clipper|com\.itextpdf\.kernel\.xmp\.properties|com\.itextpdf\.kernel\.utils\.objectpathitems|com\.itextpdf\.kernel\.pdf\.canvas\.parser\.filter|com\.itextpdf\.kernel\.security|com\.itextpdf\.kernel\.pdf\.function|com\.itextpdf\.kernel\.pdf\.annot\.da|com\.itextpdf\.kernel\.pdf\.annot|com\.itextpdf\.kernel\.utils|com\.itextpdf\.kernel\.pdf\.xobject|com\.itextpdf\.kernel\.colors|com\.itextpdf\.kernel\.actions\.data|com\.itextpdf\.kernel\.pdf\.canvas\.parser\.util|com\.itextpdf\.kernel\.pdf\.canvas\.parser\.listener|com\.itextpdf\.kernel\.pdf\.canvas\.wmf|com\.itextpdf\.kernel\.font|com\.itextpdf\.kernel\.numbering|com\.itextpdf\.kernel\.crypto|com\.itextpdf\.kernel\.actions\.events|com\.itextpdf\.kernel\.pdf\.filters|com\.itextpdf\.kernel\.xmp\.impl\.xpath)\.

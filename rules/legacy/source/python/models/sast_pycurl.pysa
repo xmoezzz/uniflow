@@ -1,0 +1,17 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                pycurl
+
+# DataflowSourceRule pycurl 1
+# [{'NamespaceName': 'pycurl', 'ClassName': 'Curl|CurlMulti', 'FunctionName': 'perform', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pycurl_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^pycurl\.(Curl|CurlMulti)\.perform$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

@@ -1,0 +1,10 @@
+id: ca.uhn.hapi.fhir.org.hl7.fhir.r5
+language: Java
+message: pkg:maven/ca.uhn.hapi.fhir/org.hl7.fhir.r5
+metadata:
+  purl: pkg:maven/ca.uhn.hapi.fhir/org.hl7.fhir.r5
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.hl7\.fhir\.r5\.utils\.client|org\.hl7\.fhir\.r5\.profilemodel\.gen|org\.hl7\.fhir\.r5\.terminologies\.expansion|org\.hl7\.fhir\.r5\.terminologies\.validation|org\.hl7\.fhir\.r5\.openapi|org\.hl7\.fhir\.r5\.test\.utils|org\.hl7\.fhir\.r5\.utils\.sql|org\.hl7\.fhir\.r5\.utils\.formats|org\.hl7\.fhir\.r5\.model|org\.hl7\.fhir\.r5\.terminologies\.providers|org\.hl7\.fhir\.r5\.utils\.client\.network|org\.hl7\.fhir\.r5\.elementmodel|org\.hl7\.fhir\.r5\.utils\.validation|org\.hl7\.fhir\.r5\.fhirpath|org\.hl7\.fhir\.r5\.comparison|org\.hl7\.fhir\.r5\.renderers\.spreadsheets|org\.hl7\.fhir\.r5\.conformance\.profile|org\.hl7\.fhir\.r5\.terminologies|org\.hl7\.fhir\.r5\.patterns|org\.hl7\.fhir\.r5\.formats|org\.hl7\.fhir\.r5\.terminologies\.client|org\.hl7\.fhir\.r5\.renderers|org\.hl7\.fhir\.r5\.utils|org\.hl7\.fhir\.r5\.profilemodel|org\.hl7\.fhir\.r5\.renderers\.utils|org\.hl7\.fhir\.r5\.utils\.validation\.constants|org\.hl7\.fhir\.r5\.conformance|org\.hl7\.fhir\.r5\.extensions|org\.hl7\.fhir\.r5\.ips|org\.hl7\.fhir\.r5\.context|org\.hl7\.fhir\.r5\.utils\.structuremap|org\.hl7\.fhir\.r5\.terminologies\.utilities)\.

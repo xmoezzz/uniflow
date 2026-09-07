@@ -18,7 +18,8 @@ fn parse_lvalue(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> 
             field,
         }
     } else {
-        let target = pointee_alias(normalized.trim(), env).unwrap_or_else(|| normalized.trim().to_string());
+        let target =
+            pointee_alias(normalized.trim(), env).unwrap_or_else(|| normalized.trim().to_string());
         if let Some((base, field)) = split_last_top_level_dot(&target) {
             LValue::Field {
                 base: Box::new(parse_expr(builder, &base, env)),
@@ -35,10 +36,12 @@ fn parse_lvalue(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> 
                     };
                 }
             }
-            let symbol = ensure_known_symbol(builder, &mut env.vars, target.as_str(), SymbolKind::Local);
+            let symbol =
+                ensure_known_symbol(builder, &mut env.vars, target.as_str(), SymbolKind::Local);
             LValue::Var(symbol)
         } else {
-            let symbol = ensure_known_symbol(builder, &mut env.vars, target.as_str(), SymbolKind::Local);
+            let symbol =
+                ensure_known_symbol(builder, &mut env.vars, target.as_str(), SymbolKind::Local);
             LValue::Var(symbol)
         }
     }
@@ -46,6 +49,37 @@ fn parse_lvalue(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> 
 
 fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Expr {
     let trimmed = text.trim();
+    if let Some(inner) = strip_balanced_outer_parens(trimmed) {
+        return parse_expr(builder, inner, env);
+    }
+    if let Some((left, right)) = split_top_level_assignment(trimmed) {
+        return Expr::Assign {
+            id: builder.alloc_expr_id(),
+            lhs: parse_lvalue(builder, left, env),
+            rhs: Box::new(parse_expr(builder, right, env)),
+            span: default_span(),
+        };
+    }
+    for (operators, op) in [
+        (&["||"][..], BinaryOp::Or),
+        (&["&&"][..], BinaryOp::And),
+        (&["=="][..], BinaryOp::Eq),
+        (&["!="][..], BinaryOp::Ne),
+        (&["<="][..], BinaryOp::Le),
+        (&[">="][..], BinaryOp::Ge),
+        (&["<"][..], BinaryOp::Lt),
+        (&[">"][..], BinaryOp::Gt),
+    ] {
+        if let Some((left, right)) = split_top_level_operator(trimmed, operators) {
+            return Expr::Binary {
+                id: builder.alloc_expr_id(),
+                op,
+                lhs: Box::new(parse_expr(builder, left, env)),
+                rhs: Box::new(parse_expr(builder, right, env)),
+                span: default_span(),
+            };
+        }
+    }
     let normalized = normalize_member_access(trimmed, env);
 
     if is_string_literal(trimmed) {
@@ -67,7 +101,8 @@ fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Ex
             if alias.contains('.') || alias.contains('[') {
                 return parse_expr(builder, alias.as_str(), env);
             }
-            let symbol = ensure_known_symbol(builder, &mut env.vars, alias.as_str(), SymbolKind::Local);
+            let symbol =
+                ensure_known_symbol(builder, &mut env.vars, alias.as_str(), SymbolKind::Local);
             return new_var_ref(builder, symbol);
         }
         return Expr::Unary {
@@ -126,7 +161,8 @@ fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Ex
             }
         }
         if env.function_pointer_vars.contains(bare_callee) {
-            let symbol = ensure_known_symbol(builder, &mut env.vars, bare_callee, SymbolKind::Local);
+            let symbol =
+                ensure_known_symbol(builder, &mut env.vars, bare_callee, SymbolKind::Local);
             let callee_expr = new_var_ref(builder, symbol);
             return new_dynamic_call(builder, callee_expr, None, args);
         }
@@ -145,3 +181,104 @@ fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Ex
     new_var_ref(builder, symbol)
 }
 
+fn strip_balanced_outer_parens(text: &str) -> Option<&str> {
+    if !text.starts_with('(') || !text.ends_with(')') {
+        return None;
+    }
+    let mut depth = 0usize;
+    let mut quote = None;
+    let mut escape = false;
+    for (index, ch) in text.char_indices() {
+        if let Some(active) = quote {
+            if escape {
+                escape = false;
+            } else if ch == '\\' {
+                escape = true;
+            } else if ch == active {
+                quote = None;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' => quote = Some(ch),
+            '(' => depth += 1,
+            ')' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 && index + ch.len_utf8() != text.len() {
+                    return None;
+                }
+            }
+            _ => {}
+        }
+    }
+    (depth == 0).then(|| text[1..text.len() - 1].trim())
+}
+
+fn split_top_level_assignment(text: &str) -> Option<(&str, &str)> {
+    let (left, right, index) = split_top_level_operator_at(text, &["="])?;
+    let previous = text[..index].chars().next_back();
+    let next = text[index + 1..].chars().next();
+    if matches!(
+        previous,
+        Some('=' | '!' | '<' | '>' | '+' | '-' | '*' | '/' | '%')
+    ) || next == Some('=')
+    {
+        return None;
+    }
+    Some((left, right))
+}
+
+fn split_top_level_operator<'a>(text: &'a str, operators: &[&str]) -> Option<(&'a str, &'a str)> {
+    split_top_level_operator_at(text, operators).map(|(left, right, _)| (left, right))
+}
+
+fn split_top_level_operator_at<'a>(
+    text: &'a str,
+    operators: &[&str],
+) -> Option<(&'a str, &'a str, usize)> {
+    let bytes = text.as_bytes();
+    let mut paren = 0usize;
+    let mut bracket = 0usize;
+    let mut brace = 0usize;
+    let mut quote = None;
+    let mut escape = false;
+    let mut index = 0usize;
+    while index < bytes.len() {
+        let ch = bytes[index] as char;
+        if let Some(active) = quote {
+            if escape {
+                escape = false;
+            } else if ch == '\\' {
+                escape = true;
+            } else if ch == active {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        match ch {
+            '\'' | '"' => quote = Some(ch),
+            '(' => paren += 1,
+            ')' => paren = paren.saturating_sub(1),
+            '[' => bracket += 1,
+            ']' => bracket = bracket.saturating_sub(1),
+            '{' => brace += 1,
+            '}' => brace = brace.saturating_sub(1),
+            _ => {}
+        }
+        if paren == 0 && bracket == 0 && brace == 0 {
+            if let Some(operator) = operators
+                .iter()
+                .find(|operator| text[index..].starts_with(**operator))
+            {
+                let left = text[..index].trim();
+                let right = text[index + operator.len()..].trim();
+                if !left.is_empty() && !right.is_empty() {
+                    return Some((left, right, index));
+                }
+            }
+        }
+        index += 1;
+    }
+    None
+}

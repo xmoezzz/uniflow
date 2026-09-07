@@ -1,0 +1,10 @@
+id: io.quarkus.quarkus-vertx-http-deployment
+language: Java
+message: pkg:maven/io.quarkus/quarkus-vertx-http-deployment
+metadata:
+  purl: pkg:maven/io.quarkus/quarkus-vertx-http-deployment
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.quarkus\.devui\.deployment\.menu|io\.quarkus\.vertx\.http\.deployment|io\.quarkus\.devui\.deployment\.welcome|io\.quarkus\.devui\.deployment|io\.quarkus\.devui\.deployment\.ide|io\.quarkus\.vertx\.http\.deployment\.devmode|io\.quarkus\.devui\.deployment\.build|io\.quarkus\.devui\.deployment\.logstream|io\.quarkus\.devui\.deployment\.extension|io\.quarkus\.devui\.deployment\.jsonrpc|io\.quarkus\.vertx\.http\.deployment\.webjar|io\.quarkus\.vertx\.http\.deployment\.console)\.

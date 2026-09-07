@@ -1,0 +1,10 @@
+id: com.alibaba.nacos.nacos-common
+language: Java
+message: pkg:maven/com.alibaba.nacos/nacos-common
+metadata:
+  purl: pkg:maven/com.alibaba.nacos/nacos-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.alibaba\.nacos\.common\.utils|com\.alibaba\.nacos\.common\.cache\.builder|com\.alibaba\.nacos\.common\.trace\.publisher|com\.alibaba\.nacos\.common\.cache\.decorators|com\.alibaba\.nacos\.common\.ability\.discover|com\.alibaba\.nacos\.common\.remote|com\.alibaba\.nacos\.common\.remote\.client|com\.alibaba\.nacos\.common\.constant|com\.alibaba\.nacos\.common\.spi|com\.alibaba\.nacos\.common\.http\.client\.handler|com\.alibaba\.nacos\.common\.packagescan\.util|com\.alibaba\.nacos\.common\.http\.client\.response|com\.alibaba\.nacos\.common\.pathencoder|com\.alibaba\.nacos\.common\.labels|com\.alibaba\.nacos\.common\.notify\.listener|com\.alibaba\.nacos\.common\.notify|com\.alibaba\.nacos\.common\.packagescan\.classreading|com\.alibaba\.nacos\.common\.cache\.impl|com\.alibaba\.nacos\.common\.task|com\.alibaba\.nacos\.common\.logging|com\.alibaba\.nacos\.common\.remote\.exception|com\.alibaba\.nacos\.common\.trace|com\.alibaba\.nacos\.common\.labels\.impl|com\.alibaba\.nacos\.common\.lifecycle|com\.alibaba\.nacos\.common\.remote\.client\.grpc|com\.alibaba\.nacos\.common\.http\.client|com\.alibaba\.nacos\.common\.pathencoder\.impl|com\.alibaba\.nacos\.common\.event|com\.alibaba\.nacos\.common\.model\.core|com\.alibaba\.nacos\.common\.packagescan\.resource|com\.alibaba\.nacos\.common|com\.alibaba\.nacos\.common\.packagescan|com\.alibaba\.nacos\.common\.codec|com\.alibaba\.nacos\.common\.executor|com\.alibaba\.nacos\.common\.paramcheck|com\.alibaba\.nacos\.common\.task\.engine|com\.alibaba\.nacos\.common\.trace\.event|com\.alibaba\.nacos\.common\.trace\.event\.naming|com\.alibaba\.nacos\.common\.cache|com\.alibaba\.nacos\.common\.tls|com\.alibaba\.nacos\.common\.http\.param|com\.alibaba\.nacos\.common\.ability|com\.alibaba\.nacos\.common\.http\.client\.request|com\.alibaba\.nacos\.common\.http|com\.alibaba\.nacos\.common\.model)\.

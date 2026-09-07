@@ -1,0 +1,10 @@
+id: org.apache.cxf.cxf-rt-transports-http
+language: Java
+message: pkg:maven/org.apache.cxf/cxf-rt-transports-http
+metadata:
+  purl: pkg:maven/org.apache.cxf/cxf-rt-transports-http
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.transport\.http\.spring|org\.apache\.cxf\.transport\.commons_text|org\.apache\.cxf\.transport\.https|org\.apache\.cxf\.transport\.servlet\.servicelist|org\.apache\.cxf\.transport\.http\.auth|org\.apache\.cxf\.transport\.https\.httpclient|org\.apache\.cxf\.transport\.servlet|org\.apache\.cxf\.transport\.http\.policy\.impl|org\.apache\.cxf\.transport\.http\.policy|org\.apache\.cxf\.transports\.http\.configuration|org\.apache\.cxf\.transport\.http)\.

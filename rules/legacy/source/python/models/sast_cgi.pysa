@@ -1,0 +1,17 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                cgi
+
+# DataflowSourceRule cgi 1
+# [{'NamespaceName': 'cgi', 'ClassName': 'FieldStorage', 'FunctionName': 'get(value|first|list)|__getitem__', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_cgi_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^cgi\.FieldStorage\.(get(value|first|list)|__getitem__)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

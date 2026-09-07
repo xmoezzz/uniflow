@@ -1,0 +1,10 @@
+id: org.apache.kylin.kylin-server
+language: Java
+message: pkg:maven/org.apache.kylin/kylin-server
+metadata:
+  purl: pkg:maven/org.apache.kylin/kylin-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(BOOT-INF\.classes\.org\.apache\.kylin\.rest\.discovery|org\.springframework\.boot\.loader|org\.springframework\.boot\.loader\.jarmode|BOOT-INF\.classes\.org\.apache\.kylin\.rest|org\.springframework\.boot\.loader\.data|BOOT-INF\.classes\.org\.apache\.kylin\.rest\.health|org\.springframework\.boot\.loader\.archive|org\.springframework\.boot\.loader\.util|org\.springframework\.boot\.loader\.jar|BOOT-INF\.classes\.org\.apache\.kylin\.rest\.security|BOOT-INF\.classes\.org\.apache\.kylin\.rest\.config)\.

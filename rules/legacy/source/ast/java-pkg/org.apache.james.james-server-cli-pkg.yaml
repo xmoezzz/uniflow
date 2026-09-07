@@ -1,0 +1,10 @@
+id: org.apache.james.james-server-cli
+language: Java
+message: pkg:maven/org.apache.james/james-server-cli
+metadata:
+  purl: pkg:maven/org.apache.james/james-server-cli
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.james\.cli\.type|org\.apache\.james\.cli\.probe\.impl|org\.apache\.james\.cli\.exceptions|org\.apache\.james\.cli)\.

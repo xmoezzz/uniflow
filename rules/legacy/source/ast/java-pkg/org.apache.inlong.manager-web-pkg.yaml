@@ -1,0 +1,10 @@
+id: org.apache.inlong.manager-web
+language: Java
+message: pkg:maven/org.apache.inlong/manager-web
+metadata:
+  purl: pkg:maven/org.apache.inlong/manager-web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.inlong\.manager\.web\.controller|org\.apache\.inlong\.manager\.web\.config|org\.apache\.inlong\.manager\.web\.aspect|org\.apache\.inlong\.manager\.web\.filter|org\.apache\.inlong\.manager\.web\.auth\.web|org\.apache\.inlong\.manager\.web\.trace|org\.apache\.inlong\.manager\.web\.auth\.tenant|org\.apache\.inlong\.manager\.web\.controller\.openapi|org\.apache\.inlong\.manager\.web\.utils|org\.apache\.inlong\.manager\.web\.auth|org\.apache\.inlong\.manager\.web\.auth\.openapi|org\.apache\.inlong\.manager\.web)\.

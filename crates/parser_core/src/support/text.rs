@@ -72,10 +72,70 @@ pub fn module_name_from_path(path: &str) -> String {
 }
 
 pub fn strip_c_like_comments(source: &str) -> String {
-    let line_re = Regex::new(r"//.*").expect("valid regex");
-    let block_re = Regex::new(r"(?s)/\*.*?\*/").expect("valid regex");
-    let without_blocks = block_re.replace_all(source, "");
-    line_re.replace_all(&without_blocks, "").into_owned()
+    let bytes = source.as_bytes();
+    let mut output = bytes.to_vec();
+    let mut index = 0;
+    let mut quote = None;
+    let mut escaped = false;
+    let mut line_comment = false;
+    let mut block_comment = false;
+    while index < bytes.len() {
+        if line_comment {
+            if bytes[index] == b'\n' {
+                line_comment = false;
+            } else if bytes[index] != b'\r' {
+                output[index] = b' ';
+            }
+            index += 1;
+            continue;
+        }
+        if block_comment {
+            if index + 1 < bytes.len() && bytes[index] == b'*' && bytes[index + 1] == b'/' {
+                output[index] = b' ';
+                output[index + 1] = b' ';
+                block_comment = false;
+                index += 2;
+            } else {
+                if !matches!(bytes[index], b'\n' | b'\r') {
+                    output[index] = b' ';
+                }
+                index += 1;
+            }
+            continue;
+        }
+        if let Some(current_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if bytes[index] == b'\\' {
+                escaped = true;
+            } else if bytes[index] == current_quote {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        if matches!(bytes[index], b'"' | b'\'') {
+            quote = Some(bytes[index]);
+            index += 1;
+            continue;
+        }
+        if index + 1 < bytes.len() && bytes[index] == b'/' && bytes[index + 1] == b'/' {
+            output[index] = b' ';
+            output[index + 1] = b' ';
+            line_comment = true;
+            index += 2;
+            continue;
+        }
+        if index + 1 < bytes.len() && bytes[index] == b'/' && bytes[index + 1] == b'*' {
+            output[index] = b' ';
+            output[index + 1] = b' ';
+            block_comment = true;
+            index += 2;
+            continue;
+        }
+        index += 1;
+    }
+    String::from_utf8(output).expect("comment masking preserves UTF-8")
 }
 
 pub fn split_top_level_commas(input: &str) -> Vec<String> {
@@ -153,6 +213,22 @@ pub fn split_top_level_commas(input: &str) -> Vec<String> {
     out
 }
 
+fn starts_with_c_like_block_statement(text: &str) -> bool {
+    [
+        "if", "while", "for", "switch", "try", "synchronized", "do",
+    ]
+    .iter()
+    .any(|keyword| starts_with_c_like_keyword(text, keyword))
+}
+
+fn starts_with_c_like_keyword(text: &str, keyword: &str) -> bool {
+    text.strip_prefix(keyword).is_some_and(|tail| {
+        tail.chars().next().is_none_or(|ch| {
+            !ch.is_alphanumeric() && !matches!(ch, '_' | '$')
+        })
+    })
+}
+
 pub fn split_top_level_statements_c_like(body: &str) -> Vec<String> {
     split_top_level_statements_c_like_with_offsets(body)
         .into_iter()
@@ -217,6 +293,27 @@ pub fn split_top_level_statements_c_like_with_offsets(body: &str) -> Vec<(usize,
             '}' => {
                 brace = brace.saturating_sub(1);
                 cur.push(ch);
+                if paren == 0
+                    && brace == 0
+                    && bracket == 0
+                    && starts_with_c_like_block_statement(cur.trim_start())
+                {
+                    let rest = body[idx + ch.len_utf8()..].trim_start();
+                    if !starts_with_c_like_keyword(rest, "else")
+                        && !starts_with_c_like_keyword(rest, "catch")
+                        && !starts_with_c_like_keyword(rest, "finally")
+                        && !(starts_with_c_like_keyword(cur.trim_start(), "do")
+                            && starts_with_c_like_keyword(rest, "while"))
+                    {
+                        let piece = cur.trim();
+                        let trim_prefix = cur.find(piece).unwrap_or(0);
+                        let start = stmt_start + trim_prefix;
+                        let end = start + piece.len();
+                        out.push((start, end, piece.to_string()));
+                        cur.clear();
+                        stmt_start = idx + ch.len_utf8();
+                    }
+                }
             }
             ';' if paren == 0 && brace == 0 && bracket == 0 => {
                 let piece = cur.trim();
@@ -462,4 +559,3 @@ pub fn is_probable_type_name(text: &str) -> bool {
     let first = text.trim().chars().next();
     matches!(first, Some(ch) if ch.is_ascii_uppercase())
 }
-

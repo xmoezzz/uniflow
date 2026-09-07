@@ -1,0 +1,10 @@
+id: org.apache.portals.jetspeed-2.jetspeed-security
+language: Java
+message: pkg:maven/org.apache.portals.jetspeed-2/jetspeed-security
+metadata:
+  purl: pkg:maven/org.apache.portals.jetspeed-2/jetspeed-security
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.jetspeed\.security\.impl\.ext|org\.apache\.jetspeed\.security\.util\.ojb|org\.apache\.jetspeed\.security\.mapping\.ldap|org\.apache\.jetspeed\.security|org\.apache\.jetspeed\.security\.spi\.impl|org\.apache\.jetspeed\.security\.mapping\.ldap\.filter|org\.apache\.jetspeed\.security\.mapping\.ldap\.dao|org\.apache\.jetspeed\.security\.impl|org\.apache\.jetspeed\.security\.spi\.impl\.cache|org\.apache\.jetspeed\.security\.activeauthentication|org\.apache\.jetspeed\.serializer|org\.apache\.jetspeed\.security\.mapping\.model|org\.apache\.jetspeed\.security\.util|org\.apache\.jetspeed\.security\.mapping|org\.apache\.jetspeed\.security\.mapping\.ldap\.dao\.impl|org\.apache\.jetspeed\.tools\.migration|org\.apache\.jetspeed\.security\.mapping\.impl|org\.apache\.jetspeed\.security\.mapping\.model\.impl|org\.apache\.jetspeed\.security\.spi)\.

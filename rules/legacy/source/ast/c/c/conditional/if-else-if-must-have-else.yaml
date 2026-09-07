@@ -1,0 +1,12 @@
+id: if-else-if-must-have-else
+message: '0601000010140024,0701000010130030'
+language: C
+rule:
+  all:
+    - kind: if_statement
+    - inside:
+        kind: else_clause
+    - not:
+        has:
+          kind: else_clause
+

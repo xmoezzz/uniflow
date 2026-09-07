@@ -1,0 +1,112 @@
+id: inner-class-use-outer-class-field
+message: '0202000010110056'
+language: Java
+utils:
+  is-class-object-decl:
+    all:
+      - any:
+          - kind: field_declaration
+      - has:
+          kind: variable_declarator
+          stopBy: end
+          has:
+            field: name
+            pattern:
+              selector: identifier
+              context: '$VAR'
+      - inside:
+          kind: class_body
+          inside:
+            kind: class_declaration
+            has:
+              field: name
+              pattern: $CLASS
+  is-object-decl:
+    any:
+      - all:
+        - kind: field_declaration
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+        - not:
+            inside:
+              kind: class_body
+              inside:
+                kind: class_declaration
+                has:
+                  field: name
+                  pattern: $CLASS
+      - all:
+        - kind: local_variable_declaration
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+          
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-class-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  kind: field_declaration
+  all:
+    - has:
+        field: declarator
+        has:
+          field: name
+          pattern: $VAR
+    - inside:
+        stopBy: 
+          kind: class_declaration
+        all:              
+          - has:
+              field: name
+              pattern: $CLASS
+          - has:
+              field: body
+              has:
+                stopBy:
+                  kind: class_declaration
+                kind: class_declaration
+                all:
+                  - has:
+                      kind: modifiers
+                      regex: public
+                  - has:
+                      field: body
+                      any:
+                        - has:
+                            kind: method_declaration
+                            has:
+                              stopBy:
+                                kind: class_declaration
+                              kind: identifier
+                              pattern: $VAR
+                              matches: recursion-find-object-decl

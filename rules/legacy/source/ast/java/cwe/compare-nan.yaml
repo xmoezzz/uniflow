@@ -1,0 +1,16 @@
+id: compare-nan
+message: '0202000010110053'
+language: Java
+rule:
+  kind: binary_expression
+  all:
+    - any:
+      - pattern: $LEFT == $RIGHT
+      - pattern: $LEFT != $RIGHT
+    - any:
+      - has:
+          field: left
+          regex: Double.NaN          
+      - has:
+          field: right
+          regex: Double.NaN

@@ -1,0 +1,6 @@
+id: hardcode-file-delimiter
+message: '0202000010110064'
+language: Java
+rule:
+  kind: string_literal
+  regex: (^\"\\\\\\\\\"$|^\"\\\\\"$)

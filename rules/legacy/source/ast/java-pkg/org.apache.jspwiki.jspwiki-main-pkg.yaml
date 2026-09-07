@@ -1,0 +1,10 @@
+id: org.apache.jspwiki.jspwiki-main
+language: Java
+message: pkg:maven/org.apache.jspwiki/jspwiki-main
+metadata:
+  purl: pkg:maven/org.apache.jspwiki/jspwiki-main
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.wiki\.variables|org\.apache\.wiki\.rpc\.atom|org\.apache\.wiki\.content|org\.apache\.wiki\.i18n|org\.apache\.wiki\.tags|org\.apache\.wiki\.auth\.user|org\.apache\.wiki\.diff|org\.apache\.wiki\.ui\.admin\.beans|org\.apache\.wiki\.auth\.acl|org\.apache\.wiki\.management|org\.apache\.wiki\.preferences|org\.apache\.wiki\.ajax|org\.apache\.wiki\.spi|org\.apache\.wiki\.references|org\.apache\.wiki\.auth\.permissions|org\.apache\.wiki\.plugin|org\.apache\.wiki\.workflow|org\.apache\.wiki\.render|org\.apache\.wiki\.ui\.progress|org\.apache\.wiki\.auth|org\.apache\.wiki\.forms|org\.apache\.wiki\.auth\.authorize|org\.apache\.wiki\.tasks\.pages|org\.apache\.wiki\.pages|org\.apache\.wiki\.url|org\.apache\.wiki\.xmlrpc|org\.apache\.wiki\.tasks\.auth|org\.apache\.wiki\.auth\.login|org\.apache\.wiki\.tasks|org\.apache\.wiki\.ui\.admin|org\.apache\.wiki\.modules|org\.apache\.wiki\.parser|org\.apache\.wiki|org\.apache\.wiki\.providers|org\.apache\.wiki\.filters|org\.apache\.wiki\.rss|org\.apache\.wiki\.search|org\.apache\.wiki\.ui|org\.apache\.wiki\.attachment)\.

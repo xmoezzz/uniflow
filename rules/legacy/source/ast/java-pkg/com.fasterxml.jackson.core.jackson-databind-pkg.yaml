@@ -1,0 +1,10 @@
+id: com.fasterxml.jackson.core.jackson-databind
+language: Java
+message: pkg:maven/com.fasterxml.jackson.core/jackson-databind
+metadata:
+  purl: pkg:maven/com.fasterxml.jackson.core/jackson-databind
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.fasterxml\.jackson\.databind\.node|com\.fasterxml\.jackson\.databind\.json|com\.fasterxml\.jackson\.databind\.ser\.impl|com\.fasterxml\.jackson\.databind\.jsonschema|com\.fasterxml\.jackson\.databind\.util|com\.fasterxml\.jackson\.databind\.ser|com\.fasterxml\.jackson\.databind\.module|com\.fasterxml\.jackson\.databind\.type|com\.fasterxml\.jackson\.databind\.annotation|com\.fasterxml\.jackson\.databind\.jdk14|com\.fasterxml\.jackson\.databind\.ext|META-INF\.versions\.9|com\.fasterxml\.jackson\.databind\.cfg|com\.fasterxml\.jackson\.databind\.deser\.impl|com\.fasterxml\.jackson\.databind\.exc|com\.fasterxml\.jackson\.databind\.deser|com\.fasterxml\.jackson\.databind\.util\.internal|com\.fasterxml\.jackson\.databind\.deser\.std|com\.fasterxml\.jackson\.databind\.ser\.std|com\.fasterxml\.jackson\.databind\.introspect|com\.fasterxml\.jackson\.databind|com\.fasterxml\.jackson\.databind\.jsontype|com\.fasterxml\.jackson\.databind\.jsonFormatVisitors|com\.fasterxml\.jackson\.databind\.jsontype\.impl)\.

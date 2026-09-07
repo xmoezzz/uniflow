@@ -1,0 +1,10 @@
+id: overly-board-catch
+message: '0102000010120001'
+language: Java
+rule:
+  kind: catch_clause
+  has:
+    kind: catch_formal_parameter
+    has:
+      kind: catch_type
+      regex: ^Exception$

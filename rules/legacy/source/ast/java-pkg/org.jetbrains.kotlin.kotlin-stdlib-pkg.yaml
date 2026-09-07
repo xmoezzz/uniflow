@@ -1,0 +1,10 @@
+id: org.jetbrains.kotlin.kotlin-stdlib
+language: Java
+message: pkg:maven/org.jetbrains.kotlin/kotlin-stdlib
+metadata:
+  purl: pkg:maven/org.jetbrains.kotlin/kotlin-stdlib
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(kotlin\.streams\.jdk8|kotlin\.collections\.unsigned|kotlin\.coroutines\.jvm\.internal|kotlin\.ranges|kotlin\.concurrent|kotlin\.io\.path|kotlin\.internal\.jdk8|kotlin\.io|kotlin\.comparisons|kotlin\.jvm\.optionals|kotlin\.properties|kotlin\.js|kotlin\.coroutines\.cancellation|kotlin\.collections|kotlin\.coroutines|kotlin\.collections\.jdk8|kotlin\.time|kotlin\.uuid|META-INF\.versions\.9|kotlin\.jvm\.internal|kotlin\.random|kotlin\.io\.encoding|kotlin\.internal\.jdk7|kotlin\.coroutines\.intrinsics|kotlin\.experimental|kotlin\.system|kotlin\.enums|kotlin\.internal|kotlin\.reflect|kotlin\.jvm\.internal\.markers|kotlin\.annotation|kotlin\.random\.jdk8|kotlin\.math|kotlin\.jvm\.functions|kotlin\.jvm|kotlin\.time\.jdk8|kotlin\.jvm\.jdk8|kotlin\.collections\.builders|kotlin\.text|kotlin\.text\.jdk8|kotlin|kotlin\.sequences|kotlin\.jdk7|kotlin\.contracts|kotlin\.jvm\.internal\.unsafe)\.

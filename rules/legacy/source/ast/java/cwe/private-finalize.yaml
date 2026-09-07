@@ -1,0 +1,12 @@
+id: private-finalize
+message: '0202000010110069'
+language: Java
+rule:
+  kind: method_declaration
+  all:
+    - has:
+        field: name
+        pattern: finalize
+    - has:
+        kind: modifiers
+        regex: (public|protected)

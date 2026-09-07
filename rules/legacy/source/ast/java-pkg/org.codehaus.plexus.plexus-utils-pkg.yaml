@@ -1,0 +1,10 @@
+id: org.codehaus.plexus.plexus-utils
+language: Java
+message: pkg:maven/org.codehaus.plexus/plexus-utils
+metadata:
+  purl: pkg:maven/org.codehaus.plexus/plexus-utils
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.codehaus\.plexus\.util|org\.codehaus\.plexus\.util\.cli\.shell|org\.codehaus\.plexus\.util\.reflection|META-INF\.versions\.10\.org\.codehaus\.plexus\.util|org\.codehaus\.plexus\.util\.io|org\.codehaus\.plexus\.util\.introspection|META-INF\.versions\.9\.org\.codehaus\.plexus\.util|org\.codehaus\.plexus\.util\.cli|org\.codehaus\.plexus\.util\.dag|META-INF\.versions\.11\.org\.codehaus\.plexus\.util)\.

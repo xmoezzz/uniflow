@@ -21,6 +21,7 @@ uniflow-rules = { path = "../rules" }
 
 [dev-dependencies]
 uniflow-lang-cpp = { path = "../lang_cpp" }
+uniflow-lang-java = { path = "../lang_java" }
 uniflow-parser-core = { path = "../parser_core" }
 uniflow-lang-python = { path = "../lang_python" }
 uniflow-lowering = { path = "../lowering" }

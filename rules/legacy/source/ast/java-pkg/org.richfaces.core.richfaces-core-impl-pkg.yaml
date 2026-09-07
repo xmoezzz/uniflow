@@ -1,0 +1,10 @@
+id: org.richfaces.core.richfaces-core-impl
+language: Java
+message: pkg:maven/org.richfaces.core/richfaces-core-impl
+metadata:
+  purl: pkg:maven/org.richfaces.core/richfaces-core-impl
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.richfaces\.renderkit\.html|org\.richfaces\.el|org\.richfaces\.renderkit\.util|org\.richfaces\.javascript|org\.ajax4jsf\.util|org\.richfaces\.skin|org\.richfaces\.cache\.lru|org\.richfaces\.application\.push\.impl\.jms|org\.richfaces|org\.richfaces\.renderkit|org\.richfaces\.context|org\.richfaces\.component|org\.richfaces\.cdi\.push|org\.richfaces\.application|org\.richfaces\.application\.push\.impl|org\.richfaces\.cache|org\.richfaces\.renderkit\.html\.images|org\.ajax4jsf\.util\.base64|org\.richfaces\.resource|org\.richfaces\.resource\.external|org\.richfaces\.webapp|org\.richfaces\.util|org\.richfaces\.resource\.css|org\.richfaces\.cdi\.push\.producer|org\.richfaces\.application\.configuration)\.

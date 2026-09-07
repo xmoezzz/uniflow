@@ -1,0 +1,16 @@
+id: sql-query-with-ibatis
+message: '0402000010020010,0402000010020017'
+language: Java
+rule:
+  kind: method_declaration
+  has:
+    kind: modifiers
+    has:
+      kind: annotation
+      all:
+      - has:
+          field: name
+          pattern: Select
+      - has:
+          field: arguments          
+          regex: \$\{.*\}

@@ -1,0 +1,10 @@
+id: org.infinispan.infinispan-client-hotrod
+language: Java
+message: pkg:maven/org.infinispan/infinispan-client-hotrod
+metadata:
+  purl: pkg:maven/org.infinispan/infinispan-client-hotrod
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.infinispan\.client\.hotrod\.event|org\.infinispan\.client\.hotrod\.exceptions|org\.infinispan\.client\.hotrod\.impl\.operations|org\.infinispan\.client\.hotrod\.impl\.transaction\.operations|org\.infinispan\.client\.hotrod\.counter\.operation|org\.infinispan\.client\.hotrod\.impl\.topology|org\.infinispan\.client\.hotrod\.near|org\.infinispan\.client\.hotrod\.event\.impl|org\.infinispan\.client\.hotrod\.jmx|org\.infinispan\.client\.hotrod\.impl\.query|org\.infinispan\.client\.hotrod\.impl\.transaction\.entry|org\.infinispan\.client\.hotrod\.impl\.transport\.tcp|org\.infinispan\.client\.hotrod\.security|org\.infinispan\.client\.hotrod\.impl\.transaction\.recovery|org\.infinispan\.client\.hotrod\.impl\.iteration|org\.infinispan\.client\.hotrod\.impl\.consistenthash|org\.infinispan\.client\.hotrod\.annotation|org\.infinispan\.client\.hotrod\.impl\.multimap\.operations|org\.infinispan\.client\.hotrod\.configuration|org\.infinispan\.client\.hotrod\.filter|org\.infinispan\.client\.hotrod\.impl\.async|org\.infinispan\.client\.hotrod\.marshall|org\.infinispan\.client\.hotrod\.multimap|org\.infinispan\.client\.hotrod\.impl\.transaction|org\.infinispan\.client\.hotrod\.telemetry\.impl|org\.infinispan\.client\.hotrod\.impl|org\.infinispan\.client\.hotrod\.impl\.transport\.netty|org\.infinispan\.client\.hotrod\.impl\.multimap\.protocol|org\.infinispan\.client\.hotrod\.transaction\.manager|org\.infinispan\.client\.hotrod\.impl\.multimap|org\.infinispan\.client\.hotrod|org\.infinispan\.client\.hotrod\.counter\.impl|org\.infinispan\.client\.hotrod\.impl\.multimap\.metadata|org\.infinispan\.client\.hotrod\.impl\.protocol|org\.infinispan\.client\.hotrod\.transaction\.lookup|org\.infinispan\.client\.hotrod\.logging)\.

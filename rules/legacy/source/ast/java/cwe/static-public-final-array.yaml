@@ -1,0 +1,14 @@
+id: static-public-final-array
+message: '0202000010130114'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+    - has:
+        kind: modifiers
+        all:
+          - regex: public
+          - regex: static
+          - regex: final
+    - has:
+        kind: array_type

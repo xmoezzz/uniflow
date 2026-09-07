@@ -1,0 +1,283 @@
+# YAML Rule is more powerful!
+# https://ast-grep.github.io/guide/rule-config.html#rule
+id: security_features_insufficient_key_size
+message: '0503000010080010'
+language: cs
+utils:
+  is-type-object-decl-aes:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+            - kind: using_statement
+        - has:
+            kind: variable_declaration
+            stopBy: end
+            all:
+              - has:
+                  field: type
+                  regex: ^(.*\.)?Aes$
+              - has:
+                  kind: variable_declarator
+                  stopBy: end
+                  has: 
+                    kind: identifier
+                    pattern: $VAR
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?Aes$
+            - has:
+                field: name
+                pattern: '$VAR'
+  is-object-decl-aes:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?Aes$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              kind: variable_declarator
+              pattern: $VAR
+              stopBy: end
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?Aes$
+            - has:
+                field: name
+                pattern: '$VAR'
+  is-type-object-decl-rsa&dsa:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+            - kind: using_statement
+        - has:
+            kind: variable_declaration
+            stopBy: end
+            all:
+              - has:
+                  field: type
+                  regex: ^(.*\.)?(RSA||DSA)$
+              - has:
+                  kind: variable_declarator
+                  stopBy: end
+                  has: 
+                    kind: identifier
+                    pattern: $VAR
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?(RSA||DSA)$
+            - has:
+                field: name
+                pattern: '$VAR'
+  is-object-decl-rsa&dsa:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?(RSA||DSA)$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              kind: variable_declarator
+              pattern: $VAR
+              stopBy: end
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?(RSA||DSA)$
+            - has:
+                field: name
+                pattern: '$VAR'
+  is-type-object-decl-tripledes:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+            - kind: using_statement
+        - has:
+            kind: variable_declaration
+            stopBy: end
+            all:
+              - has:
+                  field: type
+                  regex: ^(.*\.)?TripleDES$
+              - has:
+                  kind: variable_declarator
+                  stopBy: end
+                  has: 
+                    kind: identifier
+                    pattern: $VAR
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?TripleDES$
+            - has:
+                field: name
+                pattern: '$VAR'
+  is-object-decl-tripledes:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?TripleDES$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              kind: variable_declarator
+              pattern: $VAR
+              stopBy: end
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?TripleDES$
+            - has:
+                field: name
+                pattern: '$VAR'
+
+  recursion-find-object-decl-aes:
+    inside:
+      all:
+        - not:
+            kind: compilation_unit
+        - any:
+          - has:
+              matches: is-type-object-decl-aes
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl-aes
+            - matches: recursion-find-object-decl-aes
+  recursion-find-object-decl-rsa&dsa:
+    inside:
+      all:
+        - not:
+            kind: compilation_unit
+        - any:
+          - has:
+              matches: is-type-object-decl-rsa&dsa
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl-rsa&dsa
+            - matches: recursion-find-object-decl-rsa&dsa
+  recursion-find-object-decl-tripledes:
+    inside:
+      all:
+        - not:
+            kind: compilation_unit
+        - any:
+          - has:
+              matches: is-type-object-decl-tripledes
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl-tripledes
+            - matches: recursion-find-object-decl-tripledes
+  Finder-Aes:
+    kind: assignment_expression
+    pattern: $_.KeySize = $_
+    all:
+        - has:
+            kind: integer_literal
+            filed: right
+            regex: ^(?:[0-9]{1,2}|1[0-2][0-7])$
+        - has:
+            kind: member_access_expression
+            pattern: $_.KeySize
+            has:
+                filed: expression
+                pattern: $VAR
+                inside:
+                  matches: recursion-find-object-decl-aes
+  Finder-RSA&DSA:
+    kind: assignment_expression
+    pattern: $_.KeySize = $_
+    all:
+        - has:
+            kind: integer_literal
+            filed: right
+            regex: ^(?:[0-9]{1,3}|1[0-9]{3}|20[0-3][0-9]|204[0-7])$
+        - has:
+            kind: member_access_expression
+            pattern: $_.KeySize
+            has:
+                filed: expression
+                pattern: $VAR
+                inside:
+                  matches: recursion-find-object-decl-rsa&dsa
+  Finder-TripleDES:
+    kind: assignment_expression
+    pattern: $_.KeySize = $_
+    all:
+        - has:
+            kind: integer_literal
+            filed: right
+            regex: ^(?:[0-9]{1,2}|1[0-5][0-9]|16[0-7])$
+        - has:
+            kind: member_access_expression
+            pattern: $_.KeySize
+            has:
+                filed: expression
+                pattern: $VAR
+                inside:
+                  matches: recursion-find-object-decl-tripledes
+
+rule:
+  any:  
+    - matches: Finder-Aes
+    - matches: Finder-RSA&DSA
+    - matches: Finder-TripleDES
+    - all:
+        - kind: object_creation_expression
+        - pattern: new RSACryptoServiceProvider($NUM)
+constraints:
+    NUM: 
+      kind: argument
+      has:
+        kind: integer_literal
+        regex: ^(?:[0-9]{1,3}|1[0-9]{3}|20[0-3][0-9]|204[0-7])$

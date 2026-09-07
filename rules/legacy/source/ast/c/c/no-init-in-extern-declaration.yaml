@@ -1,0 +1,11 @@
+id: no-init-in-extern-declaration
+message: '0701000010130012'
+language: C
+rule:
+  all:
+    - kind: declaration
+    - has:
+        kind: storage_class_specifier
+        regex: "extern"
+    - has:
+        kind: init_declarator

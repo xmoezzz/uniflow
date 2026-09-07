@@ -1,0 +1,10 @@
+id: org.springframework.security.spring-security-cas
+language: Java
+message: pkg:maven/org.springframework.security/spring-security-cas
+metadata:
+  purl: pkg:maven/org.springframework.security/spring-security-cas
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.security\.cas|org\.springframework\.security\.cas\.authentication|org\.springframework\.security\.cas\.web|org\.springframework\.security\.cas\.web\.authentication|org\.springframework\.security\.cas\.jackson2|org\.springframework\.security\.cas\.userdetails)\.

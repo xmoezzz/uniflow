@@ -1,0 +1,10 @@
+id: org.apache.uima.uimaj-tools
+language: Java
+message: pkg:maven/org.apache.uima/uimaj-tools
+metadata:
+  purl: pkg:maven/org.apache.uima/uimaj-tools
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.uima\.tools\.components|org\.apache\.uima\.tools\.docanalyzer|org\.apache\.uima\.tools\.pear\.packager|org\.apache\.uima\.tools\.viewer|org\.apache\.uima\.tools\.cvd\.control|org\.apache\.uima\.tools\.pear\.merger|org\.apache\.uima\.tools\.cvd|org\.apache\.uima\.tools\.stylemap|org\.apache\.uima\.tools\.util\.htmlview|org\.apache\.uima\.tools|org\.apache\.uima\.tools\.cpm|org\.apache\.uima\.tools\.pear\.install|org\.apache\.uima\.tools\.annot_view|org\.apache\.uima\.tools\.images|org\.apache\.uima\.tools\.cvd\.tsview|org\.apache\.uima\.tools\.util\.gui|org\.apache\.uima\.tools\.jcasgen)\.

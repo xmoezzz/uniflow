@@ -1,0 +1,143 @@
+metadata:
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-activerecord-sqli, title: AWS ActiveRecord SQL injection, message: AWS Lambda event data reaches an ActiveRecord SQL execution API., severity: warning, cwe: [CWE-89], standards: [semgrep/ruby/aws-lambda/security/activerecord-sqli.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-mysql2-sqli, title: AWS mysql2 SQL injection, message: AWS Lambda event data reaches a mysql2 query API., severity: warning, cwe: [CWE-89], standards: [semgrep/ruby/aws-lambda/security/mysql2-sqli.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-pg-sqli, title: AWS PostgreSQL SQL injection, message: AWS Lambda event data reaches a PostgreSQL query API., severity: warning, cwe: [CWE-89], standards: [semgrep/ruby/aws-lambda/security/pg-sqli.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-sequel-sqli, title: AWS Sequel SQL injection, message: AWS Lambda event data reaches a Sequel query API., severity: warning, cwe: [CWE-89], standards: [semgrep/ruby/aws-lambda/security/sequel-sqli.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-tainted-deserialization, title: AWS unsafe deserialization, message: AWS Lambda event data reaches an unsafe Ruby deserializer., severity: warning, cwe: [CWE-502], standards: [semgrep/ruby/aws-lambda/security/tainted-deserialization.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-tainted-sql-string, title: AWS tainted SQL string, message: AWS Lambda event data is composed into SQL text., severity: warning, cwe: [CWE-89], standards: [semgrep/ruby/aws-lambda/security/tainted-sql-string.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-bad-deserialization, title: Unsafe Ruby deserialization, message: Request data reaches an unsafe Ruby deserializer., severity: error, cwe: [CWE-502], standards: [semgrep/ruby/lang/security/bad-deserialization.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-dangerous-exec, title: Ruby command injection, message: Function or request input reaches a command execution API., severity: warning, cwe: [CWE-78], standards: [semgrep/ruby/lang/security/dangerous-exec.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-divide-by-zero, title: Integer division by zero, message: An integer numerator is divided by zero., severity: warning, cwe: [CWE-369], standards: [semgrep/ruby/lang/security/divide-by-zero.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-json-encoding, title: Unsafe JSON encoding, message: Request data is directly JSON encoded for an unsafe output context., severity: warning, cwe: [CWE-79], standards: [semgrep/ruby/lang/security/json-encoding.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-md5-used-as-password, title: MD5 used for a password, message: An MD5 digest reaches a password operation., severity: warning, cwe: [CWE-327], standards: [semgrep/ruby/lang/security/md5-used-as-password.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-ruby-eval, title: Ruby dynamic evaluation, message: Request or dynamically compiled input reaches eval., severity: warning, cwe: [CWE-95], standards: [semgrep/ruby/lang/security/no-eval.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-rails-no-render-after-save, title: Render after ActiveRecord save, message: An object is rendered after it has been saved; redirect instead., severity: warning, standards: [semgrep/ruby/rails/correctness/rails-no-render-after-save.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-session-manipulation, title: Tainted Rails session access, message: Request data controls a Rails session key., severity: warning, cwe: [CWE-20], standards: [semgrep/ruby/rails/security/audit/avoid-session-manipulation.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-tainted-file-access, title: Tainted file access, message: Request data reaches a filesystem API., severity: warning, cwe: [CWE-22], standards: [semgrep/ruby/rails/security/audit/avoid-tainted-file-access.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-tainted-ftp-call, title: Tainted FTP call, message: Request data reaches a Net::FTP operation., severity: warning, cwe: [CWE-918], standards: [semgrep/ruby/rails/security/audit/avoid-tainted-ftp-call.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-tainted-http-request, title: Tainted HTTP request, message: Request data reaches a Net::HTTP operation., severity: warning, cwe: [CWE-918], standards: [semgrep/ruby/rails/security/audit/avoid-tainted-http-request.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-tainted-shell-call, title: Tainted Shell call, message: Request data reaches a Ruby Shell or Kernel operation., severity: warning, cwe: [CWE-78], standards: [semgrep/ruby/rails/security/audit/avoid-tainted-shell-call.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-dynamic-finders, title: Sensitive dynamic finder, message: Request data reaches a sensitive ActiveRecord dynamic finder., severity: warning, cwe: [CWE-639], standards: [semgrep/ruby/rails/security/audit/dynamic-finders.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-number-to-currency, title: Tainted currency unit, message: Request data controls number_to_currency unit output., severity: warning, cwe: [CWE-79], standards: [semgrep/ruby/rails/security/audit/number-to-currency.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-quote-table-name, title: Tainted table name, message: Request data reaches quote_table_name., severity: warning, cwe: [CWE-89], standards: [semgrep/ruby/rails/security/audit/quote-table-name.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-ruby-pg-sqli, title: Ruby PostgreSQL SQL injection, message: Request data reaches a pg exec API., severity: warning, cwe: [CWE-89], standards: [semgrep/ruby/rails/security/audit/sqli/ruby-pg-sqli.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-link-to, title: Tainted link_to destination, message: Request or model URL data reaches link_to., severity: warning, cwe: [CWE-79], standards: [semgrep/ruby/rails/security/audit/xss/avoid-link-to.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-redirect, title: Tainted Rails redirect, message: Request or model data reaches redirect_to., severity: warning, cwe: [CWE-601], standards: [semgrep/ruby/rails/security/audit/xss/avoid-redirect.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-render-dynamic-path, title: Dynamic Rails render path, message: Request data controls a render path option., severity: warning, cwe: [CWE-22], standards: [semgrep/ruby/rails/security/audit/xss/avoid-render-dynamic-path.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-redirect-to, title: Unsafe redirect_to, message: Request data reaches redirect_to without an adequate path restriction., severity: warning, cwe: [CWE-601], standards: [semgrep/ruby/rails/security/brakeman/check-redirect-to.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-regex-dos, title: User-controlled regular expression, message: Request or record data controls a regular expression., severity: error, cwe: [CWE-1333], standards: [semgrep/ruby/rails/security/brakeman/check-regex-dos.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-render-local-file-include, title: Local file inclusion through render, message: Request data reaches a Rails render path., severity: warning, cwe: [CWE-22], standards: [semgrep/ruby/rails/security/brakeman/check-render-local-file-include.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-send-file, title: Arbitrary file read through send_file, message: Request data reaches send_file., severity: error, cwe: [CWE-22], standards: [semgrep/ruby/rails/security/brakeman/check-send-file.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-sql, title: Unsafe ActiveRecord query construction, message: Request data reaches an unsafe ActiveRecord query position., severity: error, cwe: [CWE-89], standards: [semgrep/ruby/rails/security/brakeman/check-sql.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-methods, title: Unsafe Ruby reflection method, message: Request data controls method, tap, or to_proc reflection., severity: error, cwe: [CWE-470], standards: [semgrep/ruby/rails/security/brakeman/check-unsafe-reflection-methods.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection, title: Unsafe Ruby constant reflection, message: Request data reaches constantize or const_get., severity: error, cwe: [CWE-470], standards: [semgrep/ruby/rails/security/brakeman/check-unsafe-reflection.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-unscoped-find, title: Unscoped ActiveRecord find, message: Request data reaches an unscoped model lookup., severity: warning, cwe: [CWE-639], standards: [semgrep/ruby/rails/security/brakeman/check-unscoped-find.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-raw-html-format, title: Tainted raw HTML composition, message: Request data is composed into an HTML string., severity: warning, cwe: [CWE-79], standards: [semgrep/ruby/rails/security/injection/raw-html-format.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-rails-tainted-sql-string, title: Tainted Rails SQL string, message: Request data is composed into SQL text or an unsafe query condition., severity: warning, cwe: [CWE-89], standards: [semgrep/ruby/rails/security/injection/tainted-sql-string.yaml] }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-tainted-url-host, title: Tainted URL host composition, message: Request data controls the host portion of a URL., severity: warning, cwe: [CWE-918], standards: [semgrep/ruby/rails/security/injection/tainted-url-host.yaml] }
+
+named_value_sources:
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-aws-event, language: ruby, name_regex: '^event$', kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-web-input, language: ruby, name_regex: '^(params|cookies|request)$', kind: semgrep.ruby.web-input }
+
+function_sources:
+- id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-function-argument
+  language: ruby
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.ruby.function-argument
+
+sources:
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-aws-event-access, language: ruby, matcher: { exact: event }, out: return, kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-web-access, language: ruby, matcher: { regex: '^(params|cookies|request)([.]env)?$' }, out: return, kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-md5, language: ruby, matcher: { regex: '(^|[.])Digest[.]MD5([.]|$)' }, out: return, kind: semgrep.ruby.md5 }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-compiled-code, language: ruby, matcher: { regex: '(^|[.])RubyVM[.]InstructionSequence[.]compile$' }, out: return, kind: semgrep.ruby.eval }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-saved-record, language: ruby, matcher: { method_name: save }, out: receiver, kind: semgrep.ruby.saved-record }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-record-attribute, language: ruby, matcher: { method_regex: '^(read_attribute|find|find_by_sql|first|last|where|all|create|new|from|group|having|joins|lock|order|reorder|select|take)$' }, out: return, kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-model-url, language: ruby, matcher: { method_regex: '^(url|uri|link|page|site)$' }, out: return, kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-integer-division, language: ruby, matcher: { exact: __uniflow.binary.division, arg_count: 2 }, out: arg0, kind: semgrep.ruby.integer }
+
+sinks:
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-activerecord-sqli, language: ruby, matcher: { method_regex: '^(execute|find_by_sql|select_all)$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-mysql2-sqli, language: ruby, matcher: { method_regex: '^(query|prepare)$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-pg-sqli, language: ruby, matcher: { method_regex: '^(exec|exec_params|exec_prepared|async_exec|async_exec_params|async_exec_prepared)$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-sequel-sqli-MODEL-run, language: ruby, matcher: { method_name: run, arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-tainted-deserialization, language: ruby, matcher: { regex: '(^|[.])(YAML|CSV|Marshal)[.](load|restore)$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-tainted-sql-string, language: ruby, matcher: { exact: __uniflow.compose.string, arg_count: 2 }, inputs: [arg0], kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-bad-deserialization, language: ruby, matcher: { regex: '(^|[.])(CSV[.]load|Marshal[.](load|restore)|Oj[.](object_load|load))$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-dangerous-exec, language: ruby, matcher: { regex: '(^|[.])(system|exec|spawn|Process[.](exec|spawn)|Open3[.](capture2|capture2e|capture3|popen2|popen2e|popen3)|IO[.]popen|Gem[.]Util[.]popen|PTY[.]spawn)$', arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.function-argument }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-divide-by-zero, language: ruby, matcher: { exact: __uniflow.binary.division, arg_count: 2 }, inputs: [arg0], kind: semgrep.ruby.integer }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-json-encoding-MODEL-to-json, language: ruby, matcher: { regex: '[.]to_json$', arg_count: 0 }, inputs: [receiver], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-json-encoding-MODEL-json-encode, language: ruby, matcher: { regex: '(^|[.])JSON[.]encode$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-md5-used-as-password, language: ruby, matcher: { regex: '(?i)password' }, inputs: [receiver, args_from0], kind: semgrep.ruby.md5 }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-ruby-eval-MODEL-web, language: ruby, matcher: { method_regex: '^(eval|class_eval|instance_eval|module_eval)$' }, inputs: [receiver, args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-ruby-eval-MODEL-compiled, language: ruby, matcher: { method_regex: '^(eval|class_eval|instance_eval|module_eval)$' }, inputs: [receiver, args_from0], kind: semgrep.ruby.eval }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-rails-no-render-after-save, language: ruby, matcher: { exact: render, arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.saved-record }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-tainted-file-access, language: ruby, matcher: { regex: '(^|[.])(Dir|File|IO|Kernel|PStore|Pathname)[.](chdir|chroot|delete|entries|foreach|glob|install|lchmod|lchown|link|load|load_file|makedirs|move|new|open|read|readlines|rename|rmdir|safe_unlink|symlink|syscopy|sysopen|truncate|unlink)$', arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-tainted-ftp-call, language: ruby, matcher: { regex: '(^|[.])(Net[.]FTP[.])?(new|open|connect|get|getbinaryfile|gettextfile|put|putbinaryfile|puttextfile|delete|storlines|storbinary|sendcmd|retrlines|retrbinary)$', arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-tainted-http-request, language: ruby, matcher: { regex: '(^|[.])Net[.]HTTP([.].*)?[.](new|get|get2|head|head2|options|patch|post|post2|post_form|put|request|request_get|request_head|request_post|send_request|trace|get_print|get_response|start)$', arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-tainted-shell-call, language: ruby, matcher: { method_regex: '^(cat|chdir|chroot|delete|entries|exec|foreach|glob|install|lchmod|lchown|link|load|load_file|makedirs|move|new|open|read|readlines|rename|rmdir|safe_unlink|symlink|syscopy|sysopen|system|truncate|unlink)$', arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-dynamic-finders, language: ruby, matcher: { method_regex: '^find_by_(token|guid|password|api_key|activation|code|private|reset)$', arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-number-to-currency, language: ruby, matcher: { exact: number_to_currency, arg_count_min: 2 }, inputs: ['named:unit'], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-quote-table-name, language: ruby, matcher: { exact: quote_table_name, arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-ruby-pg-sqli, language: ruby, matcher: { method_regex: '^(exec|exec_params)$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-link-to, language: ruby, matcher: { exact: link_to, arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-redirect, language: ruby, matcher: { exact: redirect_to, arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-render-dynamic-path, language: ruby, matcher: { exact: render, arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-redirect-to, language: ruby, matcher: { exact: redirect_to, arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-regex-dos-MODEL-new, language: ruby, matcher: { regex: '(^|[.])Regexp[.]new$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-regex-dos-MODEL-compose, language: ruby, matcher: { exact: __uniflow.compose.string, arg_count: 2 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-render-local-file-include, language: ruby, matcher: { exact: render, arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-send-file, language: ruby, matcher: { exact: send_file, arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-sql, language: ruby, matcher: { method_regex: '^(where|find|first|last|select|minimum|maximum|calculate|sum|average)$', arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-methods-MODEL-call, language: ruby, matcher: { method_regex: '^(method|tap)$', arg_count_min: 1 }, inputs: [args_from0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-methods-MODEL-proc, language: ruby, matcher: { regex: '(^|[.])to_proc[.]call$' }, inputs: [receiver], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-MODEL-constantize, language: ruby, matcher: { regex: '[.](constantize|safe_constantize)$' }, inputs: [receiver], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-MODEL-const-get, language: ruby, matcher: { method_regex: '^(const_get|qualified_const_get)$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-check-unscoped-find, language: ruby, matcher: { method_regex: '^(find|find_by_id|find_by_id!)$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-raw-html-format, language: ruby, matcher: { exact: __uniflow.compose.string, arg_count: 2 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-rails-tainted-sql-string-MODEL-query, language: ruby, matcher: { method_regex: '^(where|find|execute)$', arg_count_min: 1 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-rails-tainted-sql-string-MODEL-compose, language: ruby, matcher: { exact: __uniflow.compose.string, arg_count: 2 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-tainted-url-host, language: ruby, matcher: { exact: __uniflow.compose.string, arg_count: 2 }, inputs: [arg0], kind: semgrep.ruby.web-input }
+
+index_sinks:
+- { id: LEGACY-RUBY-SEMGREP-TAINT-aws-sequel-sqli, language: ruby, direct_only: false, on_load: true, on_store: false, base_name_regex: '^DB$', kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-avoid-session-manipulation, language: ruby, direct_only: false, on_load: true, on_store: false, base_name_regex: '^session$', kind: semgrep.ruby.web-input }
+
+sink_reports:
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-aws-sequel-sqli-MODEL-run, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-aws-sequel-sqli }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-json-encoding-MODEL-to-json, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-json-encoding }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-json-encoding-MODEL-json-encode, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-json-encoding }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-ruby-eval-MODEL-web, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-ruby-eval }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-ruby-eval-MODEL-compiled, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-ruby-eval }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-regex-dos-MODEL-new, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-regex-dos }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-regex-dos-MODEL-compose, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-regex-dos }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-methods-MODEL-call, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-methods }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-methods-MODEL-proc, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-methods }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-MODEL-constantize, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection-MODEL-const-get, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-check-unsafe-reflection }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-rails-tainted-sql-string-MODEL-query, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-rails-tainted-sql-string }
+- { sink_rule_id: LEGACY-RUBY-SEMGREP-TAINT-rails-tainted-sql-string-MODEL-compose, report_rule_id: LEGACY-RUBY-SEMGREP-TAINT-rails-tainted-sql-string }
+
+sanitizers:
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SANITIZER-mysql-escape, language: ruby, matcher: { method_name: escape, arg_count_min: 1 }, inputs: [arg0], outputs: [return], kind: semgrep.ruby.aws-event }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SANITIZER-html, language: ruby, matcher: { regex: '(^|[.])(h|sanitize|strip_tags)$', arg_count_min: 1 }, inputs: [arg0], outputs: [return], kind: semgrep.ruby.web-input }
+- { id: LEGACY-RUBY-SEMGREP-TAINT-SANITIZER-number, language: ruby, matcher: { method_regex: '^(to_i|to_f)$' }, inputs: [receiver], outputs: [return], kind: semgrep.ruby.web-input }
+
+call_conditions:
+- rule_id: LEGACY-RUBY-SEMGREP-TAINT-SOURCE-integer-division
+  condition:
+    op: all
+    args:
+    - { op: value_matches, args: { port: arg0, regex: '^-?[0-9]+$' } }
+    - { op: value_matches, args: { port: arg1, exact: '0' } }
+- rule_id: LEGACY-RUBY-SEMGREP-TAINT-divide-by-zero
+  condition: { op: value_matches, args: { port: arg1, exact: '0' } }
+- rule_id: LEGACY-RUBY-SEMGREP-TAINT-aws-tainted-sql-string
+  condition: { op: value_matches, args: { port: arg1, regex: '(?i)(select|delete|insert|create|update|alter|drop|[<>=])' } }
+- rule_id: LEGACY-RUBY-SEMGREP-TAINT-raw-html-format
+  condition: { op: value_matches, args: { port: arg1, regex: '<[A-Za-z][^>]*>' } }
+- rule_id: LEGACY-RUBY-SEMGREP-TAINT-rails-tainted-sql-string-MODEL-compose
+  condition: { op: value_matches, args: { port: arg1, regex: '(?i)(select|delete|insert|create|update|alter|drop|[<>=])' } }
+- rule_id: LEGACY-RUBY-SEMGREP-TAINT-tainted-url-host
+  condition: { op: value_matches, args: { port: arg1, regex: '(?i)(https?|wss?|ftp)://' } }

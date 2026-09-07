@@ -1,0 +1,14 @@
+id: not-safe-cryptographic-algorithm
+message: '0402000010170014,0402000010150202'
+language: Java
+
+rule:
+  kind: method_invocation
+  pattern: $$$.getInstance($$$)
+  has:
+    field: arguments
+    any:
+    - regex: \"(DES|DES/.*)\"
+    - regex: \"(3DES|3DES/.*)\"
+    - regex: \"(RC4|RC4/.*)\"
+    - regex: \"(RC5|RC5/.*)\"

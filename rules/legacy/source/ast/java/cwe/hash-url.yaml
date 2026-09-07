@@ -1,0 +1,19 @@
+id: hash-url
+message: '0202000010110202'
+language: Java
+rule:
+  any:
+    - kind: local_variable_declaration
+    - kind: formal_parameter
+    - kind: field_declaration
+  has:
+    field: type
+    any:
+      - pattern: Set<URL $$$>
+      - pattern: $_.Set<URL $$$>
+      - pattern: Set<$_.URL $$$>
+      - pattern: $_.Set<$_.URL $$$>
+      - pattern: Map<URL $$$>
+      - pattern: $_.Map<URL $$$>
+      - pattern: Map<$_.URL $$$>
+      - pattern: $_.Map<$_.URL $$$>

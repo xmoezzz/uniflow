@@ -1,0 +1,32 @@
+id: serial-version-uid-defined
+message: '0202000010150451'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+  - has:
+      field: declarator
+      has:
+        field: name
+        pattern: serialVersionUID
+  - inside:
+      stopBy: 
+        kind: class_declaration
+      kind: class_declaration
+      has:
+        field: interfaces
+        has:
+          stopBy: end
+          kind: type_identifier
+          regex: ^Serializable$
+  - any:
+    - not:
+        has:
+          field: type
+          regex: long
+    - not:
+        has:
+          kind: modifiers
+          all:
+          - regex: static
+          - regex: final

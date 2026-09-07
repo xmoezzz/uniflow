@@ -1,0 +1,10 @@
+id: org.igniterealtime.smack.smack-core
+language: Java
+message: pkg:maven/org.igniterealtime.smack/smack-core
+metadata:
+  purl: pkg:maven/org.igniterealtime.smack/smack-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jivesoftware\.smack\.initializer|org\.jivesoftware\.smack\.debugger|org\.jivesoftware\.smack\.packet\.id|org\.jivesoftware\.smack\.altconnections|org\.jivesoftware\.smack\.fsm|org\.jivesoftware\.smack\.c2s\.internal|org\.jivesoftware\.smack\.filter\.jidtype|org\.jivesoftware\.smack\.compression|org\.jivesoftware\.smack\.isr|org\.jivesoftware\.smack\.bind2|org\.jivesoftware\.smack\.c2s|org\.jivesoftware\.smack\.datatypes|org\.jivesoftware\.smack\.util\.stringencoder|org\.jivesoftware\.smack\.compression\.zlib|org\.jivesoftware\.smack\.util\.rce|org\.jivesoftware\.smack\.internal|org\.jivesoftware\.smack\.provider|org\.jivesoftware\.smack\.sasl\.core|org\.jivesoftware\.smack|org\.jivesoftware\.smack\.sasl|org\.jivesoftware\.smack\.util|org\.jivesoftware\.smack\.proxy|org\.jivesoftware\.smack\.packet|org\.jivesoftware\.smack\.sasl\.packet|org\.jivesoftware\.smack\.parsing|org\.jivesoftware\.smack\.compress\.packet|org\.jivesoftware\.smack\.iqrequest|org\.jivesoftware\.smack\.compress\.provider|org\.jivesoftware\.smack\.filter|org\.jivesoftware\.smack\.util\.dns)\.

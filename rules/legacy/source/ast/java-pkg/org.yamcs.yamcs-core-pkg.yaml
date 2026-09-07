@@ -1,0 +1,10 @@
+id: org.yamcs.yamcs-core
+language: Java
+message: pkg:maven/org.yamcs/yamcs-core
+metadata:
+  purl: pkg:maven/org.yamcs/yamcs-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.yamcs\.yarch\.streamsql\.funct|me\.lemire\.integercompression|org\.yamcs\.protobuf|org\.yamcs\.rs|org\.yamcs\.events|org\.yamcs\.archive|org\.yamcs\.algo|org\.yamcs\.container|org\.yamcs\.cfdp|org\.yamcs\.tctm|org\.yamcs\.activities|org\.yamcs\.cmdhistory|org\.yamcs\.http|org\.yamcs\.utils|org\.yamcs\.templating|org\.yamcs\.security\.protobuf|org\.yamcs\.tctm\.csp|org\.yamcs\.alarms|org\.yamcs\.yarch|org\.yamcs\.utils\.parser|org\.yamcs\.xtce\.xlsv7\.parser|org\.yamcs\.yarch\.protobuf|org\.yamcs\.security|org\.yamcs\.plists|org\.yamcs\.http\.audit|org\.yamcs\.logging|org\.yamcs\.time|org\.yamcs\.actions|org\.yamcs|org\.yamcs\.xtce\.xlsv7|org\.yamcs\.memento|org\.yamcs\.yarch\.rocksdb\.protobuf|org\.yamcs\.timeline|org\.yamcs\.parameter|org\.yamcs\.timeline\.protobuf|org\.yamcs\.cascading|org\.yamcs\.activities\.protobuf|org\.yamcs\.management|org\.yamcs\.xtce\.xlsv6|org\.yamcs\.cmdhistory\.protobuf|org\.yamcs\.tctm\.pus|org\.yamcs\.http\.api|org\.yamcs\.yarch\.rocksdb|org\.yamcs\.replication|org\.yamcs\.mdb|org\.yamcs\.tctm\.ccsds|org\.yamcs\.tctm\.ccsds\.time|org\.yamcs\.cli|org\.yamcs\.cfdp\.pdu|org\.yamcs\.replication\.protobuf|org\.yamcs\.algorithms|org\.yamcs\.commanding|org\.yamcs\.external|org\.yamcs\.filetransfer|org\.yamcs\.yarch\.streamsql|org\.yamcs\.tctm\.ccsds\.error|org\.yamcs\.yarch\.utils|org\.yamcs\.parameterarchive|org\.yamcs\.tctm\.cfs|org\.yamcs\.http\.auth|org\.yamcs\.yarch\.query)\.

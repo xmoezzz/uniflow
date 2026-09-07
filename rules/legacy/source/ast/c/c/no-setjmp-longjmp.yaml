@@ -1,0 +1,7 @@
+id: no-setjmp-longjmp
+message: '0701000010130038,0601000010140105'
+language: C
+rule:
+  any:
+    - pattern: 'setjmp($$$);'
+    - pattern: 'longjmp($$$);'

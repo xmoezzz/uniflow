@@ -1,0 +1,10 @@
+id: org.springframework.spring-messaging
+language: Java
+message: pkg:maven/org.springframework/spring-messaging
+metadata:
+  purl: pkg:maven/org.springframework/spring-messaging
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.messaging\.core|org\.springframework\.messaging\.tcp|org\.springframework\.messaging\.simp\.broker|org\.springframework\.messaging\.rsocket\.annotation|org\.springframework\.messaging\.rsocket\.annotation\.support|org\.springframework\.messaging\.rsocket|org\.springframework\.messaging\.simp\.annotation|org\.springframework\.messaging\.support|org\.springframework\.messaging\.handler|org\.springframework\.messaging\.converter|org\.springframework\.messaging|org\.springframework\.messaging\.tcp\.reactor|org\.springframework\.messaging\.simp\.user|org\.springframework\.messaging\.handler\.annotation|org\.springframework\.messaging\.simp|org\.springframework\.messaging\.handler\.annotation\.support|org\.springframework\.messaging\.simp\.config|org\.springframework\.messaging\.handler\.invocation|org\.springframework\.messaging\.handler\.invocation\.reactive|org\.springframework\.messaging\.simp\.annotation\.support|org\.springframework\.messaging\.simp\.stomp|org\.springframework\.messaging\.handler\.annotation\.reactive|org\.springframework\.messaging\.rsocket\.service)\.

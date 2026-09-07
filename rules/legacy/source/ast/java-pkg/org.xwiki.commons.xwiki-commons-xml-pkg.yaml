@@ -1,0 +1,10 @@
+id: org.xwiki.commons.xwiki-commons-xml
+language: Java
+message: pkg:maven/org.xwiki.commons/xwiki-commons-xml
+metadata:
+  purl: pkg:maven/org.xwiki.commons/xwiki-commons-xml
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.htmlcleaner|org\.xwiki\.xml\.html\.filter|org\.xwiki\.xml|org\.xwiki\.xml\.stax|org\.xwiki\.xml\.html\.script|org\.xwiki\.xml\.internal\.html\.filter|org\.xwiki\.xml\.internal|org\.xwiki\.xml\.internal\.html|org\.xwiki\.xml\.html)\.

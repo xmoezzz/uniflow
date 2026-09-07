@@ -1,0 +1,9 @@
+id: no-l-O-as-identifier
+message: '0601000010140064,0701000010130097'
+language: C
+rule:
+  all:
+    - any:
+      - pattern: l
+      - pattern: O
+    - kind: identifier

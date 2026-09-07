@@ -587,7 +587,8 @@ fn transfer_lifetime_instruction(
     }
 
     match &instruction.kind {
-        InstKind::ConstInt { dst, .. } | InstKind::ConstString { dst, .. } => {
+        InstKind::ConstInt { dst, .. } | InstKind::ConstString { dst, .. }
+        | InstKind::NumericStep { dst, .. } => {
             state.handles.insert(*dst, LifetimeState::Alive);
         }
         InstKind::Copy { dst, src } => {
@@ -1183,6 +1184,7 @@ fn lifetime_instruction_uses(kind: &InstKind) -> Vec<ValueId> {
     match kind {
         InstKind::ConstInt { .. } | InstKind::ConstString { .. } => Vec::new(),
         InstKind::Copy { src, .. } | InstKind::Cast { src, .. } => vec![*src],
+        InstKind::NumericStep { src, .. } => vec![*src],
         InstKind::Move { src, .. } => vec![*src],
         InstKind::Lifetime { .. } => Vec::new(),
         InstKind::Phi { inputs, .. } => inputs.clone(),

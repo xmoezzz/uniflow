@@ -1,0 +1,10 @@
+id: org.keycloak.keycloak-core
+language: Java
+message: pkg:maven/org.keycloak/keycloak-core
+metadata:
+  purl: pkg:maven/org.keycloak/keycloak-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.keycloak\.jose|META-INF\.versions\.16\.org\.keycloak\.jose\.jwk|org\.keycloak\.constants|org\.keycloak\.enums|org\.keycloak\.protocol\.oidc\.representations|org\.keycloak\.representations|org\.keycloak\.exceptions|org\.keycloak\.json|org\.keycloak\.representations\.adapters\.config|org\.keycloak\.jose\.jws\.crypto|org\.keycloak\.representations\.dpop|org\.keycloak\.representations\.docker|org\.keycloak\.representations\.adapters\.action|org\.keycloak\.jose\.jwe\.alg|org\.keycloak\.representations\.idm\.authorization|org\.keycloak\.representations\.provider|org\.keycloak\.representations\.info|org\.keycloak\.sdjwt|org\.keycloak\.jose\.jwe\.enc|org\.keycloak\.crypto|org\.keycloak\.jose\.jwe|org\.keycloak\.sdjwt\.vp|org\.keycloak\.protocol\.oidc\.client\.authentication|org\.keycloak\.representations\.idm|org\.keycloak\.jose\.jws|org\.keycloak\.representations\.userprofile\.config|org\.keycloak\.representations\.oidc|org\.keycloak\.util|org\.keycloak|org\.keycloak\.jose\.jwk|org\.keycloak\.representations\.account)\.

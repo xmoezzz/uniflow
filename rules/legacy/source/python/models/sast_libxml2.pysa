@@ -1,0 +1,49 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                libxml2
+
+# DataflowSourceRule libxml2 1
+# [{'NamespaceName': 'libxml2', 'ClassName': 'xmlCore|xmlNode', 'FunctionName': 'prop|serialize', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_libxml2_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^libxml2\.(xmlCore|xmlNode)\.(prop|serialize)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule libxml2 3
+# [{'NamespaceName': 'libxml2', 'ClassName': 'xmlCore|xpathContext', 'FunctionName': 'xpathEval|xpathEvalExpression|xpointerEval', 'RuleName': 'desc.dataflow.python.xpath_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'libxml2', 'ClassName': '', 'FunctionName': 'newNode|newText', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'libxml2', 'ClassName': 'xmlNode', 'FunctionName': 'setContent|addContent|setProp', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_libxml2_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^libxml2.*\.(newNode|newText)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_xml_injection]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_libxml2_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^libxml2\.xmlNode\.(setContent|addContent|setProp)"),
+      name.matches("^libxml2\.(xmlCore|xpathContext)\.(xpathEval|xpathEvalExpression|xpointerEval)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_xml_injection]
+    )
+  ]
+)

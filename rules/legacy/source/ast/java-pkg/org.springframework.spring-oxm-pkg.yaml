@@ -1,0 +1,10 @@
+id: org.springframework.spring-oxm
+language: Java
+message: pkg:maven/org.springframework/spring-oxm
+metadata:
+  purl: pkg:maven/org.springframework/spring-oxm
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.oxm\.config|org\.springframework\.oxm\.support|org\.springframework\.oxm\.mime|org\.springframework\.oxm|org\.springframework\.oxm\.jaxb|org\.springframework\.oxm\.xstream)\.

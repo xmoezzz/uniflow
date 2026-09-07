@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.login.web
+language: Java
+message: pkg:maven/com.liferay/com.liferay.login.web
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.login.web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.liferay\.login\.web\.internal\.configuration|com\.liferay\.login\.web\.internal\.constants|com\.liferay\.login\.web\.internal\.portlet|com\.liferay\.login\.web\.internal\.portlet\.action|com\.liferay\.login\.web\.internal\.upgrade\.v1_0_1|com\.liferay\.login\.web\.internal\.layout\.portlet|org\.apache\.jsp|com\.liferay\.login\.web\.internal\.portlet\.util|com\.liferay\.login\.web\.internal\.upgrade\.v1_0_0|com\.liferay\.login\.web\.internal\.display\.context|com\.liferay\.login\.web\.internal\.configuration\.category|com\.liferay\.login\.web\.internal\.upgrade\.registry|org\.apache\.jsp\.forgot_005fpassword|com\.liferay\.login\.web\.internal\.servlet\.taglib\.include)\.

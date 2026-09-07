@@ -1,0 +1,39 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                aiopg
+
+# DataflowSourceRule aiopg 3
+# [{'NamespaceName': 'aiopg.connection', 'ClassName': 'Connection', 'FunctionName': 'get_backend_pid', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'aiopg.connection', 'ClassName': 'Connection', 'FunctionName': 'get_parameter_status', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'aiopg.cursor', 'ClassName': 'Cursor', 'FunctionName': 'fetch(one|many|all)', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_aiopg_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^aiopg\.connection\.Connection\.get_backend_pid$"),
+      name.matches("^aiopg\.cursor\.Cursor\.(fetch(one|many|all))"),
+      name.matches("^aiopg\.connection\.Connection\.get_parameter_status$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule aiopg 2
+# [{'NamespaceName': 'aiopg.cursor', 'ClassName': 'Cursor', 'FunctionName': 'execute', 'RuleName': 'desc.dataflow.python.sql_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'aiopg.cursor', 'ClassName': 'Cursor', 'FunctionName': 'execute|callproc', 'RuleName': 'desc.dataflow.python.access_control_database', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_aiopg_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^aiopg\.cursor\.Cursor\.(execute|callproc)"),
+      name.matches("^aiopg\.cursor\.Cursor\.execute$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_access_control_database]
+    )
+  ]
+)

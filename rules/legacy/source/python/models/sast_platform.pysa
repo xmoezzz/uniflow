@@ -1,0 +1,46 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                platform
+
+# DataflowSourceRule platform 13
+# [{'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'mac_ver', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'architecture', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'machine', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'node', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'platform', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'processor', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'python_(build|compiler|branch|implementation|revision|version|version_tuple)', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'release', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'system(_alias)?', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'version', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'uname', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': '(libc|java)_ver', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'win32_(ver|edition|is_iot)', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_platform_functions_sources",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^platform.*\.version$"),
+      name.matches("^platform.*\.processor$"),
+      name.matches("^platform.*\.mac_ver$"),
+      name.matches("^platform.*\.release$"),
+      name.matches("^platform.*\.uname$"),
+      name.matches("^platform.*\.architecture$"),
+      name.matches("^platform.*\.node$"),
+      name.matches("^platform.*\.system(_alias)?"),
+      name.matches("^platform.*\.(python_(build|compiler|branch|implementation|revision|version|version_tuple))"),
+      name.matches("^platform.*\.((libc|java)_ver)"),
+      name.matches("^platform.*\.platform$"),
+      name.matches("^platform.*\.machine$"),
+      name.matches("^platform.*\.(win32_(ver|edition|is_iot))")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule platform 1
+# [{'NamespaceName': 'platform', 'ClassName': '', 'FunctionName': 'architecture', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_platform_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^platform.*\.architecture$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_path_manipulation]
+    )
+  ]
+)

@@ -1,0 +1,10 @@
+id: org.mortbay.jetty.jetty
+language: Java
+message: pkg:maven/org.mortbay.jetty/jetty
+metadata:
+  purl: pkg:maven/org.mortbay.jetty/jetty
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.mortbay\.servlet\.jetty|org\.mortbay\.jetty\.servlet|org\.mortbay\.jetty\.security|org\.mortbay\.jetty\.deployer|org\.mortbay\.jetty\.webapp|org\.mortbay\.jetty\.handler|org\.mortbay\.io\.bio|org\.mortbay\.resource|org\.mortbay\.io|org\.mortbay\.jetty\.bio|org\.mortbay\.io\.nio|org\.mortbay\.xml|org\.mortbay\.jetty\.nio|org\.mortbay\.jetty)\.

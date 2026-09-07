@@ -1,0 +1,13 @@
+id: loop-body-braces
+message: '0701000010130015,0601000010140018'
+language: C
+rule:
+  any:
+    - all:
+      - pattern: 'for ($$$; $$$; $$$) $$$'
+      - not:
+          pattern: 'for ($$$; $$$; $$$) { $$$ }'
+    - all:
+        - pattern: 'while ($$$) $$$'
+        - not:
+            pattern: 'while ($$$) { $$$ }'

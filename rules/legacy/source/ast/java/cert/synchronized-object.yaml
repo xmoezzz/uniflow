@@ -1,0 +1,25 @@
+id: synchronized-object
+message: '0102000010090010'
+language: Java
+rule:
+  pattern: synchronized($A) {$$$}
+  inside:
+    kind: class_declaration
+    stopBy: 
+      kind: class_declaration
+    has:
+      field: body
+      has:
+        kind: field_declaration
+        all:
+          - has:
+              kind: variable_declarator
+              stopBy: end
+              has:
+                kind: identifier
+                field: name
+                pattern: $A
+          - has:
+              field: type
+              any:
+                - regex: ^(.*\.)?String$

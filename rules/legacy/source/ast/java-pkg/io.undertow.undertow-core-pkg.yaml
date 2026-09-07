@@ -1,0 +1,10 @@
+id: io.undertow.undertow-core
+language: Java
+message: pkg:maven/io.undertow/undertow-core
+metadata:
+  purl: pkg:maven/io.undertow/undertow-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.undertow\.security\.api|io\.undertow\.protocols\.http2|io\.undertow\.protocols\.alpn|io\.undertow\.protocols\.ssl|io\.undertow\.security\.impl|io\.undertow\.server\.handlers\.proxy|io\.undertow\.util|io\.undertow\.server\.protocol\.proxy|io\.undertow\.server\.protocol\.ajp|io\.undertow\.websockets\.client|io\.undertow\.server\.handlers\.resource|io\.undertow\.server\.handlers\.cache|io\.undertow\.server\.handlers\.form|io\.undertow\.server\.handlers\.sse|io\.undertow\.client|io\.undertow\.server\.protocol|io\.undertow\.server\.handlers\.error|io\.undertow\.client\.ajp|io\.undertow\.security\.handlers|io\.undertow\.connector|io\.undertow|io\.undertow\.websockets\.core\.protocol\.version13|io\.undertow\.server\.handlers\.builder|io\.undertow\.websockets\.spi|io\.undertow\.channels|io\.undertow\.protocols\.ajp|io\.undertow\.server\.protocol\.http|io\.undertow\.server\.protocol\.framed|io\.undertow\.websockets\.core\.protocol\.version08|io\.undertow\.websockets\.core|io\.undertow\.server\.protocol\.http2|io\.undertow\.server\.handlers\.encoding|io\.undertow\.server\.handlers\.accesslog|io\.undertow\.server\.session|io\.undertow\.server|io\.undertow\.predicate|io\.undertow\.websockets\.extensions|io\.undertow\.websockets\.core\.protocol\.version07|io\.undertow\.client\.http2|io\.undertow\.conduits|io\.undertow\.client\.http|io\.undertow\.io|io\.undertow\.server\.handlers\.proxy\.mod_cluster|io\.undertow\.server\.handlers|io\.undertow\.websockets|io\.undertow\.attribute|io\.undertow\.websockets\.core\.protocol|io\.undertow\.security\.idm|io\.undertow\.websockets\.core\.function)\.

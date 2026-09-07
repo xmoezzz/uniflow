@@ -1,0 +1,8 @@
+id: create-string-object
+message: '0802000010150420,0802000010130029'
+language: Java
+rule:
+  any:
+  - pattern: new String($$$)
+  - pattern: new lang.String($$$)
+  - pattern: new java.lang.String($$$)

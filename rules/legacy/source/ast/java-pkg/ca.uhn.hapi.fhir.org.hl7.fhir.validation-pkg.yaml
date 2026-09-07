@@ -1,0 +1,10 @@
+id: ca.uhn.hapi.fhir.org.hl7.fhir.validation
+language: Java
+message: pkg:maven/ca.uhn.hapi.fhir/org.hl7.fhir.validation
+metadata:
+  purl: pkg:maven/ca.uhn.hapi.fhir/org.hl7.fhir.validation
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.hl7\.fhir\.validation|org\.hl7\.fhir\.validation\.instance\.type|org\.hl7\.fhir\.validation\.cli\.services|org\.hl7\.fhir\.validation\.testexecutor|org\.hl7\.fhir\.validation\.packages|org\.hl7\.fhir\.validation\.generator|org\.hl7\.fhir\.validation\.special|org\.hl7\.fhir\.validation\.cli\.tasks|org\.hl7\.fhir\.validation\.instance|org\.hl7\.fhir\.validation\.profile|org\.hl7\.fhir\.validation\.cli\.renderers|org\.hl7\.fhir\.validation\.codesystem|org\.hl7\.fhir\.validation\.cli\.model|org\.hl7\.fhir\.validation\.cli\.utils|org\.hl7\.fhir\.validation\.instance\.utils|org\.hl7\.fhir\.validation\.ipa)\.

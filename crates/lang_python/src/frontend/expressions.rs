@@ -885,10 +885,11 @@ fn infer_simple_python_type(
                         if let Some(ret) = env.project_index.top_level_return(&member, arg_types.len()) {
                             return Some(ret);
                         }
+                        if env.project_index.function_path_exists(&member) { return None; }
                         if let Some(ty) = env.project_index.module_value_type_by_path(&member) {
                             return Some(ty);
                         }
-                        return Some(member);
+                        return (!env.project_index.function_path_exists(&member)).then_some(member);
                     }
                 }
                 if method == "get" || method == "pop" || method == "setdefault" {
@@ -966,19 +967,21 @@ fn infer_simple_python_type(
             if let Some(ret) = env.project_index.top_level_return(&mapped, arg_types.len()) {
                 return Some(ret);
             }
+            if env.project_index.function_path_exists(&mapped) { return None; }
             if let Some(ty) = env.project_index.module_value_type_by_path(&mapped) {
                 return Some(ty);
             }
-            return Some(mapped);
+            return (!env.project_index.function_path_exists(&mapped)).then_some(mapped);
         }
         if let Some(mapped) = resolve_imported_name(&callee_text, imports, env) {
             if let Some(ret) = env.project_index.top_level_return(&mapped, arg_types.len()) {
                 return Some(ret);
             }
+            if env.project_index.function_path_exists(&mapped) { return None; }
             if let Some(ty) = env.project_index.module_value_type_by_path(&mapped) {
                 return Some(ty);
             }
-            return Some(mapped);
+            return (!env.project_index.function_path_exists(&mapped)).then_some(mapped);
         }
         if let Some(class_name) = resolve_known_class_name(&callee_text, imports, env, known_classes) {
             return Some(class_name);
@@ -1959,7 +1962,18 @@ fn set_span(expr: Expr, span: Span) -> Expr {
         Expr::Lambda { id, params, captures, body, .. } => Expr::Lambda { id, params, captures, body, span },
         Expr::New { id, type_name, args, .. } => Expr::New { id, type_name, args, span },
         Expr::Cast { id, ty, expr, .. } => Expr::Cast { id, ty, expr, span },
+        Expr::Conditional { id, cond, then_expr, else_expr, .. } => {
+            Expr::Conditional { id, cond, then_expr, else_expr, span }
+        }
+        Expr::Assign { id, lhs, rhs, .. } => Expr::Assign { id, lhs, rhs, span },
+        Expr::Interp { id, parts, .. } => Expr::Interp { id, parts, span },
+        Expr::Collection { id, container, elements, .. } => {
+            Expr::Collection { id, container, elements, span }
+        }
+        Expr::Range { id, low, high, exclusive, .. } => {
+            Expr::Range { id, low, high, exclusive, span }
+        }
+        Expr::Opaque { id, text, .. } => Expr::Opaque { id, text, span },
         Expr::Unknown { id, .. } => Expr::Unknown { id, span },
     }
 }
-

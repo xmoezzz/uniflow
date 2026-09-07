@@ -1,0 +1,10 @@
+id: net.lingala.zip4j.zip4j
+language: Java
+message: pkg:maven/net.lingala.zip4j/zip4j
+metadata:
+  purl: pkg:maven/net.lingala.zip4j/zip4j
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(net\.lingala\.zip4j|net\.lingala\.zip4j\.util|net\.lingala\.zip4j\.crypto|net\.lingala\.zip4j\.crypto\.PBKDF2|net\.lingala\.zip4j\.io\.inputstream|net\.lingala\.zip4j\.exception|net\.lingala\.zip4j\.tasks|net\.lingala\.zip4j\.io\.outputstream|net\.lingala\.zip4j\.model\.enums|net\.lingala\.zip4j\.headers|net\.lingala\.zip4j\.progress|net\.lingala\.zip4j\.model|net\.lingala\.zip4j\.crypto\.engine)\.

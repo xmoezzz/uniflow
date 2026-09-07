@@ -11,7 +11,11 @@ impl SourceParser for CParser {
     }
 }
 
-pub fn parse_c_like_file(language: Language, path: &str, source: &str) -> Result<uniflow_hir::Program> {
+pub fn parse_c_like_file(
+    language: Language,
+    path: &str,
+    source: &str,
+) -> Result<uniflow_hir::Program> {
     let source = preprocess_c_source(source);
     let source = normalize_c_surface(&source);
     let source = strip_c_like_comments(&source);
@@ -61,32 +65,49 @@ pub fn parse_c_like_file(language: Language, path: &str, source: &str) -> Result
     Ok(builder.finish())
 }
 
-
 /// Normalize C declaration and initializer sugar into the conservative HIR grammar.
 fn normalize_c_surface(source: &str) -> String {
     let mut out = source.to_string();
     let enum_re = Regex::new(
         r"(?s)(?:typedef\s+)?enum\s+([A-Za-z_][A-Za-z0-9_]*)?\s*\{([^}]*)\}\s*([A-Za-z_][A-Za-z0-9_]*)?\s*;",
     ).expect("valid regex");
-    out = enum_re.replace_all(&out, |caps: &regex::Captures<'_>| {
-        let head = caps.get(1).map_or("", |m| m.as_str());
-        let tail = caps.get(3).map_or("", |m| m.as_str());
-        let name = if !tail.is_empty() { tail } else { head };
-        if name.is_empty() { String::new() } else { format!("typedef int {name};") }
-    }).into_owned();
+    out = enum_re
+        .replace_all(&out, |caps: &regex::Captures<'_>| {
+            let head = caps.get(1).map_or("", |m| m.as_str());
+            let tail = caps.get(3).map_or("", |m| m.as_str());
+            let name = if !tail.is_empty() { tail } else { head };
+            if name.is_empty() {
+                String::new()
+            } else {
+                format!("typedef int {name};")
+            }
+        })
+        .into_owned();
 
     let compound_re = Regex::new(
         r"\(\s*([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)*)\s*\)\s*\{(\s*\.[^{}]*)\}",
-    ).expect("valid regex");
-    out = compound_re.replace_all(&out, |caps: &regex::Captures<'_>| {
-        let ty = caps.get(1).map_or("compound", |m| m.as_str()).trim().replace(' ', "_");
-        let body = caps.get(2).map_or("", |m| m.as_str());
-        let values = split_top_level_commas(body).into_iter().map(|part| {
-            let part = part.trim();
-            part.split_once('=').map_or_else(|| part.to_string(), |(_, value)| value.trim().to_string())
-        }).collect::<Vec<_>>().join(", ");
-        format!("__compound_{ty}({values})")
-    }).into_owned();
+    )
+    .expect("valid regex");
+    out = compound_re
+        .replace_all(&out, |caps: &regex::Captures<'_>| {
+            let ty = caps
+                .get(1)
+                .map_or("compound", |m| m.as_str())
+                .trim()
+                .replace(' ', "_");
+            let body = caps.get(2).map_or("", |m| m.as_str());
+            let values = split_top_level_commas(body)
+                .into_iter()
+                .map(|part| {
+                    let part = part.trim();
+                    part.split_once('=')
+                        .map_or_else(|| part.to_string(), |(_, value)| value.trim().to_string())
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("__compound_{ty}({values})")
+        })
+        .into_owned();
 
     out
 }
@@ -114,39 +135,27 @@ fn parse_c_like_block(
         }
 
         if keyword_at(body, cursor, "if") {
-            if let Some((stmt, next)) = parse_c_like_if(
-                builder,
-                body,
-                cursor,
-                env,
-                function_pointer_typedefs,
-            ) {
+            if let Some((stmt, next)) =
+                parse_c_like_if(builder, body, cursor, env, function_pointer_typedefs)
+            {
                 out.push(stmt);
                 cursor = next;
                 continue;
             }
         }
         if keyword_at(body, cursor, "while") {
-            if let Some((stmt, next)) = parse_c_like_while(
-                builder,
-                body,
-                cursor,
-                env,
-                function_pointer_typedefs,
-            ) {
+            if let Some((stmt, next)) =
+                parse_c_like_while(builder, body, cursor, env, function_pointer_typedefs)
+            {
                 out.push(stmt);
                 cursor = next;
                 continue;
             }
         }
         if keyword_at(body, cursor, "try") {
-            if let Some((stmt, next)) = parse_c_like_try(
-                builder,
-                body,
-                cursor,
-                env,
-                function_pointer_typedefs,
-            ) {
+            if let Some((stmt, next)) =
+                parse_c_like_try(builder, body, cursor, env, function_pointer_typedefs)
+            {
                 out.push(stmt);
                 cursor = next;
                 continue;
@@ -169,13 +178,7 @@ fn parse_c_like_block(
         let end = find_c_like_statement_end(body, cursor).unwrap_or(body.len());
         let raw = body[cursor..end].trim().trim_end_matches(';').trim();
         if !raw.is_empty() {
-            parse_c_like_simple_statement(
-                builder,
-                raw,
-                env,
-                function_pointer_typedefs,
-                &mut out,
-            );
+            parse_c_like_simple_statement(builder, raw, env, function_pointer_typedefs, &mut out);
         }
         cursor = if end < body.len() { end + 1 } else { end };
     }
@@ -456,6 +459,7 @@ fn parse_c_like_simple_statement(
                 return;
             };
             let symbol = builder.add_symbol(&name, SymbolKind::Local);
+            record_storage_duration(builder, symbol, &left);
             env.vars.insert(name.clone(), symbol);
             env.types.insert(name.clone(), ty_name.clone());
             if function_pointer_typedefs.contains(ty_name.trim()) {
@@ -501,7 +505,11 @@ fn parse_c_like_simple_statement(
                 env.function_aliases.insert(lhs_name.clone(), aliases);
             }
             let lhs = parse_lvalue(builder, &left, env);
-            let lhs_existing_ty = env.types.get(&lhs_name).map(String::as_str).map(str::to_string);
+            let lhs_existing_ty = env
+                .types
+                .get(&lhs_name)
+                .map(String::as_str)
+                .map(str::to_string);
             let alloc_rhs = parse_alloc_expr(builder, &right, env, lhs_existing_ty.as_deref());
             if let Some(Expr::New { type_name, .. }) = alloc_rhs.as_ref() {
                 env.heap_types.insert(lhs_key.clone(), type_name.clone());
@@ -519,6 +527,7 @@ fn parse_c_like_simple_statement(
 
     if let Some((name, ty_name)) = parse_variable_declaration(stmt) {
         let symbol = builder.add_symbol(&name, SymbolKind::Local);
+        record_storage_duration(builder, symbol, stmt);
         env.vars.insert(name.clone(), symbol);
         env.types.insert(name.clone(), ty_name.clone());
         out.push(Stmt::Let {
@@ -543,6 +552,17 @@ fn parse_c_like_simple_statement(
     });
 }
 
+fn record_storage_duration(builder: &mut ModuleBuilder, symbol: SymbolId, declaration: &str) {
+    if declaration.split_whitespace().any(|token| {
+        matches!(
+            token.trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_'),
+            "static" | "extern" | "thread_local" | "_Thread_local"
+        )
+    }) {
+        builder.set_symbol_attribute(symbol, "storage_duration", "static".to_string());
+    }
+}
+
 fn skip_c_like_ws(source: &str, mut cursor: usize) -> usize {
     while cursor < source.len() && source.as_bytes()[cursor].is_ascii_whitespace() {
         cursor += 1;
@@ -559,8 +579,7 @@ fn keyword_at(source: &str, cursor: usize, keyword: &str) -> bool {
             && source.as_bytes()[cursor - 1] != b'_';
     let after = cursor + keyword.len();
     let after_ok = after >= source.len()
-        || !source.as_bytes()[after].is_ascii_alphanumeric()
-            && source.as_bytes()[after] != b'_';
+        || !source.as_bytes()[after].is_ascii_alphanumeric() && source.as_bytes()[after] != b'_';
     before_ok && after_ok
 }
 
@@ -595,7 +614,6 @@ fn find_c_like_statement_end(source: &str, start: usize) -> Option<usize> {
     }
     None
 }
-
 
 fn parse_includes(source: &str, builder: &mut ModuleBuilder) {
     let re = Regex::new(r#"(?m)^\s*#\s*include\s*([<"][^>"]+[>"])"#).expect("valid regex");
@@ -653,10 +671,9 @@ fn extract_struct_items(source: &str, builder: &mut ModuleBuilder) -> Vec<Class>
 }
 
 fn extract_function_pointer_typedefs(source: &str) -> HashSet<String> {
-    let re = Regex::new(
-        r"(?x)typedef\s+[^;()]+\(\s*\*\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*\([^;]*\)\s*;",
-    )
-    .expect("valid regex");
+    let re =
+        Regex::new(r"(?x)typedef\s+[^;()]+\(\s*\*\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*\([^;]*\)\s*;")
+            .expect("valid regex");
     re.captures_iter(source)
         .filter_map(|caps| caps.get(1).map(|m| m.as_str().to_string()))
         .collect()
@@ -700,7 +717,10 @@ fn extract_functions(source: &str) -> Vec<CFunctionText> {
         }
         if source[cursor..].starts_with("->") {
             cursor += 2;
-            while cursor < source.len() && source.as_bytes()[cursor] != b'{' && source.as_bytes()[cursor] != b';' {
+            while cursor < source.len()
+                && source.as_bytes()[cursor] != b'{'
+                && source.as_bytes()[cursor] != b';'
+            {
                 cursor += 1;
             }
         }
@@ -712,8 +732,18 @@ fn extract_functions(source: &str) -> Vec<CFunctionText> {
             break;
         };
 
-        let ret_type = caps.get(1).map(|m| m.as_str()).unwrap_or("void").trim().to_string();
-        let name = caps.get(2).map(|m| m.as_str()).unwrap_or("function").trim().to_string();
+        let ret_type = caps
+            .get(1)
+            .map(|m| m.as_str())
+            .unwrap_or("void")
+            .trim()
+            .to_string();
+        let name = caps
+            .get(2)
+            .map(|m| m.as_str())
+            .unwrap_or("function")
+            .trim()
+            .to_string();
         if !["if", "for", "while", "switch", "catch"].contains(&name.as_str()) {
             out.push(CFunctionText {
                 ret_type,
@@ -765,12 +795,7 @@ fn parse_function(
         });
     }
 
-    let stmts = parse_c_like_block(
-        builder,
-        &func.body,
-        &mut env,
-        function_pointer_typedefs,
-    );
+    let stmts = parse_c_like_block(builder, &func.body, &mut env, function_pointer_typedefs);
 
     let body = Block {
         id: builder.alloc_block_id(),

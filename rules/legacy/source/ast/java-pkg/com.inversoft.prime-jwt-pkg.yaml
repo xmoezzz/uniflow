@@ -1,0 +1,10 @@
+id: com.inversoft.prime-jwt
+language: Java
+message: pkg:maven/com.inversoft/prime-jwt
+metadata:
+  purl: pkg:maven/com.inversoft/prime-jwt
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.primeframework\.jwt\.domain|org\.primeframework\.jwt\.hmac|org\.primeframework\.jwt|org\.primeframework\.jwt\.json|org\.primeframework\.jwt\.rsa)\.

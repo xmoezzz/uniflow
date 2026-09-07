@@ -1,0 +1,10 @@
+id: org.jbpm.jbpm-designer-client
+language: Java
+message: pkg:maven/org.jbpm/jbpm-designer-client
+metadata:
+  purl: pkg:maven/org.jbpm/jbpm-designer-client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jbpm\.designer\.client\.shared\.util|org\.jbpm\.designer\.client\.parameters|org\.jbpm\.designer\.client\.shared|org\.jbpm\.designer\.client\.util|org\.jbpm\.designer\.client\.resources\.i18n|org\.jbpm\.designer\.client\.popup|org\.jbpm\.designer\.client\.type|org\.jbpm\.designer\.client\.notification|org\.jbpm\.designer\.client\.resources|org\.jbpm\.designer\.client\.resources\.images|org\.jbpm\.designer\.client\.handlers|org\.jbpm\.designer\.client)\.

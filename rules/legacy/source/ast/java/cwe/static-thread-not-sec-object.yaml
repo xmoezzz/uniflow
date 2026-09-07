@@ -1,0 +1,12 @@
+id: static-thread-not-sec-object
+message: '0202000010150441'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+  - has:
+      field: type
+      regex: ^(.*\.)?Calendar$|^(.*\.)?XPath$|^(.*\.)?SchemaFactory$
+  - has:
+      kind: modifiers
+      regex: static

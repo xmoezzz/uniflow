@@ -1,0 +1,484 @@
+id: legacy-csharp-ast
+title: Migrated legacy C# AST rules
+rules:
+- id: LEGACY-CS-AST-encapsulation_external
+  title: Exception details written to response from catch
+  languages: [csharp]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^Write$'
+    receiver_path_pattern: '^Reponse$'
+    inside_catch: true
+    any_argument_reference: { type_pattern: '(^|\.)Exception$', parameter_or_catch_only: true }
+  standards: [LEGACY-MSG-0503000012000046]
+  message: Do not disclose exception details through a response.
+- id: LEGACY-CS-AST-encapsulation_internal
+  title: Exception details written to console from catch
+  languages: [csharp]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^(Write|WriteLine)$'
+    receiver_path_pattern: '^Console$'
+    inside_catch: true
+    any_argument_reference: { type_pattern: '(^|\.)Exception$', parameter_or_catch_only: true }
+  standards: [LEGACY-MSG-0503000012000047]
+  message: Avoid disclosing internal exception details through console output.
+- id: LEGACY-CS-AST-encapsulation_system_information_leak
+  title: Exception information leakage in catch
+  languages: [csharp]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^(Write|WriteLine)$'
+    receiver_path_pattern: '^Console$'
+    inside_catch: true
+    any_argument_reference: { type_pattern: '(^|\.)Exception$', parameter_or_catch_only: true }
+  standards: [LEGACY-MSG-0503000010090001]
+  message: Avoid disclosing system exception information through console output.
+- id: LEGACY-CS-AST-security_websocket_hacking
+  title: WebSocket options lack same-origin requirement
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '^AcceptWebSocketRequest$'
+    requires_explicit_qualifier: true
+    min_args: 2
+    max_args: 2
+    argument_references:
+      1:
+        type_pattern: '(^|\.)AspNetWebSocketOptions$'
+        exclude_when_field_true: RequireSameOrigin
+  standards: [LEGACY-MSG-0503000012000008]
+  message: Set RequireSameOrigin on WebSocket options.
+- id: LEGACY-CS-AST-input_validation_and_representation_linq
+  title: Dynamic LINQ ExecuteCommand query
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)ExecuteCommand$'
+    receiver_type_pattern: '(^|\.)DataContext$'
+    min_args: 1
+    max_args: 1
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+  cwe: [CWE-89]
+  standards: [LEGACY-MSG-0503000010020007]
+  message: Parameterize commands executed by DataContext.
+- id: LEGACY-CS-AST-input_validation_and_representation_log_forging
+  title: Dynamic data written to a log
+  languages: [csharp]
+  severity: error
+  confidence: medium
+  matcher:
+    callee: '(Begin)?(Append|WriteRestartArea|ReserveAndAppend)|(Debug|Error|Fatal|Info|Warn)(Format)?|(Log|Trace|Debug|Info|Warn|Error|Fatal)(Exception)?|WriteEntry'
+    requires_explicit_qualifier: true
+    min_args: 1
+    max_args: 1
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+        parameter_or_initializer_roots: [Request, Response]
+  cwe: [CWE-117]
+  standards: [LEGACY-MSG-0503000010050003]
+  message: Encode control characters before writing externally influenced data to logs.
+- id: LEGACY-CS-AST-input_validation_and_representation_nhibernate
+  title: Dynamic NHibernate query
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)CreateQuery$'
+    receiver_type_pattern: '(^|\.)ISession$'
+    min_args: 1
+    max_args: 1
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+  cwe: [CWE-89]
+  standards: [LEGACY-MSG-0503000010020008]
+  message: Parameterize NHibernate query text.
+- id: LEGACY-CS-AST-input_validation_and_representation_xquery_injection
+  title: Dynamic XQuery compilation
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)Compile$'
+    receiver_type_pattern: '(^|\.)XQueryCompiler$'
+    min_args: 1
+    max_args: 1
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+  cwe: [CWE-652]
+  standards: [LEGACY-MSG-0503000010020013]
+  message: Do not compile externally influenced XQuery expressions.
+- id: LEGACY-CS-AST-security_risky_sql_query
+  title: Risky SqlDataAdapter query
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)SqlDataAdapter$'
+    min_args: 2
+    max_args: 2
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+        parameter_or_initializer_roots: [Request, Response]
+        allow_index_initializer: true
+  cwe: [CWE-89]
+  standards: [LEGACY-MSG-0503000012000069]
+  message: Parameterize SQL passed to SqlDataAdapter.
+- id: LEGACY-CS-AST-xss_protection
+  title: X-XSS-Protection header disabled or removed
+  languages: [csharp]
+  severity: error
+  confidence: medium
+  matcher:
+    call_alternatives:
+    - callee: '^(AddHeader|AppendHeader)$'
+      receiver_chain_root_type_pattern: '(^|\.)HttpResponse$'
+      min_args: 2
+      max_args: 2
+      string_arg_patterns: { 0: '^X-XSS-Protection$' }
+      argument_token_patterns: { 1: '[^(^1$)]' }
+    - callee: '^(AddHeader|AppendHeader)$'
+      receiver_chain_root_path_pattern: '^Response$'
+      min_args: 2
+      max_args: 2
+      string_arg_patterns: { 0: '^X-XSS-Protection$' }
+      argument_token_patterns: { 1: '[^(^1$)]' }
+    - callee: '^Remove$'
+      receiver_field_chain: [Headers]
+      receiver_chain_root_type_pattern: '(^|\.)HttpResponse$'
+      min_args: 1
+      max_args: 1
+      string_arg_patterns: { 0: '^X-XSS-Protection$' }
+    - callee: '^Remove$'
+      receiver_field_chain: [Headers]
+      receiver_chain_root_path_pattern: '^Response$'
+      min_args: 1
+      max_args: 1
+      string_arg_patterns: { 0: '^X-XSS-Protection$' }
+  cwe: [CWE-693]
+  standards: [LEGACY-MSG-0503000012000063]
+  message: Keep the X-XSS-Protection response header enabled.
+- id: LEGACY-CS-AST-input_validation_and_representation_castle_activerecord
+  title: Dynamic Castle ActiveRecord query
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)SimpleQuery(?:<.*>)?$'
+    min_args: 1
+    max_args: 1
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+  cwe: [CWE-89]
+  standards: [LEGACY-MSG-0503000010020006]
+  message: Parameterize Castle ActiveRecord query text.
+- id: LEGACY-CS-AST-input_validation_and_representation_cookies
+  title: Dynamic cookie path
+  languages: [csharp]
+  severity: error
+  confidence: medium
+  matcher:
+    constructor_type: '(^|\.)Cookie$'
+    min_args: 2
+    argument_references:
+      1:
+        type_pattern: '(^|\.)string$'
+        exclude_if_checked: true
+  cwe: [CWE-20]
+  standards: [LEGACY-MSG-0503000010020002]
+  message: Validate dynamic values used to construct cookies.
+- id: LEGACY-CS-AST-input_validation_and_representation_file_upload_1
+  title: HtmlInputFile PostedFile access
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    field_name_pattern: '^PostedFile$'
+    field_receiver_type_pattern: '(^|\.)HtmlInputFile$'
+  cwe: [CWE-434]
+  standards: [LEGACY-MSG-0503000010050006]
+  message: Validate uploaded file names, types, sizes, and storage paths.
+- id: LEGACY-CS-AST-input_validation_and_representation_file_upload_2
+  title: FileUpload SaveAs usage
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)SaveAs$'
+    receiver_type_pattern: '(^|\.)FileUpload$'
+  cwe: [CWE-434]
+  standards: [LEGACY-MSG-0503000010050006]
+  message: Validate uploaded files before saving them.
+- id: LEGACY-CS-AST-input_validation_and_representation_poor_validation
+  title: HTML encoding used as input validation
+  languages: [csharp]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '(^|\.)HtmlEncode$'
+    receiver_path_pattern: '(^|\.)(Server|WebUtility|HttpUtility)$'
+  cwe: [CWE-20]
+  standards: [LEGACY-MSG-0503000010030003]
+  message: Apply validation appropriate to the input domain in addition to output encoding.
+- id: LEGACY-CS-AST-input_validation_and_representation_razor
+  title: Dynamic Razor template parsing
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)Parse$'
+    receiver_path_pattern: '(^|\.)Razor$'
+    min_args: 1
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+  cwe: [CWE-94]
+  standards: [LEGACY-MSG-0503000010020012]
+  message: Do not parse untrusted strings as Razor templates.
+- id: LEGACY-CS-AST-input_validation_and_representation_subsonic
+  title: Dynamic SubSonic InlineQuery
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)InlineQuery$'
+    min_args: 1
+    max_args: 1
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+  cwe: [CWE-89]
+  standards: [LEGACY-MSG-0503000010020009]
+  message: Parameterize SubSonic query text.
+- id: LEGACY-CS-AST-SCS0002
+  title: SQL query reaches SqlDataAdapter
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)SqlDataAdapter$'
+    min_args: 2
+    max_args: 2
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+        parameter_or_initializer_roots: [Request, Response]
+        allow_index_initializer: true
+  cwe: [CWE-89]
+  standards: [LEGACY-MSG-0503000010020005]
+  message: Parameterize SQL passed to SqlDataAdapter.
+- id: LEGACY-CS-AST-SCS0003
+  title: Dynamic XPath selection
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)Select$'
+    receiver_type_pattern: '(^|\.)XPathNavigator$'
+    min_args: 1
+    max_args: 1
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+  cwe: [CWE-643]
+  standards: [LEGACY-MSG-0503000010020011]
+  message: Do not construct XPath expressions from untrusted strings.
+- id: LEGACY-CS-AST-SCS0016
+  title: HttpPost action lacks anti-forgery validation
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    csharp_http_post_without_antiforgery: true
+  cwe: [CWE-352]
+  standards: [LEGACY-MSG-0503000010030004]
+  message: Protect HttpPost actions with ValidateAntiForgeryToken.
+- id: LEGACY-CS-AST-SCS0018
+  title: Untrusted file path reaches file or response API
+  languages: [csharp]
+  severity: error
+  confidence: medium
+  matcher:
+    call_alternatives:
+    - callee: '(^|\.)GetFileInfo$'
+      requires_explicit_qualifier: true
+      min_args: 1
+      max_args: 1
+      argument_references:
+        0:
+          type_pattern: '(^|\.)string$'
+          parameter_or_initializer_roots: [Response]
+    - callee: '(^|\.)(DownloadFile|DownloadFileAsync|DownloadFileTaskAsync)$'
+      requires_explicit_qualifier: true
+      min_args: 2
+      max_args: 2
+      argument_references:
+        1:
+          type_pattern: '(^|\.)string$'
+          parameter_or_initializer_roots: [Response]
+    - callee: '(^|\.)Create$'
+      receiver_path_pattern: '^File$'
+      min_args: 1
+      max_args: 1
+      argument_references:
+        0:
+          type_pattern: '(^|\.)string$'
+          parameter_or_initializer_roots: [Response]
+    - callee: '(^|\.)(TransmitFile|MapPath|WriteFile)$'
+      receiver_path_pattern: '^Request$'
+      min_args: 1
+      max_args: 1
+      argument_references:
+        0:
+          type_pattern: '(^|\.)string$'
+          parameter_or_initializer_roots: [Response]
+  cwe: [CWE-22]
+  standards: [LEGACY-MSG-0503000010050008]
+  message: Validate and constrain externally influenced file paths.
+- id: LEGACY-CS-AST-SCS0027
+  title: Dynamic response redirect
+  languages: [csharp]
+  severity: error
+  confidence: medium
+  matcher:
+    callee: '^Redirect$'
+    receiver_path_pattern: '^Response$'
+    min_args: 1
+    max_args: 2
+    argument_references:
+      0:
+        type_pattern: '(^|\.)string$'
+        exclude_if_checked: true
+        direct_identifier: true
+  cwe: [CWE-601]
+  standards: [LEGACY-MSG-0503000010050007]
+  message: Validate redirect destinations against an allowlist.
+- id: LEGACY-CS-AST-SCS0005
+  title: Predictable Random.NextBytes usage
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher: { callee: '(^|\.)NextBytes$', receiver_type_pattern: '(^|\.)Random$' }
+  standards: [LEGACY-MSG-0503000010080002]
+  message: Use RandomNumberGenerator for security-sensitive random bytes.
+- id: LEGACY-CS-AST-SCS0010
+  title: Obsolete symmetric cipher creation
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\b(DES|RC2)\.Create\s*\(' }
+  standards: [LEGACY-MSG-0503000010080008]
+  message: Replace DES or RC2 with an approved authenticated cipher.
+- id: LEGACY-CS-AST-encapsulation_overly_permissive_cors_policy_1
+  title: Wildcard CORS response header
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)(AddHeader|AppendHeader)$'
+    min_args: 2
+    string_arg_patterns: { 0: '^Access-Control-Allow-Origin$', 1: '^\*$' }
+  cwe: [CWE-942]
+  standards: [LEGACY-MSG-0503000012000017]
+  message: Allow only explicitly trusted CORS origins.
+- id: LEGACY-CS-AST-encapsulation_overly_permissive_cors_policy_2
+  title: Wildcard CORS collection header
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)(AddWithoutValidate|set_Item|Set|BaseAdd|BaseSet)$'
+    min_args: 2
+    string_arg_patterns: { 0: '^Access-Control-Allow-Origin$', 1: '^\*$' }
+  cwe: [CWE-942]
+  standards: [LEGACY-MSG-0503000012000017]
+  message: Allow only explicitly trusted CORS origins.
+- id: LEGACY-CS-AST-security_features_header_checking_disabled
+  title: ASP.NET header checking disabled
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\.EnableHeaderChecking\s*=\s*false\b' }
+  standards: [LEGACY-MSG-0503000010110003]
+  message: Keep ASP.NET response header checking enabled.
+- id: LEGACY-CS-AST-security_features_inadequate_rsa_padding_2
+  title: PKCS#1 v1.5 formatter construction
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)(RSAPKCS1KeyExchangeDeformatter|RSAPKCS1KeyExchangeFormatter|RSAPKCS1SignatureDeformatter|RSAPKCS1SignatureFormatter)$'
+  cwe: [CWE-780]
+  standards: [LEGACY-MSG-0503000010080009]
+  message: Use an approved RSA OAEP or PSS construction.
+- id: LEGACY-CS-AST-security_features_inadequate_rsa_padding_3
+  title: RSA PKCS#1 v1.5 padding selection
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\.Pkcs1\b' }
+  cwe: [CWE-780]
+  standards: [LEGACY-MSG-0503000010080009]
+  message: Use RSA OAEP or PSS padding where applicable.
+- id: LEGACY-CS-AST-security_features_null_password_1
+  title: Empty ConnectionOptions password
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)ConnectionOptions$'
+    min_args: 3
+    null_or_empty_string_args: [2]
+  cwe: [CWE-521]
+  standards: [LEGACY-MSG-0503000010080006]
+  message: Do not construct connection credentials with an empty password.
+- id: LEGACY-CS-AST-security_features_null_password_2
+  title: Empty username-token password
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)(UserNameSecurityToken|UserNameSecurityTokenProvider)$'
+    min_args: 2
+    null_or_empty_string_args: [1]
+  cwe: [CWE-521]
+  standards: [LEGACY-MSG-0503000010080006]
+  message: Do not construct a username token with an empty password.
+- id: LEGACY-CS-AST-security_features_insufficient_key_size
+  title: Insufficient RSA key size
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)RSACryptoServiceProvider$'
+    min_args: 1
+    int_arg_min_values: { 0: 0 }
+    int_arg_max_values: { 0: 2047 }
+  cwe: [CWE-326]
+  standards: [LEGACY-MSG-0503000010080010]
+  message: Use an RSA key size of at least 2048 bits.
+- id: LEGACY-CS-AST-security_features_inadequate_rsa_padding_1
+  title: Legacy RSA padding mode
+  languages: [csharp]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)(Encrypt|Decrypt)$'
+    receiver_type_pattern: '(^|\.)RSACryptoServiceProvider$'
+    min_args: 2
+    false_or_zero_args: [1]
+  cwe: [CWE-780]
+  standards: [LEGACY-MSG-0503000010080009]
+  message: Select OAEP padding instead of the legacy PKCS#1 v1.5 mode.

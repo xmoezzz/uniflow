@@ -1,0 +1,10 @@
+id: org.apache.oozie.oozie-core
+language: Java
+message: pkg:maven/org.apache.oozie/oozie-core
+metadata:
+  purl: pkg:maven/org.apache.oozie/oozie-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.oozie\.store|org\.apache\.oozie\.workflow\.lite|org\.apache\.oozie\.dependency\.hcat|org\.apache\.oozie\.action\.hadoop|org\.apache\.oozie\.util\.schema|org\.apache\.oozie\.command\.wf|org\.apache\.oozie\.command\.sla|org\.apache\.oozie\.executor\.jpa|org\.apache\.oozie\.action\.oozie|org\.apache\.oozie\.event\.listener|org\.apache\.oozie\.test|org\.apache\.oozie\.command\.coord|org\.apache\.oozie\.action\.ssh|org\.apache\.oozie\.command|org\.apache\.oozie\.sla\.service|org\.apache\.oozie\.util\.graph|org\.apache\.oozie\.util\.db|org\.apache\.oozie\.event|org\.apache\.oozie\.sla\.listener|org\.apache\.oozie\.workflow|org\.apache\.oozie\.client\.rest|org\.apache\.oozie|org\.apache\.oozie\.dependency|org\.apache\.oozie\.action\.control|org\.apache\.oozie\.sla|org\.apache\.oozie\.coord\.input\.logic|org\.apache\.oozie\.action\.email|org\.apache\.oozie\.servlet|org\.apache\.oozie\.compression|org\.apache\.oozie\.bundle|org\.apache\.oozie\.local|org\.apache\.oozie\.command\.bundle|org\.apache\.oozie\.coord\.input\.dependency|org\.apache\.oozie\.jms|org\.apache\.oozie\.action|org\.apache\.oozie\.lock|org\.apache\.oozie\.event\.messaging|org\.apache\.oozie\.action\.decision|org\.apache\.oozie\.util|org\.apache\.oozie\.executor\.jpa\.sla|org\.apache\.oozie\.coord|org\.apache\.oozie\.service)\.

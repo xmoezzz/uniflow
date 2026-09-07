@@ -1,0 +1,7 @@
+id: error-maximum-pool-size
+message: '0202000010150427'
+language: Java
+rule:
+  any:
+  - pattern: new ScheduledThreadPoolExecutor(0)
+  - pattern: new $_.ScheduledThreadPoolExecutor(0)

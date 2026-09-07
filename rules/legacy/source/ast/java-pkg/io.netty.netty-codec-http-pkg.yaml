@@ -1,0 +1,10 @@
+id: io.netty.netty-codec-http
+language: Java
+message: pkg:maven/io.netty/netty-codec-http
+metadata:
+  purl: pkg:maven/io.netty/netty-codec-http
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.netty\.handler\.codec\.http\.websocketx|io\.netty\.handler\.codec\.http\.websocketx\.extensions\.compression|io\.netty\.handler\.codec\.rtsp|io\.netty\.handler\.codec\.http\.cors|io\.netty\.handler\.codec\.http|io\.netty\.handler\.codec\.http\.websocketx\.extensions|io\.netty\.handler\.codec\.spdy|io\.netty\.handler\.codec\.http\.multipart)\.

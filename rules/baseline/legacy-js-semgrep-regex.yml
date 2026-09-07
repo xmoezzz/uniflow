@@ -1,0 +1,401 @@
+id: legacy-js-semgrep-regex
+title: Migrated JavaScript Semgrep rules
+rules:
+- id: LEGACY-JS-SEMGREP-ejs-explicit-unescape
+  title: Explicit EJS unescaped interpolation
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: '<%-.*?%>'
+  matcher:
+    path_pattern: '\.(ejs|html)$'
+    matched_text_not_pattern: 'include'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-template-explicit-unescape']
+  message: Escape externally influenced data rendered by EJS.
+- id: LEGACY-JS-SEMGREP-ejs-var-in-href
+  title: EJS variable in href attribute
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: '<a.*href\s*=[^>]*?[^/&=]<%.*?%>.*?>'
+  matcher:
+    path_pattern: '\.(ejs|html)$'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-var-in-href']
+  message: Validate and constrain template values used as link targets.
+- id: LEGACY-JS-SEMGREP-mustache-var-in-href
+  title: Mustache variable in href attribute
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: '<a.*href\s*=(\s|[''\"])*?\{\{.*?\}\}.*'
+  matcher:
+    path_pattern: '\.(mustache|hbs|html)$'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-var-in-href']
+  message: Validate and constrain template values used as link targets.
+- id: LEGACY-JS-SEMGREP-pug-and-attributes
+  title: Pug unescaped attributes expansion
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: '&attributes'
+  matcher:
+    path_pattern: '\.pug$'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-template-and-attributes']
+  message: Do not expand externally influenced Pug attributes without validation.
+- id: LEGACY-JS-SEMGREP-pug-var-in-href
+  title: Pug expression in unquoted href attribute
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: 'a\(.*href=[^''\"].*\)'
+  matcher:
+    path_pattern: '\.pug$'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-var-in-href']
+  message: Quote, validate and constrain Pug values used as link targets.
+- id: LEGACY-JS-SEMGREP-insecure-websocket
+  title: Insecure WebSocket URL
+  languages: [javascript]
+  severity: error
+  confidence: high
+  pattern: '\bws://'
+  cwe: [CWE-319]
+  standards: ['LEGACY-SEMGREP-detect-insecure-websocket']
+  message: Use an authenticated and encrypted wss connection.
+- id: LEGACY-JS-SEMGREP-vue-v-html
+  title: Vue v-html rendering
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: '<[^<>]*v-html='
+  matcher:
+    path_pattern: '\.vue$'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-avoid-v-html']
+  message: Render only trusted, sanitized content with v-html.
+- id: LEGACY-JS-SEMGREP-detect-angular-sce-disabled
+  title: AngularJS strict contextual escaping disabled
+  languages: [javascript]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '^enabled$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    bool_arg_values: { 0: false }
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-detect-angular-sce-disabled']
+  message: Do not disable AngularJS strict contextual escaping.
+- id: LEGACY-JS-SEMGREP-wildcard-postmessage-configuration
+  title: Wildcard postMessage target origin
+  languages: [javascript]
+  severity: warning
+  confidence: medium
+  matcher:
+    callee: '^postMessage$'
+    requires_receiver: true
+    min_args: 1
+    last_string_arg_pattern: '^\*$'
+  cwe: [CWE-345]
+  standards: ['LEGACY-SEMGREP-wildcard-postmessage-configuration']
+  message: Use an explicit trusted target origin instead of a wildcard.
+- id: LEGACY-JS-SEMGREP-detect-pseudoRandomBytes
+  title: Cryptographically weak pseudo-random bytes
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  matcher:
+    code_pattern: '\bcrypto\s*\.\s*pseudoRandomBytes\b'
+  cwe: [CWE-338]
+  standards: ['LEGACY-SEMGREP-detect-pseudoRandomBytes']
+  message: Use crypto.randomBytes for security-sensitive randomness.
+- id: LEGACY-JS-SEMGREP-javascript_buf_rule-buffer-noassert
+  title: Buffer operation with noAssert enabled
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^(read(UInt(8|16LE|16BE|32LE|32BE)|Int(8|16LE|16BE|32LE|32BE)|Float(LE|BE)|Double(LE|BE))|write(UInt(8|16LE|16BE|32LE|32BE)|Int(8|16LE|16BE|32LE|32BE)|Float(LE|BE)|Double(LE|BE)))$'
+    requires_receiver: true
+    min_args: 1
+    last_bool_arg_value: true
+  cwe: [CWE-119]
+  standards: ['LEGACY-SEMGREP-javascript_buf_rule-buffer-noassert']
+  message: Remove the deprecated true noAssert argument from Buffer operations.
+- id: LEGACY-JS-SEMGREP-eval-detected
+  title: Dynamic eval call
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  matcher:
+    call_alternatives:
+    - callee: '^eval$'
+      forbids_receiver: true
+      max_args: 0
+    - callee: '^eval$'
+      forbids_receiver: true
+      min_args: 1
+      max_args: 1
+      non_string_literal_args: [0]
+    - callee: '^eval$'
+      forbids_receiver: true
+      min_args: 2
+  cwe: [CWE-95]
+  standards: ['LEGACY-SEMGREP-eval-detected']
+  message: Avoid evaluating dynamic JavaScript content.
+- id: LEGACY-JS-SEMGREP-prohibit-jquery-html
+  title: Dynamic jQuery html content
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  matcher:
+    call_alternatives:
+    - callee: '^html$'
+      requires_receiver: true
+      max_args: 0
+    - callee: '^html$'
+      requires_receiver: true
+      min_args: 1
+      non_string_literal_args: [0]
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-prohibit-jquery-html']
+  message: Prefer text rendering or an HTML escaping helper over dynamic html().
+- id: LEGACY-JS-SEMGREP-no-replaceall
+  title: Unsupported replaceAll usage
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^replaceAll$'
+    requires_receiver: true
+    min_args: 2
+    max_args: 2
+    string_arg_patterns: { 0: '.*' }
+  standards: ['LEGACY-SEMGREP-no-replaceall']
+  message: Use replace with a global regular expression where older runtimes must be supported.
+- id: LEGACY-JS-SEMGREP-javascript_require_rule-non-literal-require
+  title: Dynamic module require
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^require$'
+    forbids_receiver: true
+    min_args: 1
+    max_args: 1
+    non_string_literal_args: [0]
+  cwe: [CWE-95]
+  standards: ['LEGACY-SEMGREP-javascript_require_rule-non-literal-require']
+  message: Require only a fixed string-literal module path.
+- id: LEGACY-JS-SEMGREP-javascript-alert
+  title: Leftover alert call
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^alert$'
+    forbids_receiver: true
+    max_args: 1
+  standards: ['LEGACY-SEMGREP-javascript-alert']
+  message: Remove alert calls from production code.
+- id: LEGACY-JS-SEMGREP-javascript-confirm
+  title: Leftover confirm call
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^confirm$'
+    forbids_receiver: true
+  standards: ['LEGACY-SEMGREP-javascript-confirm']
+  message: Remove confirm calls from production code.
+- id: LEGACY-JS-SEMGREP-javascript-prompt
+  title: Leftover prompt call
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^prompt$'
+    forbids_receiver: true
+    max_args: 2
+  standards: ['LEGACY-SEMGREP-javascript-prompt']
+  message: Remove prompt calls from production code.
+- id: LEGACY-JS-SEMGREP-javascript-debugger
+  title: Leftover debugger statement
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    code_pattern: '(^|[^A-Za-z0-9_$\.\]])debugger\s*;'
+  standards: ['LEGACY-SEMGREP-javascript-debugger']
+  message: Remove debugger statements from production code.
+- id: LEGACY-JS-SEMGREP-insecure-createnodesfrommarkup
+  title: Dynamic createNodesFromMarkup content
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  matcher:
+    call_alternatives:
+    - callee: '^createNodesFromMarkup$'
+      max_args: 0
+    - callee: '^createNodesFromMarkup$'
+      min_args: 1
+      non_string_literal_args: [0]
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-insecure-createnodesfrommarkup']
+  message: Pass only fixed trusted markup to createNodesFromMarkup.
+- id: LEGACY-JS-SEMGREP-detect-buffer-noassert
+  title: Buffer operation with noAssert enabled
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  matcher:
+    callee: '^(read|write)(U?Int8|(U?Int(16|32)|Float|Double)(LE|BE))$'
+    requires_receiver: true
+    min_args: 1
+    last_bool_arg_value: true
+  cwe: [CWE-119]
+  standards: ['LEGACY-SEMGREP-detect-buffer-noassert']
+  message: Remove the true noAssert argument from Buffer operations.
+- id: LEGACY-JS-SEMGREP-javascript_random_rule-pseudo-random-bytes
+  title: Cryptographically weak pseudo-random bytes
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    code_pattern: '\bcrypto\s*\.\s*pseudoRandomBytes\b'
+  cwe: [CWE-338]
+  standards: ['LEGACY-SEMGREP-javascript_random_rule-pseudo-random-bytes']
+  message: Use crypto.randomBytes for security-sensitive randomness.
+- id: LEGACY-JS-SEMGREP-mustache-explicit-unescape
+  title: Explicit Mustache unescaped interpolation
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: '(\{\{\{.*?\}\}\}|\{\{[^}&]*&[^}&]*\}\})'
+  matcher:
+    path_pattern: '\.(mustache|hbs|html)$'
+    matched_text_not_pattern: '^\{\{\{[^}]*include'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-template-explicit-unescape']
+  message: Do not explicitly disable Mustache escaping for externally influenced data.
+- id: LEGACY-JS-SEMGREP-pug-explicit-unescape
+  title: Explicit Pug unescaped interpolation
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: '(\w.*!=[^=].*|!\{.*?\})'
+  matcher:
+    path_pattern: '\.pug$'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-template-explicit-unescape']
+  message: Do not explicitly disable Pug escaping for externally influenced data.
+- id: LEGACY-JS-SEMGREP-pug-var-in-script-tag
+  title: Pug template value in script tag
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  pattern: '(script\s*=[A-Za-z0-9]+|script\s*=.*["'']\s*\+.*|script\s*=[^''"]+\+.*|script\(.*?\)\s*=\s*[A-Za-z0-9]+|script\(.*?\)\s*=\s*.*["'']\s*\+.*|script\(.*?\)\s*=\s*[^''"]+\+.*)'
+  matcher:
+    path_pattern: '\.pug$'
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-var-in-script-tag']
+  message: Encode template values for JavaScript context before placing them in a script tag.
+- id: LEGACY-JS-SEMGREP-detect-angular-open-redirect
+  title: Dynamic AngularJS redirect target
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  matcher:
+    assignment_target_path_pattern: '(^|\.)location\.href$'
+    assignment_requires_field: true
+    assignment_value_non_string_literal: true
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-detect-angular-open-redirect']
+  message: Validate and constrain dynamic values assigned to location.href.
+- id: LEGACY-JS-SEMGREP-insecure-innerhtml
+  title: Dynamic innerHTML assignment
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  matcher:
+    assignment_target_path_pattern: '(^|\.)innerHTML$'
+    assignment_requires_field: true
+    assignment_value_non_string_literal: true
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-insecure-innerhtml']
+  message: Avoid assigning dynamic content directly to innerHTML.
+- id: LEGACY-JS-SEMGREP-detect-disable-mustache-escape
+  title: Mustache escaping disabled
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    assignment_target_path_pattern: '(^|\.)escapeMarkup$'
+    assignment_requires_field: true
+    assignment_bool_value: false
+  cwe: [CWE-116]
+  standards: ['LEGACY-SEMGREP-detect-disable-mustache-escape']
+  message: Do not disable Mustache output escaping.
+- id: LEGACY-JS-SEMGREP-assigned-undefined
+  title: Assignment to undefined
+  languages: [javascript]
+  severity: warning
+  confidence: high
+  matcher:
+    code_pattern: '(^|[^A-Za-z0-9_$\.])(?:(?:var|let|const)\s+)?undefined\s*='
+  standards: ['LEGACY-SEMGREP-assigned-undefined']
+  message: Do not assign or declare a value named undefined.
+- id: LEGACY-JS-SEMGREP-detect-replaceall-sanitization
+  title: Manual HTML escaping with replace
+  languages: [javascript]
+  severity: note
+  confidence: low
+  matcher:
+    call_alternatives:
+    - callee: '^(replace|replaceAll)$'
+      requires_receiver: true
+      min_args: 2
+      max_args: 2
+      string_arg_patterns: { 0: '^<$', 1: '^&lt;$' }
+    - callee: '^(replace|replaceAll)$'
+      requires_receiver: true
+      min_args: 2
+      max_args: 2
+      string_arg_patterns: { 0: '^>$', 1: '^&gt;$' }
+    - callee: '^(replace|replaceAll)$'
+      requires_receiver: true
+      min_args: 2
+      max_args: 2
+      string_arg_patterns: { 0: '^"$', 1: '^&quot;$' }
+    - callee: '^(replace|replaceAll)$'
+      requires_receiver: true
+      min_args: 2
+      max_args: 2
+      string_arg_patterns: { 0: '^\x27$', 1: '^&apos;$' }
+    - callee: '^(replace|replaceAll)$'
+      requires_receiver: true
+      min_args: 2
+      max_args: 2
+      string_arg_patterns: { 0: '^&$', 1: '^&amp;$' }
+  cwe: [CWE-79]
+  standards: ['LEGACY-SEMGREP-detect-replaceall-sanitization']
+  message: Use a well-tested HTML sanitizer instead of a hand-built replacement list.
+- id: LEGACY-JS-SEMGREP-incomplete-sanitization
+  title: Incomplete string replacement sanitization
+  languages: [javascript]
+  severity: warning
+  confidence: low
+  matcher:
+    callee: '^replace$'
+    requires_receiver: true
+    min_args: 2
+    string_arg_patterns:
+      0: '^(?:[''"<>*|{}%$&]|\[|\]|\n|\r|\t)$'
+  cwe: [CWE-116]
+  standards: ['LEGACY-SEMGREP-incomplete-sanitization']
+  message: A string replace call removes only the first dangerous character; use a sanitizer or global regular expression.

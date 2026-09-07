@@ -1,0 +1,1794 @@
+metadata:
+- id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-require
+  title: Function parameter reaches dynamic require
+  message: A function argument reaches require(), allowing attacker-controlled module or file loading.
+  severity: warning
+  cwe: [CWE-95]
+  standards: [semgrep/javascript/lang/security/audit/detect-non-literal-require.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入动态 require, message: 函数参数流入 require()，可能允许攻击者控制模块或文件加载。 }
+    en: { title: Function parameter reaches dynamic require, message: A function argument reaches require(), allowing attacker-controlled module or file loading. }
+    zh-TW: { title: 函式參數流入動態 require, message: 函式參數流入 require()，可能允許攻擊者控制模組或檔案載入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-regexp
+  title: Function parameter reaches RegExp
+  message: A function argument reaches RegExp(), which can enable regular-expression denial of service.
+  severity: warning
+  cwe: [CWE-185]
+  standards: [semgrep/javascript/lang/security/audit/detect-non-literal-regexp.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入 RegExp, message: 函数参数流入 RegExp()，可能导致正则表达式拒绝服务。 }
+    en: { title: Function parameter reaches RegExp, message: A function argument reaches RegExp(), which can enable regular-expression denial of service. }
+    zh-TW: { title: 函式參數流入 RegExp, message: 函式參數流入 RegExp()，可能導致正規表示式阻斷服務。 }
+- id: LEGACY-JS-SEMGREP-TAINT-md5-used-as-password
+  title: MD5 digest reaches password operation
+  message: An MD5 digest reaches a password-related function. Use a password hashing algorithm such as Argon2, scrypt, or bcrypt.
+  severity: warning
+  cwe: [CWE-327]
+  standards: [semgrep/javascript/lang/security/audit/md5-used-as-password.yaml]
+  translations:
+    zh-CN: { title: MD5 摘要流入密码操作, message: MD5 摘要流入了密码相关函数。请改用 Argon2、scrypt 或 bcrypt 等密码哈希算法。 }
+    en: { title: MD5 digest reaches password operation, message: "An MD5 digest reaches a password-related function. Use a password hashing algorithm such as Argon2, scrypt, or bcrypt." }
+    zh-TW: { title: MD5 摘要流入密碼操作, message: MD5 摘要流入了密碼相關函式。請改用 Argon2、scrypt 或 bcrypt 等密碼雜湊演算法。 }
+- id: LEGACY-JS-SEMGREP-TAINT-insecure-object-assign
+  title: Parsed untrusted JSON reaches Object.assign
+  message: JSON parsed from a non-constant value reaches Object.assign(), which can permit mass assignment or unintended property changes.
+  severity: warning
+  cwe: [CWE-915]
+  standards: [semgrep/javascript/lang/security/insecure-object-assign.yaml]
+  translations:
+    zh-CN: { title: 不可信 JSON 流入 Object.assign, message: 从非常量值解析的 JSON 流入 Object.assign()，可能造成批量赋值或非预期属性修改。 }
+    en: { title: Parsed untrusted JSON reaches Object.assign, message: "JSON parsed from a non-constant value reaches Object.assign(), which can permit mass assignment or unintended property changes." }
+    zh-TW: { title: 不可信 JSON 流入 Object.assign, message: 從非常量值解析的 JSON 流入 Object.assign()，可能造成批次指派或非預期屬性修改。 }
+- id: LEGACY-JS-SEMGREP-TAINT-detect-child-process
+  title: Function parameter reaches Node.js child_process
+  message: A function argument reaches a command-execution API from the Node.js child_process module.
+  severity: error
+  cwe: [CWE-78]
+  standards: [semgrep/javascript/lang/security/detect-child-process.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入 Node.js child_process, message: 函数参数流入 Node.js child_process 模块的命令执行 API，可能造成命令注入。 }
+    en: { title: Function parameter reaches Node.js child_process, message: A function argument reaches a command-execution API from the Node.js child_process module. }
+    zh-TW: { title: 函式參數流入 Node.js child_process, message: 函式參數流入 Node.js child_process 模組的命令執行 API，可能造成命令注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-tofastproperties-code-execution
+  title: Function parameter reaches Bluebird toFastProperties
+  message: A function argument reaches Bluebird's toFastProperties helper and may enable code execution in affected environments.
+  severity: warning
+  cwe: [CWE-94]
+  standards: [semgrep/javascript/bluebird/security/audit/tofastproperties-code-execution.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入 Bluebird toFastProperties, message: 函数参数流入 Bluebird 的 toFastProperties 辅助函数，在受影响的环境中可能导致代码执行。 }
+    en: { title: Function parameter reaches Bluebird toFastProperties, message: "A function argument reaches Bluebird's toFastProperties helper and may enable code execution in affected environments." }
+    zh-TW: { title: 函式參數流入 Bluebird toFastProperties, message: 函式參數流入 Bluebird 的 toFastProperties 輔助函式，在受影響的環境中可能導致程式碼執行。 }
+- id: LEGACY-JS-SEMGREP-TAINT-node-mysql-sqli
+  title: Function parameter reaches a MySQL query
+  message: A nonnumeric function argument reaches a mysql/mysql2 query or execute call and may cause SQL injection.
+  severity: warning
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/lang/security/audit/sqli/node-mysql-sqli.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入 MySQL 查询, message: 非数值函数参数流入 mysql/mysql2 的 query 或 execute 调用，可能造成 SQL 注入。 }
+    en: { title: Function parameter reaches a MySQL query, message: A nonnumeric function argument reaches a mysql/mysql2 query or execute call and may cause SQL injection. }
+    zh-TW: { title: 函式參數流入 MySQL 查詢, message: 非數值函式參數流入 mysql/mysql2 的 query 或 execute 呼叫，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-node-mssql-sqli
+  title: Function parameter reaches an mssql query
+  message: A function argument reaches an mssql request query and may cause SQL injection.
+  severity: warning
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/lang/security/audit/sqli/node-mssql-sqli.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入 mssql 查询, message: 函数参数流入 mssql 请求的 query 调用，可能造成 SQL 注入。 }
+    en: { title: Function parameter reaches an mssql query, message: A function argument reaches an mssql request query and may cause SQL injection. }
+    zh-TW: { title: 函式參數流入 mssql 查詢, message: 函式參數流入 mssql 請求的 query 呼叫，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-node-postgres-sqli
+  title: Function parameter reaches a node-postgres query
+  message: A function argument reaches a node-postgres client query and may cause SQL injection.
+  severity: warning
+  cwe: [CWE-915]
+  standards: [semgrep/javascript/lang/security/audit/sqli/node-postgres-sqli.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入 node-postgres 查询, message: 函数参数流入 node-postgres 客户端的 query 调用，可能造成 SQL 注入。 }
+    en: { title: Function parameter reaches a node-postgres query, message: A function argument reaches a node-postgres client query and may cause SQL injection. }
+    zh-TW: { title: 函式參數流入 node-postgres 查詢, message: 函式參數流入 node-postgres 用戶端的 query 呼叫，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-detect-child-process
+  title: AWS Lambda event reaches child_process
+  message: An AWS Lambda handler event reaches a Node.js child_process command API and may cause command injection.
+  severity: error
+  cwe: [CWE-78]
+  standards: [semgrep/javascript/aws-lambda/security/detect-child-process.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入 child_process, message: AWS Lambda 处理器事件流入 Node.js child_process 命令 API，可能造成命令注入。 }
+    en: { title: AWS Lambda event reaches child_process, message: An AWS Lambda handler event reaches a Node.js child_process command API and may cause command injection. }
+    zh-TW: { title: AWS Lambda 事件流入 child_process, message: AWS Lambda 處理器事件流入 Node.js child_process 命令 API，可能造成命令注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-eval
+  title: AWS Lambda event reaches dynamic evaluation
+  message: An AWS Lambda handler event reaches eval or Function and may cause arbitrary code execution.
+  severity: warning
+  cwe: [CWE-95]
+  standards: [semgrep/javascript/aws-lambda/security/tainted-eval.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入动态执行, message: AWS Lambda 处理器事件流入 eval 或 Function，可能造成任意代码执行。 }
+    en: { title: AWS Lambda event reaches dynamic evaluation, message: An AWS Lambda handler event reaches eval or Function and may cause arbitrary code execution. }
+    zh-TW: { title: AWS Lambda 事件流入動態執行, message: AWS Lambda 處理器事件流入 eval 或 Function，可能造成任意程式碼執行。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-dynamodb-request-object
+  title: AWS Lambda event reaches a DynamoDB request
+  message: An AWS Lambda handler event reaches a DynamoDB request object and may cause NoSQL injection.
+  severity: error
+  cwe: [CWE-943]
+  standards: [semgrep/javascript/aws-lambda/security/dynamodb-request-object.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入 DynamoDB 请求, message: AWS Lambda 处理器事件流入 DynamoDB 请求对象，可能造成 NoSQL 注入。 }
+    en: { title: AWS Lambda event reaches a DynamoDB request, message: An AWS Lambda handler event reaches a DynamoDB request object and may cause NoSQL injection. }
+    zh-TW: { title: AWS Lambda 事件流入 DynamoDB 請求, message: AWS Lambda 處理器事件流入 DynamoDB 請求物件，可能造成 NoSQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-knex-sqli
+  title: AWS Lambda event reaches a Knex raw query
+  message: An AWS Lambda handler event reaches a Knex raw SQL API and may cause SQL injection.
+  severity: warning
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/aws-lambda/security/knex-sqli.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入 Knex 原始查询, message: AWS Lambda 处理器事件流入 Knex 原始 SQL API，可能造成 SQL 注入。 }
+    en: { title: AWS Lambda event reaches a Knex raw query, message: An AWS Lambda handler event reaches a Knex raw SQL API and may cause SQL injection. }
+    zh-TW: { title: AWS Lambda 事件流入 Knex 原始查詢, message: AWS Lambda 處理器事件流入 Knex 原始 SQL API，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-mysql-sqli
+  title: AWS Lambda event reaches a MySQL query
+  message: An AWS Lambda handler event reaches a mysql/mysql2 query API and may cause SQL injection.
+  severity: warning
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/aws-lambda/security/mysql-sqli.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入 MySQL 查询, message: AWS Lambda 处理器事件流入 mysql/mysql2 查询 API，可能造成 SQL 注入。 }
+    en: { title: AWS Lambda event reaches a MySQL query, message: An AWS Lambda handler event reaches a mysql/mysql2 query API and may cause SQL injection. }
+    zh-TW: { title: AWS Lambda 事件流入 MySQL 查詢, message: AWS Lambda 處理器事件流入 mysql/mysql2 查詢 API，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-pg-sqli
+  title: AWS Lambda event reaches a PostgreSQL query
+  message: An AWS Lambda handler event reaches a node-postgres query API and may cause SQL injection.
+  severity: warning
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/aws-lambda/security/pg-sqli.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入 PostgreSQL 查询, message: AWS Lambda 处理器事件流入 node-postgres 查询 API，可能造成 SQL 注入。 }
+    en: { title: AWS Lambda event reaches a PostgreSQL query, message: An AWS Lambda handler event reaches a node-postgres query API and may cause SQL injection. }
+    zh-TW: { title: AWS Lambda 事件流入 PostgreSQL 查詢, message: AWS Lambda 處理器事件流入 node-postgres 查詢 API，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-sequelize-sqli
+  title: AWS Lambda event reaches a Sequelize raw query
+  message: An AWS Lambda handler event reaches a Sequelize raw query API and may cause SQL injection.
+  severity: warning
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/aws-lambda/security/sequelize-sqli.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入 Sequelize 原始查询, message: AWS Lambda 处理器事件流入 Sequelize 原始查询 API，可能造成 SQL 注入。 }
+    en: { title: AWS Lambda event reaches a Sequelize raw query, message: An AWS Lambda handler event reaches a Sequelize raw query API and may cause SQL injection. }
+    zh-TW: { title: AWS Lambda 事件流入 Sequelize 原始查詢, message: AWS Lambda 處理器事件流入 Sequelize 原始查詢 API，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-vm-runincontext-injection
+  title: AWS Lambda event reaches the Node.js vm module
+  message: An AWS Lambda handler event reaches a Node.js vm compilation or execution API and may cause code injection.
+  severity: error
+  cwe: [CWE-94]
+  standards: [semgrep/javascript/aws-lambda/security/vm-runincontext-injection.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入 Node.js vm 模块, message: AWS Lambda 处理器事件流入 Node.js vm 编译或执行 API，可能造成代码注入。 }
+    en: { title: AWS Lambda event reaches the Node.js vm module, message: An AWS Lambda handler event reaches a Node.js vm compilation or execution API and may cause code injection. }
+    zh-TW: { title: AWS Lambda 事件流入 Node.js vm 模組, message: AWS Lambda 處理器事件流入 Node.js vm 編譯或執行 API，可能造成程式碼注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-html-response
+  title: AWS Lambda event reaches an HTML response body
+  message: An AWS Lambda handler event reaches the body of an HTML response and may cause cross-site scripting.
+  severity: warning
+  cwe: [CWE-79]
+  standards: [semgrep/javascript/aws-lambda/security/tainted-html-response.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入 HTML 响应正文, message: AWS Lambda 处理器事件流入 HTML 响应正文，可能造成跨站脚本攻击。 }
+    en: { title: AWS Lambda event reaches an HTML response body, message: An AWS Lambda handler event reaches the body of an HTML response and may cause cross-site scripting. }
+    zh-TW: { title: AWS Lambda 事件流入 HTML 回應本文, message: AWS Lambda 處理器事件流入 HTML 回應本文，可能造成跨網站指令碼攻擊。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-html-string
+  title: AWS Lambda event reaches a manually composed HTML string
+  message: An AWS Lambda handler event reaches a manually composed HTML string and may cause cross-site scripting.
+  severity: warning
+  cwe: [CWE-79]
+  standards: [semgrep/javascript/aws-lambda/security/tainted-html-string.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入手工拼接的 HTML, message: AWS Lambda 处理器事件流入手工拼接的 HTML 字符串，可能造成跨站脚本攻击。 }
+    en: { title: AWS Lambda event reaches a manually composed HTML string, message: An AWS Lambda handler event reaches a manually composed HTML string and may cause cross-site scripting. }
+    zh-TW: { title: AWS Lambda 事件流入手工串接的 HTML, message: AWS Lambda 處理器事件流入手工串接的 HTML 字串，可能造成跨網站指令碼攻擊。 }
+- id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-sql-string
+  title: AWS Lambda event reaches a manually composed SQL string
+  message: An AWS Lambda handler event reaches a manually composed SQL string and may cause SQL injection.
+  severity: error
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/aws-lambda/security/tainted-sql-string.yaml]
+  translations:
+    zh-CN: { title: AWS Lambda 事件流入手工拼接的 SQL, message: AWS Lambda 处理器事件流入手工拼接的 SQL 字符串，可能造成 SQL 注入。 }
+    en: { title: AWS Lambda event reaches a manually composed SQL string, message: An AWS Lambda handler event reaches a manually composed SQL string and may cause SQL injection. }
+    zh-TW: { title: AWS Lambda 事件流入手工串接的 SQL, message: AWS Lambda 處理器事件流入手工串接的 SQL 字串，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-js-open-redirect-from-function
+  title: Function parameter reaches a browser redirect
+  message: A function parameter controls a browser location redirect and may allow an open redirect or script URL.
+  severity: note
+  cwe: [CWE-601]
+  standards: [semgrep/javascript/browser/security/open-redirect-from-function.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入浏览器重定向, message: 函数参数控制浏览器位置重定向，可能造成开放重定向或脚本 URL 注入。 }
+    en: { title: Function parameter reaches a browser redirect, message: A function parameter controls a browser location redirect and may allow an open redirect or script URL. }
+    zh-TW: { title: 函式參數流入瀏覽器重新導向, message: 函式參數控制瀏覽器位置重新導向，可能造成開放重新導向或指令碼 URL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-js-open-redirect
+  title: Browser location input reaches a redirect
+  message: Browser-controlled URL data reaches a location redirect and may allow an open redirect or script URL.
+  severity: warning
+  cwe: [CWE-601]
+  standards: [semgrep/javascript/browser/security/open-redirect.yaml]
+  translations:
+    zh-CN: { title: 浏览器位置输入流入重定向, message: 浏览器可控 URL 数据流入位置重定向，可能造成开放重定向或脚本 URL 注入。 }
+    en: { title: Browser location input reaches a redirect, message: Browser-controlled URL data reaches a location redirect and may allow an open redirect or script URL. }
+    zh-TW: { title: 瀏覽器位置輸入流入重新導向, message: 瀏覽器可控 URL 資料流入位置重新導向，可能造成開放重新導向或指令碼 URL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-detect-eval-with-expression
+  title: Browser location input reaches dynamic JavaScript execution
+  message: Browser-controlled URL data reaches eval, Function, setTimeout, or setInterval and may cause script injection.
+  severity: warning
+  cwe: [CWE-95]
+  standards: [semgrep/javascript/lang/security/detect-eval-with-expression.yaml]
+  translations:
+    zh-CN: { title: 浏览器位置输入流入动态 JavaScript 执行, message: 浏览器可控 URL 数据流入 eval、Function、setTimeout 或 setInterval，可能造成脚本注入。 }
+    en: { title: Browser location input reaches dynamic JavaScript execution, message: "Browser-controlled URL data reaches eval, Function, setTimeout, or setInterval and may cause script injection." }
+    zh-TW: { title: 瀏覽器位置輸入流入動態 JavaScript 執行, message: 瀏覽器可控 URL 資料流入 eval、Function、setTimeout 或 setInterval，可能造成指令碼注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-raw-html-concat
+  title: Browser location input reaches raw HTML composition
+  message: Browser-controlled URL data is concatenated into an HTML string and may cause cross-site scripting.
+  severity: warning
+  cwe: [CWE-79]
+  standards: [semgrep/javascript/browser/security/raw-html-concat.yaml]
+  translations:
+    zh-CN: { title: 浏览器位置输入流入原始 HTML 拼接, message: 浏览器可控 URL 数据被拼接到 HTML 字符串中，可能造成跨站脚本攻击。 }
+    en: { title: Browser location input reaches raw HTML composition, message: Browser-controlled URL data is concatenated into an HTML string and may cause cross-site scripting. }
+    zh-TW: { title: 瀏覽器位置輸入流入原始 HTML 串接, message: 瀏覽器可控 URL 資料被串接到 HTML 字串中，可能造成跨網站指令碼攻擊。 }
+- id: LEGACY-JS-SEMGREP-TAINT-detect-angular-element-methods
+  title: AngularJS scope data reaches angular.element HTML mutation
+  message: AngularJS scope data reaches an angular.element HTML mutation method and may cause cross-site scripting.
+  severity: note
+  cwe: [CWE-79]
+  standards: [semgrep/javascript/angular/security/detect-angular-element-methods.yaml]
+  translations:
+    zh-CN: { title: AngularJS scope 数据流入 DOM 修改, message: AngularJS scope 数据流入 angular.element 的 HTML 修改方法，可能造成跨站脚本攻击。 }
+    en: { title: AngularJS scope data reaches angular.element HTML mutation, message: AngularJS scope data reaches an angular.element HTML mutation method and may cause cross-site scripting. }
+    zh-TW: { title: AngularJS scope 資料流入 DOM 修改, message: AngularJS scope 資料流入 angular.element 的 HTML 修改方法，可能造成跨網站指令碼攻擊。 }
+- id: LEGACY-JS-SEMGREP-TAINT-detect-angular-element-taint
+  title: Browser input reaches angular.element HTML mutation
+  message: Browser-controlled URL data reaches an angular.element HTML mutation method and may cause cross-site scripting.
+  severity: warning
+  cwe: [CWE-79]
+  standards: [semgrep/javascript/angular/security/detect-angular-element-taint.yaml]
+  translations:
+    zh-CN: { title: 浏览器输入流入 AngularJS DOM 修改, message: 浏览器可控 URL 数据流入 angular.element 的 HTML 修改方法，可能造成跨站脚本攻击。 }
+    en: { title: Browser input reaches angular.element HTML mutation, message: Browser-controlled URL data reaches an angular.element HTML mutation method and may cause cross-site scripting. }
+    zh-TW: { title: 瀏覽器輸入流入 AngularJS DOM 修改, message: 瀏覽器可控 URL 資料流入 angular.element 的 HTML 修改方法，可能造成跨網站指令碼攻擊。 }
+- id: LEGACY-JS-SEMGREP-TAINT-detect-angular-trust-as-method
+  title: AngularJS scope data reaches a trustAs method
+  message: Unsanitized AngularJS scope data reaches $sce.trustAs or trustAsHtml and may bypass contextual escaping.
+  severity: warning
+  cwe: [CWE-79]
+  standards: [semgrep/javascript/angular/security/detect-angular-trust-as-method.yaml]
+  translations:
+    zh-CN: { title: AngularJS scope 数据流入 trustAs, message: 未净化的 AngularJS scope 数据流入 $sce.trustAs 或 trustAsHtml，可能绕过上下文转义。 }
+    en: { title: AngularJS scope data reaches a trustAs method, message: Unsanitized AngularJS scope data reaches $sce.trustAs or trustAsHtml and may bypass contextual escaping. }
+    zh-TW: { title: AngularJS scope 資料流入 trustAs, message: 未淨化的 AngularJS scope 資料流入 $sce.trustAs 或 trustAsHtml，可能繞過上下文跳脫。 }
+- id: LEGACY-JS-SEMGREP-TAINT-hardcoded-jwt-secret
+  title: Hard-coded jsonwebtoken secret
+  message: A hard-coded secret reaches jsonwebtoken sign or verify. Load credentials from a secret manager or protected environment configuration.
+  severity: warning
+  cwe: [CWE-798]
+  standards: [semgrep/javascript/jsonwebtoken/security/jwt-hardcode.yaml]
+  translations:
+    zh-CN: { title: jsonwebtoken 使用硬编码密钥, message: 硬编码密钥流入 jsonwebtoken 的 sign 或 verify。请从密钥管理服务或受保护的环境配置加载凭据。 }
+    en: { title: Hard-coded jsonwebtoken secret, message: A hard-coded secret reaches jsonwebtoken sign or verify. Load credentials from a secret manager or protected environment configuration. }
+    zh-TW: { title: jsonwebtoken 使用硬編碼金鑰, message: 硬編碼金鑰流入 jsonwebtoken 的 sign 或 verify。請從金鑰管理服務或受保護的環境設定載入憑證。 }
+- id: LEGACY-JS-SEMGREP-TAINT-code-string-concat
+  title: Web request data reaches eval
+  message: Express or Next.js request data reaches eval and may allow arbitrary JavaScript execution.
+  severity: warning
+  cwe: [CWE-95]
+  standards: [semgrep/javascript/lang/security/audit/code-string-concat.yaml]
+  translations:
+    zh-CN: { title: Web 请求数据流入 eval, message: Express 或 Next.js 请求数据流入 eval，可能允许执行任意 JavaScript。 }
+    en: { title: Web request data reaches eval, message: Express or Next.js request data reaches eval and may allow arbitrary JavaScript execution. }
+    zh-TW: { title: Web 請求資料流入 eval, message: Express 或 Next.js 請求資料流入 eval，可能允許執行任意 JavaScript。 }
+- id: LEGACY-JS-SEMGREP-TAINT-node-knex-sqli
+  title: Web request data reaches a Knex raw query
+  message: Express request data reaches a Knex raw SQL API and may cause SQL injection.
+  severity: warning
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/lang/security/audit/sqli/node-knex-sqli.yaml]
+  translations:
+    zh-CN: { title: Web 请求数据流入 Knex 原始查询, message: Express 请求数据流入 Knex 原始 SQL API，可能造成 SQL 注入。 }
+    en: { title: Web request data reaches a Knex raw query, message: Express request data reaches a Knex raw SQL API and may cause SQL injection. }
+    zh-TW: { title: Web 請求資料流入 Knex 原始查詢, message: Express 請求資料流入 Knex 原始 SQL API，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-path-join-resolve-traversal
+  title: Function parameter reaches path join or resolve
+  message: A function parameter reaches path.join or path.resolve and may allow traversal outside the intended directory.
+  severity: warning
+  cwe: [CWE-22]
+  standards: [semgrep/javascript/lang/security/audit/path-traversal/path-join-resolve-traversal.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入路径拼接, message: 函数参数流入 path.join 或 path.resolve，可能允许遍历到预期目录之外。 }
+    en: { title: Function parameter reaches path join or resolve, message: A function parameter reaches path.join or path.resolve and may allow traversal outside the intended directory. }
+    zh-TW: { title: 函式參數流入路徑拼接, message: 函式參數流入 path.join 或 path.resolve，可能允許遍歷到預期目錄之外。 }
+- id: LEGACY-JS-SEMGREP-TAINT-unsafe-formatstring
+  title: Dynamic format string reaches logging or util.format
+  message: A dynamically composed format string reaches console logging or util.format with substitution arguments and may allow log forging.
+  severity: note
+  cwe: [CWE-134]
+  standards: [semgrep/javascript/lang/security/audit/unsafe-formatstring.yaml]
+  translations:
+    zh-CN: { title: 动态格式字符串流入日志 API, message: 动态拼接的格式字符串与替换参数一起流入 console 日志或 util.format，可能造成日志伪造。 }
+    en: { title: Dynamic format string reaches logging or util.format, message: A dynamically composed format string reaches console logging or util.format with substitution arguments and may allow log forging. }
+    zh-TW: { title: 動態格式字串流入日誌 API, message: 動態拼接的格式字串與替換參數一起流入 console 日誌或 util.format，可能造成日誌偽造。 }
+- id: LEGACY-JS-SEMGREP-TAINT-dangerous-spawn-shell
+  title: Function argument reaches a spawned command shell
+  message: A function argument reaches a child_process spawn or spawnSync invocation using a command shell and may allow command injection.
+  severity: error
+  cwe: [CWE-78]
+  standards: [semgrep/javascript/lang/security/audit/dangerous-spawn-shell.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入 shell 子进程, message: 函数参数流入使用命令 shell 的 child_process spawn 或 spawnSync，可能造成命令注入。 }
+    en: { title: Function argument reaches a spawned command shell, message: A function argument reaches a child_process spawn or spawnSync invocation using a command shell and may allow command injection. }
+    zh-TW: { title: 函式參數流入 shell 子程序, message: 函式參數流入使用命令 shell 的 child_process spawn 或 spawnSync，可能造成命令注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-deno-dangerous-run
+  title: Function argument reaches Deno.run command
+  message: A function argument reaches the cmd field of Deno.run and may allow command injection.
+  severity: error
+  cwe: [CWE-78]
+  standards: [semgrep/javascript/deno/security/audit/deno-dangerous-run.yaml]
+  translations:
+    zh-CN: { title: 函数参数流入 Deno.run 命令, message: 函数参数流入 Deno.run 的 cmd 字段，可能造成命令注入。 }
+    en: { title: Function argument reaches Deno.run command, message: A function argument reaches the cmd field of Deno.run and may allow command injection. }
+    zh-TW: { title: 函式參數流入 Deno.run 命令, message: 函式參數流入 Deno.run 的 cmd 欄位，可能造成命令注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-path-join-resolve-traversal
+  title: Express request data reaches path join or resolve
+  message: Express request data reaches path.join or path.resolve and may allow traversal outside the intended directory.
+  severity: warning
+  cwe: [CWE-22]
+  standards: [semgrep/javascript/express/security/audit/express-path-join-resolve-traversal.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入路径拼接, message: Express 请求数据流入 path.join 或 path.resolve，可能允许遍历到预期目录之外。 }
+    en: { title: Express request data reaches path join or resolve, message: Express request data reaches path.join or path.resolve and may allow traversal outside the intended directory. }
+    zh-TW: { title: Express 請求資料流入路徑拼接, message: Express 請求資料流入 path.join 或 path.resolve，可能允許遍歷到預期目錄之外。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-res-sendfile
+  title: Express request data reaches response sendFile
+  message: Express request data reaches a one-argument res.sendFile call and may allow arbitrary file reads through path traversal.
+  severity: warning
+  cwe: [CWE-73]
+  standards: [semgrep/javascript/express/security/audit/express-res-sendfile.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 sendFile, message: Express 请求数据流入单参数 res.sendFile，可能通过路径遍历读取任意文件。 }
+    en: { title: Express request data reaches response sendFile, message: Express request data reaches a one-argument res.sendFile call and may allow arbitrary file reads through path traversal. }
+    zh-TW: { title: Express 請求資料流入 sendFile, message: Express 請求資料流入單參數 res.sendFile，可能透過路徑遍歷讀取任意檔案。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-ssrf
+  title: Express request data reaches an outbound request
+  message: Express request data reaches a request package HTTP method and may allow server-side request forgery.
+  severity: warning
+  cwe: [CWE-918]
+  standards: [semgrep/javascript/express/security/audit/express-ssrf.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入出站请求, message: Express 请求数据流入 request 包的 HTTP 方法，可能造成服务端请求伪造。 }
+    en: { title: Express request data reaches an outbound request, message: Express request data reaches a request package HTTP method and may allow server-side request forgery. }
+    zh-TW: { title: Express 請求資料流入出站請求, message: Express 請求資料流入 request 套件的 HTTP 方法，可能造成伺服器端請求偽造。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-open-redirect
+  title: Express request data reaches response redirect
+  message: Express request data reaches the response redirect method and may redirect users to an attacker-controlled location.
+  severity: warning
+  cwe: [CWE-601]
+  standards: [semgrep/javascript/express/security/audit/express-open-redirect.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入重定向, message: Express 请求数据流入响应对象的 redirect 方法，可能将用户重定向到攻击者控制的位置。 }
+    en: { title: Express request data reaches response redirect, message: Express request data reaches the response redirect method and may redirect users to an attacker-controlled location. }
+    zh-TW: { title: Express 請求資料流入重新導向, message: Express 請求資料流入回應物件的 redirect 方法，可能將使用者重新導向到攻擊者控制的位置。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-vm-injection
+  title: Express request data reaches Node.js vm execution
+  message: Express request data reaches a Node.js vm execution API and may allow code injection.
+  severity: error
+  cwe: [CWE-94]
+  standards: [semgrep/javascript/express/security/express-vm-injection.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 vm 执行, message: Express 请求数据流入 Node.js vm 执行 API，可能造成代码注入。 }
+    en: { title: Express request data reaches Node.js vm execution, message: Express request data reaches a Node.js vm execution API and may allow code injection. }
+    zh-TW: { title: Express 請求資料流入 vm 執行, message: Express 請求資料流入 Node.js vm 執行 API，可能造成程式碼注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-wkhtmltopdf-injection
+  title: Express request data reaches wkhtmltopdf
+  message: Express request data reaches wkhtmltopdf and may allow server-side request forgery or command injection.
+  severity: error
+  cwe: [CWE-918]
+  standards: [semgrep/javascript/express/security/express-wkhtml-injection.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 wkhtmltopdf, message: Express 请求数据流入 wkhtmltopdf，可能造成服务端请求伪造或命令注入。 }
+    en: { title: Express request data reaches wkhtmltopdf, message: Express request data reaches wkhtmltopdf and may allow server-side request forgery or command injection. }
+    zh-TW: { title: Express 請求資料流入 wkhtmltopdf, message: Express 請求資料流入 wkhtmltopdf，可能造成伺服器端請求偽造或命令注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-require-request
+  title: Express request data reaches dynamic require
+  message: Express request data reaches require and may load attacker-controlled code or files.
+  severity: error
+  cwe: [CWE-706]
+  standards: [semgrep/javascript/express/security/require-request.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入动态 require, message: Express 请求数据流入 require，可能加载攻击者控制的代码或文件。 }
+    en: { title: Express request data reaches dynamic require, message: Express request data reaches require and may load attacker-controlled code or files. }
+    zh-TW: { title: Express 請求資料流入動態 require, message: Express 請求資料流入 require，可能載入攻擊者控制的程式碼或檔案。 }
+- id: LEGACY-JS-SEMGREP-TAINT-res-render-injection
+  title: Express request data reaches response render template
+  message: Express request data reaches the response render template argument and may load an unintended template.
+  severity: warning
+  cwe: [CWE-706]
+  standards: [semgrep/javascript/express/security/audit/res-render-injection.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 render 模板, message: Express 请求数据流入响应 render 的模板参数，可能加载非预期模板。 }
+    en: { title: Express request data reaches response render template, message: Express request data reaches the response render template argument and may load an unintended template. }
+    zh-TW: { title: Express 請求資料流入 render 範本, message: Express 請求資料流入回應 render 的範本參數，可能載入非預期範本。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-sequelize-injection
+  title: Express request data reaches a Sequelize query
+  message: Express request data reaches a Sequelize raw query and may cause SQL injection.
+  severity: error
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/sequelize/security/audit/sequelize-injection-express.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 Sequelize 查询, message: Express 请求数据流入 Sequelize 原始查询，可能造成 SQL 注入。 }
+    en: { title: Express request data reaches a Sequelize query, message: Express request data reaches a Sequelize raw query and may cause SQL injection. }
+    zh-TW: { title: Express 請求資料流入 Sequelize 查詢, message: Express 請求資料流入 Sequelize 原始查詢，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-xml2json-xxe
+  title: Express request data reaches xml2json
+  message: Express request data reaches xml2json parsing and may allow XML external entity processing.
+  severity: error
+  cwe: [CWE-611]
+  standards: [semgrep/javascript/express/security/express-xml2json-xxe.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 xml2json, message: Express 请求数据流入 xml2json 解析，可能允许处理 XML 外部实体。 }
+    en: { title: Express request data reaches xml2json, message: Express request data reaches xml2json parsing and may allow XML external entity processing. }
+    zh-TW: { title: Express 請求資料流入 xml2json, message: Express 請求資料流入 xml2json 解析，可能允許處理 XML 外部實體。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-third-party-object-deserialization
+  title: Express request data reaches unsafe deserialization
+  message: Express request data reaches node-serialize or serialize-to-js deserialization and may allow code execution.
+  severity: warning
+  cwe: [CWE-502]
+  standards: [semgrep/javascript/express/security/audit/express-third-party-object-deserialization.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入不安全反序列化, message: Express 请求数据流入 node-serialize 或 serialize-to-js 反序列化，可能造成代码执行。 }
+    en: { title: Express request data reaches unsafe deserialization, message: Express request data reaches node-serialize or serialize-to-js deserialization and may allow code execution. }
+    zh-TW: { title: Express 請求資料流入不安全反序列化, message: Express 請求資料流入 node-serialize 或 serialize-to-js 反序列化，可能造成程式碼執行。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-insecure-template-usage
+  title: Express request data reaches template compilation
+  message: Express request data reaches a server-side template compilation API and may allow template injection.
+  severity: warning
+  cwe: [CWE-1336]
+  standards: [semgrep/javascript/express/security/express-insecure-template-usage.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入模板编译, message: Express 请求数据流入服务端模板编译 API，可能造成模板注入。 }
+    en: { title: Express request data reaches template compilation, message: Express request data reaches a server-side template compilation API and may allow template injection. }
+    zh-TW: { title: Express 請求資料流入範本編譯, message: Express 請求資料流入伺服器端範本編譯 API，可能造成範本注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-direct-response-write
+  title: Express request data is written directly to a response
+  message: Express request data reaches response write or send without HTML escaping and may cause cross-site scripting.
+  severity: warning
+  cwe: [CWE-79]
+  standards: [semgrep/javascript/express/security/audit/xss/direct-response-write.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据被直接写入响应, message: Express 请求数据未经 HTML 转义流入响应 write 或 send，可能造成跨站脚本。 }
+    en: { title: Express request data is written directly to a response, message: Express request data reaches response write or send without HTML escaping and may cause cross-site scripting. }
+    zh-TW: { title: Express 請求資料被直接寫入回應, message: Express 請求資料未經 HTML 逸出流入回應 write 或 send，可能造成跨站指令碼。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-raw-html-format
+  title: Express request data is composed into HTML
+  message: Express request data is composed into an HTML string and may cause cross-site scripting.
+  severity: warning
+  cwe: [CWE-79]
+  standards: [semgrep/javascript/express/security/injection/raw-html-format.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据被拼接进 HTML, message: Express 请求数据被拼接进 HTML 字符串，可能造成跨站脚本。 }
+    en: { title: Express request data is composed into HTML, message: Express request data is composed into an HTML string and may cause cross-site scripting. }
+    zh-TW: { title: Express 請求資料被拼接進 HTML, message: Express 請求資料被拼接進 HTML 字串，可能造成跨站指令碼。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-tainted-sql-string
+  title: Express request data is composed into SQL
+  message: Express request data is manually composed into an SQL string and may cause SQL injection.
+  severity: error
+  cwe: [CWE-89]
+  standards: [semgrep/javascript/express/security/injection/tainted-sql-string.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据被拼接进 SQL, message: Express 请求数据被手工拼接进 SQL 字符串，可能造成 SQL 注入。 }
+    en: { title: Express request data is composed into SQL, message: Express request data is manually composed into an SQL string and may cause SQL injection. }
+    zh-TW: { title: Express 請求資料被拼接進 SQL, message: Express 請求資料被手工拼接進 SQL 字串，可能造成 SQL 注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-data-exfiltration
+  title: Express request data reaches Object.assign
+  message: Express request data reaches Object.assign and may enable mass assignment or unintended response data exposure.
+  severity: warning
+  cwe: [CWE-915]
+  standards: [semgrep/javascript/express/security/express-data-exfiltration.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 Object.assign, message: Express 请求数据流入 Object.assign，可能造成批量赋值或意外的数据暴露。 }
+    en: { title: Express request data reaches Object.assign, message: Express request data reaches Object.assign and may enable mass assignment or unintended response data exposure. }
+    zh-TW: { title: Express 請求資料流入 Object.assign, message: Express 請求資料流入 Object.assign，可能造成批次指派或意外的資料暴露。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-phantom-injection
+  title: Express request data reaches PhantomJS
+  message: Express request data reaches a PhantomJS page API and may cause server-side request forgery or code injection.
+  severity: error
+  cwe: [CWE-918]
+  standards: [semgrep/javascript/express/security/express-phantom-injection.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 PhantomJS, message: Express 请求数据流入 PhantomJS 页面 API，可能造成服务端请求伪造或代码注入。 }
+    en: { title: Express request data reaches PhantomJS, message: Express request data reaches a PhantomJS page API and may cause server-side request forgery or code injection. }
+    zh-TW: { title: Express 請求資料流入 PhantomJS, message: Express 請求資料流入 PhantomJS 頁面 API，可能造成伺服器端請求偽造或程式碼注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-puppeteer-injection
+  title: Express request data reaches Puppeteer
+  message: Express request data reaches a Puppeteer page API and may cause server-side request forgery or code injection.
+  severity: error
+  cwe: [CWE-918]
+  standards: [semgrep/javascript/express/security/express-puppeteer-injection.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 Puppeteer, message: Express 请求数据流入 Puppeteer 页面 API，可能造成服务端请求伪造或代码注入。 }
+    en: { title: Express request data reaches Puppeteer, message: Express request data reaches a Puppeteer page API and may cause server-side request forgery or code injection. }
+    zh-TW: { title: Express 請求資料流入 Puppeteer, message: Express 請求資料流入 Puppeteer 頁面 API，可能造成伺服器端請求偽造或程式碼注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-expat-xxe
+  title: Express request data reaches node-expat
+  message: Express request data reaches a node-expat parser and may allow XML external entity processing.
+  severity: error
+  cwe: [CWE-611]
+  standards: [semgrep/javascript/express/security/express-expat-xxe.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 node-expat, message: Express 请求数据流入 node-expat 解析器，可能允许处理 XML 外部实体。 }
+    en: { title: Express request data reaches node-expat, message: Express request data reaches a node-expat parser and may allow XML external entity processing. }
+    zh-TW: { title: Express 請求資料流入 node-expat, message: Express 請求資料流入 node-expat 解析器，可能允許處理 XML 外部實體。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-vm2-injection
+  title: Express request data reaches vm2
+  message: Express request data reaches a vm2 constructor or execution API and may cause code injection.
+  severity: warning
+  cwe: [CWE-94]
+  standards: [semgrep/javascript/express/security/express-vm2-injection.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 vm2, message: Express 请求数据流入 vm2 构造器或执行 API，可能造成代码注入。 }
+    en: { title: Express request data reaches vm2, message: Express request data reaches a vm2 constructor or execution API and may cause code injection. }
+    zh-TW: { title: Express 請求資料流入 vm2, message: Express 請求資料流入 vm2 建構器或執行 API，可能造成程式碼注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-sandbox-code-injection
+  title: Express request data reaches sandbox
+  message: Express request data reaches the sandbox package execution API and may cause code injection.
+  severity: error
+  cwe: [CWE-94]
+  standards: [semgrep/javascript/express/security/express-sandbox-injection.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入 sandbox, message: Express 请求数据流入 sandbox 包执行 API，可能造成代码注入。 }
+    en: { title: Express request data reaches sandbox, message: Express request data reaches the sandbox package execution API and may cause code injection. }
+    zh-TW: { title: Express 請求資料流入 sandbox, message: Express 請求資料流入 sandbox 套件執行 API，可能造成程式碼注入。 }
+- id: LEGACY-JS-SEMGREP-TAINT-unsafe-argon2-config
+  title: Unsafe Argon2 variant configuration
+  message: An Argon2 hash call uses an options object whose type is not Argon2id.
+  severity: warning
+  cwe: [CWE-916]
+  standards: [semgrep/javascript/argon2/security/unsafe-argon2-config.yaml]
+  translations:
+    zh-CN: { title: 不安全的 Argon2 变体配置, message: Argon2 哈希调用使用了类型不是 Argon2id 的选项对象。 }
+    en: { title: Unsafe Argon2 variant configuration, message: An Argon2 hash call uses an options object whose type is not Argon2id. }
+    zh-TW: { title: 不安全的 Argon2 變體設定, message: Argon2 雜湊呼叫使用了類型不是 Argon2id 的選項物件。 }
+- id: LEGACY-JS-SEMGREP-TAINT-hardcoded-passport-secret
+  title: Hard-coded Passport strategy secret
+  message: A Passport strategy is initialized with a hard-coded client or signing secret.
+  severity: warning
+  cwe: [CWE-798]
+  standards: [semgrep/javascript/passport-jwt/security/passport-hardcode.yaml]
+  translations:
+    zh-CN: { title: Passport 策略中硬编码的密钥, message: Passport 策略使用硬编码的客户端密钥或签名密钥进行初始化。 }
+    en: { title: Hard-coded Passport strategy secret, message: A Passport strategy is initialized with a hard-coded client or signing secret. }
+    zh-TW: { title: Passport 策略中硬編碼的密鑰, message: Passport 策略使用硬編碼的用戶端密鑰或簽章密鑰進行初始化。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-libxml-noent
+  title: Express request data reaches libxml with entity expansion
+  message: Express request data is parsed by libxmljs with noent enabled and may allow XML external entity processing.
+  severity: error
+  cwe: [CWE-611]
+  standards: [semgrep/javascript/express/security/audit/express-libxml-noent.yaml]
+  translations:
+    zh-CN: { title: Express 请求数据流入启用实体展开的 libxml, message: Express 请求数据由启用 noent 的 libxmljs 解析，可能允许处理 XML 外部实体。 }
+    en: { title: Express request data reaches libxml with entity expansion, message: Express request data is parsed by libxmljs with noent enabled and may allow XML external entity processing. }
+    zh-TW: { title: Express 請求資料流入啟用實體展開的 libxml, message: Express 請求資料由啟用 noent 的 libxmljs 解析，可能允許處理 XML 外部實體。 }
+- id: LEGACY-JS-SEMGREP-TAINT-cors-misconfiguration
+  title: Request-controlled CORS origin
+  message: Express request data controls the Access-Control-Allow-Origin response header.
+  severity: warning
+  cwe: [CWE-346]
+  standards: [semgrep/javascript/express/security/cors-misconfiguration.yaml]
+  translations:
+    zh-CN: { title: 请求可控的 CORS 来源, message: Express 请求数据控制 Access-Control-Allow-Origin 响应头。 }
+    en: { title: Request-controlled CORS origin, message: Express request data controls the Access-Control-Allow-Origin response header. }
+    zh-TW: { title: 請求可控的 CORS 來源, message: Express 請求資料控制 Access-Control-Allow-Origin 回應標頭。 }
+- id: LEGACY-JS-SEMGREP-TAINT-x-frame-options-misconfiguration
+  title: Request-controlled X-Frame-Options
+  message: Express request data controls the X-Frame-Options response header.
+  severity: warning
+  cwe: [CWE-451]
+  standards: [semgrep/javascript/express/security/x-frame-options-misconfiguration.yaml]
+  translations:
+    zh-CN: { title: 请求可控的 X-Frame-Options, message: Express 请求数据控制 X-Frame-Options 响应头。 }
+    en: { title: Request-controlled X-Frame-Options, message: Express request data controls the X-Frame-Options response header. }
+    zh-TW: { title: 請求可控的 X-Frame-Options, message: Express 請求資料控制 X-Frame-Options 回應標頭。 }
+- id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-fs-filename
+  title: Non-literal filesystem path
+  message: Function input reaches a Node.js filesystem path parameter and may allow path traversal.
+  severity: warning
+  cwe: [CWE-22]
+  standards: [semgrep/javascript/lang/security/audit/detect-non-literal-fs-filename.yaml]
+  translations:
+    zh-CN: { title: 非字面量文件系统路径, message: 函数输入流入 Node.js 文件系统路径参数，可能允许路径遍历。 }
+    en: { title: Non-literal filesystem path, message: Function input reaches a Node.js filesystem path parameter and may allow path traversal. }
+    zh-TW: { title: 非字面量檔案系統路徑, message: 函式輸入流入 Node.js 檔案系統路徑參數，可能允許路徑遍歷。 }
+- id: LEGACY-JS-SEMGREP-TAINT-remote-property-injection
+  title: Request-controlled property assignment
+  message: Express request data controls a computed property name in an object assignment.
+  severity: error
+  cwe: [CWE-522]
+  standards: [semgrep/javascript/express/security/audit/remote-property-injection.yaml]
+  translations:
+    zh-CN: { title: 请求可控的属性赋值, message: Express 请求数据控制对象赋值中的计算属性名。 }
+    en: { title: Request-controlled property assignment, message: Express request data controls a computed property name in an object assignment. }
+    zh-TW: { title: 請求可控的屬性指派, message: Express 請求資料控制物件指派中的計算屬性名稱。 }
+- id: LEGACY-JS-SEMGREP-TAINT-express-xml2json-xxe-event
+  title: Request event data reaches xml2json
+  message: Request data captured by an event callback reaches xml2json parsing and may allow XML external entity processing.
+  severity: warning
+  cwe: [CWE-611]
+  standards: [semgrep/javascript/express/security/audit/express-xml2json-xxe-event.yaml]
+  translations:
+    zh-CN: { title: 请求事件数据流入 xml2json, message: 请求事件回调捕获的数据流入 xml2json 解析，可能允许处理 XML 外部实体。 }
+    en: { title: Request event data reaches xml2json, message: Request data captured by an event callback reaches xml2json parsing and may allow XML external entity processing. }
+    zh-TW: { title: 請求事件資料流入 xml2json, message: 請求事件回呼擷取的資料流入 xml2json 解析，可能允許處理 XML 外部實體。 }
+- id: LEGACY-JS-SEMGREP-TAINT-chrome-remote-interface-compilescript-injection
+  title: Untrusted data reaches Chrome DevTools Protocol
+  message: Function input reaches a sensitive Chrome Remote Interface operation and may cause SSRF or code injection.
+  severity: warning
+  cwe: [CWE-918]
+  standards: [semgrep/javascript/chrome-remote-interface/security/audit/chrome-remote-interface-compilescript-injection.yaml]
+  translations:
+    zh-CN: { title: 不可信数据流入 Chrome DevTools Protocol, message: 函数输入流入敏感的 Chrome Remote Interface 操作，可能造成 SSRF 或代码注入。 }
+    en: { title: Untrusted data reaches Chrome DevTools Protocol, message: Function input reaches a sensitive Chrome Remote Interface operation and may cause SSRF or code injection. }
+    zh-TW: { title: 不可信資料流入 Chrome DevTools Protocol, message: 函式輸入流入敏感的 Chrome Remote Interface 操作，可能造成 SSRF 或程式碼注入。 }
+function_sources:
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-function-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.function-argument
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-node-mysql-function-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.node-mysql-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-node-mssql-function-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.node-mssql-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-node-postgres-function-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.node-postgres-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event
+  language: javascript
+  matcher: { regex: '(^|\.)handler$' }
+  out: arg0
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-function-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.browser-function-argument
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-web-request-first-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.web-request-eval
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-node-knex-web-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.node-knex-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-path-function-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.path-join-resolve
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-dangerous-spawn-shell-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.dangerous-spawn-shell
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-deno-dangerous-run-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.deno-dangerous-run
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-path-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-path
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-sendfile-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-sendfile
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-ssrf-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-ssrf
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-redirect-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-open-redirect
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-vm-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-vm
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-wkhtml-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-wkhtml
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-require-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-require
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-render-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-render
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-sequelize-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-sequelize
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-xml2json-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-xml2json
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-deserialization-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-deserialization
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-template-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-template
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-response-write-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-response-write
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-html-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-html
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-sql-string-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-sql-string
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-data-exfiltration-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-data-exfiltration
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-phantom-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-phantom
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-puppeteer-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-puppeteer
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-expat-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-expat
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-vm2-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-vm2
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-sandbox-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-sandbox
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-libxml-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-libxml
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-cors-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-cors
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-x-frame-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-x-frame
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-fs-function-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.fs-path
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-property-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-property-index
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-express-xml2json-event-request
+  language: javascript
+  matcher: { regex: '.*' }
+  out: arg0
+  kind: semgrep.javascript.express-xml2json-event
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-chrome-remote-function-argument
+  language: javascript
+  matcher: { regex: '.*' }
+  out: args_from0
+  kind: semgrep.javascript.chrome-remote-interface
+sinks:
+- id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-require
+  language: javascript
+  matcher:
+    regex: '(^|[.:])require$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.function-argument
+- id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-regexp
+  language: javascript
+  matcher:
+    regex: '(^|[.:])RegExp$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.function-argument
+- id: LEGACY-JS-SEMGREP-TAINT-md5-used-as-password
+  language: javascript
+  matcher:
+    regex: '(?i)password'
+  inputs: [args_from0]
+  kind: semgrep.javascript.md5-password
+- id: LEGACY-JS-SEMGREP-TAINT-insecure-object-assign
+  language: javascript
+  matcher:
+    regex: '(^|[.:])Object[.:]assign$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.parsed-untrusted-json
+- id: LEGACY-JS-SEMGREP-TAINT-detect-child-process
+  language: javascript
+  matcher:
+    regex: '^child_process[.:](exec|execSync|spawn|spawnSync)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.function-argument
+- id: LEGACY-JS-SEMGREP-TAINT-tofastproperties-code-execution
+  language: javascript
+  matcher:
+    regex: '^bluebird[.:]toFastProperties$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.function-argument
+- id: LEGACY-JS-SEMGREP-TAINT-node-mysql-sqli
+  language: javascript
+  matcher:
+    regex: '^(mysql|mysql2)(/promise)?[.:].*[.:](query|execute)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.node-mysql-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-node-mssql-sqli
+  language: javascript
+  matcher:
+    regex: '^mssql[.:].*[.:]query$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.node-mssql-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-node-postgres-sqli
+  language: javascript
+  matcher:
+    regex: '^pg[.:].*[.:]query$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.node-postgres-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-aws-detect-child-process
+  language: javascript
+  matcher:
+    regex: '^child_process[.:](exec|execSync|spawn|spawnSync)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-eval
+  language: javascript
+  matcher:
+    regex: '^(eval|Function)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-dynamodb-request-object
+  language: javascript
+  matcher:
+    regex: '^(aws-sdk|@aws-sdk/(client|lib)-dynamodb|AWS)([.:].*)?[.:](query|send|scan|delete|put|transactWrite|update|batchExecuteStatement|executeStatement|executeTransaction|transactWriteItems)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-knex-sqli
+  language: javascript
+  matcher:
+    regex: '^knex([.:].*)?[.:](fromRaw|whereRaw|raw)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-mysql-sqli
+  language: javascript
+  matcher:
+    regex: '^(mysql|mysql2)(/promise)?[.:].*[.:](query|execute)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-pg-sqli
+  language: javascript
+  matcher:
+    regex: '^pg[.:].*[.:]query$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-sequelize-sqli
+  language: javascript
+  matcher:
+    regex: '^sequelize([.:].*)?[.:]query$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-vm-runincontext-injection
+  language: javascript
+  matcher:
+    regex: '^vm([.:].*)?[.:](runInContext|runInNewContext|runInThisContext|compileFunction|Script|SourceTextModule)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-html-response
+  language: javascript
+  matcher:
+    exact: __uniflow.compose.map
+    arg_count: 2
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-html-string
+  language: javascript
+  matcher:
+    exact: __uniflow.compose.string
+    arg_count: 2
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-sql-string
+  language: javascript
+  matcher:
+    exact: __uniflow.compose.string
+    arg_count: 2
+  inputs: [arg0]
+  kind: semgrep.javascript.aws-lambda-event
+- id: LEGACY-JS-SEMGREP-TAINT-js-open-redirect-from-function
+  language: javascript
+  matcher:
+    regex: '(^|[.:])location[.:]replace$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.browser-function-argument
+- id: LEGACY-JS-SEMGREP-TAINT-js-open-redirect
+  language: javascript
+  matcher:
+    regex: '(^|[.:])location[.:]replace$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.browser-location
+- id: LEGACY-JS-SEMGREP-TAINT-detect-eval-with-expression
+  language: javascript
+  matcher:
+    regex: '(^|[.:])(eval|Function|setTimeout|setInterval)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.browser-location
+- id: LEGACY-JS-SEMGREP-TAINT-raw-html-concat
+  language: javascript
+  matcher:
+    exact: __uniflow.compose.string
+    arg_count: 2
+  inputs: [arg0]
+  kind: semgrep.javascript.browser-location
+- id: LEGACY-JS-SEMGREP-TAINT-detect-angular-element-methods
+  language: javascript
+  matcher:
+    regex: '^angular[.:]element([.:].*)?[.:](after|append|html|prepend|replaceWith|wrap)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.angular-scope-element
+- id: LEGACY-JS-SEMGREP-TAINT-detect-angular-element-taint
+  language: javascript
+  matcher:
+    regex: '^angular[.:]element([.:].*)?[.:](after|append|html|prepend|replaceWith|wrap)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.angular-browser-element
+- id: LEGACY-JS-SEMGREP-TAINT-detect-angular-trust-as-method
+  language: javascript
+  matcher:
+    regex: '(^|[.:])\$sce[.:](trustAs|trustAsHtml)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.angular-scope-trust
+- id: LEGACY-JS-SEMGREP-TAINT-hardcoded-jwt-secret
+  language: javascript
+  matcher:
+    regex: '^jsonwebtoken[.:](sign|verify)$'
+    arg_count_min: 2
+  inputs: [arg1]
+  kind: semgrep.javascript.hardcoded-jwt-secret
+- id: LEGACY-JS-SEMGREP-TAINT-code-string-concat
+  language: javascript
+  matcher:
+    regex: '(^|[.:])eval$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.web-request-eval
+- id: LEGACY-JS-SEMGREP-TAINT-node-knex-sqli
+  language: javascript
+  matcher:
+    regex: '^knex([.:].*)?[.:](fromRaw|whereRaw|raw)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.node-knex-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-path-join-resolve-traversal
+  language: javascript
+  matcher:
+    regex: '^path([.:].*)?[.:](join|resolve)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.path-join-resolve
+- id: LEGACY-JS-SEMGREP-TAINT-unsafe-formatstring
+  language: javascript
+  matcher:
+    regex: '^(console[.:][A-Za-z0-9_$]+|util[.:]format)$'
+    arg_count_min: 2
+  inputs: [arg0]
+  kind: semgrep.javascript.unsafe-formatstring
+- id: LEGACY-JS-SEMGREP-TAINT-dangerous-spawn-shell
+  language: javascript
+  matcher:
+    regex: '^child_process[.:](spawn|spawnSync)$'
+    arg_count_min: 2
+  inputs: [arg1]
+  kind: semgrep.javascript.dangerous-spawn-shell
+- id: LEGACY-JS-SEMGREP-TAINT-deno-dangerous-run
+  language: javascript
+  matcher:
+    exact: Deno.run
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.deno-dangerous-run
+- id: LEGACY-JS-SEMGREP-TAINT-express-path-join-resolve-traversal
+  language: javascript
+  matcher:
+    regex: '^path([.:].*)?[.:](join|resolve)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-path
+- id: LEGACY-JS-SEMGREP-TAINT-express-res-sendfile
+  language: javascript
+  matcher:
+    regex: '(^|[.:])(sendfile|sendFile)$'
+    receiver_parameter: 1
+    arg_count: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-sendfile
+- id: LEGACY-JS-SEMGREP-TAINT-express-ssrf
+  language: javascript
+  matcher:
+    regex: '^request([.:].*)?[.:](get|post|put|patch|del|head|delete)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-ssrf
+- id: LEGACY-JS-SEMGREP-TAINT-express-open-redirect
+  language: javascript
+  matcher:
+    method_name: redirect
+    receiver_parameter: 1
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-open-redirect
+- id: LEGACY-JS-SEMGREP-TAINT-express-vm-injection
+  language: javascript
+  matcher:
+    regex: '^vm[.:](runInContext|runInNewContext|compileFunction|runInThisContext|Script)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-vm
+- id: LEGACY-JS-SEMGREP-TAINT-express-wkhtmltopdf-injection
+  language: javascript
+  matcher:
+    exact: wkhtmltopdf
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-wkhtml
+- id: LEGACY-JS-SEMGREP-TAINT-require-request
+  language: javascript
+  matcher:
+    exact: require
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-require
+- id: LEGACY-JS-SEMGREP-TAINT-res-render-injection
+  language: javascript
+  matcher:
+    method_name: render
+    receiver_parameter: 1
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-render
+- id: LEGACY-JS-SEMGREP-TAINT-express-sequelize-injection
+  language: javascript
+  matcher:
+    regex: '^sequelize([.:].*)?[.:]query$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-sequelize
+- id: LEGACY-JS-SEMGREP-TAINT-express-xml2json-xxe
+  language: javascript
+  matcher:
+    regex: '^xml2json[.:]toJson$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-xml2json
+- id: LEGACY-JS-SEMGREP-TAINT-express-third-party-object-deserialization
+  language: javascript
+  matcher:
+    regex: '^(node-serialize|serialize-to-js)[.:](unserialize|deserialize)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-deserialization
+- id: LEGACY-JS-SEMGREP-TAINT-express-insecure-template-usage
+  language: javascript
+  matcher:
+    regex: '^(pug|jade|dot|ejs|nunjucks|lodash|mustache|eta|squirrelly|hogan\.js|handlebars)[.:](compile|compileClient|compileClientWithDependenciesTracked|render|renderString|template)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-template
+- id: LEGACY-JS-SEMGREP-TAINT-direct-response-write
+  language: javascript
+  matcher:
+    method_regex: '^(write|send)$'
+    receiver_parameter: 1
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-response-write
+- id: LEGACY-JS-SEMGREP-TAINT-express-raw-html-format
+  language: javascript
+  matcher: { exact: __uniflow.compose.string, arg_count: 2 }
+  inputs: [arg0]
+  kind: semgrep.javascript.express-html
+- id: LEGACY-JS-SEMGREP-TAINT-express-tainted-sql-string
+  language: javascript
+  matcher: { exact: __uniflow.compose.string, arg_count: 2 }
+  inputs: [arg0]
+  kind: semgrep.javascript.express-sql-string
+- id: LEGACY-JS-SEMGREP-TAINT-express-data-exfiltration
+  language: javascript
+  matcher: { exact: Object.assign, arg_count_min: 1 }
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-data-exfiltration
+- id: LEGACY-JS-SEMGREP-TAINT-express-phantom-injection
+  language: javascript
+  matcher:
+    regex: '^phantom([.:].*)?[.:](open|setContent|openUrl|evaluateJavaScript|property)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-phantom
+- id: LEGACY-JS-SEMGREP-TAINT-express-puppeteer-injection
+  language: javascript
+  matcher:
+    regex: '^puppeteer([.:].*)?[.:](goto|setContent|evaluate|evaluateHandle|evaluateOnNewDocument)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-puppeteer
+- id: LEGACY-JS-SEMGREP-TAINT-express-expat-xxe
+  language: javascript
+  matcher:
+    regex: '^node-expat([.:].*)?[.:](parse|write)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-expat
+- id: LEGACY-JS-SEMGREP-TAINT-express-vm2-injection
+  language: javascript
+  matcher:
+    regex: '^vm2([.:].*)?[.:](VM|NodeVM|VMScript|run)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-vm2
+- id: LEGACY-JS-SEMGREP-TAINT-express-sandbox-code-injection
+  language: javascript
+  matcher:
+    regex: '^sandbox([.:].*)?[.:](Sandbox|run)$'
+    arg_count_min: 1
+  inputs: [args_from0]
+  kind: semgrep.javascript.express-sandbox
+- id: LEGACY-JS-SEMGREP-TAINT-unsafe-argon2-config
+  language: javascript
+  matcher: { regex: '^argon2[.:]hash$', arg_count_min: 2 }
+  inputs: [arg1]
+  kind: semgrep.javascript.unsafe-argon2-config
+- id: LEGACY-JS-SEMGREP-TAINT-hardcoded-passport-secret
+  language: javascript
+  matcher:
+    regex: '^passport-[A-Za-z0-9_-]+([.:].*)?[.:]Strategy$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.hardcoded-passport-secret
+- id: LEGACY-JS-SEMGREP-TAINT-express-libxml-noent
+  language: javascript
+  matcher:
+    regex: '^(libxmljs|libxmljs2)([.:].*)?[.:](parseXmlString|parseXml)$'
+    arg_count_min: 2
+  inputs: [arg0]
+  kind: semgrep.javascript.express-libxml
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-header-value
+  language: javascript
+  matcher:
+    method_regex: '^(set|header|setHeader)$'
+    receiver_parameter: 1
+    arg_count_min: 2
+  inputs: [arg1]
+  kind: semgrep.javascript.express-cors
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-header-map
+  language: javascript
+  matcher:
+    method_regex: '^(set|header|setHeader)$'
+    receiver_parameter: 1
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-cors
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-write-head
+  language: javascript
+  matcher:
+    method_name: writeHead
+    receiver_parameter: 1
+    arg_count_min: 2
+  inputs: [arg1]
+  kind: semgrep.javascript.express-cors
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-header-value
+  language: javascript
+  matcher:
+    method_regex: '^(set|header|setHeader)$'
+    receiver_parameter: 1
+    arg_count_min: 2
+  inputs: [arg1]
+  kind: semgrep.javascript.express-x-frame
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-header-map
+  language: javascript
+  matcher:
+    method_regex: '^(set|header|setHeader)$'
+    receiver_parameter: 1
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-x-frame
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-write-head
+  language: javascript
+  matcher:
+    method_name: writeHead
+    receiver_parameter: 1
+    arg_count_min: 2
+  inputs: [arg1]
+  kind: semgrep.javascript.express-x-frame
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-fs-path-arg0
+  language: javascript
+  matcher:
+    regex: '^fs(/promises)?([.:].*)?[.:](access|accessSync|appendFile|appendFileSync|chmod|chmodSync|chown|chownSync|close|closeSync|copyFile|copyFileSync|cp|cpSync|createReadStream|createWriteStream|exists|existsSync|fchmod|fchmodSync|fchown|fchownSync|fdatasync|fdatasyncSync|fstat|fstatSync|fsync|fsyncSync|ftruncate|ftruncateSync|futimes|futimesSync|lchmod|lchmodSync|lchown|lchownSync|link|linkSync|lstat|lstatSync|lutimes|lutimesSync|mkdir|mkdirSync|mkdtemp|mkdtempSync|native|open|openSync|opendir|opendirSync|read|readFile|readFileSync|readSync|readdir|readdirSync|readlink|readlinkSync|readv|readvSync|realpath|realpathync|rename|renameSync|rm|rmSync|rmdir|rmdirSync|stat|statSync|symlink|symlinkSync|truncate|truncateSync|unlink|unlinkSync|unwatchFile|utimes|utimesSync|watch|watchFile|write|writeFile|writeFileSync|writeSync|writev|writevSync)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.fs-path
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-fs-path-arg1
+  language: javascript
+  matcher:
+    regex: '^fs(/promises)?([.:].*)?[.:](copyFile|copyFileSync|cp|cpSync|link|linkSync|rename|renameSync|symlink|symlinkSync)$'
+    arg_count_min: 2
+  inputs: [arg1]
+  kind: semgrep.javascript.fs-path
+- id: LEGACY-JS-SEMGREP-TAINT-express-xml2json-xxe-event
+  language: javascript
+  matcher:
+    method_name: toJson
+    containing_function_regex: '__lambda_'
+    receiver_parameter: 1
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.express-xml2json-event
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-chrome-remote-expression
+  language: javascript
+  matcher:
+    regex: '^chrome-remote-interface([.:].*)?[.:](compileScript|evaluate)$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.chrome-remote-interface
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-chrome-remote-navigate
+  language: javascript
+  matcher:
+    regex: '^chrome-remote-interface([.:].*)?[.:]navigate$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.chrome-remote-interface
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-chrome-remote-pdf-header
+  language: javascript
+  matcher:
+    regex: '^chrome-remote-interface([.:].*)?[.:]printToPDF$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.chrome-remote-interface
+- id: LEGACY-JS-SEMGREP-TAINT-MODEL-chrome-remote-document-content
+  language: javascript
+  matcher:
+    regex: '^chrome-remote-interface([.:].*)?[.:]setDocumentContent$'
+    arg_count_min: 1
+  inputs: [arg0]
+  kind: semgrep.javascript.chrome-remote-interface
+sink_reports:
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-header-value, report_rule_id: LEGACY-JS-SEMGREP-TAINT-cors-misconfiguration }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-header-map, report_rule_id: LEGACY-JS-SEMGREP-TAINT-cors-misconfiguration }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-write-head, report_rule_id: LEGACY-JS-SEMGREP-TAINT-cors-misconfiguration }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-header-value, report_rule_id: LEGACY-JS-SEMGREP-TAINT-x-frame-options-misconfiguration }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-header-map, report_rule_id: LEGACY-JS-SEMGREP-TAINT-x-frame-options-misconfiguration }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-write-head, report_rule_id: LEGACY-JS-SEMGREP-TAINT-x-frame-options-misconfiguration }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-fs-path-arg0, report_rule_id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-fs-filename }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-fs-path-arg1, report_rule_id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-fs-filename }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-chrome-remote-expression, report_rule_id: LEGACY-JS-SEMGREP-TAINT-chrome-remote-interface-compilescript-injection }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-chrome-remote-navigate, report_rule_id: LEGACY-JS-SEMGREP-TAINT-chrome-remote-interface-compilescript-injection }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-chrome-remote-pdf-header, report_rule_id: LEGACY-JS-SEMGREP-TAINT-chrome-remote-interface-compilescript-injection }
+- { sink_rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-chrome-remote-document-content, report_rule_id: LEGACY-JS-SEMGREP-TAINT-chrome-remote-interface-compilescript-injection }
+sources:
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-argon2-options
+  language: javascript
+  matcher: { exact: __uniflow.compose.map, arg_count: 2 }
+  out: return
+  kind: semgrep.javascript.unsafe-argon2-config
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-passport-options
+  language: javascript
+  matcher: { exact: __uniflow.compose.map, arg_count: 2 }
+  out: return
+  kind: semgrep.javascript.hardcoded-passport-secret
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-md5-password
+  language: javascript
+  matcher:
+    method_name: createHash
+    arg_count_min: 1
+  out: return
+  kind: semgrep.javascript.md5-password
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-insecure-object-assign
+  language: javascript
+  matcher:
+    regex: '(^|[.:])JSON[.:]parse$'
+    arg_count_min: 1
+  out: return
+  kind: semgrep.javascript.parsed-untrusted-json
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-injector-scope-element
+  language: javascript
+  matcher:
+    regex: '(^|[.:])\$injector[.:]get$'
+    arg_count_min: 1
+  out: return
+  kind: semgrep.javascript.angular-scope-element
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-location-call
+  language: javascript
+  matcher:
+    regex: '(^|[.:])\$location[.:](search|absUrl|url|hash)$'
+  out: return
+  kind: semgrep.javascript.angular-browser-element
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-jwt-secret
+  language: javascript
+  matcher:
+    regex: '^jsonwebtoken[.:](sign|verify)$'
+    arg_count_min: 2
+  out: arg1
+  kind: semgrep.javascript.hardcoded-jwt-secret
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-formatstring-composition
+  language: javascript
+  matcher: { exact: __uniflow.compose.string, arg_count: 2 }
+  out: return
+  kind: semgrep.javascript.unsafe-formatstring
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-formatstring-concat
+  language: javascript
+  matcher: { method_name: concat, arg_count_min: 1 }
+  out: return
+  kind: semgrep.javascript.unsafe-formatstring
+field_sources:
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-href
+  language: javascript
+  matcher: { owner_regex: '(^|\.)location$', field: href }
+  kind: semgrep.javascript.browser-location
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-hash
+  language: javascript
+  matcher: { owner_regex: '(^|\.)location$', field: hash }
+  kind: semgrep.javascript.browser-location
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-search
+  language: javascript
+  matcher: { owner_regex: '(^|\.)location$', field: search }
+  kind: semgrep.javascript.browser-location
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-scope-element
+  language: javascript
+  matcher: { owner_regex: '(^|\.)\$(root)?scope$', field: '*' }
+  kind: semgrep.javascript.angular-scope-element
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-scope-trust
+  language: javascript
+  matcher: { owner_regex: '(^|\.)\$(root)?scope$', field: '*' }
+  kind: semgrep.javascript.angular-scope-trust
+- id: LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-location-search
+  language: javascript
+  matcher: { owner_regex: '(^|\.)location$', field: search }
+  kind: semgrep.javascript.angular-browser-element
+field_sinks:
+- id: LEGACY-JS-SEMGREP-TAINT-js-open-redirect-from-function
+  language: javascript
+  matcher: { owner_regex: '(^|\.)location$', field: href }
+  kind: semgrep.javascript.browser-function-argument
+- id: LEGACY-JS-SEMGREP-TAINT-js-open-redirect
+  language: javascript
+  matcher: { owner_regex: '(^|\.)location$', field: href }
+  kind: semgrep.javascript.browser-location
+index_sinks:
+- id: LEGACY-JS-SEMGREP-TAINT-remote-property-injection
+  language: javascript
+  direct_only: true
+  kind: semgrep.javascript.express-property-index
+sanitizers:
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-node-mysql-parse-int
+  language: javascript
+  matcher:
+    regex: '(^|[.:])parseInt$'
+    arg_count_min: 1
+  outputs: [return]
+  kind: semgrep.javascript.node-mysql-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-browser-html
+  language: javascript
+  matcher:
+    regex: '^(dompurify|isomorphic-dompurify|underscore\.string|xss|sanitize-html)([.:].*)?[.:](sanitize|escapeHTML|render)$'
+    arg_count_min: 1
+  outputs: [return]
+  kind: semgrep.javascript.browser-location
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-angular-scope-element
+  language: javascript
+  matcher:
+    regex: '(^|[.:])(\$sanitize|\$sce[.:]getTrustedHtml|DOMPurify[.:]sanitize)$'
+    arg_count_min: 1
+  outputs: [return]
+  kind: semgrep.javascript.angular-scope-element
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-angular-browser-element
+  language: javascript
+  matcher:
+    regex: '(^|[.:])(\$sanitize|\$sce[.:]getTrustedHtml|DOMPurify[.:]sanitize)$'
+    arg_count_min: 1
+  outputs: [return]
+  kind: semgrep.javascript.angular-browser-element
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-node-knex-parse-int
+  language: javascript
+  matcher:
+    regex: '(^|[.:])parseInt$'
+    arg_count_min: 1
+  outputs: [return]
+  kind: semgrep.javascript.node-knex-sqli
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-path-validation
+  language: javascript
+  matcher:
+    regex: '(^|[.:])(replace|indexOf|sanitize[A-Za-z0-9_]*)$'
+    arg_count_min: 1
+  outputs: [return]
+  kind: semgrep.javascript.path-join-resolve
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-express-path-validation
+  language: javascript
+  matcher:
+    regex: '(^|[.:])(replace|indexOf|sanitize[A-Za-z0-9_]*)$'
+    arg_count_min: 1
+  outputs: [return]
+  kind: semgrep.javascript.express-path
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-express-response-html
+  language: javascript
+  matcher:
+    regex: '^(underscore\.string|dompurify|isomorphic-dompurify|xss|sanitize-html|express-xss-sanitizer)([.:].*)?[.:](escapeHTML|sanitize|render)$'
+    arg_count_min: 1
+  outputs: [return]
+  kind: semgrep.javascript.express-response-write
+- id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-argon2id-options
+  language: javascript
+  matcher: { exact: __uniflow.compose.map, arg_count: 2 }
+  inputs: [arg0]
+  outputs: [return]
+  kind: semgrep.javascript.unsafe-argon2-config
+propagators:
+- id: LEGACY-JS-SEMGREP-TAINT-PROP-md5-update
+  language: javascript
+  matcher: { method_name: update }
+  flows: [{ from: receiver, to: return }]
+- id: LEGACY-JS-SEMGREP-TAINT-PROP-md5-digest
+  language: javascript
+  matcher: { method_name: digest }
+  flows: [{ from: receiver, to: return }]
+call_conditions:
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SOURCE-md5-password
+  condition:
+    op: value_matches
+    args: { port: arg0, exact: md5 }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SOURCE-insecure-object-assign
+  condition:
+    op: not
+    args:
+      op: is_constant
+      args: arg0
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-html-response
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(?i)Content-Type.*text/html' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-html-string
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(?i)<[a-z][a-z0-9]*' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-sql-string
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(?i)\b(select|delete|insert|create|update|alter|drop)\b' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-raw-html-concat
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(?i)<[a-z][a-z0-9]*|</[a-z][a-z0-9]*' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-injector-scope-element
+  condition:
+    op: value_matches
+    args: { port: arg0, regex: '^\$(root)?scope$' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-jwt-secret
+  condition:
+    op: is_constant
+    args: arg1
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-formatstring-composition
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(^| )__uniflow\.dynamic__( |$)' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-formatstring-concat
+  condition:
+    op: not
+    args:
+      op: is_constant
+      args: arg0
+- rule_id: LEGACY-JS-SEMGREP-TAINT-dangerous-spawn-shell
+  condition:
+    op: value_matches
+    args: { port: arg0, regex: '(^|/)(sh|bash|ksh|csh|tcsh|zsh)$' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-raw-html-format
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(?i)<[a-z][a-z0-9]*' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-tainted-sql-string
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(?i)\b(select|delete|insert|create|update|alter|drop)\b' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-argon2-options
+  condition:
+    op: all
+    args:
+    - { op: value_matches, args: { port: arg1, regex: '(?i)\btype\b' } }
+    - op: not
+      args: { op: value_matches, args: { port: arg1, regex: '(?i)\bargon2id\b' } }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SANITIZER-argon2id-options
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(?i)\btype\b.*\bargon2id\b' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-passport-options
+  condition:
+    op: all
+    args:
+    - { op: value_matches, args: { port: arg1, regex: '(?i)\b(clientSecret|secretOrKey|consumerSecret)\b' } }
+    - op: not
+      args: { op: value_matches, args: { port: arg1, regex: '__uniflow\.dynamic__' } }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-libxml-noent
+  condition:
+    op: value_matches
+    args: { port: arg1, regex: '(?i)\bnoent\b\s+true\b' }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-header-value
+  condition:
+    op: any
+    args:
+    - { op: value_matches, args: { port: arg0, regex: '(?i)\baccess-control-allow-origin\b' } }
+    - { op: value_matches, args: { port: arg1, regex: '(?i)\baccess-control-allow-origin\b' } }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-header-map
+  condition:
+    op: any
+    args:
+    - { op: value_matches, args: { port: arg0, regex: '(?i)\baccess-control-allow-origin\b' } }
+    - { op: value_matches, args: { port: arg1, regex: '(?i)\baccess-control-allow-origin\b' } }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-cors-write-head
+  condition:
+    op: any
+    args:
+    - { op: value_matches, args: { port: arg0, regex: '(?i)\baccess-control-allow-origin\b' } }
+    - { op: value_matches, args: { port: arg1, regex: '(?i)\baccess-control-allow-origin\b' } }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-header-value
+  condition:
+    op: any
+    args:
+    - { op: value_matches, args: { port: arg0, regex: '(?i)\bx-frame-options\b' } }
+    - { op: value_matches, args: { port: arg1, regex: '(?i)\bx-frame-options\b' } }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-header-map
+  condition:
+    op: any
+    args:
+    - { op: value_matches, args: { port: arg0, regex: '(?i)\bx-frame-options\b' } }
+    - { op: value_matches, args: { port: arg1, regex: '(?i)\bx-frame-options\b' } }
+- rule_id: LEGACY-JS-SEMGREP-TAINT-MODEL-x-frame-write-head
+  condition:
+    op: any
+    args:
+    - { op: value_matches, args: { port: arg0, regex: '(?i)\bx-frame-options\b' } }
+    - { op: value_matches, args: { port: arg1, regex: '(?i)\bx-frame-options\b' } }
+model_dependencies:
+- rule_id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-require
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-function-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-regexp
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-function-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-md5-used-as-password
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-md5-password
+  - LEGACY-JS-SEMGREP-TAINT-PROP-md5-update
+  - LEGACY-JS-SEMGREP-TAINT-PROP-md5-digest
+- rule_id: LEGACY-JS-SEMGREP-TAINT-insecure-object-assign
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-insecure-object-assign]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-detect-child-process
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-function-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-tofastproperties-code-execution
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-function-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-node-mysql-sqli
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-node-mysql-function-argument
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-node-mysql-parse-int
+- rule_id: LEGACY-JS-SEMGREP-TAINT-node-mssql-sqli
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-node-mssql-function-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-node-postgres-sqli
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-node-postgres-function-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-detect-child-process
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-eval
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-dynamodb-request-object
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-knex-sqli
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-mysql-sqli
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-pg-sqli
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-sequelize-sqli
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-vm-runincontext-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-html-response
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-html-string
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-aws-tainted-sql-string
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-js-open-redirect-from-function
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-function-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-js-open-redirect
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-href
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-hash
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-search
+- rule_id: LEGACY-JS-SEMGREP-TAINT-detect-eval-with-expression
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-href
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-hash
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-search
+- rule_id: LEGACY-JS-SEMGREP-TAINT-raw-html-concat
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-href
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-hash
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-browser-location-search
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-browser-html
+- rule_id: LEGACY-JS-SEMGREP-TAINT-detect-angular-element-methods
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-scope-element
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-injector-scope-element
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-angular-scope-element
+- rule_id: LEGACY-JS-SEMGREP-TAINT-detect-angular-element-taint
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-location-search
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-location-call
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-angular-browser-element
+- rule_id: LEGACY-JS-SEMGREP-TAINT-detect-angular-trust-as-method
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-angular-scope-trust]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-hardcoded-jwt-secret
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-jwt-secret]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-code-string-concat
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-web-request-first-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-node-knex-sqli
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-node-knex-web-request
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-node-knex-parse-int
+- rule_id: LEGACY-JS-SEMGREP-TAINT-path-join-resolve-traversal
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-path-function-argument
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-path-validation
+- rule_id: LEGACY-JS-SEMGREP-TAINT-unsafe-formatstring
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-formatstring-composition
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-formatstring-concat
+- rule_id: LEGACY-JS-SEMGREP-TAINT-dangerous-spawn-shell
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-dangerous-spawn-shell-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-deno-dangerous-run
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-deno-dangerous-run-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-path-join-resolve-traversal
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-express-path-request
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-express-path-validation
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-res-sendfile
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-sendfile-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-ssrf
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-ssrf-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-open-redirect
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-redirect-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-vm-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-vm-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-wkhtmltopdf-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-wkhtml-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-require-request
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-require-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-res-render-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-render-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-sequelize-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-sequelize-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-xml2json-xxe
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-xml2json-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-third-party-object-deserialization
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-deserialization-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-insecure-template-usage
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-template-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-direct-response-write
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-express-response-write-request
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-express-response-html
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-raw-html-format
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-html-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-tainted-sql-string
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-sql-string-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-data-exfiltration
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-data-exfiltration-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-phantom-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-phantom-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-puppeteer-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-puppeteer-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-expat-xxe
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-expat-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-vm2-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-vm2-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-sandbox-code-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-sandbox-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-unsafe-argon2-config
+  model_ids:
+  - LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-argon2-options
+  - LEGACY-JS-SEMGREP-TAINT-SANITIZER-argon2id-options
+- rule_id: LEGACY-JS-SEMGREP-TAINT-hardcoded-passport-secret
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-passport-options]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-libxml-noent
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-libxml-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-cors-misconfiguration
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-cors-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-x-frame-options-misconfiguration
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-x-frame-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-detect-non-literal-fs-filename
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-fs-function-argument]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-remote-property-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-property-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-express-xml2json-xxe-event
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-express-xml2json-event-request]
+- rule_id: LEGACY-JS-SEMGREP-TAINT-chrome-remote-interface-compilescript-injection
+  model_ids: [LEGACY-JS-SEMGREP-TAINT-SOURCE-chrome-remote-function-argument]

@@ -1,0 +1,10 @@
+id: org.apache.axis2.axis2-transport-http
+language: Java
+message: pkg:maven/org.apache.axis2/axis2-transport-http
+metadata:
+  purl: pkg:maven/org.apache.axis2/axis2-transport-http
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.axis2\.transport\.http\.impl\.httpclient4|org\.apache\.axis2\.transport\.http|org\.apache\.axis2\.transport\.http\.server|org\.apache\.axis2\.transport\.http\.util)\.

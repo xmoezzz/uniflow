@@ -1,0 +1,11 @@
+# YAML Rule is more powerful!
+# https://ast-grep.github.io/guide/rule-config.html#rule
+id: input_validation_and_representation_poor_validation
+message: '0503000010030003'
+language: cs
+rule:
+  pattern: $HTMLCLASS.HtmlEncode($$$)
+
+constraints:
+  HTMLCLASS:
+    regex: ^(.*\.)?Server|WebUtility|HttpUtility$

@@ -1,0 +1,20 @@
+id: inner-class-implement-serializable
+message: '0202000010110049'
+language: Java
+rule:
+  kind: type_identifier
+  regex: ^Serializable$
+  inside:
+    stopBy: 
+      kind: super_interfaces
+    kind: super_interfaces
+    inside:
+      kind: class_declaration
+      all:
+        - not:
+            has:
+              kind: modifiers
+              regex: static
+        - inside:
+            stopBy: end
+            kind: class_declaration

@@ -1,0 +1,10 @@
+id: org.apache.hadoop.hadoop-ozone-ozone-manager
+language: Java
+message: pkg:maven/org.apache.hadoop/hadoop-ozone-ozone-manager
+metadata:
+  purl: pkg:maven/org.apache.hadoop/hadoop-ozone-ozone-manager
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hadoop\.ozone\.om\.response\.bucket\.acl|org\.apache\.hadoop\.ozone\.om\.response|org\.apache\.hadoop\.ozone\.om\.request\.bucket|org\.apache\.hadoop\.ozone\.om\.request\.volume\.acl|org\.apache\.hadoop\.ozone\.om\.request\.bucket\.acl|org\.apache\.hadoop\.ozone\.om\.response\.security|org\.apache\.hadoop\.ozone\.om|org\.apache\.hadoop\.ozone\.om\.codec|org\.apache\.hadoop\.ozone\.om\.request\.util|org\.apache\.hadoop\.ozone\.om\.response\.key|org\.apache\.hadoop\.ozone\.om\.ratis\.metrics|org\.apache\.hadoop\.ozone\.om\.response\.file|org\.apache\.hadoop\.ozone\.om\.request\.file|org\.apache\.hadoop\.ozone\.om\.ratis\.utils|org\.apache\.hadoop\.ozone\.om\.response\.key\.acl|org\.apache\.hadoop\.ozone\.om\.request|org\.apache\.hadoop\.ozone\.om\.ratis|org\.apache\.hadoop\.ozone\.om\.ha|org\.apache\.hadoop\.ozone\.protocolPB|org\.apache\.hadoop\.ozone\.om\.ratis\.helpers|org\.apache\.hadoop\.ozone\.om\.request\.key\.acl\.prefix|org\.apache\.hadoop\.ozone\.om\.snapshot|org\.apache\.hadoop\.ozone\.om\.response\.bucket|org\.apache\.hadoop\.ozone\.security\.acl|org\.apache\.hadoop\.ozone\.om\.response\.s3\.multipart|org\.apache\.hadoop\.ozone\.om\.request\.s3\.multipart|org\.apache\.hadoop\.ozone\.om\.request\.s3\.security|org\.apache\.hadoop\.ozone\.om\.request\.volume|org\.apache\.hadoop\.ozone\.om\.fs|org\.apache\.hadoop\.ozone\.om\.response\.key\.acl\.prefix|org\.apache\.hadoop\.ozone\.security|org\.apache\.hadoop\.ozone\.om\.request\.key|org\.apache\.hadoop\.ozone\.om\.response\.volume|org\.apache\.hadoop\.ozone\.om\.request\.key\.acl|org\.apache\.hadoop\.ozone\.om\.request\.security|org\.apache\.hadoop\.ozone\.om\.response\.s3\.security)\.

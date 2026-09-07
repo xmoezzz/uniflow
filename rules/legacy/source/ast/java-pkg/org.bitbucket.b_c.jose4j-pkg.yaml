@@ -1,0 +1,10 @@
+id: org.bitbucket.b_c.jose4j
+language: Java
+message: pkg:maven/org.bitbucket.b_c/jose4j
+metadata:
+  purl: pkg:maven/org.bitbucket.b_c/jose4j
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jose4j\.lang|org\.jose4j\.jwe\.kdf|org\.jose4j\.base64url\.internal\.apache\.commons\.codec\.binary|org\.jose4j\.base64url|org\.jose4j\.mac|org\.jose4j\.jws|org\.jose4j\.http|org\.jose4j\.jca|org\.jose4j\.keys|org\.jose4j\.zip|org\.jose4j\.jwk|org\.jose4j\.jwa|org\.jose4j\.json\.internal\.json_simple|org\.jose4j\.keys\.resolvers|org\.jose4j\.jwt|org\.jose4j\.jwx|org\.jose4j\.json|org\.jose4j\.jwe|org\.jose4j\.jwt\.consumer|org\.jose4j\.json\.internal\.json_simple\.parser)\.

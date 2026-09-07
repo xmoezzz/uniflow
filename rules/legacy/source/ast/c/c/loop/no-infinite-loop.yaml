@@ -1,0 +1,8 @@
+id: no-infinite-loop
+message: '0601000010140078'
+language: C
+rule:
+  any: 
+    - pattern: 'for (;;) $$$'
+    - pattern: 'while (1) $$$'
+    - pattern: 'do { $$$ } while (1);'

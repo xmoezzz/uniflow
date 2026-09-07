@@ -1,0 +1,7 @@
+id: no-assignment-plus-minus
+message: '0601000010140066'
+language: C
+rule:
+  any:
+    - pattern: '$A += $$$B'
+    - pattern: '$A -= $$$B'

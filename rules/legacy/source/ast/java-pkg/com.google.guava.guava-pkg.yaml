@@ -1,0 +1,10 @@
+id: com.google.guava.guava
+language: Java
+message: pkg:maven/com.google.guava/guava
+metadata:
+  purl: pkg:maven/com.google.guava/guava
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.google\.common\.cache|com\.google\.common\.escape|com\.google\.common\.graph|com\.google\.common\.collect|com\.google\.common\.base|com\.google\.common\.base\.internal|com\.google\.common\.html|com\.google\.common\.math|com\.google\.thirdparty\.publicsuffix|com\.google\.common\.net|com\.google\.common\.primitives|com\.google\.common\.util\.concurrent|com\.google\.common\.hash|com\.google\.common\.xml|com\.google\.common\.eventbus|com\.google\.common\.io|com\.google\.common\.reflect|com\.google\.common\.annotations)\.

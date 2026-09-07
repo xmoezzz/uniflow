@@ -1,0 +1,10 @@
+id: org.springframework.cloud.spring-cloud-function-context
+language: Java
+message: pkg:maven/org.springframework.cloud/spring-cloud-function-context
+metadata:
+  purl: pkg:maven/org.springframework.cloud/spring-cloud-function-context
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.cloud\.function\.utils|org\.springframework\.cloud\.function\.context\.catalog|org\.springframework\.cloud\.function\.context\.test|org\.springframework\.cloud\.function\.context\.config|org\.springframework\.cloud\.function\.cloudevent|org\.springframework\.cloud\.function\.json|org\.springframework\.cloud\.function\.actuator|org\.springframework\.cloud\.function\.context\.message|org\.springframework\.cloud\.function\.observability|org\.springframework\.cloud\.function\.context)\.

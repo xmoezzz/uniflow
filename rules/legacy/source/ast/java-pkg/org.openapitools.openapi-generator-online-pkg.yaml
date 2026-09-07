@@ -1,0 +1,10 @@
+id: org.openapitools.openapi-generator-online
+language: Java
+message: pkg:maven/org.openapitools/openapi-generator-online
+metadata:
+  purl: pkg:maven/org.openapitools/openapi-generator-online
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(BOOT-INF\.classes\.org\.openapitools\.codegen\.online\.model|org\.springframework\.boot\.loader\.jar|BOOT-INF\.classes\.org\.openapitools\.codegen\.online\.configuration|BOOT-INF\.classes\.org\.openapitools\.codegen\.online\.api|org\.springframework\.boot\.loader\.util|org\.springframework\.boot\.loader\.jarmode|org\.springframework\.boot\.loader|BOOT-INF\.classes\.org\.openapitools\.codegen\.online|org\.springframework\.boot\.loader\.archive|BOOT-INF\.classes\.org\.openapitools\.codegen\.online\.service|org\.springframework\.boot\.loader\.data)\.

@@ -1,0 +1,10 @@
+id: org.apache.sling.org.apache.sling.auth.core
+language: Java
+message: pkg:maven/org.apache.sling/org.apache.sling.auth.core
+metadata:
+  purl: pkg:maven/org.apache.sling/org.apache.sling.auth.core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.sling\.auth\.core\.impl|org\.apache\.sling\.engine\.auth|org\.apache\.sling\.auth\.core|org\.apache\.sling\.auth\.core\.spi|org\.apache\.sling\.auth\.core\.impl\.engine|org\.apache\.sling\.auth\.core\.impl\.hc)\.

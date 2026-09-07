@@ -1,0 +1,10 @@
+id: org.apache.hive.hive-service
+language: Java
+message: pkg:maven/org.apache.hive/hive-service
+metadata:
+  purl: pkg:maven/org.apache.hive/hive-service
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hive\.http|org\.apache\.hive\.service\.auth\.ldap|org\.apache\.hive\.service\.cli\.operation|org\.apache\.hive\.service\.auth\.saml|org\.apache\.hive\.service\.auth\.jwt|org\.apache\.hive\.service\.servlet|org\.apache\.hive\.tmpl|org\.apache\.hive\.service\.cli\.thrift|org\.apache\.hive\.service\.auth|org\.apache\.hive\.service|org\.apache\.hive\.service\.cli\.operation\.hplsql|org\.apache\.hive\.service\.cli\.session|org\.apache\.hive\.generated\.hiveserver2|org\.apache\.hive\.service\.cli|org\.apache\.hive\.service\.server)\.

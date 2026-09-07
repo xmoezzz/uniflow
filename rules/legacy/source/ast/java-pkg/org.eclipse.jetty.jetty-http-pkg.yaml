@@ -1,0 +1,10 @@
+id: org.eclipse.jetty.jetty-http
+language: Java
+message: pkg:maven/org.eclipse.jetty/jetty-http
+metadata:
+  purl: pkg:maven/org.eclipse.jetty/jetty-http
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.jetty\.http\.content|org\.eclipse\.jetty\.http|org\.eclipse\.jetty\.http\.pathmap|org\.eclipse\.jetty\.http\.compression)\.

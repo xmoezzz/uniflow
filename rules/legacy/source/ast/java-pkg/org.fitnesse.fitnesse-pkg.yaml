@@ -1,0 +1,10 @@
+id: org.fitnesse.fitnesse
+language: Java
+message: pkg:maven/org.fitnesse/fitnesse
+metadata:
+  purl: pkg:maven/org.fitnesse/fitnesse
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(fitnesse\.html\.template|fitnesse\.wikitext|fitnesse|eg\.bowling|fitnesse\.responders\.editing|fitnesse\.slim\.fixtureInteraction|fitnesse\.wiki\.search|fitnesseMain\.ant|fitnesseMain|fit\.decorator|fit\.testFxtr|fitnesse\.responders\.files|fitnesse\.slim|fitnesse\.testsystems\.slim\.results|fitnesse\.testutil|fitnesse\.wiki|fitnesse\.plugins|eg\.bowling\.fixtures|fitnesse\.wiki\.refactoring|fitnesse\.fixtures|fitnesse\.responders\.versions|fitnesse\.socketservice|fitnesse\.junit|fitnesse\.responders\.search|fitnesse\.testrunner\.run|fitnesse\.html|eg|fitnesse\.reporting|fit\.decorator\.util|fitnesse\.testsystems\.slim|fitnesse\.testsystems|fitnesse\.updates|fitnesse\.components|fitnesse\.slim\.instructions|fitnesse\.slim\.test\.library|fitnesse\.logging|fitnesse\.reporting\.history|fitnesse\.util|eg\.employeePayroll|fitnesse\.authentication|fitnesse\.slim\.converters\.beans|fitnesse\.responders\.testHistory|fitnesse\.slim\.converters|eg\.triviaGameExample|fitnesse\.responders|fitnesse\.wikitext\.shared|fitnesse\.http|fit|fitnesse\.testrunner|fitnesse\.slim\.test\.statementexecutorconsumer|fit\.decorator\.performance|eg\.triviaGameExample\.fitnesseFixtures|fit\.decorator\.exceptions|fitnesse\.testsystems\.fit|util|fitnesse\.wikitext\.parser\.decorator|fitnesse\.util\.partitioner|fitnesse\.responders\.account|fitnesse\.slim\.test|fitnesse\.testsystems\.example|fitnesse\.slim\.protocol|fitnesse\.wikitext\.parser|fitnesse\.testsystems\.slim\.tables|fitnesse\.wiki\.fs|fitnesse\.responders\.run|fitnesse\.responders\.refactoring|fit\.exception)\.

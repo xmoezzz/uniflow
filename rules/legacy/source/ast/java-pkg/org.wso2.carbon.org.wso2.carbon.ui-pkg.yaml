@@ -1,0 +1,10 @@
+id: org.wso2.carbon.org.wso2.carbon.ui
+language: Java
+message: pkg:maven/org.wso2.carbon/org.wso2.carbon.ui
+metadata:
+  purl: pkg:maven/org.wso2.carbon/org.wso2.carbon.ui
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.wso2\.carbon\.ui\.taglibs|org\.wso2\.carbon\.ui\.filters\.csrf|org\.wso2\.carbon\.ui|org\.wso2\.carbon\.ui\.deployment\.beans|org\.wso2\.carbon\.ui\.filters\.cache|org\.wso2\.carbon\.ui\.filters|org\.wso2\.carbon\.ui\.transports|org\.wso2\.carbon\.ui\.clients|org\.wso2\.carbon\.ui\.tracker|org\.wso2\.carbon\.ui\.util|org\.wso2\.carbon\.ui\.valve|org\.wso2\.carbon\.ui\.internal|org\.wso2\.carbon\.ui\.deployment|org\.wso2\.carbon\.ui\.action|org\.wso2\.carbon\.ui\.transports\.fileupload)\.

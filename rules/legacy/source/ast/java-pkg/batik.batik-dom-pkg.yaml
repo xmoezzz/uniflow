@@ -1,0 +1,10 @@
+id: batik.batik-dom
+language: Java
+message: pkg:maven/batik/batik-dom
+metadata:
+  purl: pkg:maven/batik/batik-dom
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.batik\.dom\.util|org\.apache\.batik\.dom|org\.apache\.batik\.dom\.events|org\.apache\.batik\.dom\.traversal)\.

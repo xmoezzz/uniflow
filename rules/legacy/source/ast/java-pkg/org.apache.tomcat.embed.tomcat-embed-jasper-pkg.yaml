@@ -1,0 +1,10 @@
+id: org.apache.tomcat.embed.tomcat-embed-jasper
+language: Java
+message: pkg:maven/org.apache.tomcat.embed/tomcat-embed-jasper
+metadata:
+  purl: pkg:maven/org.apache.tomcat.embed/tomcat-embed-jasper
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(jakarta\.servlet\.jsp|org\.apache\.jasper\.compiler|jakarta\.servlet\.jsp\.tagext|org\.apache\.jasper\.compiler\.tagplugin|org\.apache\.jasper\.util|jakarta\.servlet\.jsp\.el|org\.apache\.jasper\.runtime|org\.apache\.jasper\.optimizations|org\.apache\.jasper\.tagplugins\.jstl\.core|org\.apache\.jasper|org\.apache\.jasper\.servlet|org\.apache\.jasper\.tagplugins\.jstl|org\.apache\.tomcat\.util\.descriptor\.tld|org\.apache\.jasper\.el)\.

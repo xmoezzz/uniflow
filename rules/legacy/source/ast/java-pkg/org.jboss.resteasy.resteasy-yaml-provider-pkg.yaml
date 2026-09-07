@@ -1,0 +1,10 @@
+id: org.jboss.resteasy.resteasy-yaml-provider
+language: Java
+message: pkg:maven/org.jboss.resteasy/resteasy-yaml-provider
+metadata:
+  purl: pkg:maven/org.jboss.resteasy/resteasy-yaml-provider
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jboss\.resteasy\.plugins\.providers|org\.jboss\.resteasy\.plugins\.providers\.yaml\.i18n)\.

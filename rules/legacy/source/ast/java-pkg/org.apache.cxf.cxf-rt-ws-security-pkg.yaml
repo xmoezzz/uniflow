@@ -1,0 +1,10 @@
+id: org.apache.cxf.cxf-rt-ws-security
+language: Java
+message: pkg:maven/org.apache.cxf/cxf-rt-ws-security
+metadata:
+  purl: pkg:maven/org.apache.cxf/cxf-rt-ws-security
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.ws\.security\.sts\.provider\.model\.wstrust14|org\.apache\.cxf\.ws\.security\.trust\.claims|org\.apache\.cxf\.ws\.security\.policy\.interceptors|org\.apache\.cxf\.ws\.security|org\.apache\.cxf\.ws\.security\.wss4j|org\.apache\.cxf\.ws\.security\.policy|org\.apache\.cxf\.ws\.security\.sts\.provider|org\.apache\.cxf\.ws\.security\.wss4j\.policyvalidators|org\.apache\.cxf\.ws\.security\.wss4j\.policyhandlers|org\.apache\.cxf\.ws\.security\.sts\.provider\.model|org\.apache\.cxf\.ws\.security\.sts\.provider\.operation|org\.apache\.cxf\.ws\.security\.trust|org\.apache\.cxf\.ws\.security\.sts\.provider\.model\.xmldsig|org\.apache\.cxf\.ws\.security\.sts\.provider\.model\.secext|org\.apache\.cxf\.ws\.security\.sts\.provider\.model\.utility|org\.apache\.cxf\.ws\.security\.cache|org\.apache\.cxf\.ws\.security\.policy\.custom|org\.apache\.cxf\.ws\.security\.tokenstore|org\.apache\.cxf\.ws\.security\.kerberos|org\.apache\.cxf\.ws\.security\.trust\.delegation)\.

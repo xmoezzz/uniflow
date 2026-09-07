@@ -1,0 +1,10 @@
+id: org.eclipse.jetty.jetty-servlets
+language: Java
+message: pkg:maven/org.eclipse.jetty/jetty-servlets
+metadata:
+  purl: pkg:maven/org.eclipse.jetty/jetty-servlets
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.jetty\.servlets)\.

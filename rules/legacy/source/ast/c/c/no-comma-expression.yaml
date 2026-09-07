@@ -1,0 +1,17 @@
+id: no-comma-expression
+message: '0601000010140052'
+language: C
+rule:
+  all:
+    - kind: comma_expression
+    - not:
+        inside:
+          kind: for_statement
+          stopBy:
+            kind: for_statement
+    - not:
+        inside:
+          kind: call_expression
+          stopBy:
+            kind: call_expression
+

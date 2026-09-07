@@ -1,0 +1,17 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                UserKit
+
+# DataflowSourceRule UserKit 1
+# [{'NamespaceName': 'UserKit', 'ClassName': 'User', 'FunctionName': 'password', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_UserKit_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^UserKit\.User\.password$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

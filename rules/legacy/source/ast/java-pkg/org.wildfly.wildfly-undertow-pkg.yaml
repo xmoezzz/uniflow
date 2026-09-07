@@ -1,0 +1,10 @@
+id: org.wildfly.wildfly-undertow
+language: Java
+message: pkg:maven/org.wildfly/wildfly-undertow
+metadata:
+  purl: pkg:maven/org.wildfly/wildfly-undertow
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.wildfly\.extension\.undertow|org\.wildfly\.extension\.undertow\.logging|org\.wildfly\.extension\.undertow\.deployment|org\.wildfly\.extension\.undertow\.handlers|org\.wildfly\.extension\.undertow\.sso\.elytron|org\.wildfly\.extension\.undertow\.filters|org\.wildfly\.extension\.undertow\.security\.jacc|org\.wildfly\.extension\.undertow\.session)\.

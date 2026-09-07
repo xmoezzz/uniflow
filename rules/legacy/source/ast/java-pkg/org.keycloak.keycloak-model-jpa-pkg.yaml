@@ -1,0 +1,10 @@
+id: org.keycloak.keycloak-model-jpa
+language: Java
+message: pkg:maven/org.keycloak/keycloak-model-jpa
+metadata:
+  purl: pkg:maven/org.keycloak/keycloak-model-jpa
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.keycloak\.connections\.jpa\.updater\.liquibase\.custom|org\.keycloak\.connections\.jpa\.util|org\.keycloak\.connections\.jpa\.entityprovider|org\.keycloak\.organization\.jpa|org\.keycloak\.events\.jpa|org\.keycloak\.authorization\.jpa\.entities|org\.keycloak\.connections\.jpa|org\.keycloak\.storage\.jpa|org\.keycloak\.connections\.jpa\.updater\.liquibase\.conn|org\.keycloak\.models\.jpa\.entities|org\.keycloak\.connections\.jpa\.updater|org\.keycloak\.models\.jpa|org\.keycloak\.connections\.jpa\.updater\.liquibase\.log|org\.keycloak\.authorization\.jpa\.store|org\.keycloak\.connections\.jpa\.updater\.liquibase|org\.keycloak\.storage\.jpa\.entity|org\.keycloak\.models\.jpa\.session|org\.keycloak\.models\.jpa\.converter|org\.keycloak\.connections\.jpa\.updater\.liquibase\.lock)\.

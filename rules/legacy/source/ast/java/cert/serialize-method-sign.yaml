@@ -1,0 +1,33 @@
+id: serialize-method-sign
+message: '0102000010110153'
+language: Java
+rule:
+  kind: method_declaration
+  any:
+    - all:
+      - has:
+          field: name
+          regex: writeObject
+      - has:
+          field: parameters
+          regex: ObjectOutputStream
+      - not:
+          has:
+            kind: throws
+    - all:
+      - has:
+          field: name
+          regex: readObject
+      - has:
+          field: parameters
+          regex: ObjectInputStream
+      - not:
+          has:
+            kind: throws
+    - all:
+      - has:
+          field: name
+          regex: readObjectNoData
+      - not:
+          has:
+            kind: throws

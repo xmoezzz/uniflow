@@ -1,0 +1,10 @@
+id: org.cloudfoundry.identity.cloudfoundry-identity-common
+language: Java
+message: pkg:maven/org.cloudfoundry.identity/cloudfoundry-identity-common
+metadata:
+  purl: pkg:maven/org.cloudfoundry.identity/cloudfoundry-identity-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.cloudfoundry\.identity\.uaa\.coverage|org\.cloudfoundry\.identity\.uaa\.codestore|org\.cloudfoundry\.identity\.uaa\.authentication|org\.cloudfoundry\.identity\.uaa\.oauth|org\.cloudfoundry\.identity\.uaa\.util\.json|org\.cloudfoundry\.identity\.uaa\.login|org\.cloudfoundry\.identity\.uaa\.oauth\.token|org\.cloudfoundry\.identity\.uaa\.zone|org\.cloudfoundry\.identity\.uaa\.authentication\.manager|org\.cloudfoundry\.identity\.uaa|org\.cloudfoundry\.identity\.uaa\.audit\.event|org\.cloudfoundry\.identity\.uaa\.login\.util|org\.cloudfoundry\.identity\.uaa\.zone\.event|org\.cloudfoundry\.identity\.uaa\.oauth\.event|org\.cloudfoundry\.identity\.uaa\.audit|org\.cloudfoundry\.identity\.uaa\.db\.mysql|org\.cloudfoundry\.identity\.uaa\.client|org\.cloudfoundry\.identity\.uaa\.util|org\.cloudfoundry\.identity\.uaa\.rest|org\.cloudfoundry\.identity\.uaa\.ldap\.extension|org\.cloudfoundry\.identity\.uaa\.oauth\.expression|org\.cloudfoundry\.identity\.uaa\.authentication\.login|org\.cloudfoundry\.identity\.uaa\.message|org\.cloudfoundry\.identity\.uaa\.web|org\.cloudfoundry\.identity\.uaa\.openid|org\.cloudfoundry\.identity\.uaa\.security\.web|org\.cloudfoundry\.identity\.uaa\.db\.postgresql|org\.cloudfoundry\.identity\.uaa\.login\.saml|org\.cloudfoundry\.identity\.uaa\.oauth\.approval|org\.cloudfoundry\.identity\.uaa\.config|org\.cloudfoundry\.identity\.uaa\.oauth\.client|org\.cloudfoundry\.identity\.uaa\.authentication\.event|org\.cloudfoundry\.identity\.uaa\.authorization|org\.cloudfoundry\.identity\.uaa\.security|org\.cloudfoundry\.identity\.uaa\.error|org\.cloudfoundry\.identity\.uaa\.rest\.jdbc|org\.cloudfoundry\.identity\.uaa\.user|org\.cloudfoundry\.identity\.uaa\.db|org\.cloudfoundry\.identity\.uaa\.db\.hsqldb|org\.cloudfoundry\.identity\.uaa\.ldap)\.

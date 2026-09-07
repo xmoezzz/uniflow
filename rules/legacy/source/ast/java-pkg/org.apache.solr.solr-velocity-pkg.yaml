@@ -1,0 +1,10 @@
+id: org.apache.solr.solr-velocity
+language: Java
+message: pkg:maven/org.apache.solr/solr-velocity
+metadata:
+  purl: pkg:maven/org.apache.solr/solr-velocity
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.solr\.response)\.

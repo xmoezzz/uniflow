@@ -1,0 +1,5 @@
+id: no-union
+message: '0601000010140102'
+language: C
+rule:
+  kind: union_specifier

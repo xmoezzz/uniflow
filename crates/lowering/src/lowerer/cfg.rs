@@ -39,7 +39,13 @@ impl FunctionLoweringContext<'_> {
         while index < stmts.len() {
             let stmt = &stmts[index];
             match stmt {
-                Stmt::Let { symbol, ty, init, span, .. } => {
+                Stmt::Let {
+                    symbol,
+                    ty,
+                    init,
+                    span,
+                    ..
+                } => {
                     let dst = self.alloc_value();
                     locals.push(dst);
                     value_map.insert(*symbol, dst);
@@ -60,13 +66,28 @@ impl FunctionLoweringContext<'_> {
                             value_spans,
                         );
                         self.push_inst(&mut insts, InstKind::Copy { dst, src }, *span);
-                        if let Some(name) = declared_ty.or(inferred) {
+                        // A source-level functional-interface type (Java
+                        // Function/Runnable, C# Func, etc.) is less precise
+                        // than the concrete synthetic lambda target returned
+                        // by expression lowering. Keep the concrete type so a
+                        // subsequent dynamic invocation resolves to its body.
+                        let assigned_ty = match inferred {
+                            Some(name) if name.contains("lambda_") => Some(name),
+                            inferred => declared_ty.or(inferred),
+                        };
+                        if let Some(name) = assigned_ty {
                             symbol_types.insert(*symbol, name.clone());
                             value_types.insert(dst, name);
                         }
                     }
                 }
                 Stmt::Assign { lhs, rhs, span, .. } => {
+                    if self.owner.language == Language::Java {
+                        self.lower_java_assignment(lhs, rhs, *span, &mut insts, &mut value_map,
+                            symbol_types, locals, value_types, value_spans);
+                        index += 1;
+                        continue;
+                    }
                     let (src, inferred) = self.lower_expr(
                         rhs,
                         &mut insts,
@@ -83,7 +104,9 @@ impl FunctionLoweringContext<'_> {
                             value_map.insert(*symbol, dst);
                             value_spans.insert(dst, *span);
                             self.push_inst(&mut insts, InstKind::Copy { dst, src }, *span);
-                            if let Some(name) = inferred.or_else(|| symbol_types.get(symbol).cloned()) {
+                            if let Some(name) =
+                                inferred.or_else(|| symbol_types.get(symbol).cloned())
+                            {
                                 symbol_types.insert(*symbol, name.clone());
                                 value_types.insert(dst, name);
                             }
@@ -161,13 +184,9 @@ impl FunctionLoweringContext<'_> {
                         )
                         .0
                     });
-                    return (
-                        vec![BasicBlock {
-                            id: current_id,
-                            insts,
-                            term: Terminator::Return(return_value),
-                        }],
-                        value_map,
+                    return self.lower_abrupt_transfer(
+                        AbruptTransfer::Return, Terminator::Return(return_value), current_id, insts,
+                        value_map, symbol_types, locals, value_types, value_spans,
                     );
                 }
                 Stmt::Throw { value, .. } => {
@@ -191,6 +210,224 @@ impl FunctionLoweringContext<'_> {
                         }],
                         value_map,
                     );
+                }
+                Stmt::Break { span, .. } => {
+                    let Some(target) = self.break_stack.last().copied() else {
+                        // `break` outside a loop or switch is not valid source;
+                        // ignore it instead of producing a dangling edge.
+                        index += 1;
+                        continue;
+                    };
+                    let _ = span;
+                    return self.lower_abrupt_transfer(
+                        AbruptTransfer::Break, Terminator::Goto(target), current_id, insts,
+                        value_map, symbol_types, locals, value_types, value_spans,
+                    );
+                }
+                Stmt::Continue { span, .. } => {
+                    let Some(target) = self.continue_stack.last().copied() else {
+                        index += 1;
+                        continue;
+                    };
+                    let _ = span;
+                    return self.lower_abrupt_transfer(
+                        AbruptTransfer::Continue, Terminator::Goto(target), current_id, insts,
+                        value_map, symbol_types, locals, value_types, value_spans,
+                    );
+                }
+                Stmt::DoWhile {
+                    body, cond, span, ..
+                } => {
+                    let body_id = self.alloc_block_id();
+                    let cond_id = self.alloc_block_id();
+                    let exit_id = self.alloc_block_id();
+                    let mut blocks = vec![BasicBlock {
+                        id: current_id,
+                        insts,
+                        term: Terminator::Goto(body_id),
+                    }];
+                    self.break_stack.push(exit_id);
+                    self.continue_stack.push(cond_id);
+                    let (mut body_blocks, body_env) = self.lower_stmt_sequence(
+                        &body.stmts,
+                        body_id,
+                        value_map.clone(),
+                        Terminator::Goto(cond_id),
+                        symbol_types,
+                        locals,
+                        value_types,
+                        value_spans,
+                    );
+                    self.break_stack.pop();
+                    self.continue_stack.pop();
+                    blocks.append(&mut body_blocks);
+                    let mut cond_insts = Vec::new();
+                    let mut cond_env = value_map.clone();
+                    let (cond_value, _) = self.lower_expr(
+                        cond,
+                        &mut cond_insts,
+                        &mut cond_env,
+                        symbol_types,
+                        locals,
+                        value_types,
+                        value_spans,
+                    );
+                    blocks.push(BasicBlock {
+                        id: cond_id,
+                        insts: cond_insts,
+                        term: Terminator::Branch {
+                            cond: cond_value,
+                            then_bb: body_id,
+                            else_bb: exit_id,
+                        },
+                    });
+                    let (merged_env, exit_insts) = self.merge_environments(
+                        &value_map,
+                        &body_env,
+                        *span,
+                        symbol_types,
+                        locals,
+                        value_types,
+                        value_spans,
+                    );
+                    let (mut continuation, final_env) = self.lower_stmt_sequence_with_prefix(
+                        &stmts[index + 1..],
+                        exit_id,
+                        exit_insts,
+                        merged_env,
+                        fallthrough,
+                        symbol_types,
+                        locals,
+                        value_types,
+                        value_spans,
+                    );
+                    blocks.append(&mut continuation);
+                    return (blocks, final_env);
+                }
+                Stmt::Switch {
+                    scrutinee,
+                    clauses,
+                    default,
+                    span,
+                    ..
+                } => {
+                    // Case dispatch stays conservative: every clause body
+                    // remains reachable because value equality is not resolved
+                    // at lowering time. That is sound for value flow and taint,
+                    // and every body still merges into the switch join.
+                    let join_id = self.alloc_block_id();
+                    let (scrutinee_value, _) = self.lower_expr(
+                        scrutinee,
+                        &mut insts,
+                        &mut value_map,
+                        symbol_types,
+                        locals,
+                        value_types,
+                        value_spans,
+                    );
+                    let test_ids: Vec<BlockId> =
+                        clauses.iter().map(|_| self.alloc_block_id()).collect();
+                    let body_ids: Vec<BlockId> =
+                        clauses.iter().map(|_| self.alloc_block_id()).collect();
+                    let default_id = default.as_ref().map(|_| self.alloc_block_id());
+                    let dispatch_end = default_id.unwrap_or(join_id);
+                    let first_test = test_ids.first().copied().unwrap_or(dispatch_end);
+                    let mut blocks = vec![BasicBlock {
+                        id: current_id,
+                        insts,
+                        term: Terminator::Goto(first_test),
+                    }];
+                    for index in 0..clauses.len() {
+                        let next_test = test_ids.get(index + 1).copied().unwrap_or(dispatch_end);
+                        let term = if clauses[index].values.is_empty() {
+                            // A `default` carried inline (Go, Swift) has no test.
+                            Terminator::Goto(body_ids[index])
+                        } else {
+                            Terminator::Branch {
+                                cond: scrutinee_value,
+                                then_bb: body_ids[index],
+                                else_bb: next_test,
+                            }
+                        };
+                        blocks.push(BasicBlock {
+                            id: test_ids[index],
+                            insts: Vec::new(),
+                            term,
+                        });
+                    }
+                    let mut envs = vec![value_map.clone()];
+                    for (index, clause) in clauses.iter().enumerate() {
+                        // C-style fallthrough continues into the next body (or
+                        // the default), otherwise control reaches the switch join.
+                        let next_body = body_ids
+                            .get(index + 1)
+                            .copied()
+                            .or(default_id)
+                            .unwrap_or(join_id);
+                        let exit = if clause.fallthrough {
+                            Terminator::Goto(next_body)
+                        } else {
+                            Terminator::Goto(join_id)
+                        };
+                        self.break_stack.push(join_id);
+                        let (mut lowered, body_env) = self.lower_stmt_sequence(
+                            &clause.body.stmts,
+                            body_ids[index],
+                            value_map.clone(),
+                            exit,
+                            symbol_types,
+                            locals,
+                            value_types,
+                            value_spans,
+                        );
+                        self.break_stack.pop();
+                        envs.push(body_env);
+                        blocks.append(&mut lowered);
+                    }
+                    if let (Some(default_id), Some(default)) = (default_id, default) {
+                        self.break_stack.push(join_id);
+                        let (mut lowered, default_env) = self.lower_stmt_sequence(
+                            &default.stmts,
+                            default_id,
+                            value_map.clone(),
+                            Terminator::Goto(join_id),
+                            symbol_types,
+                            locals,
+                            value_types,
+                            value_spans,
+                        );
+                        self.break_stack.pop();
+                        envs.push(default_env);
+                        blocks.append(&mut lowered);
+                    }
+                    let mut merged = envs.remove(0);
+                    let mut exit_insts = Vec::new();
+                    for env in envs {
+                        let (next, insts) = self.merge_environments(
+                            &merged,
+                            &env,
+                            *span,
+                            symbol_types,
+                            locals,
+                            value_types,
+                            value_spans,
+                        );
+                        merged = next;
+                        exit_insts = insts;
+                    }
+                    let (mut continuation, final_env) = self.lower_stmt_sequence_with_prefix(
+                        &stmts[index + 1..],
+                        join_id,
+                        exit_insts,
+                        merged,
+                        fallthrough,
+                        symbol_types,
+                        locals,
+                        value_types,
+                        value_spans,
+                    );
+                    blocks.append(&mut continuation);
+                    return (blocks, final_env);
                 }
                 Stmt::If {
                     cond,
@@ -277,7 +514,9 @@ impl FunctionLoweringContext<'_> {
                     blocks.append(&mut continuation);
                     return (blocks, final_env);
                 }
-                Stmt::While { cond, body, span, .. } => {
+                Stmt::While {
+                    cond, body, span, ..
+                } => {
                     let header_id = self.alloc_block_id();
                     let body_id = self.alloc_block_id();
                     let exit_id = self.alloc_block_id();
@@ -306,6 +545,8 @@ impl FunctionLoweringContext<'_> {
                             else_bb: exit_id,
                         },
                     });
+                    self.break_stack.push(exit_id);
+                    self.continue_stack.push(header_id);
                     let (mut body_blocks, body_env) = self.lower_stmt_sequence(
                         &body.stmts,
                         body_id,
@@ -316,6 +557,8 @@ impl FunctionLoweringContext<'_> {
                         value_types,
                         value_spans,
                     );
+                    self.break_stack.pop();
+                    self.continue_stack.pop();
                     blocks.append(&mut body_blocks);
                     let (merged_env, exit_insts) = self.merge_environments(
                         &header_env,
@@ -336,6 +579,91 @@ impl FunctionLoweringContext<'_> {
                         locals,
                         value_types,
                         value_spans,
+                    );
+                    blocks.append(&mut continuation);
+                    return (blocks, final_env);
+                }
+                Stmt::For { init_is_scoped, init, cond, update, body, span, .. } => {
+                    let header_id = self.alloc_block_id();
+                    let body_id = self.alloc_block_id();
+                    let update_id = self.alloc_block_id();
+                    let exit_id = self.alloc_block_id();
+                    let outer_symbols = value_map.keys().copied().collect::<HashSet<_>>();
+                    let (mut blocks, initial_env) = self.lower_stmt_sequence_with_prefix(
+                        &init.stmts, current_id, insts, value_map, Terminator::Goto(header_id),
+                        symbol_types, locals, value_types, value_spans,
+                    );
+                    self.edge_environments.remove(&header_id);
+                    // Reserve loop-header definitions before lowering consumers.
+                    // Backedge inputs are attached after the update region exists.
+                    let mut header_env = initial_env.clone();
+                    let mut header_insts = Vec::new();
+                    let mut phi_symbols = initial_env.keys().copied().collect::<Vec<_>>();
+                    phi_symbols.sort_by_key(|symbol| symbol.0);
+                    for symbol in &phi_symbols {
+                        let dst = self.alloc_value();
+                        locals.push(dst);
+                        value_spans.insert(dst, *span);
+                        if let Some(ty) = symbol_types.get(symbol) { value_types.insert(dst, ty.clone()); }
+                        header_env.insert(*symbol, dst);
+                        header_insts.push(Instruction {
+                            id: self.alloc_inst_id(),
+                            kind: InstKind::Phi { dst, inputs: vec![initial_env[symbol]] },
+                            span: *span,
+                        });
+                    }
+                    let term = if let Some(cond) = cond {
+                        let (value, _) = self.lower_expr(cond, &mut header_insts, &mut header_env,
+                            symbol_types, locals, value_types, value_spans);
+                        Terminator::Branch { cond: value, then_bb: body_id, else_bb: exit_id }
+                    } else { Terminator::Goto(body_id) };
+                    let header_index = blocks.len();
+                    blocks.push(BasicBlock { id: header_id, insts: header_insts, term });
+                    self.watched_edge_targets.extend([update_id, exit_id]);
+                    self.break_stack.push(exit_id);
+                    self.continue_stack.push(update_id);
+                    let (mut body_blocks, _) = self.lower_stmt_sequence(
+                        &body.stmts, body_id, header_env.clone(), Terminator::Goto(update_id),
+                        symbol_types, locals, value_types, value_spans,
+                    );
+                    blocks.append(&mut body_blocks);
+                    let update_edges = self.edge_environments.remove(&update_id).unwrap_or_default();
+                    self.watched_edge_targets.remove(&update_id);
+                    if !update_edges.is_empty() {
+                        let (update_env, update_phis) = self.merge_edge_environments(
+                            update_edges, *span, symbol_types, locals, value_types, value_spans,
+                        );
+                        let (mut update_blocks, updated_env) = self.lower_stmt_sequence_with_prefix(
+                            &update.stmts, update_id, update_phis, update_env, Terminator::Goto(header_id),
+                            symbol_types, locals, value_types, value_spans,
+                        );
+                        blocks.append(&mut update_blocks);
+                        for (index, symbol) in phi_symbols.iter().enumerate() {
+                            if let Some(value) = updated_env.get(symbol) {
+                                if let InstKind::Phi { dst, inputs } = &mut blocks[header_index].insts[index].kind {
+                                    if value != dst && !inputs.contains(value) { inputs.push(*value); }
+                                }
+                            }
+                        }
+                    }
+                    self.break_stack.pop();
+                    self.continue_stack.pop();
+                    self.edge_environments.remove(&header_id);
+                    let mut exits = self.edge_environments.remove(&exit_id).unwrap_or_default();
+                    self.watched_edge_targets.remove(&exit_id);
+                    if cond.is_some() { exits.push(header_env); }
+                    // The continuation may be unreachable for for(;;), but still
+                    // needs a well-formed environment for diagnostic lowering.
+                    if exits.is_empty() { exits.push(initial_env); }
+                    let (mut exit_env, exit_phis) = self.merge_edge_environments(
+                        exits, *span, symbol_types, locals, value_types, value_spans,
+                    );
+                    if *init_is_scoped {
+                        exit_env.retain(|symbol, _| outer_symbols.contains(symbol));
+                    }
+                    let (mut continuation, final_env) = self.lower_stmt_sequence_with_prefix(
+                        &stmts[index + 1..], exit_id, exit_phis, exit_env, fallthrough,
+                        symbol_types, locals, value_types, value_spans,
                     );
                     blocks.append(&mut continuation);
                     return (blocks, final_env);
@@ -378,7 +706,8 @@ impl FunctionLoweringContext<'_> {
                     locals.push(item_value);
                     body_env.insert(*item_symbol, item_value);
                     value_spans.insert(item_value, *span);
-                    if let Some(name) = inferred.or_else(|| symbol_types.get(item_symbol).cloned()) {
+                    if let Some(name) = inferred.or_else(|| symbol_types.get(item_symbol).cloned())
+                    {
                         symbol_types.insert(*item_symbol, name.clone());
                         value_types.insert(item_value, name);
                     }
@@ -390,6 +719,8 @@ impl FunctionLoweringContext<'_> {
                         },
                         span: *span,
                     };
+                    self.break_stack.push(exit_id);
+                    self.continue_stack.push(header_id);
                     let (mut body_blocks, loop_env) = self.lower_stmt_sequence_with_prefix(
                         &body.stmts,
                         body_id,
@@ -401,6 +732,8 @@ impl FunctionLoweringContext<'_> {
                         value_types,
                         value_spans,
                     );
+                    self.break_stack.pop();
+                    self.continue_stack.pop();
                     blocks.append(&mut body_blocks);
                     let (merged_env, exit_insts) = self.merge_environments(
                         &value_map,
@@ -459,11 +792,7 @@ impl FunctionLoweringContext<'_> {
                     // value and the handler can use it through its ordinary symbol environment.
                     let catch_type_names = catches
                         .iter()
-                        .map(|catch| {
-                            catch
-                                .ty
-                                .and_then(|ty| self.owner.type_name_for(Some(ty)))
-                        })
+                        .map(|catch| catch.ty.and_then(|ty| self.owner.type_name_for(Some(ty))))
                         .collect::<Vec<_>>();
                     let catch_values = catches
                         .iter()
@@ -481,6 +810,10 @@ impl FunctionLoweringContext<'_> {
                         })
                         .collect::<Vec<_>>();
 
+                    if let Some(body) = finally_block {
+                        self.finally_stack.push(FinallyFrame { body: body.clone(),
+                            break_depth: self.break_stack.len(), continue_depth: self.continue_stack.len() });
+                    }
                     let (mut try_blocks, try_env) = self.lower_stmt_sequence(
                         &try_block.stmts,
                         try_id,
@@ -491,8 +824,8 @@ impl FunctionLoweringContext<'_> {
                         value_types,
                         value_spans,
                     );
-                    let try_cleanup_values =
-                        Self::cpp_scope_values(try_block, &try_env);
+                    if finally_block.is_some() { self.finally_stack.pop(); }
+                    let try_cleanup_values = Self::cpp_scope_values(try_block, &try_env);
                     for block in &try_blocks {
                         for (source_inst, thrown_value) in Self::cpp_block_throw_sites(block) {
                             let thrown_type = thrown_value
@@ -510,10 +843,8 @@ impl FunctionLoweringContext<'_> {
                                     cleanup_values: try_cleanup_values.clone(),
                                 });
                             } else {
-                                let handlers = self.cpp_exception_handler_indices(
-                                    &catch_type_names,
-                                    thrown_type,
-                                );
+                                let handlers = self
+                                    .cpp_exception_handler_indices(&catch_type_names, thrown_type);
                                 if handlers.is_empty() {
                                     // An unhandled exception still executes a finally/cleanup block.
                                     if let Some(finally_id) = finally_id {
@@ -577,8 +908,12 @@ impl FunctionLoweringContext<'_> {
                         if let (Some(symbol), Some(value)) = (catch.symbol, catch_value) {
                             handler_env.insert(symbol, value);
                         }
-                        let (mut catch_blocks, mut catch_env) =
-                            self.lower_stmt_sequence_with_prefix(
+                        if let Some(body) = finally_block {
+                            self.finally_stack.push(FinallyFrame { body: body.clone(),
+                                break_depth: self.break_stack.len(), continue_depth: self.continue_stack.len() });
+                        }
+                        let (mut catch_blocks, mut catch_env) = self
+                            .lower_stmt_sequence_with_prefix(
                                 &catch.body.stmts,
                                 catch_id,
                                 catch_prefix,
@@ -589,6 +924,7 @@ impl FunctionLoweringContext<'_> {
                                 value_types,
                                 value_spans,
                             );
+                        if finally_block.is_some() { self.finally_stack.pop(); }
                         let mut catch_cleanup_values =
                             Self::cpp_scope_values(&catch.body, &catch_env);
                         if let Some(catch_value) = catch_value {
@@ -649,13 +985,13 @@ impl FunctionLoweringContext<'_> {
 
                     if let (Some(finally_block), Some(finally_id)) = (finally_block, finally_id) {
                         let visible_symbols = merged_env.keys().copied().collect::<HashSet<_>>();
-                        let (mut finally_blocks, mut finally_env) =
-                            self.lower_stmt_sequence_with_prefix(
+                        let (mut finally_blocks, mut finally_env) = self
+                            .lower_stmt_sequence_with_prefix(
                                 &finally_block.stmts,
                                 finally_id,
                                 merge_insts,
                                 merged_env,
-                                fallthrough.clone(),
+                                Terminator::Goto(merge_id),
                                 symbol_types,
                                 locals,
                                 value_types,
@@ -663,7 +999,12 @@ impl FunctionLoweringContext<'_> {
                             );
                         finally_env.retain(|symbol, _| visible_symbols.contains(symbol));
                         blocks.append(&mut finally_blocks);
-                        return (blocks, finally_env);
+                        let (mut continuation, final_env) = self.lower_stmt_sequence(
+                            &stmts[index + 1..], merge_id, finally_env, fallthrough,
+                            symbol_types, locals, value_types, value_spans,
+                        );
+                        blocks.append(&mut continuation);
+                        return (blocks, final_env);
                     }
 
                     let (mut continuation, final_env) = self.lower_stmt_sequence_with_prefix(
@@ -684,6 +1025,11 @@ impl FunctionLoweringContext<'_> {
             index += 1;
         }
 
+        if let Terminator::Goto(target) = &fallthrough {
+            if self.watched_edge_targets.contains(target) {
+                self.edge_environments.entry(*target).or_default().push(value_map.clone());
+            }
+        }
         (
             vec![BasicBlock {
                 id: current_id,
@@ -767,12 +1113,27 @@ impl FunctionLoweringContext<'_> {
                             collect(else_block, symbols);
                         }
                     }
-                    Stmt::While { body, .. } => collect(body, symbols),
+                    Stmt::While { body, .. } | Stmt::DoWhile { body, .. } => collect(body, symbols),
+                    Stmt::For { init, update, body, .. } => {
+                        collect(init, symbols);
+                        collect(update, symbols);
+                        collect(body, symbols);
+                    }
                     Stmt::ForEach {
                         item_symbol, body, ..
                     } => {
                         symbols.push(*item_symbol);
                         collect(body, symbols);
+                    }
+                    Stmt::Switch {
+                        clauses, default, ..
+                    } => {
+                        for clause in clauses {
+                            collect(&clause.body, symbols);
+                        }
+                        if let Some(default) = default {
+                            collect(default, symbols);
+                        }
                     }
                     Stmt::Try {
                         try_block,
@@ -794,7 +1155,9 @@ impl FunctionLoweringContext<'_> {
                     Stmt::Assign { .. }
                     | Stmt::Expr { .. }
                     | Stmt::Return { .. }
-                    | Stmt::Throw { .. } => {}
+                    | Stmt::Throw { .. }
+                    | Stmt::Break { .. }
+                    | Stmt::Continue { .. } => {}
                 }
             }
         }
@@ -885,7 +1248,13 @@ impl FunctionLoweringContext<'_> {
             if !seen.insert(current.clone()) {
                 continue;
             }
-            for parent in self.owner.type_hierarchy.get(&current).into_iter().flatten() {
+            for parent in self
+                .owner
+                .type_hierarchy
+                .get(&current)
+                .into_iter()
+                .flatten()
+            {
                 if parent == caught_base {
                     return true;
                 }
@@ -896,6 +1265,27 @@ impl FunctionLoweringContext<'_> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    fn merge_edge_environments(
+        &mut self,
+        edges: Vec<HashMap<SymbolId, ValueId>>,
+        span: uniflow_hir::Span,
+        symbol_types: &mut HashMap<SymbolId, String>,
+        locals: &mut Vec<ValueId>,
+        value_types: &mut IndexMap<ValueId, String>,
+        value_spans: &mut IndexMap<ValueId, uniflow_hir::Span>,
+    ) -> (HashMap<SymbolId, ValueId>, Vec<Instruction>) {
+        let mut edges = edges.into_iter();
+        let mut env = edges.next().unwrap_or_default();
+        let mut phis = Vec::new();
+        for edge in edges {
+            let (merged, mut insts) = self.merge_environments(&env, &edge, span,
+                symbol_types, locals, value_types, value_spans);
+            env = merged;
+            phis.append(&mut insts);
+        }
+        (env, phis)
+    }
+
     fn merge_environments(
         &mut self,
         left: &HashMap<SymbolId, ValueId>,

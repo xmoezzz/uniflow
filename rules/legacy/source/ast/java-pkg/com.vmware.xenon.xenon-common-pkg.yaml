@@ -1,0 +1,10 @@
+id: com.vmware.xenon.xenon-common
+language: Java
+message: pkg:maven/com.vmware.xenon/xenon-common
+metadata:
+  purl: pkg:maven/com.vmware.xenon/xenon-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.vmware\.xenon\.services\.common\.authn|com\.vmware\.xenon\.common\.logging|com\.vmware\.xenon\.common\.jwt|com\.vmware\.xenon\.common|com\.vmware\.xenon\.common\.fsm|com\.vmware\.xenon\.common\.config|com\.vmware\.xenon\.common\.serialization|com\.vmware\.xenon\.common\.http\.netty|com\.vmware\.xenon\.common\.opentracing|com\.vmware\.xenon\.services\.common\.authz|com\.vmware\.xenon\.services\.common)\.

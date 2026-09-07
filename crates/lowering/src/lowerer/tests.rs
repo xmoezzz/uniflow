@@ -5,6 +5,131 @@ mod tests {
     use uniflow_parser_core::SourceParser;
 
     #[test]
+    fn javascript_es_import_aliases_lower_to_package_qualified_callees() {
+        let hir = uniflow_lang_frontends::parse_file(
+            Language::JavaScript,
+            "imports.js",
+            r#"
+import * as child from "child_process";
+import bluebird from "bluebird";
+import { exec as run } from "child_process";
+function execute(command, object) {
+    child.spawn(command);
+    bluebird.toFastProperties(object);
+    run(command);
+}
+"#,
+        )
+        .expect("parse JavaScript imports");
+        let ir = lower_program(&hir);
+        let function = ir.find_function_by_name("execute").expect("execute function");
+        let callees = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .filter_map(|inst| match &inst.kind {
+                InstKind::Call(call) => match &call.callee {
+                    Callee::Static(name) => Some(name.as_str()),
+                    Callee::Dynamic(_) | Callee::Unknown => None,
+                },
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(callees.contains(&"child_process.spawn"), "{callees:?}");
+        assert!(callees.contains(&"bluebird.toFastProperties"), "{callees:?}");
+        assert!(callees.contains(&"child_process.exec"), "{callees:?}");
+    }
+
+    #[test]
+    fn javascript_assigned_lambdas_keep_handler_and_variable_names() {
+        let hir = uniflow_lang_frontends::parse_file(
+            Language::JavaScript,
+            "lambda-handlers.js",
+            r#"
+exports.handler = function(event) { return event; };
+const localHandler = function(input) { return input; };
+"#,
+        )
+        .expect("parse JavaScript assigned lambdas");
+        let ir = lower_program(&hir);
+        assert!(ir.find_function_by_name("exports.handler").is_some(), "{ir:#?}");
+        assert!(ir.find_function_by_name("localHandler").is_some(), "{ir:#?}");
+    }
+
+    #[test]
+    fn javascript_expression_composition_returns_a_first_class_value() {
+        let hir = uniflow_lang_frontends::parse_file(
+            Language::JavaScript,
+            "composition.js",
+            r#"
+function format(name) {
+    const message = "user:" + name;
+    console.log(message, name);
+    return message;
+}
+"#,
+        )
+        .expect("parse JavaScript composition");
+        let ir = lower_program(&hir);
+        let function = ir.find_function_by_name("format").expect("format function");
+        let composed = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .find_map(|inst| match &inst.kind {
+                InstKind::Call(call)
+                    if matches!(&call.callee, Callee::Static(name) if name == "__uniflow.compose.string") =>
+                {
+                    call.dst
+                }
+                _ => None,
+            })
+            .expect("composition call result");
+        let stored = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .find_map(|inst| match inst.kind {
+                InstKind::Copy { dst, src } if src == composed => Some(dst),
+                _ => None,
+            })
+            .expect("composition result stored in local");
+        assert!(function.blocks.iter().flat_map(|block| &block.insts).any(|inst| {
+            matches!(&inst.kind, InstKind::Call(call)
+                if matches!(&call.callee, Callee::Static(name) if name.ends_with("console.log"))
+                    && call.args.first() == Some(&stored))
+        }), "{function:#?}");
+    }
+
+    #[test]
+    fn javascript_map_descriptor_preserves_static_field_paths() {
+        let hir = uniflow_lang_frontends::parse_file(
+            Language::JavaScript,
+            "map-descriptor.js",
+            r#"
+const argon = require("argon2");
+function options() { return { type: argon.argon2id }; }
+"#,
+        )
+        .expect("parse JavaScript map descriptor");
+        let ir = lower_program(&hir);
+        let function = ir.find_function_by_name("options").expect("options function");
+        let constants = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .filter_map(|inst| match &inst.kind {
+                InstKind::ConstString { value, .. } => Some(value.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            constants.iter().any(|value| value.contains("type argon.argon2id")),
+            "{constants:?}"
+        );
+    }
+
+    #[test]
     fn lowering_expands_python_destructuring_into_index_loads() {
         let src = r#"
 def load_pair():
@@ -190,6 +315,41 @@ def handle(cmd):
     }
 
     #[test]
+    fn lowering_discovers_descriptor_lambda_functions_and_captures() {
+        let hir = uniflow_lang_frontends::parse_file(
+            uniflow_hir::Language::JavaScript,
+            "lambda.js",
+            "const prefix = source(); const cb = (x) => prefix + x; sink(cb('v'));",
+        )
+        .expect("parse descriptor closure");
+        let ir = lower_program(&hir);
+        let lambda = ir
+            .functions
+            .iter()
+            .find(|function| function.name.contains("__lambda_"))
+            .expect("descriptor lambda should lower as an invokable function");
+        assert_eq!(
+            lambda.attrs.get("capture_names").map(String::as_str),
+            Some("prefix")
+        );
+        assert_eq!(lambda.params.len(), 2, "one explicit param plus one capture");
+        let top = ir
+            .find_function_by_name("__top_level__")
+            .expect("top-level function");
+        assert!(top
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .any(|inst| matches!(
+                &inst.kind,
+                InstKind::Call(CallInst {
+                    callee: Callee::Dynamic(_),
+                    ..
+                })
+            )));
+    }
+
+    #[test]
     fn lowering_versions_reassigned_variables() {
         let src = r#"
 def handle(value):
@@ -211,6 +371,35 @@ def handle(value):
             .collect::<Vec<_>>();
         assert!(copies.len() >= 2);
         assert_ne!(copies[copies.len() - 1], copies[copies.len() - 2]);
+    }
+
+    #[test]
+    fn lowering_preserves_conditional_expression_inputs() {
+        use uniflow_hir::Language;
+        use uniflow_parser_core::{LangDescriptor, LexerSpec};
+
+        let descriptor = LangDescriptor {
+            lexer: LexerSpec {
+                keywords: &["void", "int", "return"],
+                ..LexerSpec::default()
+            },
+            type_before_name: true,
+            ..LangDescriptor::new(Language::C)
+        };
+        let (hir, errors) = uniflow_parser_core::parse_program(
+            &descriptor,
+            "conditional.c",
+            "int choose(int flag, int value) { int out = flag ? value : 0; return out; }",
+        )
+        .expect("generic parse");
+        assert!(errors.is_empty(), "parse errors: {errors:?}");
+        let ir = lower_program(&hir);
+        let function = ir.find_function_by_name("choose").expect("function");
+        assert!(function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .any(|inst| matches!(&inst.kind, InstKind::Phi { inputs, .. } if inputs.len() == 2)));
     }
 
     #[test]

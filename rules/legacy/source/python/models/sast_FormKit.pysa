@@ -1,0 +1,17 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                FormKit
+
+# DataflowSourceRule FormKit 1
+# [{'NamespaceName': 'FormKit.Form', 'ClassName': 'Form', 'FunctionName': 'field(s)|defaults|rawValues|value(s)', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_FormKit_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^FormKit\.Form\.Form\.(field(s)|defaults|rawValues|value(s))")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

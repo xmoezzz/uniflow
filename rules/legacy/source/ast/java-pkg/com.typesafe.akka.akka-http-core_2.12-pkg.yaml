@@ -1,0 +1,10 @@
+id: com.typesafe.akka.akka-http-core_2.12
+language: Java
+message: pkg:maven/com.typesafe.akka/akka-http-core_2.12
+metadata:
+  purl: pkg:maven/com.typesafe.akka/akka-http-core_2.12
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(akka\.http\.ccompat|akka\.http\.impl\.engine\.server|akka\.http\.impl\.engine\.http2|akka\.http\.impl\.util|akka\.http\.scaladsl\.model\.sse|akka\.http\.impl\.engine\.rendering|akka\.http\.javadsl\.model\.headers|akka\.http\.scaladsl\.model\.headers|akka\.http\.impl\.engine\.client\.pool|akka\.http\.impl\.engine\.http2\.util|akka\.http\.impl\.engine\.ws|akka\.http\.impl\.engine|akka\.http\.impl\.engine\.http2\.framing|akka\.http\.javadsl\.model|akka\.http\.javadsl\.settings|akka\.http\.javadsl|akka\.http\.javadsl\.model\.sse|akka\.http\.impl\.model|akka\.http\.impl\.settings|akka\.http\.scaladsl|akka\.http\.scaladsl\.model\.http2|akka\.http|akka\.http\.ccompat\.imm|akka\.http\.scaladsl\.model\.ws|akka\.http\.impl\.engine\.http2\.hpack|akka\.http\.scaladsl\.settings|akka\.http\.scaladsl\.model|akka\.http\.impl\.engine\.client|akka\.http\.impl\.engine\.http2\.client|akka\.http\.impl\.engine\.parsing|akka\.http\.impl\.model\.parser|akka\.http\.scaladsl\.util|akka\.http\.javadsl\.model\.ws|akka\.http\.shaded\.com\.twitter\.hpack)\.

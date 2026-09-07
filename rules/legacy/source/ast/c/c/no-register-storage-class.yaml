@@ -1,0 +1,6 @@
+id: no-register-storage-class
+message: '0601000010140071'
+language: C
+rule:
+  kind: storage_class_specifier
+  regex: "register"

@@ -1,0 +1,10 @@
+id: org.apache.ignite.ignite-core
+language: Java
+message: pkg:maven/org.apache.ignite/ignite-core
+metadata:
+  purl: pkg:maven/org.apache.ignite/ignite-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.ignite\.internal\.properties|org\.apache\.ignite\.internal\.tostring|org\.apache\.ignite\.internal\.manager|org\.apache\.ignite\.internal\.util\.io|org\.apache\.ignite\.internal\.hlc|org\.apache\.ignite\.internal\.util|org\.apache\.ignite\.internal\.thread|org\.apache\.ignite\.lang|org\.apache\.ignite\.plugin\.extensions\.communication|org\.apache\.ignite\.internal\.replicator|org\.apache\.ignite\.internal\.future|org\.apache\.ignite\.internal\.util\.worker|org\.apache\.ignite\.internal\.logger|org\.apache\.ignite\.internal\.causality|org\.apache\.ignite\.internal\.components)\.

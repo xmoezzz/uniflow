@@ -1,0 +1,87 @@
+id: legacy-swift-security
+title: Migrated Swift security rules
+rules:
+- id: insecure-random
+  title: Cryptographically insecure random generator
+  languages: [swift]
+  severity: warning
+  confidence: low
+  pattern: ''
+  matcher:
+    callee: '(?:^|\.)(?:random|(?:Int|Bool|Float|Double)\.random|arc4random|arc4random_buf|arc4random_uniform|SystemRandomNumberGenerator|rand)$'
+  cwe: [CWE-338]
+  standards: [OWASP-A02, MSTG-CRYPTO-6]
+  message: Use SecRandomCopyBytes explicitly when randomness protects security-sensitive data.
+  translations:
+    zh-CN:
+      title: 使用了非密码学安全的随机数生成器
+      message: 安全敏感的随机数应明确使用 SecRandomCopyBytes 生成。
+    en:
+      title: Cryptographically insecure random generator
+      message: Use SecRandomCopyBytes explicitly when randomness protects security-sensitive data.
+    zh-TW:
+      title: 使用了非密碼學安全的隨機數產生器
+      message: 安全敏感的隨機數應明確使用 SecRandomCopyBytes 產生。
+- id: swift-user-defaults
+  title: Sensitive information stored in UserDefaults
+  languages: [swift]
+  severity: warning
+  confidence: medium
+  pattern: '(?i)\bUserDefaults\s*\.\s*standard\s*\.\s*set\s*\([^\n)]*(?:pass(?:code|word|phrase)|api_?key|secret(?:key|token)|client_?secret|crypto?_?key|cryptionkey|symmetric_?key|private_?key)'
+  matcher: {}
+  cwe: [CWE-311]
+  standards: [MASVS-STORAGE-1, OWASP-A04]
+  message: Store sensitive values in Keychain rather than UserDefaults.
+  translations:
+    zh-CN:
+      title: UserDefaults 中存储了敏感信息
+      message: 敏感值应存储在 Keychain 中，而不是 UserDefaults 中。
+    en:
+      title: Sensitive information stored in UserDefaults
+      message: Store sensitive values in Keychain rather than UserDefaults.
+    zh-TW:
+      title: UserDefaults 中儲存了敏感資訊
+      message: 敏感值應儲存在 Keychain 中，而不是 UserDefaults 中。
+- id: swift-potential-sqlite-injection
+  title: Potential client-side SQLite injection
+  languages: [swift]
+  severity: warning
+  confidence: low
+  pattern: ''
+  matcher:
+    callee: '(?:^|\.)(?:sqlite3_exec|sqlite3_prepare_v2)$'
+    min_args: 2
+    non_literal_args: [1]
+  cwe: [CWE-89]
+  standards: [MASVS-CODE-4]
+  message: Use parameterized SQLite queries instead of a dynamically constructed SQL argument.
+  translations:
+    zh-CN:
+      title: 可能存在客户端 SQLite 注入
+      message: 请使用参数化 SQLite 查询，不要传入动态构造的 SQL。
+    en:
+      title: Potential client-side SQLite injection
+      message: Use parameterized SQLite queries instead of a dynamically constructed SQL argument.
+    zh-TW:
+      title: 可能存在客戶端 SQLite 注入
+      message: 請使用參數化 SQLite 查詢，不要傳入動態建構的 SQL。
+- id: swift-webview-config-allows-js-open-windows
+  title: WKWebView allows JavaScript to open windows automatically
+  languages: [swift]
+  severity: warning
+  confidence: high
+  pattern: '(?i)\bjavaScriptCanOpenWindowsAutomatically\s*=\s*true\b'
+  matcher: {}
+  cwe: [CWE-272]
+  standards: [MASVS-PLATFORM-2]
+  message: Disable automatic JavaScript window creation unless the feature is required.
+  translations:
+    zh-CN:
+      title: WKWebView 允许 JavaScript 自动打开窗口
+      message: 除非业务明确需要，否则请禁用 JavaScript 自动创建窗口。
+    en:
+      title: WKWebView allows JavaScript to open windows automatically
+      message: Disable automatic JavaScript window creation unless the feature is required.
+    zh-TW:
+      title: WKWebView 允許 JavaScript 自動開啟視窗
+      message: 除非業務明確需要，否則請停用 JavaScript 自動建立視窗。

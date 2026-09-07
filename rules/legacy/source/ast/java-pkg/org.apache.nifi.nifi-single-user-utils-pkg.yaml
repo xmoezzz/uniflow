@@ -1,0 +1,10 @@
+id: org.apache.nifi.nifi-single-user-utils
+language: Java
+message: pkg:maven/org.apache.nifi/nifi-single-user-utils
+metadata:
+  purl: pkg:maven/org.apache.nifi/nifi-single-user-utils
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.nifi\.authentication\.single\.user\.command|org\.apache\.nifi\.authentication\.single\.user|org\.apache\.nifi\.authentication\.single\.user\.encoder|org\.apache\.nifi\.authentication\.single\.user\.writer)\.

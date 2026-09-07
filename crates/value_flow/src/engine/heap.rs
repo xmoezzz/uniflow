@@ -11,7 +11,13 @@ fn create_function_nodes(fg: &mut FlowGraph, func: &Function) {
             value: param,
         });
         fg.values.insert((func.id, param), value_node);
-        fg.graph.add_edge(param_node, value_node, FlowEdge { kind: EdgeKind::Assign });
+        fg.graph.add_edge(
+            param_node,
+            value_node,
+            FlowEdge {
+                kind: EdgeKind::Assign,
+            },
+        );
     }
 
     for local in func.locals.iter().copied() {
@@ -33,34 +39,74 @@ fn value_node(fg: &FlowGraph, func: FunctionId, value: ValueId) -> NodeIndex {
         .expect("value node must be pre-created")
 }
 
-fn edge_value_to_value(fg: &mut FlowGraph, func: FunctionId, src: ValueId, dst: ValueId, kind: EdgeKind) {
+fn edge_value_to_value(
+    fg: &mut FlowGraph,
+    func: FunctionId,
+    src: ValueId,
+    dst: ValueId,
+    kind: EdgeKind,
+) {
     let src_node = value_node(fg, func, src);
     let dst_node = value_node(fg, func, dst);
     fg.graph.add_edge(src_node, dst_node, FlowEdge { kind });
 }
 
 fn connect_call_value_ports(fg: &mut FlowGraph, func: FunctionId, inst: InstId, call: &CallInst) {
-    let callee_name = static_callee_name(call);
+    let callee_name = normalized_static_callee_name(fg, func, call);
 
     if let Some(receiver) = call.receiver {
         let port = Port::Receiver;
         let port_node = get_or_create_call_port(fg, func, inst, port.clone(), callee_name.clone());
         let src = value_node(fg, func, receiver);
-        fg.graph.add_edge(src, port_node, FlowEdge { kind: EdgeKind::ValueToCallPort });
+        fg.graph.add_edge(
+            src,
+            port_node,
+            FlowEdge {
+                kind: EdgeKind::ValueToCallPort,
+            },
+        );
     }
 
     for (idx, arg) in call.args.iter().copied().enumerate() {
         let port = Port::Arg(idx);
         let port_node = get_or_create_call_port(fg, func, inst, port.clone(), callee_name.clone());
         let src = value_node(fg, func, arg);
-        fg.graph.add_edge(src, port_node, FlowEdge { kind: EdgeKind::ValueToCallPort });
+        fg.graph.add_edge(
+            src,
+            port_node,
+            FlowEdge {
+                kind: EdgeKind::ValueToCallPort,
+            },
+        );
+        if let Some(name) = call.arg_names.get(idx).and_then(Option::as_ref) {
+            let named = get_or_create_call_port(
+                fg,
+                func,
+                inst,
+                Port::NamedArg(name.clone()),
+                callee_name.clone(),
+            );
+            fg.graph.add_edge(
+                src,
+                named,
+                FlowEdge {
+                    kind: EdgeKind::ValueToCallPort,
+                },
+            );
+        }
     }
 
     if let Some(dst) = call.dst {
         let port = Port::Return;
         let port_node = get_or_create_call_port(fg, func, inst, port, callee_name);
         let dst_node = value_node(fg, func, dst);
-        fg.graph.add_edge(port_node, dst_node, FlowEdge { kind: EdgeKind::CallPortToValue });
+        fg.graph.add_edge(
+            port_node,
+            dst_node,
+            FlowEdge {
+                kind: EdgeKind::CallPortToValue,
+            },
+        );
     }
 }
 
@@ -73,17 +119,30 @@ fn connect_lambda_capture_bindings(
     let canonical_callee = canonical_heap_value(fg, caller_func, callee_value);
     for (ir_index, capture_name) in capture_param_ir_indices(callee_func) {
         let field_name = format!("__capture__{capture_name}");
-        let Some(field_cell) = fg.field_cells.get(&(caller_func, canonical_callee, field_name)).copied() else {
+        let Some(field_cell) = fg
+            .field_cells
+            .get(&(caller_func, canonical_callee, field_name))
+            .copied()
+        else {
             continue;
         };
         let Some(param_node) = fg.function_params.get(&(callee_func.id, ir_index)).copied() else {
             continue;
         };
-        fg.graph.add_edge(field_cell, param_node, FlowEdge { kind: EdgeKind::ActualToFormal });
+        fg.graph.add_edge(
+            field_cell,
+            param_node,
+            FlowEdge {
+                kind: EdgeKind::ActualToFormal,
+            },
+        );
     }
 }
 
-fn compute_actual_formal_bindings(call: &CallInst, callee_func: &Function) -> Vec<(Port, ValueId, usize)> {
+fn compute_actual_formal_bindings(
+    call: &CallInst,
+    callee_func: &Function,
+) -> Vec<(Port, ValueId, usize)> {
     let mut bindings = Vec::new();
     let receiver_offset = function_receiver_offset(callee_func);
     if receiver_offset == 1 {
@@ -123,31 +182,37 @@ fn compute_actual_formal_bindings(call: &CallInst, callee_func: &Function) -> Ve
     let mut next_positional = 0usize;
 
     for (idx, arg) in call.args.iter().copied().enumerate() {
-        let target_index = if let Some(name) = call.arg_names.get(idx).and_then(|name| name.as_deref()) {
-            if let Some(spec) = specs.iter().find(|spec| spec.name == name && spec.kind == ParamBindingKind::Positional) {
-                if consumed.iter().any(|existing| *existing == spec.ir_index) {
-                    kwarg_target.or(vararg_target)
+        let target_index =
+            if let Some(name) = call.arg_names.get(idx).and_then(|name| name.as_deref()) {
+                if let Some(spec) = specs
+                    .iter()
+                    .find(|spec| spec.name == name && spec.kind == ParamBindingKind::Positional)
+                {
+                    if consumed.iter().any(|existing| *existing == spec.ir_index) {
+                        kwarg_target.or(vararg_target)
+                    } else {
+                        consumed.push(spec.ir_index);
+                        Some(spec.ir_index)
+                    }
                 } else {
-                    consumed.push(spec.ir_index);
-                    Some(spec.ir_index)
+                    kwarg_target.or(vararg_target)
                 }
             } else {
-                kwarg_target.or(vararg_target)
-            }
-        } else {
-            while next_positional < positional_targets.len()
-                && consumed.iter().any(|existing| *existing == positional_targets[next_positional])
-            {
-                next_positional += 1;
-            }
-            if let Some(ir_index) = positional_targets.get(next_positional).copied() {
-                consumed.push(ir_index);
-                next_positional += 1;
-                Some(ir_index)
-            } else {
-                vararg_target.or(kwarg_target)
-            }
-        };
+                while next_positional < positional_targets.len()
+                    && consumed
+                        .iter()
+                        .any(|existing| *existing == positional_targets[next_positional])
+                {
+                    next_positional += 1;
+                }
+                if let Some(ir_index) = positional_targets.get(next_positional).copied() {
+                    consumed.push(ir_index);
+                    next_positional += 1;
+                    Some(ir_index)
+                } else {
+                    vararg_target.or(kwarg_target)
+                }
+            };
 
         if let Some(ir_index) = target_index {
             if ir_index < callee_func.params.len() {
@@ -159,7 +224,6 @@ fn compute_actual_formal_bindings(call: &CallInst, callee_func: &Function) -> Ve
     bindings
 }
 
-
 fn connect_cell_projected_values_to_dst(
     fg: &mut FlowGraph,
     cell: NodeIndex,
@@ -168,14 +232,16 @@ fn connect_cell_projected_values_to_dst(
     edge_kind: EdgeKind,
 ) {
     let dst_node = value_node(fg, dst_func, dst);
-    let cutoff_edge = fg.graph.add_edge(cell, dst_node, FlowEdge { kind: edge_kind.clone() });
-    let cutoff_edge_idx = Some(cutoff_edge.index());
-    for (proj_func, proj_value) in cell_values_for_flow_before_edge(fg, cell, cutoff_edge_idx) {
-        connect_bidirectional_value_pair(fg, proj_func, proj_value, dst_func, dst);
-        propagate_object_identity_site(fg, proj_func, proj_value, dst_func, dst);
-        let mut visited = HashSet::new();
-        bridge_nested_heap_values(fg, proj_func, proj_value, dst_func, dst, &mut visited);
-    }
+    fg.graph.add_edge(
+        cell,
+        dst_node,
+        FlowEdge {
+            kind: edge_kind.clone(),
+        },
+    );
+    // Reaching stores are selected after alias/identity facts are available.
+    // Eager bidirectional bindings here permanently equate every overwritten
+    // value with the read, before strong-update eligibility can be established.
 }
 
 fn connect_python_container_semantics(
@@ -201,7 +267,13 @@ fn connect_python_container_semantics(
             for key in [precise_key.as_str(), "*"] {
                 let cell = ensure_index_cell(fg, func, receiver, key);
                 let src_node = value_node(fg, func, src);
-                fg.graph.add_edge(src_node, cell, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    cell,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
             }
         }
         "insert" => {
@@ -216,7 +288,13 @@ fn connect_python_container_semantics(
             for slot in [key.as_str(), "*"] {
                 let cell = ensure_index_cell(fg, func, receiver, slot);
                 let src_node = value_node(fg, func, src);
-                fg.graph.add_edge(src_node, cell, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    cell,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
             }
         }
         "extend" | "update" => {
@@ -283,9 +361,21 @@ fn connect_python_container_semantics(
             let cell = ensure_index_cell(fg, func, receiver, &key);
             if let Some(default) = call.args.get(1).copied() {
                 let src_node = value_node(fg, func, default);
-                fg.graph.add_edge(src_node, cell, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    cell,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
                 let wildcard = ensure_index_cell(fg, func, receiver, "*");
-                fg.graph.add_edge(src_node, wildcard, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    wildcard,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
             }
             if let Some(dst) = call.dst {
                 connect_cell_projected_values_to_dst(fg, cell, func, dst, EdgeKind::LoadIndex);
@@ -302,7 +392,6 @@ fn connect_python_container_semantics(
     }
 }
 
-
 fn connect_internal_call(
     fg: &mut FlowGraph,
     caller_func: FunctionId,
@@ -317,7 +406,11 @@ fn connect_internal_call(
 
     let bindings = compute_actual_formal_bindings(call, callee_func);
     for (port, actual_value, ir_index) in &bindings {
-        let Some(param_node) = fg.function_params.get(&(callee_func.id, *ir_index)).copied() else {
+        let Some(param_node) = fg
+            .function_params
+            .get(&(callee_func.id, *ir_index))
+            .copied()
+        else {
             continue;
         };
         let arg_port = get_or_create_call_port(
@@ -327,8 +420,20 @@ fn connect_internal_call(
             port.clone(),
             Some(callee_func.name.clone()),
         );
-        fg.graph.add_edge(arg_port, param_node, FlowEdge { kind: EdgeKind::ActualToFormal });
-        propagate_object_identity_site(fg, caller_func, *actual_value, callee_func.id, callee_func.params[*ir_index]);
+        fg.graph.add_edge(
+            arg_port,
+            param_node,
+            FlowEdge {
+                kind: EdgeKind::ActualToFormal,
+            },
+        );
+        propagate_object_identity_site(
+            fg,
+            caller_func,
+            *actual_value,
+            callee_func.id,
+            callee_func.params[*ir_index],
+        );
     }
 
     if let Some(dst) = call.dst {
@@ -343,11 +448,18 @@ fn connect_internal_call(
             .function_returns
             .get(&callee_func.id)
             .expect("callee return node must exist");
-        fg.graph.add_edge(callee_ret, ret_port, FlowEdge { kind: EdgeKind::FormalToActual });
+        fg.graph.add_edge(
+            callee_ret,
+            ret_port,
+            FlowEdge {
+                kind: EdgeKind::FormalToActual,
+            },
+        );
         let direct_sites = returned_direct_identity_sites(fg, callee_func);
         if direct_sites.len() == 1 {
             fg.object_identity_roots.insert((caller_func, dst), dst);
-            fg.object_identity_sites.insert((caller_func, dst), direct_sites[0].clone());
+            fg.object_identity_sites
+                .insert((caller_func, dst), direct_sites[0].clone());
         }
     }
 }
@@ -360,12 +472,17 @@ enum ProjectionStep {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum ReturnedProjection {
-    Param { ir_index: usize },
-    Path { ir_index: usize, steps: Vec<ProjectionStep> },
+    Param {
+        ir_index: usize,
+    },
+    Path {
+        ir_index: usize,
+        steps: Vec<ProjectionStep>,
+    },
 }
 
 fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjection> {
-    let literal_index_keys = compute_literal_index_keys(func);
+    let literal_index_keys = compute_literal_index_keys(func, &fg.language);
     let mut defs = HashMap::new();
     for block in &func.blocks {
         for inst in &block.insts {
@@ -373,6 +490,7 @@ fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjecti
                 InstKind::ConstInt { dst, .. }
                 | InstKind::ConstString { dst, .. }
                 | InstKind::Copy { dst, .. }
+                | InstKind::NumericStep { dst, .. }
                 | InstKind::Move { dst, .. }
                 | InstKind::Cast { dst, .. }
                 | InstKind::Phi { dst, .. }
@@ -380,7 +498,10 @@ fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjecti
                 | InstKind::LoadIndex { dst, .. } => {
                     defs.insert(*dst, &inst.kind);
                 }
-                InstKind::StoreField { .. } | InstKind::StoreIndex { .. } | InstKind::Call(_) | InstKind::Lifetime { .. } => {}
+                InstKind::StoreField { .. }
+                | InstKind::StoreIndex { .. }
+                | InstKind::Call(_)
+                | InstKind::Lifetime { .. } => {}
             }
         }
     }
@@ -406,7 +527,10 @@ fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjecti
                 ir_index,
                 steps: vec![step],
             },
-            ReturnedProjection::Path { ir_index, mut steps } => {
+            ReturnedProjection::Path {
+                ir_index,
+                mut steps,
+            } => {
                 steps.push(step);
                 ReturnedProjection::Path { ir_index, steps }
             }
@@ -438,7 +562,9 @@ fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjecti
         }
         if let Some(kind) = defs.get(&value) {
             match *kind {
-                InstKind::Copy { src, .. } | InstKind::Move { src, .. } | InstKind::Cast { src, .. } => {
+                InstKind::Copy { src, .. }
+                | InstKind::Move { src, .. }
+                | InstKind::Cast { src, .. } => {
                     out.extend(walk_projection(
                         fg,
                         func,
@@ -472,7 +598,10 @@ fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjecti
                         literal_index_keys,
                         visiting,
                     ) {
-                        out.push(append_step(projection, ProjectionStep::Field(field.clone())));
+                        out.push(append_step(
+                            projection,
+                            ProjectionStep::Field(field.clone()),
+                        ));
                     }
                 }
                 InstKind::LoadIndex { base, index, .. } => {
@@ -489,7 +618,8 @@ fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjecti
                         out.push(append_step(projection, ProjectionStep::Index(key.clone())));
                     }
                 }
-                InstKind::ConstInt { .. }
+                InstKind::NumericStep { .. }
+                | InstKind::ConstInt { .. }
                 | InstKind::ConstString { .. }
                 | InstKind::StoreField { .. }
                 | InstKind::StoreIndex { .. }
@@ -531,7 +661,11 @@ fn ensure_field_cell(
     field: &str,
 ) -> NodeIndex {
     let root = canonical_heap_value(fg, func, value);
-    if let Some(existing) = fg.field_cells.get(&(func, root, field.to_string())).copied() {
+    if let Some(existing) = fg
+        .field_cells
+        .get(&(func, root, field.to_string()))
+        .copied()
+    {
         return existing;
     }
     let node = fg.graph.add_node(FlowNode::FieldCell {
@@ -555,12 +689,7 @@ fn ensure_field_cell(
     node
 }
 
-fn ensure_index_cell(
-    fg: &mut FlowGraph,
-    func: FunctionId,
-    value: ValueId,
-    key: &str,
-) -> NodeIndex {
+fn ensure_index_cell(fg: &mut FlowGraph, func: FunctionId, value: ValueId, key: &str) -> NodeIndex {
     let root = canonical_heap_value(fg, func, value);
     if let Some(existing) = fg.index_cells.get(&(func, root, key.to_string())).copied() {
         return existing;
@@ -575,7 +704,13 @@ fn ensure_index_cell(
     });
     fg.index_cells.insert((func, root, key.to_string()), node);
     let base_node = value_node(fg, func, value);
-    fg.graph.add_edge(base_node, node, FlowEdge { kind: EdgeKind::LoadIndex });
+    fg.graph.add_edge(
+        base_node,
+        node,
+        FlowEdge {
+            kind: EdgeKind::LoadIndex,
+        },
+    );
     node
 }
 
@@ -626,7 +761,11 @@ fn next_precise_numeric_index_key(fg: &FlowGraph, func: FunctionId, value: Value
     next.to_string()
 }
 
-fn last_precise_numeric_index_key(fg: &FlowGraph, func: FunctionId, value: ValueId) -> Option<String> {
+fn last_precise_numeric_index_key(
+    fg: &FlowGraph,
+    func: FunctionId,
+    value: ValueId,
+) -> Option<String> {
     let mut best: Option<usize> = None;
     for key in index_keys_for_value(fg, func, value) {
         if let Ok(parsed) = key.parse::<usize>() {
@@ -636,23 +775,30 @@ fn last_precise_numeric_index_key(fg: &FlowGraph, func: FunctionId, value: Value
     best.map(|value| value.to_string())
 }
 
-fn connect_container_value_copy(
-    fg: &mut FlowGraph,
-    func: FunctionId,
-    src: ValueId,
-    dst: ValueId,
-) {
+fn connect_container_value_copy(fg: &mut FlowGraph, func: FunctionId, src: ValueId, dst: ValueId) {
     let keys = index_keys_for_value(fg, func, src);
     if keys.is_empty() {
         let src_node = value_node(fg, func, src);
         let wildcard = ensure_index_cell(fg, func, dst, "*");
-        fg.graph.add_edge(src_node, wildcard, FlowEdge { kind: EdgeKind::StoreIndex });
+        fg.graph.add_edge(
+            src_node,
+            wildcard,
+            FlowEdge {
+                kind: EdgeKind::StoreIndex,
+            },
+        );
         return;
     }
     for key in keys {
         let dst_cell = ensure_index_cell(fg, func, dst, &key);
         for src_cell in index_cells_for_key(fg, func, src, &key) {
-            fg.graph.add_edge(src_cell, dst_cell, FlowEdge { kind: EdgeKind::StoreIndex });
+            fg.graph.add_edge(
+                src_cell,
+                dst_cell,
+                FlowEdge {
+                    kind: EdgeKind::StoreIndex,
+                },
+            );
         }
     }
 }
@@ -681,9 +827,21 @@ fn connect_builtin_python_container_semantics(
                 let key = idx.to_string();
                 let cell = ensure_index_cell(fg, func, dst, &key);
                 let src_node = value_node(fg, func, arg);
-                fg.graph.add_edge(src_node, cell, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    cell,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
                 let wildcard = ensure_index_cell(fg, func, dst, "*");
-                fg.graph.add_edge(src_node, wildcard, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    wildcard,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
             }
         }
         "builtins.dict" => {
@@ -701,9 +859,21 @@ fn connect_builtin_python_container_semantics(
                 let key = abstract_index_key(literal_index_keys, key_value);
                 let cell = ensure_index_cell(fg, func, dst, &key);
                 let src_node = value_node(fg, func, src);
-                fg.graph.add_edge(src_node, cell, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    cell,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
                 let wildcard = ensure_index_cell(fg, func, dst, "*");
-                fg.graph.add_edge(src_node, wildcard, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    wildcard,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
             }
         }
         "builtins.set" => {
@@ -714,10 +884,22 @@ fn connect_builtin_python_container_semantics(
             for (idx, arg) in call.args.iter().copied().enumerate() {
                 let src_node = value_node(fg, func, arg);
                 let wildcard = ensure_index_cell(fg, func, dst, "*");
-                fg.graph.add_edge(src_node, wildcard, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    wildcard,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
                 let key = idx.to_string();
                 let cell = ensure_index_cell(fg, func, dst, &key);
-                fg.graph.add_edge(src_node, cell, FlowEdge { kind: EdgeKind::StoreIndex });
+                fg.graph.add_edge(
+                    src_node,
+                    cell,
+                    FlowEdge {
+                        kind: EdgeKind::StoreIndex,
+                    },
+                );
             }
         }
         _ => {}
@@ -733,8 +915,17 @@ fn connect_bidirectional_value_pair(
 ) {
     let left = value_node(fg, left_func, left_value);
     let right = value_node(fg, right_func, right_value);
-    fg.graph.add_edge(left, right, FlowEdge { kind: EdgeKind::ActualToFormal });
-    fg.graph.add_edge(right, left, FlowEdge { kind: EdgeKind::FormalToActual });
+    connect_heap_binding(fg, left, right);
+}
+
+fn connect_heap_binding(fg: &mut FlowGraph, actual: NodeIndex, formal: NodeIndex) {
+    if actual == formal { return; }
+    if !fg.graph.edges_connecting(actual, formal).any(|edge| matches!(edge.weight().kind, EdgeKind::ActualToFormal)) {
+        fg.graph.add_edge(actual, formal, FlowEdge { kind: EdgeKind::ActualToFormal });
+    }
+    if !fg.graph.edges_connecting(formal, actual).any(|edge| matches!(edge.weight().kind, EdgeKind::FormalToActual)) {
+        fg.graph.add_edge(formal, actual, FlowEdge { kind: EdgeKind::FormalToActual });
+    }
 }
 
 fn direct_cell_projected_values(fg: &FlowGraph, cell: NodeIndex) -> Vec<(FunctionId, ValueId)> {
@@ -752,7 +943,10 @@ fn direct_cell_projected_values(fg: &FlowGraph, cell: NodeIndex) -> Vec<(Functio
     }
     for edge in fg.graph.edges_directed(cell, petgraph::Direction::Incoming) {
         match (&edge.weight().kind, &fg.graph[edge.source()]) {
-            (EdgeKind::StoreField { .. } | EdgeKind::StoreIndex, FlowNode::Value { func, value }) => {
+            (
+                EdgeKind::StoreField { .. } | EdgeKind::StoreIndex,
+                FlowNode::Value { func, value },
+            ) => {
                 if seen.insert((*func, *value)) {
                     out.push((*func, *value));
                 }
@@ -779,19 +973,43 @@ fn collect_transitive_cell_projected_values(
         }
     }
     for edge in fg.graph.edges_directed(cell, petgraph::Direction::Outgoing) {
-        if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) {
+        if !matches!(
+            edge.weight().kind,
+            EdgeKind::ActualToFormal | EdgeKind::FormalToActual
+        ) {
             continue;
         }
-        if matches!(fg.graph[edge.target()], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) {
-            collect_transitive_cell_projected_values(fg, edge.target(), visited_cells, seen_values, out);
+        if matches!(
+            fg.graph[edge.target()],
+            FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }
+        ) {
+            collect_transitive_cell_projected_values(
+                fg,
+                edge.target(),
+                visited_cells,
+                seen_values,
+                out,
+            );
         }
     }
     for edge in fg.graph.edges_directed(cell, petgraph::Direction::Incoming) {
-        if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) {
+        if !matches!(
+            edge.weight().kind,
+            EdgeKind::ActualToFormal | EdgeKind::FormalToActual
+        ) {
             continue;
         }
-        if matches!(fg.graph[edge.source()], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) {
-            collect_transitive_cell_projected_values(fg, edge.source(), visited_cells, seen_values, out);
+        if matches!(
+            fg.graph[edge.source()],
+            FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }
+        ) {
+            collect_transitive_cell_projected_values(
+                fg,
+                edge.source(),
+                visited_cells,
+                seen_values,
+                out,
+            );
         }
     }
 }
@@ -806,12 +1024,9 @@ fn all_cell_nodes(fg: &FlowGraph) -> Vec<NodeIndex> {
 
 fn alias_equivalent_cells(fg: &FlowGraph, cell: NodeIndex) -> Vec<NodeIndex> {
     let mut out = Vec::new();
-    let cell_regions = fg.cell_memory_regions_of(cell);
     for candidate in all_cell_nodes(fg) {
-        let candidate_regions = fg.cell_memory_regions_of(candidate);
         if candidate == cell
             || fg.cell_may_alias(cell, candidate)
-            || (!cell_regions.is_empty() && !candidate_regions.is_empty() && memory_regions_overlap(&cell_regions, &candidate_regions))
         {
             out.push(candidate);
         }
@@ -825,17 +1040,30 @@ fn cell_projected_values(fg: &FlowGraph, cell: NodeIndex) -> Vec<(FunctionId, Va
     let mut out = Vec::new();
     let mut visited_cells = HashSet::new();
     let mut seen_values = HashSet::new();
-    collect_transitive_cell_projected_values(fg, cell, &mut visited_cells, &mut seen_values, &mut out);
+    collect_transitive_cell_projected_values(
+        fg,
+        cell,
+        &mut visited_cells,
+        &mut seen_values,
+        &mut out,
+    );
     out
 }
 
 fn cell_abstract_identity_key(fg: &FlowGraph, cell: NodeIndex) -> Option<String> {
     match &fg.graph[cell] {
-        FlowNode::FieldCell { func, base, field, .. } => {
+        FlowNode::FieldCell {
+            func, base, field, ..
+        } => {
             let site = value_identity_site(fg, *func, *base)?.trim().to_string();
             Some(format!("field:{}:{}", site, field))
         }
-        FlowNode::IndexCell { func, base, abstract_key, .. } if abstract_key != "*" => {
+        FlowNode::IndexCell {
+            func,
+            base,
+            abstract_key,
+            ..
+        } if abstract_key != "*" => {
             let site = value_identity_site(fg, *func, *base)?.trim().to_string();
             Some(format!("index:{}:{}", site, abstract_key))
         }
@@ -863,15 +1091,21 @@ fn cell_allows_strong_update(fg: &FlowGraph, cell: NodeIndex) -> bool {
     {
         return false;
     }
-    let Some(memory_unit_object_id) = fg.points_to_object_ids.get(&format!("memunit:{}", memory_unit)).copied() else {
+    let Some(memory_unit_object_id) = fg
+        .points_to_object_ids
+        .get(&format!("memunit:{}", memory_unit))
+        .copied()
+    else {
         return false;
     };
     let cell_object_ids = fg.cell_points_to_object_ids_of(cell);
-    cell_object_ids.is_empty() || cell_object_ids.iter().any(|id| *id == memory_unit_object_id)
+    cell_object_ids.is_empty()
+        || cell_object_ids
+            .iter()
+            .any(|id| *id == memory_unit_object_id)
 }
 
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct DetailedStoreRecord {
     edge_idx: usize,
     origin_cell: usize,
@@ -884,18 +1118,29 @@ fn direct_cell_store_records(fg: &FlowGraph, cell: NodeIndex) -> Vec<DetailedSto
     let mut seen = HashSet::new();
     for edge in fg.graph.edges_directed(cell, petgraph::Direction::Incoming) {
         match (&edge.weight().kind, &fg.graph[edge.source()]) {
-            (EdgeKind::StoreField { .. } | EdgeKind::StoreIndex, FlowNode::Value { func, value }) => {
-                let key = DetailedStoreRecord { edge_idx: edge.id().index(), origin_cell: cell.index(), func: *func, value: *value };
+            (
+                EdgeKind::StoreField { .. } | EdgeKind::StoreIndex,
+                FlowNode::Value { func, value },
+            ) => {
+                let key = DetailedStoreRecord {
+                    edge_idx: edge.id().index(),
+                    origin_cell: cell.index(),
+                    func: *func,
+                    value: *value,
+                };
                 if seen.insert(key) {
                     out.push(key);
                 }
             }
             (EdgeKind::Summary { rule_id }, FlowNode::Value { func, value })
-                if rule_id.contains("heap-write")
-                    || rule_id.contains("return-value-region")
-                    || rule_id.contains("return-region-value") =>
+                if rule_id.contains("heap-write") =>
             {
-                let key = DetailedStoreRecord { edge_idx: edge.id().index(), origin_cell: cell.index(), func: *func, value: *value };
+                let key = DetailedStoreRecord {
+                    edge_idx: edge.id().index(),
+                    origin_cell: cell.index(),
+                    func: *func,
+                    value: *value,
+                };
                 if seen.insert(key) {
                     out.push(key);
                 }
@@ -907,103 +1152,32 @@ fn direct_cell_store_records(fg: &FlowGraph, cell: NodeIndex) -> Vec<DetailedSto
     out
 }
 
-fn collect_transitive_cell_store_records(
-    fg: &FlowGraph,
-    cell: NodeIndex,
-    visited_cells: &mut HashSet<NodeIndex>,
-    seen_records: &mut HashSet<DetailedStoreRecord>,
-    out: &mut Vec<DetailedStoreRecord>,
-) {
-    if !visited_cells.insert(cell) {
-        return;
-    }
-    for record in direct_cell_store_records(fg, cell) {
-        if seen_records.insert(record) {
-            out.push(record);
-        }
-    }
-    for edge in fg.graph.edges_directed(cell, petgraph::Direction::Outgoing) {
-        if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) {
-            continue;
-        }
-        if matches!(fg.graph[edge.target()], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) {
-            collect_transitive_cell_store_records(fg, edge.target(), visited_cells, seen_records, out);
-        }
-    }
-    for edge in fg.graph.edges_directed(cell, petgraph::Direction::Incoming) {
-        if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) {
-            continue;
-        }
-        if matches!(fg.graph[edge.source()], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) {
-            collect_transitive_cell_store_records(fg, edge.source(), visited_cells, seen_records, out);
-        }
-    }
-}
-
 fn transitive_cell_store_records(fg: &FlowGraph, cell: NodeIndex) -> Vec<DetailedStoreRecord> {
     let mut out = Vec::new();
-    let mut visited_cells = HashSet::new();
+    let mut visited_cells = HashSet::from([cell]);
     let mut seen_records = HashSet::new();
-    collect_transitive_cell_store_records(fg, cell, &mut visited_cells, &mut seen_records, &mut out);
+    let mut pending = vec![cell];
+    while let Some(current) = pending.pop() {
+        for record in direct_cell_store_records(fg, current) {
+            if seen_records.insert(record) { out.push(record); }
+        }
+        let mut neighbors = alias_equivalent_cells(fg, current);
+        for direction in [petgraph::Direction::Outgoing, petgraph::Direction::Incoming] {
+            for edge in fg.graph.edges_directed(current, direction) {
+                if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) { continue; }
+                let next = if direction == petgraph::Direction::Outgoing { edge.target() } else { edge.source() };
+                if matches!(fg.graph[next], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) {
+                    neighbors.push(next);
+                }
+            }
+        }
+        for neighbor in neighbors {
+            if visited_cells.insert(neighbor) { pending.push(neighbor); }
+        }
+    }
     out.sort_unstable_by_key(|record| record.edge_idx);
     out.dedup();
     out
-}
-
-fn store_record_partition_keys(
-    fg: &FlowGraph,
-    func: FunctionId,
-    value: ValueId,
-) -> Vec<String> {
-    let mut keys = fg.value_memory_regions_of(func, value);
-    keys.extend(fg.value_points_to_classes_of(func, value));
-    keys.extend(fg.value_points_to_targets_of(func, value));
-    keys.extend(fg.value_points_to_object_ids_of(func, value).into_iter().map(|id| format!("object:{id}")));
-    if keys.is_empty() {
-        if let Some(site) = value_identity_site(fg, func, value) {
-            keys.push(format!("site:{}", site.trim()));
-        }
-    }
-    if keys.is_empty() {
-        if let Some(ty) = fg.value_types.get(&(func, value)) {
-            let trimmed = ty.trim();
-            if !trimmed.is_empty() {
-                keys.push(normalized_type_point_class(trimmed));
-            }
-        }
-    }
-    if keys.is_empty() {
-        keys.push(format!("value:{}:{}", func.0, value.0));
-    }
-    keys.sort();
-    keys.dedup();
-    keys
-}
-
-fn store_record_target_partition_keys(
-    fg: &FlowGraph,
-    record: &DetailedStoreRecord,
-) -> Vec<String> {
-    let origin_cell = NodeIndex::new(record.origin_cell);
-    let mut keys = fg.cell_memory_regions_of(origin_cell);
-    keys.extend(fg.cell_points_to_targets_of(origin_cell));
-    keys.extend(
-        fg.cell_points_to_object_ids_of(origin_cell)
-            .into_iter()
-            .map(|id| format!("cell-object:{id}")),
-    );
-    if let Some(id) = precise_cell_object_id(fg, origin_cell) {
-        keys.push(format!("precise-cell-object:{id}"));
-    }
-    if let Some(unit) = precise_memory_unit_key_for_cell(fg, origin_cell) {
-        keys.push(format!("memory-unit:{unit}"));
-    }
-    if keys.is_empty() {
-        keys.push(format!("origin-cell:{}", record.origin_cell));
-    }
-    keys.sort();
-    keys.dedup();
-    keys
 }
 
 fn visible_direct_cell_store_records_before_edge(
@@ -1011,10 +1185,30 @@ fn visible_direct_cell_store_records_before_edge(
     cell: NodeIndex,
     cutoff_edge_idx: Option<usize>,
 ) -> Vec<(usize, FunctionId, ValueId)> {
-    let mut records = alias_equivalent_cells(fg, cell)
-        .into_iter()
-        .flat_map(|candidate| transitive_cell_store_records(fg, candidate))
-        .collect::<Vec<_>>();
+    visible_cell_store_records(fg, cell, cutoff_edge_idx,
+        transitive_cell_store_records(fg, cell), &mut HashMap::new())
+}
+
+fn all_transitive_cell_store_records(fg: &FlowGraph) -> HashMap<usize, BTreeSet<DetailedStoreRecord>> {
+    let cells = all_cell_nodes(fg);
+    let seeds = cells.iter().map(|cell| (cell.index(), direct_cell_store_records(fg, *cell).into_iter().collect())).collect();
+    propagate_symmetric_labels(cells.into_iter(), seeds, |cell| {
+        let mut neighbors = alias_equivalent_cells(fg, cell);
+        for direction in [petgraph::Direction::Outgoing, petgraph::Direction::Incoming] {
+            for edge in fg.graph.edges_directed(cell, direction) {
+                if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) { continue; }
+                let next = if direction == petgraph::Direction::Outgoing { edge.target() } else { edge.source() };
+                if matches!(fg.graph[next], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) { neighbors.push(next); }
+            }
+        }
+        neighbors
+    })
+}
+
+fn visible_cell_store_records(
+    fg: &FlowGraph, cell: NodeIndex, cutoff_edge_idx: Option<usize>,
+    mut records: Vec<DetailedStoreRecord>, strong: &mut HashMap<usize, bool>,
+) -> Vec<(usize, FunctionId, ValueId)> {
     if let Some(cutoff) = cutoff_edge_idx {
         records.retain(|record| record.edge_idx < cutoff);
     }
@@ -1027,7 +1221,7 @@ fn visible_direct_cell_store_records_before_edge(
     let mut visible = Vec::<DetailedStoreRecord>::new();
     for record in records {
         let origin_cell = NodeIndex::new(record.origin_cell);
-        if cell_allows_strong_update(fg, origin_cell) {
+        if *strong.entry(origin_cell.index()).or_insert_with(|| cell_allows_strong_update(fg, origin_cell)) {
             visible.retain(|existing| {
                 let existing_cell = NodeIndex::new(existing.origin_cell);
                 !fg.cell_must_alias(origin_cell, existing_cell)
@@ -1036,7 +1230,7 @@ fn visible_direct_cell_store_records_before_edge(
         visible.push(record);
     }
 
-    if cell_allows_strong_update(fg, cell) {
+    if *strong.entry(cell.index()).or_insert_with(|| cell_allows_strong_update(fg, cell)) {
         let mut latest: Option<DetailedStoreRecord> = None;
         for record in visible {
             let origin_cell = NodeIndex::new(record.origin_cell);
@@ -1056,24 +1250,12 @@ fn visible_direct_cell_store_records_before_edge(
             .collect();
     }
 
-    let mut latest_by_partition = HashMap::<String, DetailedStoreRecord>::new();
-    for record in visible {
-        let mut partition_keys = store_record_partition_keys(fg, record.func, record.value);
-        partition_keys.extend(store_record_target_partition_keys(fg, &record));
-        partition_keys.sort();
-        partition_keys.dedup();
-        for key in partition_keys {
-            let replace = latest_by_partition
-                .get(&key)
-                .map(|existing| record.edge_idx >= existing.edge_idx)
-                .unwrap_or(true);
-            if replace {
-                latest_by_partition.insert(key, record);
-            }
-        }
-    }
-    let mut out = latest_by_partition
-        .into_values()
+    // A may-alias/summary cell requires a weak update: preserve every possible
+    // reaching store. Equal type/shape/region labels do not prove that a later
+    // store overwrites an earlier one. The former per-label last-store map both
+    // dropped feasible values and multiplied work by the inferred shape set.
+    let mut out = visible
+        .into_iter()
         .map(|record| (record.edge_idx, record.func, record.value))
         .collect::<Vec<_>>();
     out.sort_unstable_by_key(|(edge_idx, _, _)| *edge_idx);
@@ -1088,7 +1270,9 @@ fn direct_cell_store_values_before_edge(
 ) -> Vec<(FunctionId, ValueId)> {
     let mut out = Vec::new();
     let mut seen = HashSet::new();
-    for (_edge_idx, func, value) in visible_direct_cell_store_records_before_edge(fg, cell, cutoff_edge_idx) {
+    for (_edge_idx, func, value) in
+        visible_direct_cell_store_records_before_edge(fg, cell, cutoff_edge_idx)
+    {
         if seen.insert((func, value)) {
             out.push((func, value));
         }
@@ -1129,7 +1313,6 @@ fn region_candidate_cells(fg: &FlowGraph, region: &str) -> Vec<NodeIndex> {
     out.dedup_by_key(|node| node.index());
     out
 }
-
 
 fn suffix_to_access_path(suffix: &str) -> Option<String> {
     let trimmed = suffix.trim();
@@ -1215,46 +1398,39 @@ fn parse_access_path(path: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-fn candidate_cells_for_relative_path_from_value(
-    fg: &mut FlowGraph,
-    func: FunctionId,
-    value: ValueId,
-    path: &str,
+/// Resolve a summary against the function that produced it without allocating
+/// new cells. Inferred region/shape paths are aliases, not additional source
+/// dereferences. Re-instantiating them locally recursively invents heap shapes.
+fn existing_cells_for_relative_path_from_value(
+    fg: &FlowGraph, func: FunctionId, value: ValueId, path: &str,
 ) -> Vec<NodeIndex> {
     let segments = parse_access_path(path);
-    if segments.is_empty() {
-        return Vec::new();
-    }
     let mut bases = vec![(func, value)];
-    let mut current_cells = Vec::new();
-    for (kind, label) in segments {
-        current_cells.clear();
-        let mut next_bases = Vec::new();
+    let mut cells = Vec::new();
+    for (step, (kind, label)) in segments.iter().enumerate() {
+        cells.clear();
         for (base_func, base_value) in &bases {
+            let base = canonical_heap_value(fg, *base_func, *base_value);
             let cell = if kind == "field" {
-                ensure_field_cell(fg, *base_func, *base_value, &label)
+                fg.field_cells.get(&(*base_func, base, label.clone()))
             } else {
-                ensure_index_cell(fg, *base_func, *base_value, &label)
+                fg.index_cells.get(&(*base_func, base, label.clone()))
             };
-            current_cells.push(cell);
-            next_bases.extend(cell_projected_values(fg, cell));
+            if let Some(cell) = cell { cells.push(*cell); }
         }
-        current_cells.sort_unstable_by_key(|node| node.index());
-        current_cells.dedup_by_key(|node| node.index());
-        next_bases.sort_unstable();
-        next_bases.dedup();
-        if next_bases.is_empty() {
-            break;
-        }
-        bases = next_bases;
+        cells.sort_unstable_by_key(|cell| cell.index());
+        cells.dedup();
+        // The last step asks for cells, not their contents. Expanding contents
+        // here repeats a transitive bridge walk for every summary path.
+        if cells.is_empty() || step + 1 == segments.len() { break; }
+        bases = cells.iter().flat_map(|cell| cell_projected_values(fg, *cell)).collect();
+        bases.sort_unstable(); bases.dedup();
     }
-    current_cells.sort_unstable_by_key(|node| node.index());
-    current_cells.dedup_by_key(|node| node.index());
-    current_cells
+    cells
 }
 
 fn relative_path_candidate_cells_for_port(
-    fg: &mut FlowGraph,
+    fg: &FlowGraph,
     port_node: NodeIndex,
     path: &str,
 ) -> Vec<NodeIndex> {
@@ -1262,7 +1438,11 @@ fn relative_path_candidate_cells_for_port(
     let mut seen = HashSet::new();
     let sources = fg.call_port_source_values(port_node);
     for (func, value) in sources {
-        for cell in candidate_cells_for_relative_path_from_value(fg, func, value, path) {
+        // A summary describes existing effects. Creating cells while querying
+        // inferred paths feeds those cells back into the next shape summary,
+        // inventing nested effects and an ever-growing solver universe. Actual
+        // callee projections are materialized by the explicit heap bridge.
+        for cell in existing_cells_for_relative_path_from_value(fg, func, value, path) {
             if seen.insert(cell) {
                 out.push(cell);
             }
@@ -1273,50 +1453,14 @@ fn relative_path_candidate_cells_for_port(
     out
 }
 
-fn collect_transitive_cell_store_values(
-    fg: &FlowGraph,
-    cell: NodeIndex,
-    cutoff_edge_idx: Option<usize>,
-    visited_cells: &mut HashSet<NodeIndex>,
-    seen_values: &mut HashSet<(FunctionId, ValueId)>,
-    out: &mut Vec<(FunctionId, ValueId)>,
-) {
-    if !visited_cells.insert(cell) {
-        return;
-    }
-    for projected in direct_cell_store_values_before_edge(fg, cell, cutoff_edge_idx) {
-        if seen_values.insert(projected) {
-            out.push(projected);
-        }
-    }
-    for edge in fg.graph.edges_directed(cell, petgraph::Direction::Outgoing) {
-        if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) {
-            continue;
-        }
-        if matches!(fg.graph[edge.target()], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) {
-            collect_transitive_cell_store_values(fg, edge.target(), cutoff_edge_idx, visited_cells, seen_values, out);
-        }
-    }
-    for edge in fg.graph.edges_directed(cell, petgraph::Direction::Incoming) {
-        if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) {
-            continue;
-        }
-        if matches!(fg.graph[edge.source()], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) {
-            collect_transitive_cell_store_values(fg, edge.source(), cutoff_edge_idx, visited_cells, seen_values, out);
-        }
-    }
-}
-
 fn cell_store_values_before_edge(
     fg: &FlowGraph,
     cell: NodeIndex,
     cutoff_edge_idx: Option<usize>,
 ) -> Vec<(FunctionId, ValueId)> {
-    let mut out = Vec::new();
-    let mut visited_cells = HashSet::new();
-    let mut seen_values = HashSet::new();
-    collect_transitive_cell_store_values(fg, cell, cutoff_edge_idx, &mut visited_cells, &mut seen_values, &mut out);
-    out
+    // Visibility already walks the complete alias/bridge closure. Recursing
+    // over that closure again reruns a whole-graph store query for every cell.
+    direct_cell_store_values_before_edge(fg, cell, cutoff_edge_idx)
 }
 
 fn cell_store_values(fg: &FlowGraph, cell: NodeIndex) -> Vec<(FunctionId, ValueId)> {
@@ -1337,9 +1481,10 @@ fn cell_values_for_flow_before_edge(
 }
 
 fn cell_values_for_flow(fg: &FlowGraph, cell: NodeIndex) -> Vec<(FunctionId, ValueId)> {
-    let live = fg.cell_live_values_of(cell);
-    if !live.is_empty() {
-        return live;
+    if let Some(live) = fg.cell_live_values.get(&cell.index()) {
+        return if live.is_empty() { cell_projected_values(fg, cell) } else {
+            live.iter().map(|(func, value)| (FunctionId(*func), ValueId(*value))).collect()
+        };
     }
     cell_values_for_flow_before_edge(fg, cell, None)
 }
@@ -1362,7 +1507,9 @@ fn bridge_nested_heap_values(
 
     let mut field_names = HashSet::new();
     for (func, base, field) in fg.field_cells.keys() {
-        if (*func == left_func && *base == left_root) || (*func == right_func && *base == right_root) {
+        if (*func == left_func && *base == left_root)
+            || (*func == right_func && *base == right_root)
+        {
             field_names.insert(field.clone());
         }
     }
@@ -1370,10 +1517,12 @@ fn bridge_nested_heap_values(
     for field in field_names {
         let left_cell = ensure_field_cell(fg, left_func, left_value, &field);
         let right_cell = ensure_field_cell(fg, right_func, right_value, &field);
-        fg.graph.add_edge(left_cell, right_cell, FlowEdge { kind: EdgeKind::ActualToFormal });
-        fg.graph.add_edge(right_cell, left_cell, FlowEdge { kind: EdgeKind::FormalToActual });
-        let left_projected = cell_values_for_flow(fg, left_cell);
-        let right_projected = cell_values_for_flow(fg, right_cell);
+        connect_heap_binding(fg, left_cell, right_cell);
+        // Bridge source-level projections, not the global may-alias/live sets.
+        // Inferred sets can already contain values from unrelated slots and
+        // feeding them back here creates artificial recursive heap structure.
+        let left_projected = direct_cell_projected_values(fg, left_cell);
+        let right_projected = direct_cell_projected_values(fg, right_cell);
         for (lf, lv) in &left_projected {
             for (rf, rv) in &right_projected {
                 if !heap_projection_values_compatible(fg, *lf, *lv, *rf, *rv) {
@@ -1391,9 +1540,9 @@ fn bridge_nested_heap_values(
             index_keys.push(key);
         }
     }
-    if !index_keys.iter().any(|key| key == "*") {
-        index_keys.push("*".to_string());
-    }
+    // Unknown-index accesses already have a '*' key in the IR-derived cells.
+    // Do not invent one for every object: it aliases all precise array slots
+    // and even turns plain scalar/field values into synthetic containers.
 
     for key in index_keys {
         let mut left_cells = index_cells_for_key(fg, left_func, left_value, &key);
@@ -1406,10 +1555,9 @@ fn bridge_nested_heap_values(
         }
         for left_cell in &left_cells {
             for right_cell in &right_cells {
-                fg.graph.add_edge(*left_cell, *right_cell, FlowEdge { kind: EdgeKind::ActualToFormal });
-                fg.graph.add_edge(*right_cell, *left_cell, FlowEdge { kind: EdgeKind::FormalToActual });
-                let left_projected = cell_values_for_flow(fg, *left_cell);
-                let right_projected = cell_values_for_flow(fg, *right_cell);
+                connect_heap_binding(fg, *left_cell, *right_cell);
+                let left_projected = direct_cell_projected_values(fg, *left_cell);
+                let right_projected = direct_cell_projected_values(fg, *right_cell);
                 for (lf, lv) in &left_projected {
                     for (rf, rv) in &right_projected {
                         if !heap_projection_values_compatible(fg, *lf, *lv, *rf, *rv) {
@@ -1434,10 +1582,23 @@ fn connect_returned_path_projection(
     if steps.is_empty() {
         let actual_node = value_node(fg, caller_func, actual_value);
         let dst_node = value_node(fg, caller_func, dst);
-        fg.graph.add_edge(actual_node, dst_node, FlowEdge { kind: EdgeKind::Assign });
+        fg.graph.add_edge(
+            actual_node,
+            dst_node,
+            FlowEdge {
+                kind: EdgeKind::Assign,
+            },
+        );
         propagate_object_identity_site(fg, caller_func, actual_value, caller_func, dst);
         let mut visited = HashSet::new();
-        bridge_nested_heap_values(fg, caller_func, actual_value, caller_func, dst, &mut visited);
+        bridge_nested_heap_values(
+            fg,
+            caller_func,
+            actual_value,
+            caller_func,
+            dst,
+            &mut visited,
+        );
         return;
     }
 
@@ -1466,13 +1627,32 @@ fn connect_returned_path_projection(
                             },
                         );
                     }
-                    for projected in cell_values_for_flow(fg, cell) {
+                    for projected in direct_cell_projected_values(fg, cell) {
                         if seen_values.insert(projected) {
                             if is_last {
                                 let mut visited = HashSet::new();
-                                connect_bidirectional_value_pair(fg, projected.0, projected.1, caller_func, dst);
-                                propagate_object_identity_site(fg, projected.0, projected.1, caller_func, dst);
-                                bridge_nested_heap_values(fg, projected.0, projected.1, caller_func, dst, &mut visited);
+                                connect_bidirectional_value_pair(
+                                    fg,
+                                    projected.0,
+                                    projected.1,
+                                    caller_func,
+                                    dst,
+                                );
+                                propagate_object_identity_site(
+                                    fg,
+                                    projected.0,
+                                    projected.1,
+                                    caller_func,
+                                    dst,
+                                );
+                                bridge_nested_heap_values(
+                                    fg,
+                                    projected.0,
+                                    projected.1,
+                                    caller_func,
+                                    dst,
+                                    &mut visited,
+                                );
                             } else {
                                 next_frontier.push(projected);
                             }
@@ -1490,14 +1670,33 @@ fn connect_returned_path_projection(
                         }
                         if is_last {
                             let dst_node = value_node(fg, caller_func, dst);
-                            fg.graph.add_edge(cell, dst_node, FlowEdge { kind: EdgeKind::LoadIndex });
+                            fg.graph.add_edge(
+                                cell,
+                                dst_node,
+                                FlowEdge {
+                                    kind: EdgeKind::LoadIndex,
+                                },
+                            );
                         }
-                        for projected in cell_values_for_flow(fg, cell) {
+                        for projected in direct_cell_projected_values(fg, cell) {
                             if seen_values.insert(projected) {
                                 if is_last {
                                     let mut visited = HashSet::new();
-                                    connect_bidirectional_value_pair(fg, projected.0, projected.1, caller_func, dst);
-                                    bridge_nested_heap_values(fg, projected.0, projected.1, caller_func, dst, &mut visited);
+                                    connect_bidirectional_value_pair(
+                                        fg,
+                                        projected.0,
+                                        projected.1,
+                                        caller_func,
+                                        dst,
+                                    );
+                                    bridge_nested_heap_values(
+                                        fg,
+                                        projected.0,
+                                        projected.1,
+                                        caller_func,
+                                        dst,
+                                        &mut visited,
+                                    );
                                 } else {
                                     next_frontier.push(projected);
                                 }
@@ -1524,7 +1723,11 @@ fn bridge_internal_heap_cells(fg: &mut FlowGraph, program: &Program) {
                 let InstKind::Call(call) = &inst.kind else {
                     continue;
                 };
-                let Some(targets) = fg.resolved_internal_targets.get(&(caller_func.id, inst.id)).cloned() else {
+                let Some(targets) = fg
+                    .resolved_internal_targets
+                    .get(&(caller_func.id, inst.id))
+                    .cloned()
+                else {
                     continue;
                 };
                 for target_name in targets {
@@ -1537,22 +1740,45 @@ fn bridge_internal_heap_cells(fg: &mut FlowGraph, program: &Program) {
                         let Some(formal_value) = callee_func.params.get(*ir_index).copied() else {
                             continue;
                         };
-                        bridge_nested_heap_values(fg, caller_func.id, *actual_value, callee_func.id, formal_value, &mut visited);
+                        bridge_nested_heap_values(
+                            fg,
+                            caller_func.id,
+                            *actual_value,
+                            callee_func.id,
+                            formal_value,
+                            &mut visited,
+                        );
                     }
                     if let Some(dst) = call.dst {
                         for projection in returned_projections(fg, callee_func) {
                             match projection {
                                 ReturnedProjection::Param { ir_index } => {
-                                    let Some((_, actual_value, _)) = bindings.iter().find(|(_, _, idx)| *idx == ir_index) else {
+                                    let Some((_, actual_value, _)) =
+                                        bindings.iter().find(|(_, _, idx)| *idx == ir_index)
+                                    else {
                                         continue;
                                     };
-                                    connect_returned_path_projection(fg, caller_func.id, *actual_value, &[], dst);
+                                    connect_returned_path_projection(
+                                        fg,
+                                        caller_func.id,
+                                        *actual_value,
+                                        &[],
+                                        dst,
+                                    );
                                 }
                                 ReturnedProjection::Path { ir_index, steps } => {
-                                    let Some((_, actual_value, _)) = bindings.iter().find(|(_, _, idx)| *idx == ir_index) else {
+                                    let Some((_, actual_value, _)) =
+                                        bindings.iter().find(|(_, _, idx)| *idx == ir_index)
+                                    else {
                                         continue;
                                     };
-                                    connect_returned_path_projection(fg, caller_func.id, *actual_value, &steps, dst);
+                                    connect_returned_path_projection(
+                                        fg,
+                                        caller_func.id,
+                                        *actual_value,
+                                        &steps,
+                                        dst,
+                                    );
                                 }
                             }
                         }
@@ -1562,4 +1788,3 @@ fn bridge_internal_heap_cells(fg: &mut FlowGraph, program: &Program) {
         }
     }
 }
-

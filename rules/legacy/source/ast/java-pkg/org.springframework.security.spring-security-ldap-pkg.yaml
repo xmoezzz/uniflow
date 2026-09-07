@@ -1,0 +1,10 @@
+id: org.springframework.security.spring-security-ldap
+language: Java
+message: pkg:maven/org.springframework.security/spring-security-ldap
+metadata:
+  purl: pkg:maven/org.springframework.security/spring-security-ldap
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.security\.ldap\.authentication|org\.springframework\.security\.ldap\.aot\.hint|org\.springframework\.security\.ldap\.userdetails|org\.springframework\.security\.ldap\.authentication\.ad|org\.springframework\.security\.ldap\.server|org\.springframework\.security\.ldap\.ppolicy|org\.springframework\.security\.ldap\.jackson2|org\.springframework\.security\.ldap|org\.springframework\.security\.ldap\.search)\.

@@ -1,0 +1,10 @@
+id: org.opencms.org.opencms.workplace.tools.accounts
+language: Java
+message: pkg:maven/org.opencms/org.opencms.workplace.tools.accounts
+metadata:
+  purl: pkg:maven/org.opencms/org.opencms.workplace.tools.accounts
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.opencms\.workplace\.tools\.accounts)\.

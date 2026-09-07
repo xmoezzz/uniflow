@@ -1,0 +1,10 @@
+id: org.eclipse.jetty.jetty-server
+language: Java
+message: pkg:maven/org.eclipse.jetty/jetty-server
+metadata:
+  purl: pkg:maven/org.eclipse.jetty/jetty-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.jetty\.server\.handler|org\.eclipse\.jetty\.server\.handler\.gzip|org\.eclipse\.jetty\.server|org\.eclipse\.jetty\.server\.jmx|org\.eclipse\.jetty\.server\.internal|org\.eclipse\.jetty\.server\.handler\.jmx)\.

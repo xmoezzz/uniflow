@@ -1,0 +1,7 @@
+id: error-block
+message: '0202000010130126'
+language: Java
+rule:
+  pattern: if ($_);
+  precedes:
+    kind: block

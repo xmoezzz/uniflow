@@ -1,0 +1,10 @@
+id: io.undertow.undertow-servlet
+language: Java
+message: pkg:maven/io.undertow/undertow-servlet
+metadata:
+  purl: pkg:maven/io.undertow/undertow-servlet
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.undertow\.servlet\.predicate|io\.undertow\.servlet\.attribute|io\.undertow\.servlet\.sse|io\.undertow\.servlet\.websockets|io\.undertow\.servlet\.api|io\.undertow\.servlet\.compat\.rewrite|io\.undertow\.servlet\.handlers|io\.undertow\.servlet\.handlers\.security|io\.undertow\.servlet|io\.undertow\.servlet\.spec|io\.undertow\.servlet\.util|io\.undertow\.servlet\.core)\.

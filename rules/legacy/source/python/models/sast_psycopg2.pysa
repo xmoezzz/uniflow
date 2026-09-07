@@ -1,0 +1,39 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                psycopg2
+
+# DataflowSourceRule psycopg2 3
+# [{'NamespaceName': 'psycopg2', 'ClassName': 'cursor', 'FunctionName': 'fetch(one|many|all)', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'psycopg2', 'ClassName': 'cursor', 'FunctionName': 'copy_to', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'psycopg2', 'ClassName': 'cursor', 'FunctionName': 'copy_expert', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_psycopg2_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^psycopg2\.cursor\.(fetch(one|many|all))"),
+      name.matches("^psycopg2\.cursor\.copy_to$"),
+      name.matches("^psycopg2\.cursor\.copy_expert$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule psycopg2 2
+# [{'NamespaceName': 'psycopg2', 'ClassName': 'cursor', 'FunctionName': 'execute|executemany|copy_expert', 'RuleName': 'desc.dataflow.python.sql_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'psycopg2', 'ClassName': 'cursor', 'FunctionName': 'execute|executemany|copy_expert|callproc', 'RuleName': 'desc.dataflow.python.access_control_database', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_psycopg2_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^psycopg2\.cursor\.(execute|executemany|copy_expert)"),
+      name.matches("^psycopg2\.cursor\.(execute|executemany|copy_expert|callproc)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_access_control_database]
+    )
+  ]
+)

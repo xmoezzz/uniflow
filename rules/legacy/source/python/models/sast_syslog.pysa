@@ -1,0 +1,19 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                syslog
+
+# DataflowSinkRule syslog 1
+# [{'NamespaceName': 'syslog', 'ClassName': '', 'FunctionName': 'syslog', 'RuleName': 'desc.dataflow.python.log_forging', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_syslog_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^syslog.*\.syslog$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_log_forging]
+    )
+  ]
+)

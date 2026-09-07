@@ -1,0 +1,10 @@
+id: org.eclipse.jetty.jetty-webapp
+language: Java
+message: pkg:maven/org.eclipse.jetty/jetty-webapp
+metadata:
+  purl: pkg:maven/org.eclipse.jetty/jetty-webapp
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.jetty\.webapp)\.

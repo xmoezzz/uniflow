@@ -1,0 +1,19 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                yaml
+
+# DataflowSinkRule yaml 1
+# [{'NamespaceName': 'yaml', 'ClassName': '', 'FunctionName': 'load|load_all', 'RuleName': 'desc.dataflow.python.dynamic_code_evaluation_unsafe_yaml_deserialization', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_yaml_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^yaml.*\.(load|load_all)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_dynamic_code_evaluation_unsafe_yaml_deserialization]
+    )
+  ]
+)

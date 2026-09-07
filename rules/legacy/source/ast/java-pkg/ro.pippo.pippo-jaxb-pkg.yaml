@@ -1,0 +1,10 @@
+id: ro.pippo.pippo-jaxb
+language: Java
+message: pkg:maven/ro.pippo/pippo-jaxb
+metadata:
+  purl: pkg:maven/ro.pippo/pippo-jaxb
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(ro\.pippo\.jaxb)\.

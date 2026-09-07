@@ -1,0 +1,10 @@
+id: org.clojure.clojure
+language: Java
+message: pkg:maven/org.clojure/clojure
+metadata:
+  purl: pkg:maven/org.clojure/clojure
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(clojure\.reflect\.proxy$clojure\.asm|clojure\.data|clojure\.java\.browse_ui\.proxy$java\.lang|clojure|clojure\.java\.io|clojure\.test|clojure\.reflect|clojure\.java|clojure\.core|clojure\.repl|clojure\.core\.protocols|clojure\.repl\.proxy$java\.io|clojure\.core\.reducers|clojure\.core\.proxy$clojure\.lang|clojure\.inspector\.proxy$javax\.swing\.table|clojure\.java\.api|clojure\.instant\.proxy$java\.lang|clojure\.asm|clojure\.repl\.proxy$java\.lang|clojure\.asm\.commons|clojure\.tools\.deps|clojure\.xml\.proxy$java\.lang|clojure\.pprint\.proxy$java\.io|clojure\.pprint|clojure\.lang|clojure\.inspector\.proxy$java\.lang|clojure\.java\.basis|clojure\.core\.proxy$java\.io)\.

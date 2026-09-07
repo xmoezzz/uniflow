@@ -1,0 +1,10 @@
+id: org.apache.sentry.sentry-binding-hive
+language: Java
+message: pkg:maven/org.apache.sentry/sentry-binding-hive
+metadata:
+  purl: pkg:maven/org.apache.sentry/sentry-binding-hive
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.sentry\.binding\.util|org\.apache\.sentry\.binding\.hive|org\.apache\.sentry\.binding\.hive\.authz|org\.apache\.access\.binding\.hive|org\.apache\.sentry\.binding\.metastore|org\.apache\.hadoop\.hive\.ql\.exec)\.

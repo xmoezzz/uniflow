@@ -1,0 +1,10 @@
+id: org.apache.archiva.archiva-web-common
+language: Java
+message: pkg:maven/org.apache.archiva/archiva-web-common
+metadata:
+  purl: pkg:maven/org.apache.archiva/archiva-web-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.archiva\.web\.startup|org\.apache\.archiva\.web\.rss|org\.apache\.archiva\.web\.model|org\.apache\.archiva\.web\.security|org\.apache\.archiva\.web\.runtime|org\.apache\.archiva\.web\.api|org\.apache\.archiva\.web\.runtime\.ldap|org\.apache\.archiva\.web\.docs)\.

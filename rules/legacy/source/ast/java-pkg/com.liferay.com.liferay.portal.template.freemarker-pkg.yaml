@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.portal.template.freemarker
+language: Java
+message: pkg:maven/com.liferay/com.liferay.portal.template.freemarker
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.portal.template.freemarker
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(freemarker\.ext\.jdom|freemarker\.ext\.jsp\.internal|freemarker\.debug\.impl|freemarker\.core|freemarker\.template|freemarker\.log|freemarker\.ext\.dom|freemarker\.ext\.xml|freemarker\.ext\.servlet|freemarker\.template\.utility|freemarker\.debug|freemarker\.ext\.jython|freemarker\.cache|freemarker\.ext\.beans|freemarker\.ext\.util|freemarker\.ext\.rhino|freemarker\.ext\.ant|com\.liferay\.portal\.template\.freemarker\.internal|com\.liferay\.portal\.template\.freemarker\.internal\.helper|freemarker\.ext\.jsp|com\.liferay\.portal\.template\.freemarker\.configuration)\.

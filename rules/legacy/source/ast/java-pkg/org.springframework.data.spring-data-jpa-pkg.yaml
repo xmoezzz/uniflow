@@ -1,0 +1,10 @@
+id: org.springframework.data.spring-data-jpa
+language: Java
+message: pkg:maven/org.springframework.data/spring-data-jpa
+metadata:
+  purl: pkg:maven/org.springframework.data/spring-data-jpa
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.data\.jpa\.repository|org\.springframework\.data\.jpa\.provider|org\.springframework\.data\.jpa\.repository\.config|org\.springframework\.data\.jpa\.support|org\.springframework\.data\.jpa\.projection|org\.springframework\.data\.jpa\.repository\.support|org\.springframework\.data\.jpa\.repository\.aot|org\.springframework\.data\.jpa\.util|org\.springframework\.data\.jpa\.mapping|org\.springframework\.data\.jpa\.repository\.query|org\.springframework\.data\.jpa\.repository\.cdi|org\.springframework\.data\.jpa\.domain\.support|org\.springframework\.data\.jpa\.convert|org\.springframework\.data\.jpa\.convert\.threeten|org\.springframework\.data\.jpa\.domain)\.

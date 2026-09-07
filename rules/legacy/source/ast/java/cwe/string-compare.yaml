@@ -1,0 +1,101 @@
+id: string-compare
+message: '0202000010110044'
+language: Java
+
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^String$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^String$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^String$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^String$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  kind: binary_expression
+  any:
+  - all:
+    - pattern: $VAR != $_
+      matches: recursion-find-object-decl
+    - not:
+        pattern: $VAR != null
+  - all:
+    - pattern: $_ != $VAR
+      matches: recursion-find-object-decl
+    - not:
+        pattern: null != $VAR
+  - all:
+    - pattern: $VAR == $_
+      matches: recursion-find-object-decl
+    - not:
+        pattern: $VAR == null
+  - all:
+    - pattern: $_ == $VAR
+      matches: recursion-find-object-decl
+    - not:
+        pattern: null == $VAR

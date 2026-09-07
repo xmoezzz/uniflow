@@ -1,0 +1,3924 @@
+rules:
+- !ruleMap
+  name: code_correctness_call_to_thread_stop
+  maps:
+  - type: bug
+    value: '02000010090009'
+  - type: cert
+    value: '02000010141105'
+  - type: std
+    value: '02000010150603'
+  - type: YD/T 3464-2019
+    value: '02000010160096'
+  - type: guide
+    value: '02000010170044'
+- !ruleMap
+  name: dead_code_expression_is_always_true
+  maps:
+  - type: bug
+    value: '02000010130005'
+- !ruleMap
+  name: missing_check_for_null_parameter
+  maps:
+  - type: bug
+    value: '02000010130023'
+  - type: cert
+    value: '02000010140708'
+- !ruleMap
+  name: key_parameter_tampering
+  maps:
+  - type: bug
+    value: '02000010130155'
+- !ruleMap
+  name: expression_language_injection_spring
+  maps:
+  - type: bug
+    value: '02000010130145'
+- !ruleMap
+  name: http_parameter_pollution
+  maps:
+  - type: bug
+    value: '02000010110170'
+- !ruleMap
+  name: http_request_smuggling
+  maps:
+  - type: bug
+    value: '02000010020037'
+- !ruleMap
+  name: access_control_anonymous_ldap_bind
+  maps:
+  - type: bug
+    value: '02000010020038'
+- !ruleMap
+  name: android_bad_practices_normal_permission
+  maps:
+  - type: bug
+    value: '02000010110119'
+- !ruleMap
+  name: android_bad_practices_signature_signatureorsystem_permission
+  maps:
+  - type: bug
+    value: '02000010110160'
+- !ruleMap
+  name: android_bad_practices_webview_enables_dom_storage
+  maps:
+  - type: bug
+    value: '02000010110161'
+- !ruleMap
+  name: android_bad_practices_webview_enables_content_access
+  maps:
+  - type: bug
+    value: '02000010110162'
+- !ruleMap
+  name: android_bad_practices_webview_enables_file_access
+  maps:
+  - type: bug
+    value: '02000010110163'
+- !ruleMap
+  name: android_bad_practices_tap_jacking
+  maps:
+  - type: bug
+    value: '02000010110164'
+- !ruleMap
+  name: do_not_synchronize_on_the_intrinsic_locks_of_high_level_concurrency_objects
+  maps:
+  - type: cert
+    value: '02000010141003'
+  - type: YD/T 3464-2019
+    value: '02000010160082'
+  - type: guide
+    value: '02000010170037'
+- !ruleMap
+  name: privilege_management_android_recording
+  maps:
+  - type: bug
+    value: '02000010110131'
+- !ruleMap
+  name: code_correctness_multiple_stream_commits
+  maps:
+  - type: bug
+    value: '02000010070030'
+  - type: cert
+    value: '02000010141415'
+- !ruleMap
+  name: code_correctness_readobject_invokes_overridable_function
+  maps:
+  - type: bug
+    value: '02000010110087'
+  - type: cert
+    value: '02000010141506'
+- !ruleMap
+  name: code_correctness_constructor_invokes_overridable_function
+  maps:
+  - type: bug
+    value: '02000010110058'
+  - type: cert
+    value: '02000010140705'
+  - type: YD/T 3464-2019
+    value: '02000010160055'
+  - type: guide
+    value: '02000010170030'
+- !ruleMap
+  name: poor_style_explicit_call_to_finalize
+  maps:
+  - type: bug
+    value: '02000010070021'
+  - type: cert
+    value: '02000010140712'
+  - type: std
+    value: '02000010150107'
+  - type: YD/T 3464-2019
+    value: '02000010160062'
+- !ruleMap
+  name: struts_erroneous_validate_method
+  maps:
+  - type: bug
+    value: '02000010110018'
+- !ruleMap
+  name: cookie_security_overly_broad_domain
+  maps:
+  - type: bug
+    value: '02000010110005'
+- !ruleMap
+  name: json_injection
+  maps:
+  - type: bug
+    value: '02000010060118'
+- !ruleMap
+  name: specify_an_appropriate_locale_when_comparing_locale_dependent_data
+  maps:
+  - type: bug
+    value: '02000010110085'
+  - type: cert
+    value: '02000010142002'
+  - type: YD/T 3464-2019
+    value: '02000010160010'
+  - type: guide
+    value: '02000010170007'
+- !ruleMap
+  name: file_disclosure_struts
+  maps:
+  - type: bug
+    value: '02000010070028'
+- !ruleMap
+  name: struts_misconfiguration_missing_form_bean
+  maps:
+  - type: bug
+    value: '02000010100025'
+- !ruleMap
+  name: android_bad_practices_just_provider_writepermission_defined
+  maps:
+  - type: bug
+    value: '02000010110111'
+- !ruleMap
+  name: empty_method
+  maps:
+  - type: bug
+    value: '02000010130129'
+- !ruleMap
+  name: spring_boot_misconfiguration_admin_mbean_enabled
+  maps:
+  - type: bug
+    value: '02000010020136'
+- !ruleMap
+  name: dynamic_code_evaluation_unsafe_beanutils_deserialization
+  maps:
+  - type: bug
+    value: '02000010020027'
+- !ruleMap
+  name: create_string_object
+  maps:
+  - type: bug
+    value: '02000010130029'
+  - type: std
+    value: '02000010150420'
+- !ruleMap
+  name: unauthenticated_service_mongodb
+  maps:
+  - type: bug
+    value: '02000010130146'
+- !ruleMap
+  name: do_not_use_an_instance_lock_to_protect_shared_static_data
+  maps:
+  - type: cert
+    value: '02000010141006'
+  - type: YD/T 3464-2019
+    value: '02000010160085'
+  - type: guide
+    value: '02000010170039'
+- !ruleMap
+  name: privacy_violation_heap_inspection
+  maps:
+  - type: bug
+    value: '02000010000008'
+- !ruleMap
+  name: cookie_security_overly_broad_path
+  maps:
+  - type: bug
+    value: '02000010110006'
+- !ruleMap
+  name: denial_of_service_possible
+  maps:
+  - type: bug
+    value: '02000010050004'
+  - type: guide
+    value: '02000010170062'
+- !ruleMap
+  name: password_management
+  maps:
+  - type: bug
+    value: '02000010080002'
+  - type: guide
+    value: '02000010170024'
+- !ruleMap
+  name: weak_securitymanager_check_overridable_method
+  maps:
+  - type: bug
+    value: '02000010110007'
+  - type: cert
+    value: '02000010140703'
+  - type: YD/T 3464-2019
+    value: '02000010160053'
+  - type: guide
+    value: '02000010170031'
+- !ruleMap
+  name: unreleased_resource_files
+  maps:
+  - type: bug
+    value: '02000010130018'
+  - type: cert
+    value: '02000010141404'
+  - type: YD/T 3464-2019
+    value: '02000010160110'
+  - type: guide
+    value: '02000010170065'
+- !ruleMap
+  name: struts_misconfiguration_missing_form_bean_name
+  maps:
+  - type: bug
+    value: '02000010100026'
+- !ruleMap
+  name: path_manipulation
+  maps:
+  - type: bug
+    value: '02000010050011'
+  - type: cert
+    value: '02000010141416'
+  - type: guide
+    value: '02000010170068'
+- !ruleMap
+  name: path_manipulation_zip_entry_overwrite
+  maps:
+  - type: bug
+    value: '02000010050050'
+- !ruleMap
+  name: insecure_ssl_android_customized_implementation
+  maps:
+  - type: bug
+    value: '02000010060113'
+- !ruleMap
+  name: reflected_file_download
+  maps:
+  - type: bug
+    value: '02000010050051'
+- !ruleMap
+  name: server_side_request_forgery
+  maps:
+  - type: bug
+    value: '02000010050022'
+- !ruleMap
+  name: server_side_request_forgery_retrofit
+  maps:
+  - type: bug
+    value: '02000010050028'
+- !ruleMap
+  name: android_misconfiguration_debug_information
+  maps:
+  - type: bug
+    value: '02000010100101'
+- !ruleMap
+  name: code_correctness_clone_invokes_overridable_function
+  maps:
+  - type: bug
+    value: '02000010110059'
+  - type: cert
+    value: '02000010140706'
+  - type: YD/T 3464-2019
+    value: '02000010160056'
+- !ruleMap
+  name: system_information_std_error
+  maps:
+  - type: bug
+    value: '02000010110091'
+- !ruleMap
+  name: serializable_sensitive_information_exists_in_serializable_classes
+  maps:
+  - type: bug
+    value: '02000010130124'
+- !ruleMap
+  name: xquery_injection
+  maps:
+  - type: bug
+    value: '02000010050015'
+- !ruleMap
+  name: sensitive_information_leaked_in_clipboard
+  maps:
+  - type: bug
+    value: '02000010110125'
+- !ruleMap
+  name: struts_2_duplicate_action_field_validators
+  maps:
+  - type: bug
+    value: '02000010110010'
+- !ruleMap
+  name: system_information_leak_incomplete_servlet_error_handling
+  maps:
+  - type: bug
+    value: '02000010110038'
+  - type: cert
+    value: '02000010140801'
+  - type: YD/T 3464-2019
+    value: '02000010160064'
+  - type: guide
+    value: '02000010170055'
+- !ruleMap
+  name: call_hashcode_on_the_array
+  maps:
+  - type: std
+    value: '02000010150116'
+- !ruleMap
+  name: jfinal_configuration_error_enable_development_mode
+  maps:
+  - type: bug
+    value: '02000010110140'
+- !ruleMap
+  name: ensure_that_references_to_mutable_objects_are_not_exposed
+  maps:
+  - type: cert
+    value: '02000010140613'
+  - type: guide
+    value: '02000010170029'
+- !ruleMap
+  name: cross_site_scripting_persistent_possible
+  maps:
+  - type: bug
+    value: '02000010030020'
+  - type: guide
+    value: '02000010170010'
+- !ruleMap
+  name: cross_site_scripting_dom
+  maps:
+  - type: bug
+    value: '02000010030001'
+  - type: guide
+    value: '02000010170009'
+- !ruleMap
+  name: poor_style_identifier_contains_dollar_symbol
+  maps:
+  - type: bug
+    value: '02000010130033'
+  - type: std
+    value: '02000010150421'
+- !ruleMap
+  name: code_correctness_call_to_thread_run
+  maps:
+  - type: bug
+    value: '02000010110040'
+  - type: cert
+    value: '02000010141100'
+  - type: std
+    value: '02000010150109'
+  - type: YD/T 3464-2019
+    value: '02000010160091'
+- !ruleMap
+  name: poor_style_empty_synchronized_block
+  maps:
+  - type: bug
+    value: '02000010130012'
+  - type: std
+    value: '02000010150417'
+- !ruleMap
+  name: struts_form_does_not_extend_validation_class
+  maps:
+  - type: bug
+    value: '02000010110019'
+- !ruleMap
+  name: query_string_injection_android_provider
+  maps:
+  - type: bug
+    value: '02000010020101'
+- !ruleMap
+  name: weak_encryption_user_controlled_key_size
+  maps:
+  - type: bug
+    value: '02000010080017'
+- !ruleMap
+  name: log_forging
+  maps:
+  - type: bug
+    value: '02000010050005'
+  - type: cert
+    value: '02000010140203'
+  - type: YD/T 3464-2019
+    value: '02000010160004'
+  - type: guide
+    value: '02000010170027'
+- !ruleMap
+  name: j2ee_misconfiguration_insecure_transport
+  maps:
+  - type: bug
+    value: '02000010100011'
+- !ruleMap
+  name: command_injection
+  maps:
+  - type: bug
+    value: '02000010020001'
+- !ruleMap
+  name: xml_external_entity_injection_possible
+  maps:
+  - type: bug
+    value: '02000010050023'
+  - type: cert
+    value: '02000010140217'
+  - type: std
+    value: '02000010150001'
+  - type: guide
+    value: '02000010170006'
+- !ruleMap
+  name: session_fixation
+  maps:
+  - type: bug
+    value: '02000010090015'
+- !ruleMap
+  name: access_control_path
+  maps:
+  - type: bug
+    value: '02000010090017'
+- !ruleMap
+  name: spring_misconfiguration_html_escaping_disabled
+  maps:
+  - type: bug
+    value: '02000010100103'
+- !ruleMap
+  name: spring_security_misconfiguration_overly_permissive_firewall_policy
+  maps:
+  - type: bug
+    value: '02000010100104'
+- !ruleMap
+  name: poor_error_handling_overly_broad_catch
+  maps:
+  - type: bug
+    value: '02000010120001'
+- !ruleMap
+  name: executed_code_after_the_redirect
+  maps:
+  - type: bug
+    value: '02000010130120'
+- !ruleMap
+  name: unsafe_mobile_code_inner_class
+  maps:
+  - type: bug
+    value: '02000010130121'
+- !ruleMap
+  name: missing_form_field_validation
+  maps:
+  - type: bug
+    value: '02000010050056'
+- !ruleMap
+  name: incorrect_check_function_return_value
+  maps:
+  - type: bug
+    value: '02000010130125'
+- !ruleMap
+  name: release_synchronization_lock_for_the_same_resource_multiple_times
+  maps:
+  - type: bug
+    value: '02000010130117'
+- !ruleMap
+  name: call_system_exit__or_runtime_exit_
+  maps:
+  - type: bug
+    value: '02000010110002'
+- !ruleMap
+  name: struts_validator_without_form_field
+  maps:
+  - type: bug
+    value: '02000010110026'
+- !ruleMap
+  name: cross_site_scripting_content_sniffing
+  maps:
+  - type: bug
+    value: '02000010030007'
+- !ruleMap
+  name: mime_sniffing
+  maps:
+  - type: bug
+    value: '02000010100107'
+- !ruleMap
+  name: overly_permissive_referrer_policy
+  maps:
+  - type: bug
+    value: '02000010100108'
+- !ruleMap
+  name: hsts_not_set
+  maps:
+  - type: bug
+    value: '02000010100109'
+- !ruleMap
+  name: insufficient_hsts_expiration_time
+  maps:
+  - type: bug
+    value: '02000010100200'
+- !ruleMap
+  name: hsts_does_not_include_subdomains
+  maps:
+  - type: bug
+    value: '02000010100110'
+- !ruleMap
+  name: unenforced_content_security_policy
+  maps:
+  - type: bug
+    value: '02000010100112'
+- !ruleMap
+  name: overly_permissive_content_security_policy
+  maps:
+  - type: bug
+    value: '02000010100113'
+- !ruleMap
+  name: missing_framing_protection
+  maps:
+  - type: bug
+    value: '02000010100114'
+- !ruleMap
+  name: incorrect_request_matcher_type
+  maps:
+  - type: bug
+    value: '02000010100115'
+- !ruleMap
+  name: lack_of_fallback_check
+  maps:
+  - type: bug
+    value: '02000010100116'
+- !ruleMap
+  name: missing_content_security_policy
+  maps:
+  - type: bug
+    value: '02000010100117'
+- !ruleMap
+  name: spring_security_misconfiguration_default_permit
+  maps:
+  - type: bug
+    value: '02000010100111'
+- !ruleMap
+  name: overly_broad_session_cookie_domain
+  maps:
+  - type: bug
+    value: '02000010000005'
+- !ruleMap
+  name: overly_broad_session_cookie_path
+  maps:
+  - type: bug
+    value: '02000010000004'
+- !ruleMap
+  name: persistent_session_cookie
+  maps:
+  - type: bug
+    value: '02000010000003'
+- !ruleMap
+  name: session_cookie_not_sent_over_ssl
+  maps:
+  - type: bug
+    value: '02000010000002'
+- !ruleMap
+  name: httponly_not_set_on_session_cookie
+  maps:
+  - type: bug
+    value: '02000010000001'
+- !ruleMap
+  name: ldap_entry_poisoning
+  maps:
+  - type: bug
+    value: '02000010020030'
+- !ruleMap
+  name: call_wait_and_await_outside_the_loop
+  maps:
+  - type: bug
+    value: '02000010090008'
+  - type: cert
+    value: '02000010141103'
+  - type: YD/T 3464-2019
+    value: '02000010160094'
+  - type: guide
+    value: '02000010170043'
+- !ruleMap
+  name: use_static_thread_unsafe_field
+  maps:
+  - type: std
+    value: '02000010150441'
+- !ruleMap
+  name: struts_unvalidated_action_form
+  maps:
+  - type: bug
+    value: '02000010110024'
+- !ruleMap
+  name: system_information_leak_overly_broad_sql_logging
+  maps:
+  - type: bug
+    value: '02000010110039'
+- !ruleMap
+  name: dynamic_code_evaluation_xmldecoder_injection_possible
+  maps:
+  - type: bug
+    value: '02000010020018'
+- !ruleMap
+  name: password_management_weak_cryptography
+  maps:
+  - type: bug
+    value: '02000010080008'
+  - type: guide
+    value: '02000010170025'
+- !ruleMap
+  name: key_management_empty_encryption_key
+  maps:
+  - type: bug
+    value: '02000010130153'
+- !ruleMap
+  name: spring_boot_misconfiguration_shutdown_actuator_endpoint_enabled
+  maps:
+  - type: bug
+    value: '02000010020135'
+- !ruleMap
+  name: poor_style_value_never_read
+  maps:
+  - type: bug
+    value: '02000010130015'
+- !ruleMap
+  name: denial_of_service_parse_double
+  maps:
+  - type: bug
+    value: '02000010050003'
+  - type: guide
+    value: '02000010170072'
+- !ruleMap
+  name: ensure_conversions_of_numeric_types_to_narrower_types_do_not_result_in_lost_or_misinterpreted_data
+  maps:
+  - type: cert
+    value: '02000010140512'
+  - type: YD/T 3464-2019
+    value: '02000010160036'
+- !ruleMap
+  name: create_empty_threadpoolexecutor
+  maps:
+  - type: std
+    value: '02000010150427'
+- !ruleMap
+  name: gets_the_index_position_using_a_single_character_string
+  maps:
+  - type: bug
+    value: '02000010000023'
+- !ruleMap
+  name: struts_validator_turned_off
+  maps:
+  - type: bug
+    value: '02000010110025'
+- !ruleMap
+  name: spring_beans_injection
+  maps:
+  - type: bug
+    value: '02000010020032'
+- !ruleMap
+  name: object_model_violation_erroneous_clone_method
+  maps:
+  - type: bug
+    value: '02000010070015'
+- !ruleMap
+  name: html5_overly_permissive_cors_policy
+  maps:
+  - type: bug
+    value: '02000010020142'
+- !ruleMap
+  name: obtain_synchronization_lock_for_the_same_resource_multiple_times
+  maps:
+  - type: bug
+    value: '02000010130118'
+- !ruleMap
+  name: denial_of_service_uncontrolled_memory_allocation
+  maps:
+  - type: bug
+    value: '02000010130135'
+- !ruleMap
+  name: integer_overflow_or_underflow
+  maps:
+  - type: bug
+    value: '02000010130167'
+- !ruleMap
+  name: code_correctness_class_does_not_implement_cloneable
+  maps:
+  - type: bug
+    value: '02000010110042'
+- !ruleMap
+  name: insecure_storage_s3_read_acp_anonymous_access
+  maps:
+  - type: bug
+    value: '02000010110146'
+- !ruleMap
+  name: hardcode_bank_card_number
+  maps:
+  - type: bug
+    value: '02000010110135'
+- !ruleMap
+  name: query_string_injection_android_provider_possible
+  maps:
+  - type: bug
+    value: '02000010020107'
+- !ruleMap
+  name: code_correctness_double_checked_locking
+  maps:
+  - type: bug
+    value: '02000010090011'
+  - type: cert
+    value: '02000010141010'
+  - type: std
+    value: '02000010150305'
+  - type: guide
+    value: '02000010170051'
+- !ruleMap
+  name: struts_2_unvalidated_action
+  maps:
+  - type: bug
+    value: '02000010110014'
+- !ruleMap
+  name: html5_overly_permissive_cors_policy
+  maps:
+  - type: bug
+    value: '02000010090016'
+- !ruleMap
+  name: missing_default_statement_in_switch_statement
+  maps:
+  - type: bug
+    value: '02000010130112'
+- !ruleMap
+  name: not_disabled_ldap_deserialization
+  maps:
+  - type: std
+    value: '02000010150438'
+- !ruleMap
+  name: do_not_exhaust_heap_space
+  maps:
+  - type: cert
+    value: '02000010141805'
+  - type: YD/T 3464-2019
+    value: '02000010160153'
+- !ruleMap
+  name: distinguish_between_characters_or_bytes_read_from_a_stream_and__1
+  maps:
+  - type: cert
+    value: '02000010141408'
+  - type: YD/T 3464-2019
+    value: '02000010160114'
+- !ruleMap
+  name: privilege_management_missing_api_permission
+  maps:
+  - type: bug
+    value: '02000010110104'
+- !ruleMap
+  name: ldap_injection
+  maps:
+  - type: bug
+    value: '02000010020004'
+- !ruleMap
+  name: synchronization_based_on_non_final_objects
+  maps:
+  - type: std
+    value: '02000010150309'
+  - type: guide
+    value: '02000010170035'
+- !ruleMap
+  name: call_classloader_to_load_the_class
+  maps:
+  - type: bug
+    value: '02000010110067'
+- !ruleMap
+  name: the_tostring_or_clone_method_returns_null
+  maps:
+  - type: std
+    value: '02000010150436'
+- !ruleMap
+  name: struts_2_action_field_without_validator
+  maps:
+  - type: bug
+    value: '02000010110009'
+- !ruleMap
+  name: file_disclosure_spring
+  maps:
+  - type: bug
+    value: '02000010070027'
+- !ruleMap
+  name: denial_of_service_unchecked_array_index
+  maps:
+  - type: bug
+    value: '02000010130136'
+- !ruleMap
+  name: dynamic_code_evaluation_unsafe_xstream_deserialization
+  maps:
+  - type: bug
+    value: '02000010060117'
+- !ruleMap
+  name: dynamic_code_evaluation_code_injection_webview
+  maps:
+  - type: bug
+    value: '02000010020103'
+- !ruleMap
+  name: html5_overly_permissive_message_posting_policy
+  maps:
+  - type: bug
+    value: '02000010130144'
+- !ruleMap
+  name: not_synchronize_getter_and_setter_methods
+  maps:
+  - type: std
+    value: '02000010150308'
+  - type: guide
+    value: '02000010170050'
+- !ruleMap
+  name: obsolete
+  maps:
+  - type: bug
+    value: '02000010130009'
+  - type: cert
+    value: '02000010140702'
+  - type: std
+    value: '02000010150416'
+  - type: YD/T 3464-2019
+    value: '02000010160052'
+- !ruleMap
+  name: access_control_acl_manipulation
+  maps:
+  - type: bug
+    value: '02000010130162'
+- !ruleMap
+  name: portability_flaw_file_separator
+  maps:
+  - type: bug
+    value: '02000010110064'
+- !ruleMap
+  name: empty_case_block
+  maps:
+  - type: bug
+    value: '02000010130133'
+- !ruleMap
+  name: j2ee_bad_practices_system_exit
+  maps:
+  - type: bug
+    value: '02000010070032'
+  - type: cert
+    value: '02000010140809'
+  - type: std
+    value: '02000010150404'
+  - type: YD/T 3464-2019
+    value: '02000010160072'
+- !ruleMap
+  name: password_management_weak_redundancy
+  maps:
+  - type: bug
+    value: '02000010070020'
+- !ruleMap
+  name: android_bad_practices_missing_broadcaster_permission
+  maps:
+  - type: bug
+    value: '02000010110101'
+- !ruleMap
+  name: android_bad_practices_dangerous_dynamic_broadcaster
+  maps:
+  - type: bug
+    value: '02000010110168'
+- !ruleMap
+  name: android_bad_practices_dangerous_send_broadcast
+  maps:
+  - type: bug
+    value: '02000010110169'
+- !ruleMap
+  name: poor_style_confusing_namingmember_and_method
+  maps:
+  - type: bug
+    value: '02000010130011'
+- !ruleMap
+  name: use_empty_infinite_loop
+  maps:
+  - type: bug
+    value: '02000010110061'
+  - type: cert
+    value: '02000010141801'
+  - type: std
+    value: '02000010150413'
+  - type: YD/T 3464-2019
+    value: '02000010160149'
+- !ruleMap
+  name: insecure_ssl_server_identity_verification_disabled
+  maps:
+  - type: bug
+    value: '02000010110084'
+  - type: std
+    value: '02000010150435'
+  - type: guide
+    value: '02000010170020'
+- !ruleMap
+  name: j2ee_misconfiguration_insufficient_session_id_length
+  maps:
+  - type: bug
+    value: '02000010100012'
+- !ruleMap
+  name: do_not_deviate_from_the_proper_signatures_of_serialization_methods
+  maps:
+  - type: bug
+    value: '02000010110153'
+  - type: cert
+    value: '02000010141501'
+  - type: YD/T 3464-2019
+    value: '02000010160122'
+- !ruleMap
+  name: j2ee_misconfiguration_missing_authentication_method
+  maps:
+  - type: bug
+    value: '02000010110154'
+- !ruleMap
+  name: unchecked_return_value
+  maps:
+  - type: bug
+    value: '02000010070022'
+  - type: cert
+    value: '02000010140400'
+  - type: std
+    value: '02000010150114'
+  - type: YD/T 3464-2019
+    value: '02000010160018'
+  - type: guide
+    value: '02000010170067'
+- !ruleMap
+  name: j2ee_bad_practices_threads
+  maps:
+  - type: bug
+    value: '02000010110003'
+  - type: std
+    value: '02000010150402'
+- !ruleMap
+  name: dangerous_file_inclusion
+  maps:
+  - type: bug
+    value: '02000010050001'
+- !ruleMap
+  name: android_bad_practices_missing_receiver_permission
+  maps:
+  - type: bug
+    value: '02000010110102'
+- !ruleMap
+  name: sql_injection_persistence
+  maps:
+  - type: bug
+    value: '02000010020008'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: unreleased_resource_streams
+  maps:
+  - type: bug
+    value: '02000010130020'
+  - type: cert
+    value: '02000010141404'
+  - type: YD/T 3464-2019
+    value: '02000010160110'
+  - type: guide
+    value: '02000010170060'
+- !ruleMap
+  name: dynamic_code_evaluation_unsafe_json_deserialization
+  maps:
+  - type: bug
+    value: '02000010020026'
+- !ruleMap
+  name: using_invalid_index
+  maps:
+  - type: bug
+    value: '02000010000021'
+  - type: std
+    value: '02000010150429'
+- !ruleMap
+  name: using_wrong_loop_condition
+  maps:
+  - type: bug
+    value: '02000010130168'
+- !ruleMap
+  name: using_wrong_array_index
+  maps:
+  - type: bug
+    value: '02000010130169'
+- !ruleMap
+  name: privacy_violation
+  maps:
+  - type: bug
+    value: '02000010130106'
+- !ruleMap
+  name: classloader_manipulation_struts_1
+  maps:
+  - type: bug
+    value: '02000010110139'
+- !ruleMap
+  name: cross_site_scripting_external_links
+  maps:
+  - type: bug
+    value: '02000010030006'
+- !ruleMap
+  name: cross_site_scripting_reflected_possible
+  maps:
+  - type: bug
+    value: '02000010030021'
+  - type: guide
+    value: '02000010170008'
+- !ruleMap
+  name: android_bad_practices_missing_network_security_configuration
+  maps:
+  - type: bug
+    value: '02000010020138'
+- !ruleMap
+  name: use_floating_point_variables_as_loop_counters
+  maps:
+  - type: bug
+    value: '02000010110054'
+  - type: cert
+    value: '02000010140509'
+  - type: std
+    value: '02000010150412'
+  - type: YD/T 3464-2019
+    value: '02000010160033'
+- !ruleMap
+  name: dynamic_code_evaluation_unsafe_deserialization_possible
+  maps:
+  - type: bug
+    value: '02000010060201'
+- !ruleMap
+  name: pending_intents_contain_implicit_intent_risks
+  maps:
+  - type: bug
+    value: '02000010130107'
+- !ruleMap
+  name: insecure_storage_http_response_cache_leak
+  maps:
+  - type: bug
+    value: '02000010110130'
+- !ruleMap
+  name: insecure_storage_android_world_readable_or_writeable
+  maps:
+  - type: bug
+    value: '02000010110107'
+- !ruleMap
+  name: temporary_file_not_deleted
+  maps:
+  - type: bug
+    value: '02000010130035'
+  - type: cert
+    value: '02000010141403'
+  - type: YD/T 3464-2019
+    value: '02000010160109'
+  - type: guide
+    value: '02000010170066'
+- !ruleMap
+  name: android_bad_practices_missing_google_play_services_updated_security_provider
+  maps:
+  - type: bug
+    value: '02000010020137'
+- !ruleMap
+  name: mass_assignment_request_parameters_bound_into_persisted_objects
+  maps:
+  - type: bug
+    value: '02000010020145'
+- !ruleMap
+  name: often_misused_boolean_getboolean
+  maps:
+  - type: bug
+    value: '02000010070018'
+- !ruleMap
+  name: dynamic_code_evaluation_unsafe_deserialization
+  maps:
+  - type: bug
+    value: '02000010060116'
+- !ruleMap
+  name: click_hijacking
+  maps:
+  - type: bug
+    value: '02000010110171'
+- !ruleMap
+  name: j2ee_misconfiguration_weak_access_permissions
+  maps:
+  - type: bug
+    value: '02000010100019'
+- !ruleMap
+  name: same_origin_method_execution
+  maps:
+  - type: bug
+    value: '02000010020033'
+- !ruleMap
+  name: nosql_injection_mongodb
+  maps:
+  - type: bug
+    value: '02000010020025'
+- !ruleMap
+  name: xml_entity_expansion_injection_possible
+  maps:
+  - type: bug
+    value: '02000010050024'
+- !ruleMap
+  name: do_not_follow_a_write_by_a_subsequent_write_or_read_of_the_same_object_within_an_expression
+  maps:
+  - type: cert
+    value: '02000010140405'
+  - type: YD/T 3464-2019
+    value: '02000010160023'
+- !ruleMap
+  name: code_correctness_erroneous_string_compare
+  maps:
+  - type: bug
+    value: '02000010110044'
+  - type: std
+    value: '02000010150408'
+- !ruleMap
+  name: cross_site_scripting_persistent
+  maps:
+  - type: bug
+    value: '02000010030002'
+  - type: guide
+    value: '02000010170010'
+- !ruleMap
+  name: weak_cryptographic_hash
+  maps:
+  - type: bug
+    value: '02000010080009'
+  - type: std
+    value: '02000010150201'
+  - type: guide
+    value: '02000010170012'
+- !ruleMap
+  name: class_implements_externalizable_has_no_parameterless_constructor
+  maps:
+  - type: std
+    value: '02000010150449'
+- !ruleMap
+  name: insecure_ssl_webview_ignores_ssl_certificate_error_detection
+  maps:
+  - type: bug
+    value: '02000010060114'
+- !ruleMap
+  name: sql_injection_jfinal
+  maps:
+  - type: bug
+    value: '02000010020002'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: denial_of_service_stringbuilder
+  maps:
+  - type: bug
+    value: '02000010050055'
+- !ruleMap
+  name: poor_error_handling_program_catches_nullpointerexception
+  maps:
+  - type: bug
+    value: '02000010120003'
+  - type: cert
+    value: '02000010140808'
+  - type: std
+    value: '02000010150501'
+  - type: YD/T 3464-2019
+    value: '02000010160071'
+- !ruleMap
+  name: android_bad_practices_missing_exported_flag_or_component_permission
+  maps:
+  - type: bug
+    value: '02000010110113'
+- !ruleMap
+  name: save_the_url_in_the_map_and_set
+  maps:
+  - type: bug
+    value: '02000010110202'
+  - type: std
+    value: '02000010150453'
+- !ruleMap
+  name: code_correctness_incorrect_serialpersistentfields_modifier
+  maps:
+  - type: bug
+    value: '02000010110046'
+  - type: std
+    value: '02000010150433'
+- !ruleMap
+  name: do_not_use_background_threads_during_class_initialization
+  maps:
+  - type: cert
+    value: '02000010141302'
+  - type: YD/T 3464-2019
+    value: '02000010160104'
+  - type: guide
+    value: '02000010170046'
+- !ruleMap
+  name: android_bad_practices_use_of_released_camera_resource
+  maps:
+  - type: bug
+    value: '02000010110109'
+- !ruleMap
+  name: use_empty_loops
+  maps:
+  - type: bug
+    value: '02000010130128'
+- !ruleMap
+  name: struts_2_duplicate_validators
+  maps:
+  - type: bug
+    value: '02000010110012'
+- !ruleMap
+  name: code_correctness_erroneous_class_compare
+  maps:
+  - type: bug
+    value: '02000010130001'
+  - type: cert
+    value: '02000010140609'
+  - type: YD/T 3464-2019
+    value: '02000010160047'
+  - type: guide
+    value: '02000010170028'
+- !ruleMap
+  name: poor_logging_practice_use_of_a_system_output_stream
+  maps:
+  - type: bug
+    value: '02000010110034'
+  - type: std
+    value: '02000010150406'
+- !ruleMap
+  name: process_control_possible
+  maps:
+  - type: bug
+    value: '02000010050025'
+- !ruleMap
+  name: file_permission_manipulation
+  maps:
+  - type: bug
+    value: '02000010020052'
+  - type: cert
+    value: '02000010141401'
+  - type: YD/T 3464-2019
+    value: '02000010160107'
+  - type: guide
+    value: '02000010170026'
+- !ruleMap
+  name: insecure_randomness_user_controlled_seed
+  maps:
+  - type: bug
+    value: '02000010080021'
+- !ruleMap
+  name: insecure_randomness
+  maps:
+  - type: bug
+    value: '02000010080001'
+  - type: cert
+    value: '02000010141802'
+  - type: YD/T 3464-2019
+    value: '02000010160150'
+  - type: guide
+    value: '02000010170011'
+- !ruleMap
+  name: poor_logging_practice_multiple_loggers
+  maps:
+  - type: bug
+    value: '02000010110033'
+- !ruleMap
+  name: j2ee_misconfiguration_incomplete_error_handling___throwable
+  maps:
+  - type: bug
+    value: '02000010100008'
+- !ruleMap
+  name: missing_xml_validation
+  maps:
+  - type: bug
+    value: '02000010050007'
+  - type: cert
+    value: '02000010140216'
+  - type: guide
+    value: '02000010170005'
+- !ruleMap
+  name: deserialization_bad_practice_blacklist
+  maps:
+  - type: bug
+    value: '02000010130119'
+- !ruleMap
+  name: error_regular_expression
+  maps:
+  - type: std
+    value: '02000010150450'
+- !ruleMap
+  name: race_condition_app_download
+  maps:
+  - type: bug
+    value: '02000010090013'
+- !ruleMap
+  name: denial_of_service_uncontrolled_loops
+  maps:
+  - type: bug
+    value: '02000010130140'
+- !ruleMap
+  name: password_management_empty_password_in_configuration_file
+  maps:
+  - type: bug
+    value: '02000010080014'
+- !ruleMap
+  name: do_not_expose_buffers_created_using_the_wrap_or_duplicate_methods_to_untrusted_code
+  maps:
+  - type: cert
+    value: '02000010141405'
+  - type: YD/T 3464-2019
+    value: '02000010160111'
+- !ruleMap
+  name: dynamic_code_evaluation_script_injection
+  maps:
+  - type: bug
+    value: '02000010020031'
+- !ruleMap
+  name: insecure_database
+  maps:
+  - type: bug
+    value: '02000010020132'
+- !ruleMap
+  name: xml_injection
+  maps:
+  - type: bug
+    value: '02000010020011'
+  - type: cert
+    value: '02000010140216'
+  - type: guide
+    value: '02000010170005'
+- !ruleMap
+  name: expose_private_fields_of_external_classes_in_nested_classes
+  maps:
+  - type: bug
+    value: '02000010110056'
+  - type: cert
+    value: '02000010140608'
+- !ruleMap
+  name: system_information_leak_servlet
+  maps:
+  - type: bug
+    value: '02000010110093'
+  - type: cert
+    value: '02000010140801'
+- !ruleMap
+  name: do_not_expose_private_members_of_an_outer_class_from_within_a_nested_class
+  maps:
+  - type: bug
+    value: '02000010110056'
+  - type: cert
+    value: '02000010140608'
+  - type: YD/T 3464-2019
+    value: '02000010160046'
+- !ruleMap
+  name: hardcode_email_address
+  maps:
+  - type: bug
+    value: '02000010110099'
+  - type: cert
+    value: '02000010141803'
+  - type: YD/T 3464-2019
+    value: '02000010160151'
+  - type: guide
+    value: '02000010170018'
+- !ruleMap
+  name: j2ee_bad_practices_getconnection
+  maps:
+  - type: bug
+    value: '02000010110063'
+- !ruleMap
+  name: create_objects_in_loop
+  maps:
+  - type: bug
+    value: '02000010110137'
+- !ruleMap
+  name: file_disclosure_j2ee
+  maps:
+  - type: bug
+    value: '02000010070026'
+- !ruleMap
+  name: public_finalize_method
+  maps:
+  - type: bug
+    value: '02000010110069'
+- !ruleMap
+  name: privilege_management_android_telephony
+  maps:
+  - type: bug
+    value: '02000010060103'
+- !ruleMap
+  name: the_class_of_the_transient_modified_field_is_not_serializable
+  maps:
+  - type: std
+    value: '02000010150455'
+- !ruleMap
+  name: struts_misconfiguration_invalid_path
+  maps:
+  - type: bug
+    value: '02000010100022'
+- !ruleMap
+  name: incorrect_httpsecurity_url_sort
+  maps:
+  - type: std
+    value: '02000010150446'
+- !ruleMap
+  name: mass_assignment_insecure_binder_configuration
+  maps:
+  - type: bug
+    value: '02000010070033'
+- !ruleMap
+  name: privilege_management_unnecessary_permission
+  maps:
+  - type: bug
+    value: '02000010110122'
+- !ruleMap
+  name: do_not_modify_the_collection_elements_during_an_enhanced_for_statement
+  maps:
+  - type: cert
+    value: '02000010140302'
+  - type: YD/T 3464-2019
+    value: '02000010160017'
+- !ruleMap
+  name: often_misused_android_permission_check
+  maps:
+  - type: bug
+    value: '02000010060107'
+- !ruleMap
+  name: denial_of_service_divide_by_zero
+  maps:
+  - type: bug
+    value: '02000010130137'
+- !ruleMap
+  name: xml_external_entity_injection
+  maps:
+  - type: bug
+    value: '02000010050019'
+  - type: cert
+    value: '02000010140217'
+  - type: guide
+    value: '02000010170006'
+- !ruleMap
+  name: weak_xml_schema_type_any
+  maps:
+  - type: bug
+    value: '02000010100033'
+- !ruleMap
+  name: weak_xml_schema_unbounded_occurrences
+  maps:
+  - type: bug
+    value: '02000010100034'
+- !ruleMap
+  name: intent_invoked_implicitly
+  maps:
+  - type: bug
+    value: '02000010110133'
+- !ruleMap
+  name: overriding_the_next_method_does_not_throw_nosuchelementexception
+  maps:
+  - type: std
+    value: '02000010150448'
+- !ruleMap
+  name: session_puzzling_spring
+  maps:
+  - type: bug
+    value: '02000010130150'
+- !ruleMap
+  name: dead_code_expression_is_always_false
+  maps:
+  - type: bug
+    value: '02000010130004'
+- !ruleMap
+  name: android_bad_practices_provider_permission_defined
+  maps:
+  - type: bug
+    value: '02000010110115'
+- !ruleMap
+  name: string_comparison_of_float
+  maps:
+  - type: bug
+    value: '02000010130039'
+  - type: cert
+    value: '02000010140511'
+- !ruleMap
+  name: user_controlled_pbe_salt
+  maps:
+  - type: bug
+    value: '02000010110155'
+- !ruleMap
+  name: overly_permissive_cross_domain_policy
+  maps:
+  - type: bug
+    value: '02000010110157'
+- !ruleMap
+  name: insecure_transport_sender
+  maps:
+  - type: bug
+    value: '02000010110158'
+- !ruleMap
+  name: insecure_transport_receiver
+  maps:
+  - type: bug
+    value: '02000010110159'
+- !ruleMap
+  name: inbound_ws_security_not_enabled
+  maps:
+  - type: bug
+    value: '02000010110180'
+- !ruleMap
+  name: insecure_message_security
+  maps:
+  - type: bug
+    value: '02000010110181'
+- !ruleMap
+  name: outbound_ws_security_not_enabled
+  maps:
+  - type: bug
+    value: '02000010110182'
+- !ruleMap
+  name: ws_security_not_enabled
+  maps:
+  - type: bug
+    value: '02000010110183'
+- !ruleMap
+  name: default_url_invoke_disallowed_setting
+  maps:
+  - type: bug
+    value: '02000010110184'
+- !ruleMap
+  name: build_misconfiguration_external_ant_dependency_repository
+  maps:
+  - type: bug
+    value: '02000010110185'
+- !ruleMap
+  name: websphere_misconfiguration_servlets_served_by_class_name
+  maps:
+  - type: bug
+    value: '02000010110186'
+- !ruleMap
+  name: privacy_violation_shoulder_surfing
+  maps:
+  - type: bug
+    value: '02000010110187'
+- !ruleMap
+  name: overly_permissive_custom_headers_policy
+  maps:
+  - type: bug
+    value: '02000010110156'
+- !ruleMap
+  name: memory_leak_in_non_static_inner_classes
+  maps:
+  - type: bug
+    value: '02000010130108'
+- !ruleMap
+  name: code_correctness_non_static_inner_class_implements_serializable
+  maps:
+  - type: bug
+    value: '02000010110049'
+  - type: cert
+    value: '02000010141505'
+  - type: std
+    value: '02000010150307'
+  - type: YD/T 3464-2019
+    value: '02000010160126'
+- !ruleMap
+  name: sql_injection
+  maps:
+  - type: bug
+    value: '02000010020006'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: enable_serialization_compatibility_during_class_evolution
+  maps:
+  - type: cert
+    value: '02000010141500'
+  - type: YD/T 3464-2019
+    value: '02000010160121'
+- !ruleMap
+  name: use_weekyear_date_formatting
+  maps:
+  - type: std
+    value: '02000010150430'
+- !ruleMap
+  name: weak_cryptographic_hash_user_controlled_algorithm
+  maps:
+  - type: bug
+    value: '02000010080059'
+- !ruleMap
+  name: system_information_leak_debug
+  maps:
+  - type: bug
+    value: '02000010110094'
+  - type: cert
+    value: '02000010140801'
+- !ruleMap
+  name: cookie_security_cookie_not_sent_over_ssl
+  maps:
+  - type: bug
+    value: '02000010110004'
+- !ruleMap
+  name: wrong_getter_or_setter_method
+  maps:
+  - type: std
+    value: '02000010150426'
+- !ruleMap
+  name: use_bigdecimaldouble
+  maps:
+  - type: std
+    value: '02000010150117'
+- !ruleMap
+  name: untrusted_search_path
+  maps:
+  - type: bug
+    value: '02000010020040'
+- !ruleMap
+  name: spring_boot_misconfiguration_devtools_enabled
+  maps:
+  - type: bug
+    value: '02000010020144'
+- !ruleMap
+  name: build_misconfiguration_external_ivy_dependency_repository
+  maps:
+  - type: bug
+    value: '02000010020140'
+- !ruleMap
+  name: build_misconfiguration_dynamic_dependency_version
+  maps:
+  - type: bug
+    value: '02000010020143'
+- !ruleMap
+  name: j2ee_misconfiguration_duplicate_servlet_mapping
+  maps:
+  - type: bug
+    value: '02000010100005'
+- !ruleMap
+  name: often_misused_authentication
+  maps:
+  - type: bug
+    value: '02000010070031'
+  - type: guide
+    value: '02000010170019'
+- !ruleMap
+  name: rely_on_referer_for_authentication
+  maps:
+  - type: bug
+    value: '02000010070034'
+- !ruleMap
+  name: rely_on_not_verified_or_integrity_checked_cookie
+  maps:
+  - type: bug
+    value: '02000010070035'
+- !ruleMap
+  name: password_management_password_in_redirect
+  maps:
+  - type: bug
+    value: '02000010080007'
+- !ruleMap
+  name: dead_code_unused_field
+  maps:
+  - type: bug
+    value: '02000010130006'
+- !ruleMap
+  name: android_bad_practices_weak_authentication
+  maps:
+  - type: bug
+    value: '02000010110118'
+- !ruleMap
+  name: j2ee_misconfiguration_missing_servlet_mapping
+  maps:
+  - type: bug
+    value: '02000010100018'
+- !ruleMap
+  name: header_manipulation
+  maps:
+  - type: bug
+    value: '02000010020003'
+- !ruleMap
+  name: poor_error_handling_overly_broad_throws
+  maps:
+  - type: bug
+    value: '02000010120002'
+  - type: cert
+    value: '02000010140807'
+  - type: YD/T 3464-2019
+    value: '02000010160070'
+  - type: guide
+    value: '02000010170058'
+- !ruleMap
+  name: do_not_reuse_public_identifiers_from_the_java_standard_library
+  maps:
+  - type: cert
+    value: '02000010140301'
+  - type: YD/T 3464-2019
+    value: '02000010160016'
+- !ruleMap
+  name: content_provider_uri_injection
+  maps:
+  - type: bug
+    value: '02000010020104'
+- !ruleMap
+  name: log_forging_debug
+  maps:
+  - type: bug
+    value: '02000010050102'
+- !ruleMap
+  name: non_serializable_parent_of_serializable_class_none_parameterless_constructor
+  maps:
+  - type: std
+    value: '02000010150442'
+- !ruleMap
+  name: dynamic_code_evaluation_xmldecoder_injection
+  maps:
+  - type: bug
+    value: '02000010020013'
+- !ruleMap
+  name: system_information_leak_internal
+  maps:
+  - type: bug
+    value: '02000010110082'
+  - type: cert
+    value: '02000010140801'
+- !ruleMap
+  name: unsafe_jni
+  maps:
+  - type: bug
+    value: '02000010130115'
+  - type: cert
+    value: '02000010141900'
+- !ruleMap
+  name: code_correctness_negative_content_length
+  maps:
+  - type: bug
+    value: '02000010070005'
+  - type: std
+    value: '02000010150432'
+- !ruleMap
+  name: optional_does_not_get_the_value_after_calling_ispresent
+  maps:
+  - type: bug
+    value: '02000010000024'
+- !ruleMap
+  name: insecure_randomness_poor_seed
+  maps:
+  - type: bug
+    value: '02000010080016'
+  - type: cert
+    value: '02000010141803'
+  - type: std
+    value: '02000010150205'
+  - type: YD/T 3464-2019
+    value: '02000010160151'
+  - type: guide
+    value: '02000010170018'
+- !ruleMap
+  name: use_equals_to_determine_if_the_string_is_null
+  maps:
+  - type: bug
+    value: '02000010130026'
+- !ruleMap
+  name: spring_boot_misconfiguration_actuator_endpoint_security_disabled
+  maps:
+  - type: bug
+    value: '02000010100102'
+- !ruleMap
+  name: struts_misconfiguration_missing_form_property_type
+  maps:
+  - type: bug
+    value: '02000010100028'
+- !ruleMap
+  name: privilege_management_android_network
+  maps:
+  - type: bug
+    value: '02000010060110'
+- !ruleMap
+  name: weak_encryption
+  maps:
+  - type: bug
+    value: '02000010080011'
+  - type: std
+    value: '02000010150202'
+  - type: guide
+    value: '02000010170014'
+- !ruleMap
+  name: j2ee_misconfiguration_invalid_servlet_name
+  maps:
+  - type: bug
+    value: '02000010100013'
+- !ruleMap
+  name: privilege_management_overly_broad_access_specifier
+  maps:
+  - type: bug
+    value: '02000010110123'
+- !ruleMap
+  name: weak_cryptographic_hash_insecure_pbe_iteration_count
+  maps:
+  - type: bug
+    value: '02000010080050'
+- !ruleMap
+  name: cross_site_scripting_inter_component_communication
+  maps:
+  - type: bug
+    value: '02000010030102'
+- !ruleMap
+  name: access_control_database
+  maps:
+  - type: bug
+    value: '02000010090006'
+  - type: guide
+    value: '02000010170064'
+- !ruleMap
+  name: sql_injection_jdo
+  maps:
+  - type: bug
+    value: '02000010020007'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: missing_check_against_null
+  maps:
+  - type: bug
+    value: '02000010130022'
+- !ruleMap
+  name: j2ee_misconfiguration_duplicate_security_role
+  maps:
+  - type: bug
+    value: '02000010100004'
+- !ruleMap
+  name: detect_and_handle_file_related_errors
+  maps:
+  - type: cert
+    value: '02000010141402'
+  - type: YD/T 3464-2019
+    value: '02000010160108'
+- !ruleMap
+  name: unsafe_reflection
+  maps:
+  - type: bug
+    value: '02000010020058'
+- !ruleMap
+  name: do_not_rely_on_the_write_method_to_output_integers_outside_the_range_0_to_255
+  maps:
+  - type: cert
+    value: '02000010141409'
+  - type: YD/T 3464-2019
+    value: '02000010160115'
+- !ruleMap
+  name: disable_spring_csrf_protection
+  maps:
+  - type: bug
+    value: '02000010110100'
+- !ruleMap
+  name: insecure_ssl_inadequate_certificate_verification
+  maps:
+  - type: bug
+    value: '02000010060120'
+- !ruleMap
+  name: do_not_synchronize_on_the_class_object_returned_by_getclass
+  maps:
+  - type: cert
+    value: '02000010141002'
+  - type: YD/T 3464-2019
+    value: '02000010160081'
+  - type: guide
+    value: '02000010170036'
+- !ruleMap
+  name: null_dereference
+  maps:
+  - type: bug
+    value: '02000010130008'
+- !ruleMap
+  name: android_bad_practices_system_permission_defined
+  maps:
+  - type: bug
+    value: '02000010110116'
+- !ruleMap
+  name: incorrect_block_division
+  maps:
+  - type: bug
+    value: '02000010130126'
+- !ruleMap
+  name: poor_logging_practice_logger_not_declared_static_final
+  maps:
+  - type: bug
+    value: '02000010110032'
+- !ruleMap
+  name: unreleased_resource_database
+  maps:
+  - type: bug
+    value: '02000010130017'
+  - type: cert
+    value: '02000010141404'
+  - type: YD/T 3464-2019
+    value: '02000010160110'
+  - type: guide
+    value: '02000010170063'
+- !ruleMap
+  name: sql_injection_mybatis_mapper_possible
+  maps:
+  - type: bug
+    value: '02000010020005'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: missing_securitymanager_check_cloneable
+  maps:
+  - type: bug
+    value: '02000010110065'
+- !ruleMap
+  name: struts_misconfiguration_missing_forward_name
+  maps:
+  - type: bug
+    value: '02000010100029'
+- !ruleMap
+  name: wakelock_unreleased
+  maps:
+  - type: bug
+    value: '02000010130104'
+  - type: cert
+    value: '02000010141008'
+  - type: YD/T 3464-2019
+    value: '02000010160087'
+  - type: guide
+    value: '02000010170040'
+- !ruleMap
+  name: nosql_injection_neo4j
+  maps:
+  - type: bug
+    value: '02000010020130'
+- !ruleMap
+  name: sql_injection_hibernate
+  maps:
+  - type: bug
+    value: '02000010020009'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: j2ee_misconfiguration_excessive_servlet_mappings
+  maps:
+  - type: bug
+    value: '02000010100006'
+- !ruleMap
+  name: mica_xss
+  maps:
+  - type: bug
+    value: '02000010030001'
+- !ruleMap
+  name: javaee_frees_the_resource_using_deleteonexit
+  maps:
+  - type: bug
+    value: '02000010130034'
+  - type: cert
+    value: '02000010141403'
+  - type: std
+    value: '02000010150113'
+- !ruleMap
+  name: unreleased_resource_sockets
+  maps:
+  - type: bug
+    value: '02000010130019'
+  - type: cert
+    value: '02000010141404'
+  - type: YD/T 3464-2019
+    value: '02000010160110'
+  - type: guide
+    value: '02000010170061'
+- !ruleMap
+  name: insecure_storage_s3_full_anonymous_access
+  maps:
+  - type: bug
+    value: '02000010110142'
+- !ruleMap
+  name: race_condition_singleton_member_field_servlet
+  maps:
+  - type: bug
+    value: '02000010090004'
+  - type: cert
+    value: '02000010141811'
+  - type: std
+    value: '02000010150302'
+  - type: guide
+    value: '02000010170047'
+- !ruleMap
+  name: race_condition_singleton_member_field
+  maps:
+  - type: bug
+    value: '02000010090004'
+  - type: std
+    value: '02000010150302'
+  - type: guide
+    value: '02000010170049'
+- !ruleMap
+  name: bean_manipulation
+  maps:
+  - type: bug
+    value: '02000010020148'
+- !ruleMap
+  name: sql_injection_possible
+  maps:
+  - type: bug
+    value: '02000010020020'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: poor_error_handling_swallowed_threaddeath
+  maps:
+  - type: bug
+    value: '02000010120005'
+- !ruleMap
+  name: not_static_long_serialversionuid_
+  maps:
+  - type: std
+    value: '02000010150451'
+- !ruleMap
+  name: insecure_transport_rfcomm_bluetooth_socket
+  maps:
+  - type: bug
+    value: '02000010110095'
+- !ruleMap
+  name: code_correctness_comparison_with_nan
+  maps:
+  - type: bug
+    value: '02000010110053'
+  - type: cert
+    value: '02000010140507'
+  - type: std
+    value: '02000010150411'
+  - type: YD/T 3464-2019
+    value: '02000010160031'
+- !ruleMap
+  name: weak_encryption_insecure_initialization_vector
+  maps:
+  - type: bug
+    value: '02000010080020'
+  - type: std
+    value: '02000010150206'
+- !ruleMap
+  name: system_information_leak_overly_broad_debug
+  maps:
+  - type: bug
+    value: '02000010110043'
+- !ruleMap
+  name: android_bad_practices_encryption_secret_held_in_static_field
+  maps:
+  - type: bug
+    value: '02000010110097'
+- !ruleMap
+  name: immutable_classes_non_final_fields
+  maps:
+  - type: bug
+    value: '02000010070024'
+- !ruleMap
+  name: assert_statement_is_always_false
+  maps:
+  - type: bug
+    value: '02000010130116'
+- !ruleMap
+  name: use_floating_point_numbers_for_precise_calculations
+  maps:
+  - type: bug
+    value: '02000010110068'
+  - type: cert
+    value: '02000010140504'
+  - type: YD/T 3464-2019
+    value: '02000010160028'
+- !ruleMap
+  name: android_class_loading_hijacking_possible
+  maps:
+  - type: bug
+    value: '02000010020108'
+- !ruleMap
+  name: android_bad_practices_use_of_file_scheme_cookies
+  maps:
+  - type: bug
+    value: '02000010110132'
+- !ruleMap
+  name: insecure_storage_android_backup_storage
+  maps:
+  - type: bug
+    value: '02000010110124'
+- !ruleMap
+  name: android_allow_taskreparenting
+  maps:
+  - type: bug
+    value: '02000010110165'
+- !ruleMap
+  name: android_use_path
+  maps:
+  - type: bug
+    value: '02000010110166'
+- !ruleMap
+  name: android_launchMode_singleTask
+  maps:
+  - type: bug
+    value: '02000010110167'
+- !ruleMap
+  name: code_correctness_class_does_not_implement_equals
+  maps:
+  - type: bug
+    value: '02000010070002'
+  - type: std
+    value: '02000010150102'
+- !ruleMap
+  name: do_not_let_external_processes_block_on_io_buffers
+  maps:
+  - type: cert
+    value: '02000010141407'
+  - type: YD/T 3464-2019
+    value: '02000010160113'
+- !ruleMap
+  name: struts2_s2_048
+  maps:
+  - type: bug
+    value: '02000010500001'
+  - type: guide
+    value: '02000010170071'
+- !ruleMap
+  name: http_verb_tampering
+  maps:
+  - type: bug
+    value: '02000010100009'
+- !ruleMap
+  name: unreleased_resource_android_media
+  maps:
+  - type: bug
+    value: '02000010130101'
+- !ruleMap
+  name: saved_plain_text_password_in_webview
+  maps:
+  - type: bug
+    value: '02000010080101'
+- !ruleMap
+  name: weak_encryption_insecure_mode_of_operation
+  maps:
+  - type: bug
+    value: '02000010080019'
+  - type: std
+    value: '02000010150208'
+  - type: guide
+    value: '02000010170015'
+- !ruleMap
+  name: poor_error_handling_empty_catch_block
+  maps:
+  - type: bug
+    value: '02000010120008'
+  - type: cert
+    value: '02000010140800'
+  - type: YD/T 3464-2019
+    value: '02000010160063'
+  - type: guide
+    value: '02000010170054'
+- !ruleMap
+  name: cross_site_request_forgery
+  maps:
+  - type: bug
+    value: '02000010030004'
+- !ruleMap
+  name: cross_site_scripting_protection
+  maps:
+  - type: bug
+    value: '02000010100106'
+- !ruleMap
+  name: spring_security_misconfiguration_disabled_security_headers
+  maps:
+  - type: bug
+    value: '02000010100105'
+- !ruleMap
+  name: poor_style_non_final_public_static_field
+  maps:
+  - type: bug
+    value: '02000010110035'
+  - type: cert
+    value: '02000010140610'
+  - type: YD/T 3464-2019
+    value: '02000010160048'
+- !ruleMap
+  name: hidden_field
+  maps:
+  - type: bug
+    value: '02000010110029'
+  - type: cert
+    value: '02000010140214'
+  - type: guide
+    value: '02000010170004'
+- !ruleMap
+  name: excessive_memory_allocation
+  maps:
+  - type: bug
+    value: '02000010130138'
+- !ruleMap
+  name: insecure_storage_missing_database_encryption
+  maps:
+  - type: bug
+    value: '02000010110141'
+- !ruleMap
+  name: system_information_leak_struts_2
+  maps:
+  - type: bug
+    value: '02000010110150'
+- !ruleMap
+  name: system_information_leak_druid
+  maps:
+  - type: bug
+    value: '02000010110147'
+- !ruleMap
+  name: system_information_leak_springfox_swagger
+  maps:
+  - type: bug
+    value: '02000010110148'
+- !ruleMap
+  name: create_boolean_objects
+  maps:
+  - type: bug
+    value: '02000010130028'
+  - type: std
+    value: '02000010150419'
+- !ruleMap
+  name: sql_injection_mybatis_mapper
+  maps:
+  - type: bug
+    value: '02000010020016'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: disable_ldap_authentication
+  maps:
+  - type: std
+    value: '02000010150443'
+- !ruleMap
+  name: serialize_not_implement_serializable_classe
+  maps:
+  - type: std
+    value: '02000010150440'
+- !ruleMap
+  name: concatenate_string_in_a_loop
+  maps:
+  - type: bug
+    value: '02000010130027'
+  - type: std
+    value: '02000010150418'
+- !ruleMap
+  name: safely_extract_files_from_zipinputstream
+  maps:
+  - type: bug
+    value: '02000010050050'
+  - type: cert
+    value: '02000010140204'
+  - type: YD/T 3464-2019
+    value: '02000010160005'
+  - type: guide
+    value: '02000010170002'
+- !ruleMap
+  name: denial_of_service_format_string
+  maps:
+  - type: bug
+    value: '02000010050054'
+  - type: cert
+    value: '02000010140206'
+  - type: YD/T 3464-2019
+    value: '02000010160007'
+  - type: guide
+    value: '02000010170052'
+- !ruleMap
+  name: insecure_transport_mail_transmission
+  maps:
+  - type: bug
+    value: '02000010110083'
+  - type: cert
+    value: '02000010141800'
+  - type: std
+    value: '02000010150422'
+- !ruleMap
+  name: unsafe_deserialization_components
+  maps:
+  - type: bug
+    value: '02000010020146'
+- !ruleMap
+  name: java_content_library_injection
+  maps:
+  - type: bug
+    value: '02000010020131'
+- !ruleMap
+  name: dynamic_code_evaluation_unsafe_yaml_deserialization
+  maps:
+  - type: bug
+    value: '02000010020035'
+- !ruleMap
+  name: sql_injection_ibatis_data_map_possible
+  maps:
+  - type: bug
+    value: '02000010020010'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: redundant_null_check
+  maps:
+  - type: bug
+    value: '02000010130016'
+- !ruleMap
+  name: hardcode_id_number
+  maps:
+  - type: bug
+    value: '02000010110134'
+- !ruleMap
+  name: privilege_management_amazon_web_services_unchecked_permissions
+  maps:
+  - type: bug
+    value: '02000010060108'
+- !ruleMap
+  name: j2ee_misconfiguration_excessive_session_timeout
+  maps:
+  - type: bug
+    value: '02000010100007'
+  - type: guide
+    value: '02000010170069'
+- !ruleMap
+  name: setting_manipulation
+  maps:
+  - type: bug
+    value: '02000010050017'
+- !ruleMap
+  name: build_misconfiguration_external_maven_dependency_repository
+  maps:
+  - type: bug
+    value: '02000010100050'
+- !ruleMap
+  name: the_class_inherited_from_thread_does_not_override_the_run_method
+  maps:
+  - type: std
+    value: '02000010150310'
+- !ruleMap
+  name: system_information_leak_external
+  maps:
+  - type: bug
+    value: '02000010110081'
+  - type: cert
+    value: '02000010110081'
+- !ruleMap
+  name: android_class_loading_hijacking
+  maps:
+  - type: bug
+    value: '02000010020102'
+- !ruleMap
+  name: javascript_hijacking
+  maps:
+  - type: bug
+    value: '02000010130110'
+- !ruleMap
+  name: password_management_null_password
+  maps:
+  - type: bug
+    value: '02000010080005'
+  - type: std
+    value: '02000010150211'
+  - type: guide
+    value: '02000010170022'
+- !ruleMap
+  name: expressions_used_in_assertions_must_not_produce_side_effects
+  maps:
+  - type: cert
+    value: '02000010140406'
+- !ruleMap
+  name: trust_boundary_violation
+  maps:
+  - type: bug
+    value: '02000010050020'
+- !ruleMap
+  name: poor_error_handling_return_inside_finally
+  maps:
+  - type: bug
+    value: '02000010120004'
+  - type: cert
+    value: '02000010140804'
+  - type: std
+    value: '02000010150502'
+  - type: YD/T 3464-2019
+    value: '02000010160067'
+  - type: guide
+    value: '02000010170056'
+- !ruleMap
+  name: weak_encryption_insufficient_key_size
+  maps:
+  - type: bug
+    value: '02000010080013'
+  - type: std
+    value: '02000010150204'
+  - type: guide
+    value: '02000010170013'
+- !ruleMap
+  name: open_android_app_service
+  maps:
+  - type: bug
+    value: '02000010060121'
+- !ruleMap
+  name: denial_of_service_regular_expression
+  maps:
+  - type: bug
+    value: '02000010020015'
+  - type: cert
+    value: '02000010140208'
+  - type: YD/T 3464-2019
+    value: '02000010160009'
+  - type: guide
+    value: '02000010170053'
+- !ruleMap
+  name: not_public_in_request_response_method
+  maps:
+  - type: std
+    value: '02000010150437'
+- !ruleMap
+  name: system_information_leak
+  maps:
+  - type: bug
+    value: '02000010110036'
+  - type: cert
+    value: '02000010140801'
+- !ruleMap
+  name: tomcat_configuration_insecure_transport
+  maps:
+  - type: bug
+    value: '02000010020147'
+- !ruleMap
+  name: dockerfile_misconfiguration_privileged_port
+  maps:
+  - type: bug
+    value: '02000010020149'
+- !ruleMap
+  name: dockerfile_misconfiguration_sensitive_host_directory
+  maps:
+  - type: bug
+    value: '02000010020150'
+- !ruleMap
+  name: dockerfile_misconfiguration_privileged_container
+  maps:
+  - type: bug
+    value: '02000010020151'
+- !ruleMap
+  name: dockerfile_misconfiguration_default_user_privilege
+  maps:
+  - type: bug
+    value: '02000010020152'
+- !ruleMap
+  name: dockerfile_misconfiguration_ssh_service
+  maps:
+  - type: bug
+    value: '02000010020153'
+- !ruleMap
+  name: disclosure_of_sensitive_information
+  maps:
+  - type: bug
+    value: '02000010130142'
+- !ruleMap
+  name: unreleased_resource_android_sqlite_database
+  maps:
+  - type: bug
+    value: '02000010130103'
+- !ruleMap
+  name: code_correctness_non_synchronized_method_overrides_synchronized_method
+  maps:
+  - type: bug
+    value: '02000010110048'
+  - type: cert
+    value: '02000010141300'
+  - type: YD/T 3464-2019
+    value: '02000010160102'
+  - type: guide
+    value: '02000010170045'
+- !ruleMap
+  name: fragment_injection
+  maps:
+  - type: bug
+    value: '02000010050101'
+- !ruleMap
+  name: useless_assignment
+  maps:
+  - type: bug
+    value: '02000010130132'
+- !ruleMap
+  name: code_correctness_call_to_sleep_in_lock
+  maps:
+  - type: bug
+    value: '02000010090001'
+  - type: cert
+    value: '02000010141009'
+  - type: YD/T 3464-2019
+    value: '02000010160088'
+- !ruleMap
+  name: privilege_management_android_data_storage
+  maps:
+  - type: bug
+    value: '02000010110121'
+- !ruleMap
+  name: often_misused_privilege_management
+  maps:
+  - type: bug
+    value: '02000010000010'
+- !ruleMap
+  name: ognl_expression_injection_double_evaluation
+  maps:
+  - type: bug
+    value: '02000010050027'
+- !ruleMap
+  name: ognl_expression_injection
+  maps:
+  - type: bug
+    value: '02000010050014'
+- !ruleMap
+  name: access_control_securitymanager_bypass
+  maps:
+  - type: bug
+    value: '02000010130161'
+  - type: cert
+    value: '02000010141605'
+- !ruleMap
+  name: j2ee_bad_practices_non_serializable_object_stored_in_session
+  maps:
+  - type: bug
+    value: '02000010110001'
+  - type: cert
+    value: '02000010141808'
+  - type: std
+    value: '02000010150401'
+- !ruleMap
+  name: synchronization_based_on_reusable_objects
+  maps:
+  - type: bug
+    value: '02000010090010'
+  - type: cert
+    value: '02000010141001'
+  - type: std
+    value: '02000010150304'
+  - type: YD/T 3464-2019
+    value: '02000010160080'
+  - type: guide
+    value: '02000010170034'
+- !ruleMap
+  name: access_control_weak_security_constraint
+  maps:
+  - type: bug
+    value: '02000010100010'
+- !ruleMap
+  name: access_control_android_provider
+  maps:
+  - type: bug
+    value: '02000010090101'
+- !ruleMap
+  name: struts_misconfiguration_missing_exception_type
+  maps:
+  - type: bug
+    value: '02000010100024'
+- !ruleMap
+  name: often_misused_string_tostring
+  maps:
+  - type: bug
+    value: '02000010110089'
+- !ruleMap
+  name: insecure_storage_s3_write_anonymous_access
+  maps:
+  - type: bug
+    value: '02000010110144'
+- !ruleMap
+  name: struts_unused_action_form
+  maps:
+  - type: bug
+    value: '02000010110022'
+- !ruleMap
+  name: intent_manipulation
+  maps:
+  - type: bug
+    value: '02000010020105'
+- !ruleMap
+  name: privilege_management_android_calendar
+  maps:
+  - type: bug
+    value: '02000010060122'
+- !ruleMap
+  name: privilege_management_android_contacts
+  maps:
+  - type: bug
+    value: '02000010060123'
+- !ruleMap
+  name: privilege_management_android_camera
+  maps:
+  - type: bug
+    value: '02000010060124'
+- !ruleMap
+  name: privilege_management_android_callLog
+  maps:
+  - type: bug
+    value: '02000010060125'
+- !ruleMap
+  name: privilege_management_android_sensors
+  maps:
+  - type: bug
+    value: '02000010060126'
+- !ruleMap
+  name: privilege_management_android_microphone
+  maps:
+  - type: bug
+    value: '02000010060127'
+- !ruleMap
+  name: privilege_management_android_activity_recognition
+  maps:
+  - type: bug
+    value: '02000010060128'
+- !ruleMap
+  name: sql_injection_partiql
+  maps:
+  - type: bug
+    value: '02000010090028'
+- !ruleMap
+  name: privilege_management_missing_content_provider_permission
+  maps:
+  - type: bug
+    value: '02000010110105'
+- !ruleMap
+  name: often_misused_file_upload
+  maps:
+  - type: bug
+    value: '02000010000009'
+- !ruleMap
+  name: obsolete_deprecated_by_esapi
+  maps:
+  - type: bug
+    value: '02000010130025'
+- !ruleMap
+  name: android_bad_practices_use_of_internal_apis
+  maps:
+  - type: bug
+    value: '02000010110129'
+- !ruleMap
+  name: numeric_truncation_error
+  maps:
+  - type: bug
+    value: '02000010130141'
+  - type: cert
+    value: '02000010140512'
+  - type: YD/T 3464-2019
+    value: '02000010160036'
+- !ruleMap
+  name: code_correctness_call_to_system_gc
+  maps:
+  - type: bug
+    value: '02000010070001'
+  - type: std
+    value: '02000010150101'
+- !ruleMap
+  name: unauthenticated_service_redis
+  maps:
+  - type: bug
+    value: '02000010130147'
+- !ruleMap
+  name: javaee_input_password_plaintext
+  maps:
+  - type: bug
+    value: '02000010080102'
+- !ruleMap
+  name: j2ee_bad_practices_leftover_debug_code
+  maps:
+  - type: bug
+    value: '02000010110031'
+  - type: cert
+    value: '02000010141706'
+  - type: std
+    value: '02000010150403'
+- !ruleMap
+  name: struts_duplicate_validation_forms
+  maps:
+  - type: bug
+    value: '02000010110017'
+- !ruleMap
+  name: class_does_not_declaration_final
+  maps:
+  - type: bug
+    value: '02000010130113'
+- !ruleMap
+  name: hardcoded_ip
+  maps:
+  - type: bug
+    value: '02000010110092'
+  - type: cert
+    value: '02000010141803'
+  - type: YD/T 3464-2019
+    value: '02000010160151'
+  - type: guide
+    value: '02000010170018'
+- !ruleMap
+  name: hardcoded_url
+  maps:
+  - type: bug
+    value: '02000010110098'
+  - type: cert
+    value: '02000010141803'
+  - type: YD/T 3464-2019
+    value: '02000010160151'
+  - type: guide
+    value: '02000010170018'
+- !ruleMap
+  name: use_unnecessary_thread_safe_class
+  maps:
+  - type: bug
+    value: '02000010000020'
+- !ruleMap
+  name: ognl_expression_injection_struts_2
+  maps:
+  - type: bug
+    value: '02000010050026'
+- !ruleMap
+  name: avoid_loss_of_precision_when_converting_primitive_integers_to_floating_point
+  maps:
+  - type: cert
+    value: '02000010140513'
+  - type: YD/T 3464-2019
+    value: '02000010160037'
+- !ruleMap
+  name: do_not_increase_the_accessibility_of_overridden_or_hidden_methods
+  maps:
+  - type: cert
+    value: '02000010140704'
+  - type: YD/T 3464-2019
+    value: '02000010160054'
+  - type: guide
+    value: '02000010170032'
+- !ruleMap
+  name: j2ee_bad_practices_sockets
+  maps:
+  - type: bug
+    value: '02000010110062'
+- !ruleMap
+  name: formula_injection
+  maps:
+  - type: bug
+    value: '02000010020024'
+- !ruleMap
+  name: privilege_management_dangerous_intent_permission
+  maps:
+  - type: bug
+    value: '02000010060112'
+- !ruleMap
+  name: weak_encryption_missing_required_step
+  maps:
+  - type: bug
+    value: '02000010080018'
+- !ruleMap
+  name: object_model_violation_just_one_of_restorestate_and_savestate_defined
+  maps:
+  - type: bug
+    value: '02000010130024'
+- !ruleMap
+  name: wrong_order_of_parameters
+  maps:
+  - type: bug
+    value: '02000010130160'
+- !ruleMap
+  name: struts_misconfiguration_duplicate_form_bean
+  maps:
+  - type: bug
+    value: '02000010100021'
+- !ruleMap
+  name: j2ee_bad_practices_insufficient_session_expiration
+  maps:
+  - type: bug
+    value: '02000010110070'
+  - type: std
+    value: '02000010150405'
+- !ruleMap
+  name: unsafe_mobile_code_unsafe_public_field
+  maps:
+  - type: bug
+    value: '02000010110071'
+- !ruleMap
+  name: unsafe_mobile_code_access_violation
+  maps:
+  - type: bug
+    value: '02000010110072'
+- !ruleMap
+  name: insecure_storage_android_external_storage
+  maps:
+  - type: bug
+    value: '02000010110103'
+- !ruleMap
+  name: sanitize_untrusted_data_passed_to_the_runtime_exec_method_possible
+  maps:
+  - type: bug
+    value: '02000010020022'
+  - type: cert
+    value: '02000010140207'
+  - type: YD/T 3464-2019
+    value: '02000010160008'
+  - type: guide
+    value: '02000010170003'
+- !ruleMap
+  name: print_error_message_using_printstacktrace
+  maps:
+  - type: bug
+    value: '02000010110091'
+  - type: cert
+    value: '02000010140801'
+  - type: std
+    value: '02000010150428'
+- !ruleMap
+  name: cross_site_scripting_poor_validation
+  maps:
+  - type: bug
+    value: '02000010030101'
+- !ruleMap
+  name: command_injection_possible
+  maps:
+  - type: bug
+    value: '02000010020022'
+- !ruleMap
+  name: unhandled_error
+  maps:
+  - type: bug
+    value: '02000010120009'
+- !ruleMap
+  name: server_side_template_injection
+  maps:
+  - type: bug
+    value: '02000010020029'
+- !ruleMap
+  name: axis_2_misconfiguration_debug_information
+  maps:
+  - type: bug
+    value: '02000010100031'
+- !ruleMap
+  name: code_correctness_byte_array_to_string_conversion
+  maps:
+  - type: bug
+    value: '02000010130032'
+  - type: cert
+    value: '02000010142003'
+- !ruleMap
+  name: poor_error_handling_throw_inside_finally
+  maps:
+  - type: bug
+    value: '02000010120006'
+  - type: cert
+    value: '02000010140805'
+  - type: std
+    value: '02000010150504'
+  - type: YD/T 3464-2019
+    value: '02000010160068'
+  - type: guide
+    value: '02000010170057'
+- !ruleMap
+  name: empty_block
+  maps:
+  - type: bug
+    value: '02000010130130'
+- !ruleMap
+  name: missing_break_statement_in_switch_statement
+  maps:
+  - type: bug
+    value: '02000010130111'
+- !ruleMap
+  name: anonymous_inner_classes_use_non_static_initializer
+  maps:
+  - type: bug
+    value: '02000010000022'
+- !ruleMap
+  name: denial_of_service
+  maps:
+  - type: bug
+    value: '02000010050002'
+  - type: guide
+    value: '02000010170062'
+- !ruleMap
+  name: call_to_condition_wait
+  maps:
+  - type: bug
+    value: '02000010070029'
+  - type: std
+    value: '02000010150108'
+- !ruleMap
+  name: unsafe_mobile_code_unsafe_array_declaration
+  maps:
+  - type: bug
+    value: '02000010130114'
+  - type: cert
+    value: '02000010140613'
+  - type: guide
+    value: '02000010170029'
+- !ruleMap
+  name: race_condition_class_initialization_cycle
+  maps:
+  - type: bug
+    value: '02000010110090'
+  - type: cert
+    value: '02000010140300'
+  - type: YD/T 3464-2019
+    value: '02000010160015'
+- !ruleMap
+  name: j2ee_misconfiguration_unsafe_bean_declaration
+  maps:
+  - type: bug
+    value: '02000010100020'
+- !ruleMap
+  name: cookie_security_httponly_not_set
+  maps:
+  - type: bug
+    value: '02000010000006'
+  - type: std
+    value: '02000010150447'
+- !ruleMap
+  name: struts_2_validation_file_without_action
+  maps:
+  - type: bug
+    value: '02000010110015'
+- !ruleMap
+  name: cookie_security_persistent_cookie
+  maps:
+  - type: bug
+    value: '02000010110008'
+- !ruleMap
+  name: insecure_transport_database
+  maps:
+  - type: bug
+    value: '02000010020134'
+- !ruleMap
+  name: struts_misconfiguration_missing_action_input
+  maps:
+  - type: bug
+    value: '02000010100023'
+- !ruleMap
+  name: use_weak_ssl_protocol
+  maps:
+  - type: std
+    value: '02000010150439'
+- !ruleMap
+  name: android_bad_practices_sticky_broadcast
+  maps:
+  - type: bug
+    value: '02000010060104'
+- !ruleMap
+  name: unsafe_mutable_object_declarations
+  maps:
+  - type: bug
+    value: '02000010130143'
+  - type: cert
+    value: '02000010140613'
+  - type: guide
+    value: '02000010170029'
+- !ruleMap
+  name: do_not_synchronize_on_a_collection_view_if_the_backing_collection_is_accessible
+  maps:
+  - type: cert
+    value: '02000010141004'
+  - type: YD/T 3464-2019
+    value: '02000010160083'
+  - type: guide
+    value: '02000010170038'
+- !ruleMap
+  name: use_equals_or_hashcode_methods_on_urls
+  maps:
+  - type: bug
+    value: '02000010110202'
+  - type: std
+    value: '02000010150452'
+- !ruleMap
+  name: provide_methods_to_read_and_write_little_endian_data
+  maps:
+  - type: cert
+    value: '02000010141412'
+  - type: YD/T 3464-2019
+    value: '02000010160118'
+- !ruleMap
+  name: android_bad_practices_mixed_component_functionality
+  maps:
+  - type: bug
+    value: '02000010110114'
+- !ruleMap
+  name: use_nullcipher
+  maps:
+  - type: std
+    value: '02000010150115'
+- !ruleMap
+  name: preserve_the_equality_contract_when_overriding_the_equals_method
+  maps:
+  - type: cert
+    value: '02000010140708'
+- !ruleMap
+  name: j2ee_misconfiguration_missing_error_handling
+  maps:
+  - type: bug
+    value: '02000010100015'
+- !ruleMap
+  name: immutable_classes_field_mutation
+  maps:
+  - type: bug
+    value: '02000010070023'
+- !ruleMap
+  name: poor_style_redundant_initialization
+  maps:
+  - type: bug
+    value: '02000010130014'
+- !ruleMap
+  name: dead_code_unused_method
+  maps:
+  - type: bug
+    value: '02000010130007'
+- !ruleMap
+  name: mass_assignment_sensitive_field_exposure
+  maps:
+  - type: bug
+    value: '02000010130149'
+- !ruleMap
+  name: return_generic_wildcard_type_in_method
+  maps:
+  - type: bug
+    value: '02000010000026'
+- !ruleMap
+  name: password_management_password_in_configuration_file
+  maps:
+  - type: bug
+    value: '02000010080015'
+- !ruleMap
+  name: insecure_ssl_overly_broad_certificate_trust
+  maps:
+  - type: bug
+    value: '02000010060119'
+- !ruleMap
+  name: struts_unused_validation_form
+  maps:
+  - type: bug
+    value: '02000010110023'
+- !ruleMap
+  name: process_control
+  maps:
+  - type: bug
+    value: '02000010050016'
+- !ruleMap
+  name: nosql_injection_dynamodb
+  maps:
+  - type: bug
+    value: '02000010020034'
+- !ruleMap
+  name: set_the_scheduledthreadpoolexecutor_maximum_number_of_threads
+  maps:
+  - type: std
+    value: '02000010150118'
+- !ruleMap
+  name: struts_misconfiguration_missing_form_bean_type
+  maps:
+  - type: bug
+    value: '02000010100027'
+- !ruleMap
+  name: ensure_the_array_is_filled_when_using_read_to_fill_an_array
+  maps:
+  - type: cert
+    value: '02000010141410'
+  - type: YD/T 3464-2019
+    value: '02000010160116'
+- !ruleMap
+  name: use_the_number_constructor
+  maps:
+  - type: bug
+    value: '02000010110201'
+  - type: std
+    value: '02000010150454'
+- !ruleMap
+  name: empty_if_block
+  maps:
+  - type: bug
+    value: '02000010130030'
+- !ruleMap
+  name: unsafe_jsni
+  maps:
+  - type: bug
+    value: '02000010130148'
+- !ruleMap
+  name: poor_style_confusing_namingclass_and_member
+  maps:
+  - type: bug
+    value: '02000010130010'
+- !ruleMap
+  name: race_condition_static_database_connection
+  maps:
+  - type: bug
+    value: '02000010090005'
+  - type: std
+    value: '02000010150303'
+- !ruleMap
+  name: code_correctness_invalid_call_to_object_equals
+  maps:
+  - type: bug
+    value: '02000010110088'
+  - type: cert
+    value: '02000010140402'
+  - type: std
+    value: '02000010150112'
+  - type: YD/T 3464-2019
+    value: '02000010160020'
+- !ruleMap
+  name: try_block_in_loop
+  maps:
+  - type: bug
+    value: '02000010110138'
+- !ruleMap
+  name: struts_form_field_without_validator
+  maps:
+  - type: bug
+    value: '02000010110020'
+- !ruleMap
+  name: do_not_use_reflection_to_increase_accessibility_of_classes_methods_or_fields
+  maps:
+  - type: cert
+    value: '02000010141605'
+  - type: YD/T 3464-2019
+    value: '02000010160138'
+- !ruleMap
+  name: header_manipulation_cookies
+  maps:
+  - type: bug
+    value: '02000010020106'
+- !ruleMap
+  name: struts_plugin_framework_not_in_use
+  maps:
+  - type: bug
+    value: '02000010110021'
+- !ruleMap
+  name: key_management_null_encryption_key
+  maps:
+  - type: bug
+    value: '02000010130152'
+- !ruleMap
+  name: privilege_management_android_location
+  maps:
+  - type: bug
+    value: '02000010060102'
+- !ruleMap
+  name: j2ee_misconfiguration_direct_jsp_access
+  maps:
+  - type: bug
+    value: '02000010100003'
+- !ruleMap
+  name: access_specifier_manipulation
+  maps:
+  - type: bug
+    value: '02000010050053'
+  - type: cert
+    value: '02000010141605'
+  - type: YD/T 3464-2019
+    value: '02000010160138'
+- !ruleMap
+  name: object_model_violation_just_one_of_equals_and_hashcode_defined
+  maps:
+  - type: bug
+    value: '02000010070016'
+  - type: cert
+    value: '02000010140709'
+  - type: YD/T 3464-2019
+    value: '02000010160059'
+- !ruleMap
+  name: insecure_sanitizer_policy
+  maps:
+  - type: bug
+    value: '02000010030005'
+- !ruleMap
+  name: privilege_management_overriding_permission_verification
+  maps:
+  - type: bug
+    value: '02000010060111'
+- !ruleMap
+  name: missing_xml_validation_untyped_response
+  maps:
+  - type: bug
+    value: '02000010050052'
+  - type: cert
+    value: '02000010140216'
+  - type: guide
+    value: '02000010170005'
+- !ruleMap
+  name: never_use_assertions_to_validate_method_arguments
+  maps:
+  - type: cert
+    value: '02000010140701'
+  - type: YD/T 3464-2019
+    value: '02000010160051'
+- !ruleMap
+  name: file_based_cross_zone_scripting
+  maps:
+  - type: bug
+    value: '02000010130105'
+- !ruleMap
+  name: weak_cryptographic_hash_missing_required_step
+  maps:
+  - type: bug
+    value: '02000010080052'
+- !ruleMap
+  name: privilege_management_missing_intent_permission
+  maps:
+  - type: bug
+    value: '02000010110106'
+- !ruleMap
+  name: code_correctness_erroneous_finalize_method
+  maps:
+  - type: bug
+    value: '02000010070003'
+  - type: cert
+    value: '02000010140712'
+  - type: YD/T 3464-2019
+    value: '02000010160062'
+- !ruleMap
+  name: password_management_hardcoded_password
+  maps:
+  - type: bug
+    value: '02000010080004'
+  - type: cert
+    value: '02000010141803'
+  - type: YD/T 3464-2019
+    value: '02000010160151'
+  - type: guide
+    value: '02000010170018'
+- !ruleMap
+  name: open_redirect
+  maps:
+  - type: bug
+    value: '02000010050010'
+- !ruleMap
+  name: weak_encryption_inadequate_rsa_padding
+  maps:
+  - type: bug
+    value: '02000010080012'
+  - type: std
+    value: '02000010150203'
+- !ruleMap
+  name: prevent_exceptions_while_logging_data
+  maps:
+  - type: cert
+    value: '02000010140802'
+  - type: YD/T 3464-2019
+    value: '02000010160065'
+- !ruleMap
+  name: code_correctness_hidden_method
+  maps:
+  - type: bug
+    value: '02000010110086'
+  - type: cert
+    value: '02000010140707'
+  - type: std
+    value: '02000010150423'
+  - type: YD/T 3464-2019
+    value: '02000010160057'
+  - type: guide
+    value: '02000010170033'
+- !ruleMap
+  name: code_correctness_misleading_method_signature
+  maps:
+  - type: bug
+    value: '02000010110047'
+- !ruleMap
+  name: hardcoded_password_std
+  maps:
+  - type: bug
+    value: '02000010080004'
+  - type: cert
+    value: '02000010141803'
+  - type: std
+    value: '02000010150210'
+  - type: YD/T 3464-2019
+    value: '02000010160151'
+  - type: guide
+    value: '02000010170018'
+- !ruleMap
+  name: application_map_tampering
+  maps:
+  - type: bug
+    value: '02000010130038'
+- !ruleMap
+  name: android_bad_practices_use_of_released_sqlite_resource
+  maps:
+  - type: bug
+    value: '02000010110110'
+- !ruleMap
+  name: j2ee_misconfiguration_debug_information
+  maps:
+  - type: bug
+    value: '02000010100002'
+- !ruleMap
+  name: struts_2_validator_without_action_field
+  maps:
+  - type: bug
+    value: '02000010110016'
+- !ruleMap
+  name: system_information_leak_spring_boot_actuator
+  maps:
+  - type: bug
+    value: '02000010020141'
+- !ruleMap
+  name: struts_2_duplicate_validation_files
+  maps:
+  - type: bug
+    value: '02000010110011'
+- !ruleMap
+  name: sql_injection_persistence_possible
+  maps:
+  - type: bug
+    value: '02000010020021'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: code_correctness_comparison_of_boxed_primitive_types
+  maps:
+  - type: bug
+    value: '02000010110051'
+  - type: cert
+    value: '02000010140403'
+  - type: std
+    value: '02000010150410'
+  - type: YD/T 3464-2019
+    value: '02000010160021'
+- !ruleMap
+  name: define_wrappers_around_native_methods
+  maps:
+  - type: cert
+    value: '02000010141900'
+- !ruleMap
+  name: resource_injection
+  maps:
+  - type: bug
+    value: '02000010050009'
+- !ruleMap
+  name: android_bad_practices_unnecessary_component_exposure
+  maps:
+  - type: bug
+    value: '02000010110117'
+- !ruleMap
+  name: hardcode_phone_number
+  maps:
+  - type: bug
+    value: '02000010110136'
+- !ruleMap
+  name: activity_hijacked
+  maps:
+  - type: bug
+    value: '02000010110126'
+- !ruleMap
+  name: ldap_injection_possible
+  maps:
+  - type: bug
+    value: '02000010020023'
+- !ruleMap
+  name: struts_2_undeclared_validator
+  maps:
+  - type: bug
+    value: '02000010110013'
+- !ruleMap
+  name: code_correctness_call_to_notify
+  maps:
+  - type: bug
+    value: '02000010110041'
+  - type: cert
+    value: '02000010141102'
+  - type: std
+    value: '02000010150110'
+  - type: YD/T 3464-2019
+    value: '02000010160093'
+  - type: guide
+    value: '02000010170041'
+- !ruleMap
+  name: android_bad_practices_leftover_debug_code
+  maps:
+  - type: bug
+    value: '02000010110096'
+- !ruleMap
+  name: j2ee_misconfiguration_missing_data_transport_constraint
+  maps:
+  - type: bug
+    value: '02000010100014'
+- !ruleMap
+  name: xml_entity_expansion_injection
+  maps:
+  - type: bug
+    value: '02000010050021'
+- !ruleMap
+  name: privacy_violation_android_internal_storage
+  maps:
+  - type: bug
+    value: '02000010110120'
+- !ruleMap
+  name: call_a_dangerous_method_in_the_serialized_class
+  maps:
+  - type: bug
+    value: '02000010060115'
+- !ruleMap
+  name: cross_site_scripting_reflected
+  maps:
+  - type: bug
+    value: '02000010030003'
+  - type: guide
+    value: '02000010170008'
+- !ruleMap
+  name: insecure_transport
+  maps:
+  - type: bug
+    value: '02000010110030'
+  - type: cert
+    value: '02000010141800'
+- !ruleMap
+  name: create_folders_using_temporary_files
+  maps:
+  - type: std
+    value: '02000010150445'
+- !ruleMap
+  name: struts_misconfiguration_missing_forward_path
+  maps:
+  - type: bug
+    value: '02000010100030'
+- !ruleMap
+  name: code_correctness_tostring_on_array
+  maps:
+  - type: bug
+    value: '02000010070006'
+  - type: std
+    value: '02000010150104'
+- !ruleMap
+  name: session_fixation
+  maps:
+  - type: bug
+    value: '02000010090012'
+- !ruleMap
+  name: missing_securitymanager_check_serializable
+  maps:
+  - type: bug
+    value: '02000010110066'
+- !ruleMap
+  name: portability_flaw_locale_dependent_comparison
+  maps:
+  - type: bug
+    value: '02000010110085'
+  - type: cert
+    value: '02000010142002'
+  - type: YD/T 3464-2019
+    value: '02000010160010'
+  - type: guide
+    value: '02000010170007'
+- !ruleMap
+  name: empty_else_block
+  maps:
+  - type: bug
+    value: '02000010130031'
+- !ruleMap
+  name: incorrect_comparison_operator
+  maps:
+  - type: bug
+    value: '02000010130109'
+- !ruleMap
+  name: xslt_injection
+  maps:
+  - type: bug
+    value: '02000010050018'
+- !ruleMap
+  name: optional_may_be_null
+  maps:
+  - type: std
+    value: '02000010150431'
+- !ruleMap
+  name: call_unsafe_threadgroup_methods
+  maps:
+  - type: bug
+    value: '02000010090007'
+  - type: cert
+    value: '02000010141101'
+  - type: std
+    value: '02000010150602'
+  - type: YD/T 3464-2019
+    value: '02000010160092'
+  - type: guide
+    value: '02000010170042'
+- !ruleMap
+  name: j2ee_misconfiguration_missing_filter_definition
+  maps:
+  - type: bug
+    value: '02000010100016'
+- !ruleMap
+  name: weak_cryptographic_hash_hardcoded_pbe_salt
+  maps:
+  - type: bug
+    value: '02000010080053'
+  - type: std
+    value: '02000010150207'
+- !ruleMap
+  name: unreleased_resource_android_camera
+  maps:
+  - type: bug
+    value: '02000010130102'
+- !ruleMap
+  name: system_information_leak_html_comment_in_jsp
+  maps:
+  - type: bug
+    value: '02000010110037'
+- !ruleMap
+  name: insecure_ssl_android_hostname_verification_disabled
+  maps:
+  - type: bug
+    value: '02000010060106'
+  - type: std
+    value: '02000010150434'
+- !ruleMap
+  name: dynamic_code_evaluation_jndi_reference_injection
+  maps:
+  - type: bug
+    value: '02000010020028'
+- !ruleMap
+  name: nested_for_depth_check
+  maps:
+  - type: bug
+    value: '02000010130163'
+- !ruleMap
+  name: nested_if_depth_check
+  maps:
+  - type: bug
+    value: '02000010130164'
+- !ruleMap
+  name: constant_name_check
+  maps:
+  - type: bug
+    value: '02000010130165'
+- !ruleMap
+  name: method_length_check
+  maps:
+  - type: bug
+    value: '02000010130166'
+- !ruleMap
+  name: dead_code_empty_try_block
+  maps:
+  - type: bug
+    value: '02000010130003'
+  - type: std
+    value: '02000010150415'
+- !ruleMap
+  name: key_management_hardcoded_encryption_key
+  maps:
+  - type: bug
+    value: '02000010130122'
+  - type: cert
+    value: '02000010141803'
+  - type: YD/T 3464-2019
+    value: '02000010160151'
+  - type: guide
+    value: '02000010170016'
+- !ruleMap
+  name: key_management_hardcoded_oss_sdk_credential
+  maps:
+  - type: bug
+    value: '02000010130154'
+- !ruleMap
+  name: javaee_unsafe_get_requests
+  maps:
+  - type: bug
+    value: '02000010130134'
+  - type: cert
+    value: '02000010141800'
+- !ruleMap
+  name: equals_method_does_not_detect_parameter_types
+  maps:
+  - type: bug
+    value: '02000010000025'
+- !ruleMap
+  name: weak_xml_schema_lax_processing
+  maps:
+  - type: bug
+    value: '02000010100032'
+- !ruleMap
+  name: immutable_classes_public_mutable_fields
+  maps:
+  - type: bug
+    value: '02000010070025'
+- !ruleMap
+  name: weak_encryption_byte_array_to_string_conversion
+  maps:
+  - type: bug
+    value: '02000010080056'
+  - type: cert
+    value: '02000010142003'
+- !ruleMap
+  name: sql_injection_hibernate_possible
+  maps:
+  - type: bug
+    value: '02000010020019'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: divide_by_zero
+  maps:
+  - type: bug
+    value: '02000010130139'
+- !ruleMap
+  name: use_gethost_to_determine_the_domain_name
+  maps:
+  - type: bug
+    value: '02000010110127'
+- !ruleMap
+  name: store_sensitive_information_in_clear_text_in_cookies
+  maps:
+  - type: bug
+    value: '02000010130123'
+- !ruleMap
+  name: insecure_ssl_overly_broad_certificate_trust_possible
+  maps:
+  - type: bug
+    value: '02000010060200'
+- !ruleMap
+  name: struts_2_bad_practices_dynamic_method_invocation
+  maps:
+  - type: bug
+    value: '02000010130040'
+- !ruleMap
+  name: request_map_tampering
+  maps:
+  - type: bug
+    value: '02000010130037'
+- !ruleMap
+  name: call_system_runfinalizersonexit
+  maps:
+  - type: bug
+    value: '02000010060002'
+  - type: std
+    value: '02000010150601'
+- !ruleMap
+  name: password_management_empty_password
+  maps:
+  - type: bug
+    value: '02000010080003'
+  - type: std
+    value: '02000010150209'
+  - type: guide
+    value: '02000010170023'
+- !ruleMap
+  name: unreleased_resource_synchronization
+  maps:
+  - type: bug
+    value: '02000010130021'
+  - type: cert
+    value: '02000010141008'
+  - type: YD/T 3464-2019
+    value: '02000010160087'
+  - type: guide
+    value: '02000010170040'
+- !ruleMap
+  name: insecure_ssl_android_socket
+  maps:
+  - type: bug
+    value: '02000010060105'
+  - type: guide
+    value: '02000010170070'
+- !ruleMap
+  name: weak_cryptographic_hash_hardcoded_salt
+  maps:
+  - type: bug
+    value: '02000010080010'
+  - type: cert
+    value: '02000010141803'
+  - type: YD/T 3464-2019
+    value: '02000010160151'
+  - type: guide
+    value: '02000010170018'
+- !ruleMap
+  name: code_correctness_null_argument_to_equals
+  maps:
+  - type: bug
+    value: '02000010130002'
+  - type: std
+    value: '02000010150414'
+- !ruleMap
+  name: race_condition_format_flaw
+  maps:
+  - type: bug
+    value: '02000010090003'
+  - type: std
+    value: '02000010150301'
+  - type: guide
+    value: '02000010170048'
+- !ruleMap
+  name: poor_error_handling_unhandled_ssl_exception
+  maps:
+  - type: bug
+    value: '02000010120007'
+  - type: std
+    value: '02000010150503'
+  - type: guide
+    value: '02000010170059'
+- !ruleMap
+  name: dynamic_code_evaluation_code_injection
+  maps:
+  - type: bug
+    value: '02000010020014'
+- !ruleMap
+  name: often_misused_file_system
+  maps:
+  - type: bug
+    value: '02000010000011'
+- !ruleMap
+  name: privilege_management_android_disable
+  maps:
+  - type: bug
+    value: '02000010060109'
+- !ruleMap
+  name: do_not_convert_between_strings_and_bytes_without_specifying_a_valid_character_encoding
+  maps:
+  - type: YD/T 3464-2019
+    value: '02000010160117'
+- !ruleMap
+  name: insecure_storage_s3_write_acp_anonymous_access
+  maps:
+  - type: bug
+    value: '02000010110145'
+- !ruleMap
+  name: ldap_manipulation
+  maps:
+  - type: bug
+    value: '02000010020036'
+- !ruleMap
+  name: internal_rule
+  maps:
+  - type: bug
+    value: '02000000060000'
+- !ruleMap
+  name: access_control_case_insensitive_package_name_comparison
+  maps:
+  - type: bug
+    value: '02000010090014'
+- !ruleMap
+  name: useless_semicolon
+  maps:
+  - type: bug
+    value: '02000010130131'
+- !ruleMap
+  name: remove_temporary_files_before_termination
+  maps:
+  - type: cert
+    value: '02000010141403'
+  - type: YD/T 3464-2019
+    value: '02000010160109'
+  - type: guide
+    value: '02000010170066'
+- !ruleMap
+  name: privilege_management_android_messaging
+  maps:
+  - type: bug
+    value: '02000010060101'
+- !ruleMap
+  name: insecure_storage_s3_read_anonymous_access
+  maps:
+  - type: bug
+    value: '02000010110143'
+- !ruleMap
+  name: use_reclaimed_bitmaps
+  maps:
+  - type: bug
+    value: '02000010110128'
+- !ruleMap
+  name: ognl_expression_injection_dynamic_method_invocation
+  maps:
+  - type: bug
+    value: '02000010050057'
+- !ruleMap
+  name: j2ee_misconfiguration_missing_security_role
+  maps:
+  - type: bug
+    value: '02000010100017'
+- !ruleMap
+  name: weak_cryptographic_signature_missing_required_step
+  maps:
+  - type: bug
+    value: '02000010080051'
+  - type: guide
+    value: '02000010170021'
+- !ruleMap
+  name: xpath_injection
+  maps:
+  - type: bug
+    value: '02000010020012'
+- !ruleMap
+  name: sanitize_untrusted_data_passed_to_the_runtime_exec_method
+  maps:
+  - type: bug
+    value: '02000010020001'
+  - type: cert
+    value: '02000010140207'
+  - type: YD/T 3464-2019
+    value: '02000010160008'
+  - type: guide
+    value: '02000010170003'
+- !ruleMap
+  name: password_management_password_in_comment
+  maps:
+  - type: bug
+    value: '02000010080006'
+  - type: guide
+    value: '02000010170017'
+- !ruleMap
+  name: android_bad_practices_missing_component_permission
+  maps:
+  - type: bug
+    value: '02000010110112'
+- !ruleMap
+  name: incorrect_assignment_operator
+  maps:
+  - type: bug
+    value: '02000010130127'
+- !ruleMap
+  name: session_map_tampering
+  maps:
+  - type: bug
+    value: '02000010130036'
+- !ruleMap
+  name: android_bad_practices_use_of_released_media_resource
+  maps:
+  - type: bug
+    value: '02000010110108'
+- !ruleMap
+  name: header_manipulation_smtp
+  maps:
+  - type: bug
+    value: '02000010020051'
+- !ruleMap
+  name: j2ee_misconfiguration_cookies_disabled
+  maps:
+  - type: bug
+    value: '02000010100001'
+- !ruleMap
+  name: sql_injection_ibatis_data_map
+  maps:
+  - type: bug
+    value: '02000010020017'
+  - type: cert
+    value: '02000010140230'
+  - type: YD/T 3464-2019
+    value: '02000010160001'
+  - type: guide
+    value: '02000010170001'
+- !ruleMap
+  name: sql_injection_mybatis_plus
+  maps:
+  - type: bug
+    value: '02000010020039'
+- !ruleMap
+  name: often_misused_spring_web_service
+  maps:
+  - type: bug
+    value: '02000010110151'
+- !ruleMap
+  name: often_misused_spring_remote_service
+  maps:
+  - type: bug
+    value: '02000010110152'
+- !ruleMap
+  name: use_guomi_algorithm
+  maps:
+  - type: bug
+    value: '02000010110172'
+- !ruleMap
+  name: '@check_return_value'
+  maps:
+  - type: bug
+    value: '02000010070022'

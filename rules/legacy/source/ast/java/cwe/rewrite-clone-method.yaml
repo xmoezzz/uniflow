@@ -1,0 +1,16 @@
+id: rewrite-clone-method
+message: '0202000010070015'
+language: Java
+rule:
+  kind: method_declaration
+  all:
+    - has:
+        field: name
+        pattern: clone
+    - not:
+        has:
+          field: body
+          has:
+            stopBy: end
+            kind: method_invocation
+            pattern: super.clone()

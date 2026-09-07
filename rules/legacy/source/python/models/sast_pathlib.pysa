@@ -1,0 +1,41 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                pathlib
+
+# DataflowSourceRule pathlib 4
+# [{'NamespaceName': 'pathlib', 'ClassName': 'Path', 'FunctionName': 'read_(text|bytes)', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'pathlib', 'ClassName': 'Path', 'FunctionName': 'home|expanduser', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'pathlib', 'ClassName': 'Path', 'FunctionName': 'cwd', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'pathlib', 'ClassName': 'Path', 'FunctionName': 'owner', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pathlib_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^pathlib\.Path\.owner$"),
+      name.matches("^pathlib\.Path\.(read_(text|bytes))"),
+      name.matches("^pathlib\.Path\.(home|expanduser)"),
+      name.matches("^pathlib\.Path\.cwd$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule pathlib 3
+# [{'NamespaceName': 'pathlib', 'ClassName': 'Path', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'pathlib', 'ClassName': 'Path', 'FunctionName': 'symlink_to|rename|replace', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'pathlib', 'ClassName': 'Path', 'FunctionName': 'write_(text|bytes)', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pathlib_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^pathlib\.Path\.(write_(text|bytes))"),
+      name.matches("^pathlib\.Path\.(symlink_to|rename|replace)"),
+      name.matches("^pathlib\.Path\.__init__")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_privacy_violation]
+    )
+  ]
+)

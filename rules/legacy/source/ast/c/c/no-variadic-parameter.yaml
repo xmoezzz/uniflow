@@ -1,0 +1,8 @@
+id: no-variadic-parameter
+message: '0701000010130066,0601000010140005'
+language: C
+rule:
+  all:
+    - kind: variadic_parameter
+    - inside:
+        kind: parameter_list

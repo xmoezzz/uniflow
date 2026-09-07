@@ -1,0 +1,13 @@
+id: no-semicolon-after-for-if-while
+message: '2401000010120092'
+language: C
+rule:
+  all:
+    - any:
+        - kind: for_statement
+        - kind: if_statement
+        - kind: while_statement
+    - has:
+        kind: expression_statement
+        regex: "^;$"
+

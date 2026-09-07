@@ -1,0 +1,26 @@
+id: static-private-final-objectstreamfield
+message: '0202000010110046'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+    - has:
+        kind: variable_declarator
+        has:
+          field: name
+          regex: ^serialPersistentFields$
+    - not:
+        has:
+          kind: modifiers
+          all:
+            - any:
+              - regex: private
+              - not:
+                  any:
+                    - regex: public
+                    - regex: protected
+            - regex: static
+            - regex: final
+    - has:
+        field: type
+        regex: ^(.*\.)?ObjectStreamField

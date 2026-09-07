@@ -1,0 +1,10 @@
+id: org.igniterealtime.smack.smack-tcp
+language: Java
+message: pkg:maven/org.igniterealtime.smack/smack-tcp
+metadata:
+  purl: pkg:maven/org.igniterealtime.smack/smack-tcp
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jivesoftware\.smack\.tcp\.rce|org\.jivesoftware\.smack\.tcp|org\.jivesoftware\.smack\.sm\.predicates\.tcp)\.

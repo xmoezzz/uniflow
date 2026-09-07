@@ -1,0 +1,10 @@
+id: org.infinispan.infinispan-commons
+language: Java
+message: pkg:maven/org.infinispan/infinispan-commons
+metadata:
+  purl: pkg:maven/org.infinispan/infinispan-commons
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.infinispan\.commons\.configuration\.io\.xml|org\.infinispan\.configuration\.cache|org\.infinispan\.commons\.spi|org\.infinispan\.commons\.logging|org\.infinispan\.commons\.hash|org\.infinispan\.commons\.dataconversion\.internal|org\.infinispan\.commons\.jdkspecific|org\.infinispan\.counter\.exception|org\.infinispan\.commons\.api\.query|org\.infinispan\.commons\.logging\.log4j|org\.infinispan\.commons\.configuration\.io|org\.infinispan\.commons\.util\.concurrent|org\.infinispan\.counter\.api|org\.infinispan\.commons\.executors|org\.infinispan\.commons\.dataconversion|org\.infinispan\.commons\.util|org\.infinispan\.commons|org\.infinispan\.commons\.jmx|org\.infinispan\.commons\.configuration|org\.infinispan\.commons\.configuration\.attributes|org\.infinispan\.commons\.marshall|org\.infinispan\.commons\.marshall\.exts|org\.infinispan\.commons\.internal|org\.infinispan\.lock\.exception|org\.infinispan\.commons\.persistence|org\.infinispan\.commons\.configuration\.io\.yaml|org\.infinispan\.lock\.api|org\.infinispan\.commons\.tx\.lookup|org\.infinispan\.counter\.util|org\.infinispan\.commons\.io|org\.infinispan\.commons\.api|org\.infinispan\.commons\.stat|org\.infinispan\.commons\.maven|org\.infinispan\.commons\.tx|org\.infinispan\.commons\.util\.logging|META-INF\.versions\.21\.org\.infinispan\.commons\.jdk21|org\.infinispan\.commons\.reactive|org\.infinispan\.commons\.time|org\.infinispan\.multimap\.api|org\.infinispan\.commons\.configuration\.io\.json)\.

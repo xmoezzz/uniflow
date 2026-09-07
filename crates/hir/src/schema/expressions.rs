@@ -55,10 +55,68 @@ pub enum Expr {
         expr: Box<Expr>,
         span: Span,
     },
+    /// `cond ? a : b`, `a and b or c`, Ruby/Shell ternaries. The result carries
+    /// data from whichever branch is taken.
+    Conditional {
+        id: ExprId,
+        cond: Box<Expr>,
+        then_expr: Box<Expr>,
+        else_expr: Box<Expr>,
+        span: Span,
+    },
+    /// Assignment used in expression position, e.g. `while ((line = read()) != nil)`.
+    /// The value of the expression is the assigned value.
+    Assign {
+        id: ExprId,
+        lhs: LValue,
+        rhs: Box<Expr>,
+        span: Span,
+    },
+    /// String interpolation: the literal text and the embedded expressions in
+    /// source order. Frontends keep constant parts so a checker can still read
+    /// the command prefix a tainted value was interpolated into.
+    Interp {
+        id: ExprId,
+        parts: Vec<Expr>,
+        span: Span,
+    },
+    /// Container literal (`[a, b]`, `{k: v}`, `(a, b)`, `${a}`, `$(a)`). Elements
+    /// are stored flat; a `Dict` alternates key and value.
+    Collection {
+        id: ExprId,
+        container: CollectionKind,
+        elements: Vec<Expr>,
+        span: Span,
+    },
+    /// Ranges (`1..5`, `1...n`, Ruby `..`, Go/SQL `between`).
+    Range {
+        id: ExprId,
+        low: Box<Expr>,
+        high: Box<Expr>,
+        /// True for exclusive upper bounds.
+        exclusive: bool,
+        span: Span,
+    },
+    /// A construct the frontend recognized but cannot model (JSX, a JSP tag, a
+    /// shell pipeline stage). Keeps the source text for diagnostics.
+    Opaque {
+        id: ExprId,
+        text: String,
+        span: Span,
+    },
     Unknown {
         id: ExprId,
         span: Span,
     },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CollectionKind {
+    List,
+    Set,
+    Tuple,
+    Map,
+    Array,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -66,6 +124,10 @@ pub struct CallExpr {
     pub id: ExprId,
     pub target: CallTarget,
     pub receiver: Option<Box<Expr>>,
+    /// True when source syntax contained an explicit qualifier (`value.call`
+    /// or `Type.call`), rather than a frontend-injected implicit receiver.
+    #[serde(default)]
+    pub qualifier_is_explicit: bool,
     pub args: Vec<Expr>,
     pub arg_names: Vec<Option<String>>,
     pub span: Span,
@@ -95,8 +157,12 @@ pub enum LiteralKind {
     Bytes(Vec<u8>),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UnaryOp {
+    PreIncrement,
+    PostIncrement,
+    PreDecrement,
+    PostDecrement,
     Neg,
     Not,
     BitNot,
@@ -104,7 +170,7 @@ pub enum UnaryOp {
     Deref,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinaryOp {
     Add,
     Sub,

@@ -1,0 +1,32 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                sqlite3
+
+# DataflowSourceRule sqlite3 1
+# [{'NamespaceName': 'sqlite3', 'ClassName': 'Cursor', 'FunctionName': 'fetch(one|many|all)', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_sqlite3_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^sqlite3\.Cursor\.(fetch(one|many|all))")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule sqlite3 2
+# [{'NamespaceName': 'sqlite3', 'ClassName': 'Cursor|Connection', 'FunctionName': 'execute|executemany', 'RuleName': 'desc.dataflow.python.sql_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'sqlite3', 'ClassName': 'Cursor|Connection', 'FunctionName': 'execute|executemany', 'RuleName': 'desc.dataflow.python.access_control_database', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_sqlite3_methods_sinks",
+  find="methods",
+  where=[
+    name.matches("^sqlite3\.(Cursor|Connection)\.(execute|executemany)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_access_control_database]
+    )
+  ]
+)

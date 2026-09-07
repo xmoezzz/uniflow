@@ -92,6 +92,12 @@ impl ModuleBuilder {
         id
     }
 
+    pub fn set_symbol_attribute(&mut self, id: SymbolId, key: &str, value: String) {
+        if let Some(symbol) = self.symbols.iter_mut().find(|symbol| symbol.id == id) {
+            symbol.attributes.insert(key.to_string(), value);
+        }
+    }
+
     pub fn ensure_type(&mut self, name: &str) -> TypeId {
         if let Some(existing) = self.types.iter().find(|t| t.name == name) {
             return existing.id;
@@ -145,4 +151,3 @@ fn classify_type_kind(name: &str) -> TypeKind {
         _ => TypeKind::Named,
     }
 }
-

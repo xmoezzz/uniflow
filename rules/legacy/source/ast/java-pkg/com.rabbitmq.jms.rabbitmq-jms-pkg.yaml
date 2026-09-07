@@ -1,0 +1,10 @@
+id: com.rabbitmq.jms.rabbitmq-jms
+language: Java
+message: pkg:maven/com.rabbitmq.jms/rabbitmq-jms
+metadata:
+  purl: pkg:maven/com.rabbitmq.jms/rabbitmq-jms
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.rabbitmq\.jms\.parse|com\.rabbitmq\.jms\.parse\.sql|com\.rabbitmq\.jms\.admin|com\.rabbitmq\.jms\.client\.message|com\.rabbitmq\.jms\.client|com\.rabbitmq\.jms\.util)\.

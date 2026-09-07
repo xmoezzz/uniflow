@@ -1,0 +1,10 @@
+id: org.apache.hadoop.hadoop-hdds-server-framework
+language: Java
+message: pkg:maven/org.apache.hadoop/hadoop-hdds-server-framework
+metadata:
+  purl: pkg:maven/org.apache.hadoop/hadoop-hdds-server-framework
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hadoop\.hdds\.security\.x509\.exceptions|org\.apache\.hadoop\.hdds\.security\.x509\.keys|org\.apache\.hadoop\.hdds\.server\.http|org\.apache\.hadoop\.hdds\.security\.x509\.crl|org\.apache\.hadoop\.hdds\.security\.token|org\.apache\.hadoop\.hdds\.utils\.db|org\.apache\.hadoop\.hdds\.scm\.container\.common\.helpers|org\.apache\.hadoop\.hdds\.security\.x509\.certificate\.authority|org\.apache\.hadoop\.hdds\.scm\.protocolPB|org\.apache\.hadoop\.hdds\.freon|org\.apache\.hadoop\.hdds\.security\.x509\.certificates\.utils|org\.apache\.hadoop\.hdds\.scm\.protocol|org\.apache\.hadoop\.hdds\.protocol|org\.apache\.hadoop\.ozone\.common|org\.apache\.hadoop\.hdds\.protocolPB|org\.apache\.hadoop\.hdds\.server|org\.apache\.hadoop\.hdds\.security\.x509\.certificate\.authority\.PKIProfiles|org\.apache\.hadoop\.hdds\.security\.x509\.certificate\.utils|org\.apache\.hadoop\.hdds\.utils|org\.apache\.hadoop\.hdds\.security\.x509\.certificate\.client|org\.apache\.hadoop\.hdds\.server\.events|org\.apache\.hadoop\.hdds\.conf|org\.apache\.hadoop\.hdds\.utils\.db\.cache)\.

@@ -1,0 +1,7 @@
+id: nullptr-zero
+message: '0701000010130028'
+language: C
+rule:
+  pattern: '$T *$X = 0;'
+  not:
+    pattern: '$T *$X = NULL;'

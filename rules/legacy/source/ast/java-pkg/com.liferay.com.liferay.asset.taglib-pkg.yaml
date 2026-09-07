@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.asset.taglib
+language: Java
+message: pkg:maven/com.liferay/com.liferay.asset.taglib
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.asset.taglib
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.jsp\.asset_005ftags_005ferror|org\.apache\.jsp\.asset_005ftags_005fselector|com\.liferay\.asset\.taglib\.internal\.util|org\.apache\.jsp\.asset_005ftags_005fsummary|org\.apache\.jsp\.asset_005ftags_005fnavigation|com\.liferay\.asset\.taglib\.internal\.item\.selector|com\.liferay\.asset\.taglib\.internal\.info\.display\.contributor|org\.apache\.jsp\.categorization_005ffilter|com\.liferay\.asset\.taglib\.servlet\.taglib|org\.apache\.jsp\.input_005fasset_005flinks|org\.apache\.jsp\.asset_005fcategories_005ferror|org\.apache\.jsp\.asset_005fcategories_005fnavigation|org\.apache\.jsp\.asset_005fmetadata|org\.apache\.jsp\.asset_005fcategories_005fselector|org\.apache\.jsp\.asset_005flinks|com\.liferay\.asset\.taglib\.internal\.servlet|org\.apache\.jsp\.asset_005fdisplay|org\.apache\.jsp\.select_005fasset_005fdisplay_005fpage|org\.apache\.jsp\.asset_005fcategories_005fsummary|com\.liferay\.asset\.taglib\.internal\.display\.context)\.

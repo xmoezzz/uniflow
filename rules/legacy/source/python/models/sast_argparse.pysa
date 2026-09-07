@@ -1,0 +1,17 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                argparse
+
+# DataflowSourceRule argparse 1
+# [{'NamespaceName': 'argparse', 'ClassName': 'ArgumentParser', 'FunctionName': 'parse_args', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_argparse_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^argparse\.ArgumentParser\.parse_args$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

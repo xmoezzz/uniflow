@@ -1,0 +1,10 @@
+id: org.apache.dubbo.dubbo-rpc-api
+language: Java
+message: pkg:maven/org.apache.dubbo/dubbo-rpc-api
+metadata:
+  purl: pkg:maven/org.apache.dubbo/dubbo-rpc-api
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.dubbo\.rpc\.listener|org\.apache\.dubbo\.rpc\.cluster\.filter|org\.apache\.dubbo\.rpc|org\.apache\.dubbo\.rpc\.filter\.tps|org\.apache\.dubbo\.rpc\.proxy\.jdk|org\.apache\.dubbo\.rpc\.proxy\.javassist|org\.apache\.dubbo\.rpc\.filter|org\.apache\.dubbo\.rpc\.protocol|org\.apache\.dubbo\.rpc\.proxy\.wrapper|org\.apache\.dubbo\.rpc\.protocol\.dubbo\.filter|org\.apache\.dubbo\.rpc\.support|org\.apache\.dubbo\.rpc\.proxy|org\.apache\.dubbo\.rpc\.stub|org\.apache\.dubbo\.rpc\.protocol\.dubbo)\.

@@ -1,0 +1,10 @@
+id: dwr.dwr
+language: Java
+message: pkg:maven/dwr/dwr
+metadata:
+  purl: pkg:maven/dwr/dwr
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(uk\.ltd\.getahead\.dwr\.util|uk\.ltd\.getahead\.dwr|uk\.ltd\.getahead\.junit|uk\.ltd\.getahead\.dwr\.servlet|uk\.ltd\.getahead\.dwr\.compat|uk\.ltd\.getahead\.dwr\.impl|uk\.ltd\.getahead\.dwr\.create|uk\.ltd\.getahead\.dwr\.convert)\.

@@ -1,0 +1,114 @@
+id: redirect-exec-other-code
+message: '0202000010130120'
+language: Java
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^(.*\.)?HttpServletResponse$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?HttpServletResponse$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?HttpServletResponse$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?HttpServletResponse$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+          
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl   
+  is_next_all_comment_stmt:
+    all:
+      - kind: line_comment
+      - any:
+        - not:
+            precedes:
+              pattern: $_
+        - precedes:
+            matches: is_next_all_comment_stmt
+  is_last_stmt:
+    all:
+    - any:
+      - not:
+          precedes:
+            pattern: $_
+      - precedes:
+          matches: is_next_all_comment_stmt
+    - inside:
+        any:
+          - kind: constructor_declaration
+          - kind: method_declaration
+          - matches: is_last_stmt
+rule:
+  pattern: sendRedirect
+  all:
+    - inside:
+        kind: method_invocation
+        has:
+          field: object
+          pattern: $VAR
+          inside:
+            matches: recursion-find-object-decl
+    - inside:
+        kind: method_invocation
+        not:
+          matches: is_last_stmt

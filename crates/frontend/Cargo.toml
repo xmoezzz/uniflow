@@ -14,5 +14,6 @@ uniflow-lang-c = { path = "../lang_c" }
 uniflow-lang-cpp = { path = "../lang_cpp" }
 uniflow-lang-java = { path = "../lang_java" }
 uniflow-lang-python = { path = "../lang_python" }
+uniflow-lang-frontends = { path = "../lang_frontends" }
 uniflow-parser-core = { path = "../parser_core" }
 uniflow-platform = { path = "../platform" }

@@ -1,0 +1,10 @@
+id: org.eclipse.jetty.http2.http2-common
+language: Java
+message: pkg:maven/org.eclipse.jetty.http2/http2-common
+metadata:
+  purl: pkg:maven/org.eclipse.jetty.http2/http2-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.jetty\.http2\.parser|org\.eclipse\.jetty\.http2|org\.eclipse\.jetty\.http2\.generator|org\.eclipse\.jetty\.http2\.api|org\.eclipse\.jetty\.http2\.frames|org\.eclipse\.jetty\.http2\.api\.server)\.

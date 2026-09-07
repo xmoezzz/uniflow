@@ -1,0 +1,10 @@
+id: org.apache.sling.org.apache.sling.servlets.post
+language: Java
+message: pkg:maven/org.apache.sling/org.apache.sling.servlets.post
+metadata:
+  purl: pkg:maven/org.apache.sling/org.apache.sling.servlets.post
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.sling\.servlets\.post\.impl\.helper|org\.apache\.sling\.servlets\.post\.impl\.contentparser\.impl|org\.apache\.sling\.servlets\.post\.impl|org\.apache\.sling\.servlets\.post\.exceptions|org\.apache\.sling\.servlets\.post|org\.apache\.sling\.servlets\.post\.impl\.operations|org\.apache\.sling\.servlets\.post\.impl\.jackrabbit)\.

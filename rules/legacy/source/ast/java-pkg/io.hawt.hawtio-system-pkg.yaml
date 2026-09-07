@@ -1,0 +1,10 @@
+id: io.hawt.hawtio-system
+language: Java
+message: pkg:maven/io.hawt/hawtio-system
+metadata:
+  purl: pkg:maven/io.hawt/hawtio-system
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.hawt\.web\.auth\.keycloak|io\.hawt\.util|io\.hawt\.util\.introspect\.support|io\.hawt\.web\.auth\.oidc|io\.hawt\.web\.auth|io\.hawt\.web\.auth\.oidc\.token|io\.hawt\.web\.plugin|io\.hawt|io\.hawt\.web\.servlets|io\.hawt\.web\.filters|io\.hawt\.web\.tomcat|io\.hawt\.system|io\.hawt\.web\.proxy|io\.hawt\.web|io\.hawt\.util\.introspect|io\.hawt\.jmx)\.

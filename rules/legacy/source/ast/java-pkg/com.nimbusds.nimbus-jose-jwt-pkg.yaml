@@ -1,0 +1,10 @@
+id: com.nimbusds.nimbus-jose-jwt
+language: Java
+message: pkg:maven/com.nimbusds/nimbus-jose-jwt
+metadata:
+  purl: pkg:maven/com.nimbusds/nimbus-jose-jwt
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.nimbusds\.jose\.util|com\.nimbusds\.jose\.jca|com\.nimbusds\.jose\.shaded\.gson\.internal\.bind|com\.nimbusds\.jose\.shaded\.gson|com\.nimbusds\.jose\.shaded\.gson\.internal|com\.nimbusds\.jose\.util\.health|com\.nimbusds\.jose\.mint|com\.nimbusds\.jose\.jwk|com\.nimbusds\.jose\.shaded\.gson\.internal\.reflect|com\.nimbusds\.jwt\.util|com\.nimbusds\.jose\.util\.cache|com\.nimbusds\.jose\.proc|com\.nimbusds\.jose\.shaded\.gson\.reflect|com\.nimbusds\.jwt|com\.nimbusds\.jose\.shaded\.gson\.internal\.sql|META-INF\.versions\.9|com\.nimbusds\.jwt\.proc|com\.nimbusds\.jose\.crypto\.factories|com\.nimbusds\.jose\.produce|com\.nimbusds\.jose\.shaded\.jcip|com\.nimbusds\.jose\.crypto\.impl|com\.nimbusds\.jose\.crypto|com\.nimbusds\.jose\.jwk\.gen|com\.nimbusds\.jose\.crypto\.utils|com\.nimbusds\.jose\.shaded\.gson\.stream|com\.nimbusds\.jose\.shaded\.gson\.annotations|com\.nimbusds\.jose\.crypto\.opts|com\.nimbusds\.jose\.shaded\.gson\.internal\.bind\.util|com\.nimbusds\.jose\.jwk\.source|com\.nimbusds\.jose\.crypto\.bc|com\.nimbusds\.jose|com\.nimbusds\.jose\.util\.events)\.

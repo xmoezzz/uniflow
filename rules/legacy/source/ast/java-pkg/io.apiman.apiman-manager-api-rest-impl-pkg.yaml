@@ -1,0 +1,10 @@
+id: io.apiman.apiman-manager-api-rest-impl
+language: Java
+message: pkg:maven/io.apiman/apiman-manager-api-rest-impl
+metadata:
+  purl: pkg:maven/io.apiman/apiman-manager-api-rest-impl
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.apiman\.manager\.api\.rest\.impl\.audit|io\.apiman\.manager\.api\.rest\.interceptors|io\.apiman\.manager\.api\.notifications\.email\.handlers|io\.apiman\.manager\.api\.notifications\.producers|io\.apiman\.manager\.api\.rest\.impl|io\.apiman\.manager\.api\.notifications\.mappers|io\.apiman\.manager\.api\.schema\.format|io\.apiman\.manager\.api\.schema|io\.apiman\.manager\.api\.notifications\.email|io\.apiman\.manager\.api\.notifications\.rules|io\.apiman\.manager\.api\.events|io\.apiman\.manager\.api\.providers|io\.apiman\.manager\.api\.rest\.impl\.util|io\.apiman\.manager\.api\.notifications|io\.apiman\.manager\.api\.service)\.

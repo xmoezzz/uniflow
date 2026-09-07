@@ -1,0 +1,5 @@
+id: no-goto
+message: '0601000010140035'
+language: C
+rule:
+  kind: goto_statement

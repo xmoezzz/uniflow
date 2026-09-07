@@ -1,0 +1,10 @@
+id: switch-default
+message: '0202000010130112'
+language: Java
+rule:
+  kind: switch_expression
+  not:
+    has:
+      stopBy: end
+      kind: switch_label
+      regex: default

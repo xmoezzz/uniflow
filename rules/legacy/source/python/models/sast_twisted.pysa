@@ -1,0 +1,21 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                twisted
+
+# DataflowSourceRule twisted 3
+# [{'NamespaceName': 'twisted.mail.pop3', 'ClassName': 'IMailbox', 'FunctionName': 'getMessage', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'twisted.mail.imap4', 'ClassName': 'IMailbox', 'FunctionName': 'fetch', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'twisted.mail.imap4', 'ClassName': 'IMessagePart', 'FunctionName': 'get(Headers|BodyFile|SubPart)', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_twisted_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^twisted\.mail\.pop3\.IMailbox\.getMessage$"),
+      name.matches("^twisted\.mail\.imap4\.IMessagePart\.(get(Headers|BodyFile|SubPart))"),
+      name.matches("^twisted\.mail\.imap4\.IMailbox\.fetch$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

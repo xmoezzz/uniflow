@@ -1,0 +1,12 @@
+id: no-semicolon-after-macro
+message: '0101000010110303'
+language: C
+rule:
+  all:
+    - any:
+        - kind: preproc_function_def
+        - kind: preproc_def
+    - has:
+        kind: preproc_arg
+        field: value
+        regex: ';$'

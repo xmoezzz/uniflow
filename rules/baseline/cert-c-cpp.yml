@@ -137,15 +137,355 @@ rules:
   - cpp
   severity: warning
   confidence: high
-  pattern: \b(?:rand|random|drand48|std::rand)\s*\(
+  pattern: \b(?:rand|random|drand48|std::rand|std::mersenne_twister[^\s(]*)\s*\(
   matcher:
-    callee: (^|::)(rand|random|drand48)$
+    callee: '(^|::)(rand|random|drand48)$|^std::mersenne_twister'
   cwe:
   - CWE-338
   standards:
   - CERT-C-MSC30-C
   - CERT-CPP
   message: Do not use predictable PRNG output for security decisions.
+  translations:
+    zh-CN:
+      title: 可预测的伪随机数生成器
+      message: 该函数具有潜在可预测性，不应用于生成安全敏感的伪随机数。
+    en:
+      title: Predictable pseudo-random generator
+      message: Do not use predictable PRNG output for security decisions.
+    zh-TW:
+      title: 可預測的偽隨機數產生器
+      message: 該函式具有潛在可預測性，不應用於產生安全敏感的偽隨機數。
+- id: ANZU-ASSIGNMENT-IN-LOGICAL-OP
+  title: Assignment operator used directly with a logical operator
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: ''
+  matcher:
+    assignment_operand_in_logical: true
+  cwe: [CWE-481]
+  standards: [anzu.AssignmentInLogicalOpChecker]
+  message: Do not use an assignment expression as a direct operand of && or ||.
+  translations:
+    zh-CN:
+      title: 赋值操作符与逻辑操作符混用
+      message: 不要将赋值表达式直接作为 && 或 || 的操作数。
+    en:
+      title: Assignment operator used directly with a logical operator
+      message: Do not use an assignment expression as a direct operand of && or ||.
+    zh-TW:
+      title: 賦值運算子與邏輯運算子混用
+      message: 不要將賦值運算式直接作為 && 或 || 的運算元。
+- id: ANZU-DISABLE-GOTO
+  title: Goto statement is prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: ''
+  matcher:
+    code_pattern: '\bgoto\b'
+    exclude_preprocessor: true
+  cwe: [CWE-483]
+  standards: [anzu.DisableGotoChecker, '0601000010140035']
+  message: The use of goto statements is prohibited.
+  translations:
+    zh-CN:
+      title: 禁止使用 goto 语句
+      message: 禁止使用 goto 语句。
+    en:
+      title: Goto statement is prohibited
+      message: The use of goto statements is prohibited.
+    zh-TW:
+      title: 禁止使用 goto 陳述式
+      message: 禁止使用 goto 陳述式。
+- id: ANZU-PRAGMA-USE
+  title: Pragma directive requires review
+  languages: [c, cpp]
+  severity: note
+  confidence: high
+  pattern: ''
+  matcher:
+    code_pattern: '^\s*#\s*pragma\b'
+  cwe: []
+  standards: [anzu.PragmaUseChecker, '0601000010140101']
+  message: Use '#pragma' with caution.
+  translations:
+    zh-CN:
+      title: 谨慎使用 #pragma
+      message: 谨慎使用 #pragma 指令。
+    en:
+      title: Pragma directive requires review
+      message: Use '#pragma' with caution.
+    zh-TW:
+      title: 謹慎使用 #pragma
+      message: 謹慎使用 #pragma 指令。
+- id: ANZU-REGISTER-USE
+  title: Register storage-class specifier requires review
+  languages: [c, cpp]
+  severity: note
+  confidence: high
+  pattern: ''
+  matcher:
+    code_pattern: '\bregister\b'
+    exclude_preprocessor: true
+  cwe: []
+  standards: [anzu.RegisterUseChecker, '0601000010140071']
+  message: Use register variables with caution.
+  translations:
+    zh-CN:
+      title: 谨慎使用寄存器变量
+      message: 谨慎使用 register 存储类说明符。
+    en:
+      title: Register storage-class specifier requires review
+      message: Use register variables with caution.
+    zh-TW:
+      title: 謹慎使用暫存器變數
+      message: 謹慎使用 register 儲存類別說明符。
+- id: ANZU-LONG-LITERAL-LOWERCASE-L
+  title: Lowercase l suffix on a long integer literal
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: ''
+  matcher:
+    code_pattern: "\\b(?:0[xX][0-9A-Fa-f']+|0[bB][01']+|0[0-7']*|[1-9][0-9']*)(?:[uU]?l{1,2}|l{1,2}[uU]?)\\b"
+    exclude_preprocessor: true
+  cwe: []
+  standards: [anzu.LongNumStringlLChecker, '0101000010110441', '0101000010110161']
+  message: Use 'L' instead of 'l' to indicate a long value.
+  translations:
+    zh-CN:
+      title: 长整数字面量使用了小写 l 后缀
+      message: 使用大写 L 而不是小写 l 表示长整数字面量，以免与数字 1 混淆。
+    en:
+      title: Lowercase l suffix on a long integer literal
+      message: Use 'L' instead of 'l' to indicate a long value.
+    zh-TW:
+      title: 長整數常值使用了小寫 l 後綴
+      message: 使用大寫 L 而不是小寫 l 表示長整數常值，以免與數字 1 混淆。
+- id: ANZU-FILE-OPEN-MODE
+  title: Invalid fopen mode string
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: '\b(?:fopen|wfopen)\s*\('
+  matcher:
+    callee: '(^|::)(fopen|wfopen)$'
+    min_args: 2
+    string_arg_not_patterns:
+      1: '^(?:|r|w|wx|a|rb|wb|wbx|ab|r\+|w\+|w\+x|a\+|r\+b|rb\+|w\+b|wb\+|w\+bx|wb\+x|a\+b|ab\+)$'
+  cwe: [CWE-686]
+  standards: [anzu.FileOpenChecker, '0101000010110459', '0101000010110221']
+  message: Use only a valid, portable mode string with fopen or wfopen.
+  translations:
+    zh-CN:
+      title: fopen 模式字符串无效
+      message: 谨慎指定 fopen() 的模式参数，并仅使用有效且可移植的模式字符串。
+    en:
+      title: Invalid fopen mode string
+      message: Take care when specifying the mode parameter of fopen().
+    zh-TW:
+      title: fopen 模式字串無效
+      message: 謹慎指定 fopen() 的模式參數，並僅使用有效且可攜的模式字串。
+- id: ANZU-FILE-OPEN-S-MODE
+  title: Invalid fopen_s mode string
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: '\b(?:fopen_s|wfopen_s)\s*\('
+  matcher:
+    callee: '(^|::)(fopen_s|wfopen_s)$'
+    min_args: 3
+    string_arg_not_patterns:
+      2: '^(?:|r|w|wx|a|rb|wb|wbx|ab|r\+|w\+|w\+x|a\+|r\+b|rb\+|w\+b|wb\+|w\+bx|wb\+x|a\+b|ab\+)$'
+  cwe: [CWE-686]
+  standards: [anzu.FileOpenChecker, '0101000010110459', '0101000010110221']
+  message: Use only a valid, portable mode string with fopen_s or wfopen_s.
+  translations:
+    zh-CN:
+      title: fopen_s 模式字符串无效
+      message: 谨慎指定 fopen_s() 的模式参数，并仅使用有效且可移植的模式字符串。
+    en:
+      title: Invalid fopen_s mode string
+      message: Take care when specifying the mode parameter of fopen_s().
+    zh-TW:
+      title: fopen_s 模式字串無效
+      message: 謹慎指定 fopen_s() 的模式參數，並僅使用有效且可攜的模式字串。
+- id: ANZU-INT05-INPUT-CONVERSION
+  title: Input function performs unchecked character conversion
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: '\bscanf(?:_s)?\s*\('
+  matcher:
+    callee: '(^|::)scanf(_s)?$'
+    min_args: 1
+    string_arg_patterns:
+      0: '%(?:d|f|lf|i|u)'
+  cwe: [CWE-20]
+  standards: [CERT-CPP-INT05-CPP, anzu.INT05CPPChecker, '0101000010110464', '0101000010110245']
+  message: Do not use input functions for character conversion unless every possible input can be handled.
+  translations:
+    zh-CN:
+      title: 输入函数执行了不完整的字符转换
+      message: 如果无法处理所有可能的输入，请勿使用输入函数转换字符数据。
+    en:
+      title: Input function performs unchecked character conversion
+      message: Do not use input functions to convert character data if they cannot handle all possible inputs.
+    zh-TW:
+      title: 輸入函式執行了不完整的字元轉換
+      message: 如果無法處理所有可能的輸入，請勿使用輸入函式轉換字元資料。
+- id: ANZU-CPP-NO-C-STYLE-STREAMS
+  title: C-style input/output used in a C++ source file
+  languages: [cpp]
+  severity: note
+  confidence: high
+  pattern: '\b(?:fprintf|printf|fscanf|scanf)\s*\('
+  matcher:
+    path_pattern: '\.cpp$'
+    callee: '(^|::)(fprintf|printf|fscanf|scanf)$'
+  cwe: []
+  standards: [anzu.DisableCallCStyleStreamChecker, '0101000010110360']
+  message: Prefer C++ streams to C-style input and output in .cpp files.
+  translations:
+    zh-CN:
+      title: C++ 源文件使用了 C 风格输入输出
+      message: 在 .cpp 文件中优先使用 C++ streams 代替 C 风格的输入输出。
+    en:
+      title: C-style input/output used in a C++ source file
+      message: Prefer streams to C-style input and output.
+    zh-TW:
+      title: C++ 原始碼檔使用了 C 風格輸入輸出
+      message: 在 .cpp 檔案中優先使用 C++ streams 取代 C 風格的輸入輸出。
+- id: ANZU-CPP-DEPRECATED-STDLIB
+  title: Deprecated C++ standard-library facility
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  pattern: '\bstd::(?:unary_function|binary_function|pointer_to_unary_function|pointer_to_binary_function|mem_fun_t|mem_fun1_t|mem_fun|mem_fun_ref_t|mem_fun1_ref_t|mem_fun_ref|binder1st|binder2nd|bind1st|bind2nd|auto_ptr|unexpected_handler|set_unexpected|get_unexpected|unexpected|random_shuffle)\s*\('
+  matcher:
+    callee: '^std\.(unary_function|binary_function|pointer_to_unary_function|pointer_to_binary_function|mem_fun_t|mem_fun1_t|mem_fun|mem_fun_ref_t|mem_fun1_ref_t|mem_fun_ref|binder1st|binder2nd|bind1st|bind2nd|auto_ptr|unexpected_handler|set_unexpected|get_unexpected|unexpected|random_shuffle)$'
+  cwe: []
+  standards: [anzu.DeprecatedFunctionChecker, '0101000010110374']
+  message: Do not use deprecated or obsolescent C++ standard-library functionality.
+  translations:
+    zh-CN:
+      title: 使用了已弃用的 C++ 标准库功能
+      message: 不要使用过时或弃用的 C++ 标准库功能。
+    en:
+      title: Deprecated C++ standard-library facility
+      message: Do not use deprecated or obsolescent functionality.
+    zh-TW:
+      title: 使用了已棄用的 C++ 標準函式庫功能
+      message: 不要使用過時或棄用的 C++ 標準函式庫功能。
+- id: ANZU-OBSOLESCENT-C-LIBRARY-FUNCTION
+  title: Deprecated or obsolescent C library function
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: '\b(?:asctime|atof|atoi|atol|atoll|ctime|fopen|freopen|rewind|setbuf|bsearch|fprintf|fscanf|fwprintf|fwscanf|getenv|gmtime|localtime|mbsrtowcs|mbstowcs|memcpy|memmove|printf|qsort|snprintf|sprintf|sscanf|strcat|strcpy|strerror|strncat|strncpy|strtok|swprintf|swscanf|vfprintf|vfscanf|vfwprintf|vfwscanf|vprintf|vscanf|vsnprintf|vsprintf|vsscanf|vswprintf|vswscanf|vwprintf|vwscanf|wcrtomb|wcscat|wcscpy|wcsncat|wcsncpy|wcsrtombs|wcstok|wcstombs|wctomb|wmemcpy|wmemmove|wprintf|wscanf)\s*\('
+  matcher:
+    callee: '^(?:asctime|atof|atoi|atol|atoll|ctime|fopen|freopen|rewind|setbuf|bsearch|fprintf|fscanf|fwprintf|fwscanf|getenv|gmtime|localtime|mbsrtowcs|mbstowcs|memcpy|memmove|printf|qsort|snprintf|sprintf|sscanf|strcat|strcpy|strerror|strncat|strncpy|strtok|swprintf|swscanf|vfprintf|vfscanf|vfwprintf|vfwscanf|vprintf|vscanf|vsnprintf|vsprintf|vsscanf|vswprintf|vswscanf|vwprintf|vwscanf|wcrtomb|wcscat|wcscpy|wcsncat|wcsncpy|wcsrtombs|wcstok|wcstombs|wctomb|wmemcpy|wmemmove|wprintf|wscanf)$'
+  cwe: [CWE-676]
+  standards: [anzu.UnsecurityFunctionChecker, '0101000010110283', '0201000010120081', '0301000010120081']
+  message: Do not use deprecated or obsolescent C library functions.
+  translations:
+    zh-CN:
+      title: 使用了过时或废弃的 C 库函数
+      message: 不要使用已经过时或废弃的函数。
+    en:
+      title: Deprecated or obsolescent C library function
+      message: Do not use deprecated or obsolescent functions.
+    zh-TW:
+      title: 使用了過時或廢棄的 C 函式庫函式
+      message: 不要使用已經過時或廢棄的函式。
+- id: ANZU-MACRO-BODY-HASH
+  title: Stringification or token pasting used in a macro
+  languages: [c, cpp]
+  severity: note
+  confidence: high
+  pattern: ''
+  matcher:
+    macro_hash_min: 1
+    macro_requires_parameters: true
+  cwe: []
+  standards: [anzu.MacroBodyHashChecker, '0601000010140097']
+  message: Use '#' or '##' cautiously in macros.
+  translations:
+    zh-CN:
+      title: 宏中使用了字符串化或 token 拼接
+      message: 在宏中谨慎使用 # 或 ##。
+    en:
+      title: Stringification or token pasting used in a macro
+      message: Use '##' or '#' cautiously in macros.
+    zh-TW:
+      title: 巨集中使用了字串化或 token 拼接
+      message: 在巨集中謹慎使用 # 或 ##。
+- id: ANZU-MACRO-BODY-MULTIPLE-HASH
+  title: Multiple stringification or token-pasting operators in one macro
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: ''
+  matcher:
+    macro_hash_min: 2
+    macro_requires_parameters: true
+  cwe: []
+  standards: [anzu.MacroBodyMultHashChecker, '0601000010140098']
+  message: Do not use multiple '#' or '##' preprocessing tokens in the same macro.
+  translations:
+    zh-CN:
+      title: 同一宏中使用了多个字符串化或 token 拼接操作符
+      message: 在同一宏中禁止使用多个 # 或 ## 预处理 token。
+    en:
+      title: Multiple stringification or token-pasting operators in one macro
+      message: Prohibit using multiple '#' or '##' in the same macro.
+    zh-TW:
+      title: 同一巨集中使用了多個字串化或 token 拼接運算子
+      message: 在同一巨集中禁止使用多個 # 或 ## 預處理 token。
+- id: ANZU-MACRO-TRAILING-SEMICOLON
+  title: Macro definition ends with a semicolon
+  languages: [c]
+  severity: warning
+  confidence: high
+  pattern: ''
+  matcher:
+    macro_trailing_semicolon: true
+  cwe: [CWE-483]
+  standards: [anzu.MacroBodySemiEndChecker, '0101000010110303']
+  message: Do not conclude macro definitions with a semicolon.
+  translations:
+    zh-CN:
+      title: 宏定义以分号结尾
+      message: 不要用分号来结束宏定义。
+    en:
+      title: Macro definition ends with a semicolon
+      message: Do not conclude macro definitions with a semicolon.
+    zh-TW:
+      title: 巨集定義以分號結尾
+      message: 不要用分號來結束巨集定義。
+- id: ANZU-MACRO-UNWRAPPED-MULTISTATEMENT
+  title: Multi-statement macro is not wrapped
+  languages: [c]
+  severity: warning
+  confidence: high
+  pattern: ''
+  matcher:
+    macro_unwrapped_multiple_statements: true
+  cwe: [CWE-483]
+  standards: [anzu.MacroBodyMultStmtChecker, '0101000010110302', '0901000010110302']
+  message: Wrap multi-statement macros in a do-while loop.
+  translations:
+    zh-CN:
+      title: 多语句宏未包装
+      message: 使用 do-while 循环包装多语句宏。
+    en:
+      title: Multi-statement macro is not wrapped
+      message: Wrap multistatement macros in a do-while loop.
+    zh-TW:
+      title: 多陳述式巨集未包裝
+      message: 使用 do-while 迴圈包裝多陳述式巨集。
 - id: UF-C-MEM-REALLOC-ASSIGN
   title: realloc directly assigned to original pointer
   languages:
@@ -730,7 +1070,8 @@ rules:
   message: Check whether the mutex operation succeeded.
 - id: UF-C-ENV-PUTENV
   title: Environment modification with caller-owned storage
-  languages: *id001
+  languages:
+  - c
   severity: warning
   confidence: medium
   pattern: \bputenv\s*\(
@@ -738,11 +1079,25 @@ rules:
     callee: (^|::)putenv$
     min_args: 1
     max_args: 1
+    automatic_var_args:
+    - 0
   cwe:
   - CWE-807
   standards:
   - CERT-C-ENV
-  message: Prefer setenv and control the lifetime of environment values.
+  - anzu.PutEnvChecker
+  - '0101000010110294'
+  message: Do not call putenv with a pointer to an automatic variable.
+  translations:
+    zh-CN:
+      title: putenv 使用了自动存储期变量
+      message: 请勿用指向自动变量的指针作为 putenv() 的参数。
+    en:
+      title: putenv called with automatic storage
+      message: Do not call putenv() with a pointer to an automatic variable as the argument.
+    zh-TW:
+      title: putenv 使用了自動儲存期變數
+      message: 請勿用指向自動變數的指標作為 putenv() 的參數。
 - id: UF-C-DL-DLOPEN-NONLITERAL
   title: Dynamic library path constructed at runtime
   languages: *id001

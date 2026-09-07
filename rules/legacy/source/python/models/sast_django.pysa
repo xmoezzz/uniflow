@@ -1,0 +1,64 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                django
+
+# DataflowSourceRule django 6
+# [{'NamespaceName': 'django.views.generic.detail', 'ClassName': 'SingleObjectMixin', 'FunctionName': 'get_object', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'django.http', 'ClassName': 'HttpResponse', 'FunctionName': 'get', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.http(\\.response)?', 'ClassName': '(Streaming)?HttpResponse(Base)?', 'FunctionName': '__getitem__', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'django.http', 'ClassName': 'HTTPRequest', 'FunctionName': 'GET', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'django.http', 'ClassName': 'HttpRequest', 'FunctionName': 'GET|POST|COOKIES|META|FILES', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.http(\\.request)?', 'ClassName': 'HttpRequest', 'FunctionName': 'read|readlines|readline|xreadlines|get_host|get_full_path|_get_encoding|get_signed_cookie', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_django_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^django\.http\.HTTPRequest\.GET$"),
+      name.matches("^django\.http\.HttpRequest\.(GET|POST|COOKIES|META|FILES)"),
+      name.matches("^django\.http(\.response)?\.(Streaming)?HttpResponse(Base)?\.__getitem__"),
+      name.matches("^django\.http\.HttpResponse\.get$"),
+      name.matches("^django\.views\.generic\.detail\.SingleObjectMixin\.get_object$"),
+      name.matches("^django\.http(\.request)?\.HttpRequest\.(read|readlines|readline|xreadlines|get_host|get_full_path|_get_encoding|get_signed_cookie)")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule django 16
+# [{'NamespaceName': 'django.views.generic.base', 'ClassName': 'TemplateResponseMixin', 'FunctionName': 'render_to_response', 'RuleName': 'desc.dataflow.python.trust_boundary_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'django.http', 'ClassName': 'HttpResponse', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_reflected', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.http(\\.response)?', 'ClassName': '(Streaming)?HttpResponse(Base)?', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_reflected', 'Origin': 'Fortify'}, {'NamespaceName': 'django.http', 'ClassName': 'HttpResponse', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_poor_validation', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.http(\\.response)?', 'ClassName': '(Streaming)?HttpResponse(Base)?', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_poor_validation', 'Origin': 'Fortify'}, {'NamespaceName': 'django.http', 'ClassName': 'HttpResponse', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_persistent', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.http(\\.response)?', 'ClassName': '(Streaming)?HttpResponse(Base)?', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_persistent', 'Origin': 'Fortify'}, {'NamespaceName': 'django.http', 'ClassName': 'HttpResponse', 'FunctionName': 'set_cookie', 'RuleName': 'desc.dataflow.python.header_manipulation_cookies', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.http(\\.response)?', 'ClassName': '(Streaming)?HttpResponse(Base)?', 'FunctionName': 'set_(signed_)?cookie', 'RuleName': 'desc.dataflow.python.header_manipulation_cookies', 'Origin': 'Fortify'}, {'NamespaceName': 'django.shortcuts', 'ClassName': '', 'FunctionName': 'redirect', 'RuleName': 'desc.dataflow.python.open_redirect', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.db|django\\.db\\.backends.util', 'ClassName': 'Cursor|CursorDebugWrapper', 'FunctionName': 'execute', 'RuleName': 'desc.dataflow.python.sql_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.db|django\\.db\\.backends.util', 'ClassName': 'Cursor|CursorDebugWrapper', 'FunctionName': 'execute', 'RuleName': 'desc.dataflow.python.access_control_database', 'Origin': 'Fortify'}, {'NamespaceName': 'django.core.servers.basehttp', 'ClassName': 'AdminMediaHandler', 'FunctionName': 'file_path', 'RuleName': 'desc.dataflow.python.resource_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'django.core.mail', 'ClassName': 'EmailMessage', 'FunctionName': 'attach', 'RuleName': 'desc.dataflow.python.resource_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.template(\\.base)?', 'ClassName': 'Template', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.server_side_template_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'django\\.template(\\.engine)?', 'ClassName': 'Engine', 'FunctionName': 'from_string', 'RuleName': 'desc.dataflow.python.server_side_template_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_django_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^django\.shortcuts.*\.redirect$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_server_side_template_injection]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_django_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^django\.template(\.base)?\.Template\.__init__"),
+      name.matches("(django\.db|django\.db\.backends.util)\.(Cursor|CursorDebugWrapper)\.execute$"),
+      name.matches("^django\.http(\.response)?\.(Streaming)?HttpResponse(Base)?\.write$"),
+      name.matches("^django\.template(\.engine)?\.Engine\.from_string$"),
+      name.matches("^django\.views\.generic\.base\.TemplateResponseMixin\.render_to_response$"),
+      name.matches("^django\.core\.servers\.basehttp\.AdminMediaHandler\.file_path$"),
+      name.matches("^django\.core\.mail\.EmailMessage\.attach$"),
+      name.matches("^django\.http\.HttpResponse\.set_cookie$"),
+      name.matches("^django\.http\.HttpResponse\.write$"),
+      name.matches("^django\.http(\.response)?\.(Streaming)?HttpResponse(Base)?\.set_(signed_)?cookie$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_server_side_template_injection]
+    )
+  ]
+)

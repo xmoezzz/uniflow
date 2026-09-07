@@ -1,0 +1,10 @@
+id: de.tum.in.ase.artemis-java-test-sandbox
+language: Java
+message: pkg:maven/de.tum.in.ase/artemis-java-test-sandbox
+metadata:
+  purl: pkg:maven/de.tum.in.ase/artemis-java-test-sandbox
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(de\.tum\.in\.test\.api\.security|de\.tum\.in\.test\.api\.ast\.type|de\.tum\.in\.test\.api\.util|de\.tum\.in\.test\.api\.jqwik|de\.tum\.in\.test\.api\.internal\.sanitization|de\.tum\.in\.test\.api\.io|de\.tum\.in\.test\.api\.ast\.asserting|de\.tum\.in\.test\.api\.structural|de\.tum\.in\.test\.api\.structural\.testutils|de\.tum\.in\.test\.api\.localization|de\.tum\.in\.test\.api\.jupiter|de\.tum\.in\.test\.api\.dynamic|de\.tum\.in\.test\.api|de\.tum\.in\.test\.api\.context|de\.tum\.in\.test\.api\.internal|de\.tum\.in\.test\.api\.ast\.model)\.

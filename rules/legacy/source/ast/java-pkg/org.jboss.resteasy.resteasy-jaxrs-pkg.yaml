@@ -1,0 +1,10 @@
+id: org.jboss.resteasy.resteasy-jaxrs
+language: Java
+message: pkg:maven/org.jboss.resteasy/resteasy-jaxrs
+metadata:
+  purl: pkg:maven/org.jboss.resteasy/resteasy-jaxrs
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jboss\.resteasy\.api\.validation|org\.jboss\.resteasy\.plugins\.interceptors|org\.jboss\.resteasy\.core\.request|org\.jboss\.resteasy\.plugins\.delegates|org\.jboss\.resteasy\.plugins\.server|org\.jboss\.resteasy\.spi\.touri|org\.jboss\.resteasy\.core|org\.jboss\.resteasy\.annotations\.jaxrs|org\.jboss\.resteasy\.mock|org\.jboss\.resteasy\.core\.registry|org\.jboss\.resteasy\.spi|org\.jboss\.resteasy\.spi\.validation|org\.jboss\.resteasy\.spi\.metadata|org\.jboss\.resteasy\.plugins\.providers\.sse|org\.jboss\.resteasy\.annotations|org\.jboss\.resteasy\.util|org\.jboss\.resteasy\.plugins\.server\.resourcefactory|org\.jboss\.resteasy\.resteasy_jaxrs\.i18n|org\.jboss\.resteasy\.core\.interception\.jaxrs|org\.jboss\.resteasy\.core\.messagebody|org\.jboss\.resteasy\.annotations\.cache|org\.jboss\.resteasy\.annotations\.providers\.img|org\.jboss\.resteasy\.plugins\.providers\.validation|org\.jboss\.resteasy\.tracing|org\.jboss\.resteasy\.specimpl|org\.jboss\.resteasy\.plugins\.server\.embedded|org\.jboss\.resteasy\.plugins\.server\.servlet|org\.jboss\.resteasy\.plugins\.providers)\.

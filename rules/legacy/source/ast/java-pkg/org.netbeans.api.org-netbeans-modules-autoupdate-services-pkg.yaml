@@ -1,0 +1,10 @@
+id: org.netbeans.api.org-netbeans-modules-autoupdate-services
+language: Java
+message: pkg:maven/org.netbeans.api/org-netbeans-modules-autoupdate-services
+metadata:
+  purl: pkg:maven/org.netbeans.api/org-netbeans-modules-autoupdate-services
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.netbeans\.api\.autoupdate|org\.netbeans\.spi\.autoupdate|org\.netbeans\.modules\.autoupdate\.services|org\.netbeans\.modules\.autoupdate\.updateprovider)\.

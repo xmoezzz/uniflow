@@ -1,0 +1,152 @@
+id: unreleased-socket
+message: '0102000010130019'
+language: Java
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^(.*\.)?(Socket)$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?(Socket)$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?(Socket)$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?(Socket)$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+          
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  any:
+  - all:
+    - kind: variable_declarator
+    - has:
+        field: value
+        not:
+          pattern: 'null'
+    - has:
+        field: name
+        pattern: $VAR
+        inside:
+          matches: recursion-find-object-decl
+    - not:
+        inside:
+          stopBy:
+            any:
+            - kind: method_declaration
+            - kind: lambda_expression
+          has:
+            field: body
+            has:
+              stopBy:
+                any:
+                - kind: method_declaration
+                - kind: lambda_expression
+                - kind: class_declaration
+              pattern: $VAR.close()
+  - all:
+    - pattern: $VAR = $$$
+    - not:
+        pattern: $VAR = null
+    - has:
+        field: left
+        pattern: $VAR
+        inside:
+          matches: recursion-find-object-decl
+    - not:
+        inside:
+          stopBy:
+            any:
+            - kind: method_declaration
+            - kind: lambda_expression
+          has:
+            field: body
+            has:
+              stopBy:
+                any:
+                - kind: method_declaration
+                - kind: lambda_expression
+                - kind: class_declaration
+              pattern: $VAR.close()
+  - all:
+    - kind: method_invocation
+    - has:
+        field: name
+        regex: ^close$
+    - has:
+        field: object
+        pattern: $VAR
+        inside:
+          matches: recursion-find-object-decl
+    - inside:
+        stopBy:
+          any:
+            - kind: try_statement
+            - kind: method_declaration
+            - kind: class_declaration
+            - kind: lambda_expression
+        kind: block
+        inside:
+          kind: try_statement
+          not:
+            inside:
+              stopBy: end
+              kind: finally_clause

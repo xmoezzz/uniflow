@@ -1,0 +1,10 @@
+id: org.apache.sling.org.apache.sling.api
+language: Java
+message: pkg:maven/org.apache.sling/org.apache.sling.api
+metadata:
+  purl: pkg:maven/org.apache.sling/org.apache.sling.api
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.sling\.api\.security|org\.apache\.sling\.api\.auth|org\.apache\.sling\.api\.resource|org\.apache\.sling\.api\.request\.builder|org\.apache\.sling\.api\.servlets|org\.apache\.sling\.api\.resource\.path|org\.apache\.sling\.api\.resource\.runtime\.dto|org\.apache\.sling\.api\.adapter|org\.apache\.sling\.api\.resource\.mapping|org\.apache\.sling\.api\.resource\.external|org\.apache\.sling\.api\.request\.builder\.impl|org\.apache\.sling\.api\.resource\.observation|org\.apache\.sling\.api\.wrappers|org\.apache\.sling\.api\.wrappers\.impl|org\.apache\.sling\.api\.uri|org\.apache\.sling\.api\.request|org\.apache\.sling\.api\.request\.header|org\.apache\.sling\.spi\.resource\.provider|org\.apache\.sling\.api\.resource\.runtime|org\.apache\.sling\.api\.scripting|org\.apache\.sling\.api)\.

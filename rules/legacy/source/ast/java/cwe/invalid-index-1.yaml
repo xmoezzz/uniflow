@@ -1,0 +1,101 @@
+id: invalid-index-1
+message: '0202000010000021'
+language: Java
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^(.*\.)?ResultSet$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?ResultSet$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?ResultSet$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?ResultSet$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+          
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  kind: method_invocation
+  pattern: $_.$FUNC_NAME(0)
+  all:
+    - has:
+        field: name
+        any:
+          - pattern: getInt
+          - pattern: getLong
+          - pattern: getFloat
+          - pattern: getDouble
+          - pattern: getString
+          - pattern: getDate
+          - pattern: getTime
+          - pattern: getTimestamp
+          - pattern: getBoolean
+          - pattern: getBlob
+          - pattern: getClob
+    - has:
+        field: object
+        pattern: $VAR
+        inside:
+          matches: recursion-find-object-decl

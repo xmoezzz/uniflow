@@ -1,0 +1,24 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                smtplib
+
+# DataflowSinkRule smtplib 7
+# [{'NamespaceName': 'smtplib', 'ClassName': 'SMTP', 'FunctionName': 'sendmail', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'smtplib', 'ClassName': 'SMTP', 'FunctionName': 'sendmail', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'smtplib', 'ClassName': 'SMTP', 'FunctionName': 'login', 'RuleName': 'desc.dataflow.python.password_management_weak_cryptography', 'Origin': 'Fortify'}, {'NamespaceName': 'smtplib', 'ClassName': 'SMTP', 'FunctionName': 'login', 'RuleName': 'desc.dataflow.python.password_management', 'Origin': 'Fortify'}, {'NamespaceName': 'smtplib', 'ClassName': 'SMTP', 'FunctionName': 'verify', 'RuleName': 'desc.dataflow.python.resource_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'smtplib', 'ClassName': 'SMTP', 'FunctionName': 'docmd', 'RuleName': 'desc.dataflow.python.mail_command_injection_smtp', 'Origin': 'Fortify'}, {'NamespaceName': 'smtplib', 'ClassName': 'SMTP', 'FunctionName': 'sendmail', 'RuleName': 'desc.dataflow.python.header_manipulation_smtp', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_smtplib_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^smtplib\.SMTP\.login$"),
+      name.matches("^smtplib\.SMTP\.sendmail$"),
+      name.matches("^smtplib\.SMTP\.verify$"),
+      name.matches("^smtplib\.SMTP\.docmd$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_header_manipulation_smtp]
+    )
+  ]
+)

@@ -1,0 +1,35 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                sys
+
+# DataflowSourceRule sys 2
+# [{'NamespaceName': 'sys', 'ClassName': '', 'FunctionName': '_current_frames|_getframe|getwindowsversion', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'sys', 'ClassName': '', 'FunctionName': 'exc_info', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_sys_functions_sources",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^sys.*\.exc_info$"),
+      name.matches("^sys.*\.(_current_frames|_getframe|getwindowsversion)")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule sys 1
+# [{'NamespaceName': 'sys', 'ClassName': '', 'FunctionName': 'settrace|setprofile', 'RuleName': 'desc.dataflow.python.setting_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_sys_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^sys.*\.(settrace|setprofile)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_setting_manipulation]
+    )
+  ]
+)

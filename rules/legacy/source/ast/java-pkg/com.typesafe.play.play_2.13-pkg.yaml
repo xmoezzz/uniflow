@@ -1,0 +1,10 @@
+id: com.typesafe.play.play_2.13
+language: Java
+message: pkg:maven/com.typesafe.play/play_2.13
+metadata:
+  purl: pkg:maven/com.typesafe.play/play_2.13
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(play\.components|play\.server\.api|play\.mvc|views\.html|play\.api\.mvc\.request|play\.api\.internal\.libs\.concurrent|play\.controllers|play\.libs|play\.api\.templates|play\.libs\.reflect|play\.server|play\.api\.libs\.concurrent|play\.api\.routing|play\.api\.mvc|play\.api\.data\.format|play\.api|play\.core\.system|play\.libs\.typedmap|views\.html\.helper|play\.http|views\.xml|play\.api\.data|play\.core\.utils|play\.routing|play\.api\.mvc\.macros|play\.api\.http\.websocket|play\.api\.libs\.typedmap|play\.core|play\.i18n|play\.api\.controllers|play\.api\.libs\.crypto|play\.libs\.crypto|play\.api\.http|play\.api\.data\.validation|play|play\.core\.parsers|play\.core\.cookie\.encoding|views\.js\.helper|play\.libs\.streams|play\.inject|views|play\.libs\.concurrent|play\.api\.libs|play\.api\.routing\.sird|play\.http\.websocket|play\.api\.routing\.sird\.macroimpl|play\.libs\.exception|play\.core\.routing|play\.utils|play\.libs\.akka|views\.txt|play\.api\.i18n|controllers|play\.core\.j|play\.core\.formatters|views\.html\.play20|models|play\.api\.inject|views\.html\.defaultpages)\.

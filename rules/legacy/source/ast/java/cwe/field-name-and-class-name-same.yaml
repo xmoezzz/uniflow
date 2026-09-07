@@ -1,0 +1,18 @@
+id: field-name-and-class-name-same
+message: '0202000010130010'
+language: Java
+rule:
+  all:
+    - kind: field_declaration
+    - has:
+        kind: variable_declarator
+        has:
+          field: name
+          pattern: $NAME
+    - inside:
+        stopBy:
+          kind: class_declaration
+        kind: class_declaration
+        has:
+          field: name
+          pattern: $NAME

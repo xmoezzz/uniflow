@@ -1,0 +1,10 @@
+id: net.minidev.json-smart
+language: Java
+message: pkg:maven/net.minidev/json-smart
+metadata:
+  purl: pkg:maven/net.minidev/json-smart
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(net\.minidev\.json\.writer|net\.minidev\.json\.parser|net\.minidev\.json|net\.minidev\.json\.reader|net\.minidev\.json\.annotate)\.

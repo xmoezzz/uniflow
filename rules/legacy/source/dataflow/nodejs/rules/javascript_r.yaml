@@ -1,0 +1,161 @@
+rules:
+- !ruleMap
+  name: command_exec
+  maps:
+  - type: bug
+    value: '09000010090008'
+- !ruleMap
+  name: command_exec
+  maps:
+  - type: bug
+    value: '09000010050002'
+- !ruleMap
+  name: object_inject
+  maps:
+  - type: bug
+    value: '09000010090008'
+- !ruleMap
+  name: http_response_splitting
+  maps:
+  - type: bug
+    value: '09000010020003'
+- !ruleMap
+  name: sql_inject
+  maps:
+  - type: bug
+    value: '09000010020006'
+- !ruleMap
+  name: dynamic_parse_code
+  maps:
+  - type: bug
+    value: '09000010020014'
+- !ruleMap
+  name: weak_verify
+  maps:
+  - type: bug
+    value: '09000010030002'
+- !ruleMap
+  name: same_site
+  maps:
+  - type: bug
+    value: '09000010030004'
+- !ruleMap
+  name: HEADER_INJECTION
+  maps:
+  - type: bug
+    value: '09000010020003'
+- !ruleMap
+  name: SQLI
+  maps:
+  - type: bug
+    value: '09000010020006'
+- !ruleMap
+  name: INSECURE_RANDOM
+  maps:
+  - type: bug
+    value: '09000010080001'
+- !ruleMap
+  name: INSECURE_SALT
+  maps:
+  - type: bug
+    value: '09000010090030'
+- !ruleMap
+  name: OPEN_REDIRECT
+  maps:
+  - type: bug
+    value: '09000010050010'
+- !ruleMap
+  name: TEMPLATE_INJECTION
+  maps:
+  - type: bug
+    value: '09000010090025'
+- !ruleMap
+  name: CSS_INJECTION
+  maps:
+  - type: bug
+    value: '09000010050009'
+- !ruleMap
+  name: REGEX_INJECTION
+  maps:
+  - type: bug
+    value: '09000010050003'
+- !ruleMap
+  name: XSS
+  maps:
+  - type: bug
+    value: '09000010030034'
+- !ruleMap
+  name: COOKIE_INJECTION
+  maps:
+  - type: bug
+    value: '09000010050009'
+- !ruleMap
+  name: UNCHECKED_ORIGIN
+  maps:
+  - type: bug
+    value: '09000010090042'
+- !ruleMap
+  name: MONGODB_MASS_ASSIGNMENT
+  maps:
+  - type: bug
+    value: '09000010020006'
+- !ruleMap
+  name: SENSITIVE_DATA_LEAK
+  maps:
+  - type: bug
+    value: '09000010110002'
+- !ruleMap
+  name: OS_CMD_INJECTION
+  maps:
+  - type: bug
+    value: '09000010050009'
+- !ruleMap
+  name: SCRIPT_CODE_INJECTION
+  maps:
+  - type: bug
+    value: '09000010090047'
+- !ruleMap
+  name: UNRESTRICTED_MESSAGE_TARGET
+  maps:
+  - type: bug
+    value: '09000010050002'
+- !ruleMap
+  name: DOM_XSS
+  maps:
+  - type: bug
+    value: '09000010030001'
+- !ruleMap
+  name: URL_MANIPULATION
+  maps:
+  - type: bug
+    value: '09000010090047'
+- !ruleMap
+  name: NOSQL_QUERY_INJECTION
+  maps:
+  - type: bug
+    value: '09000010020006'
+- !ruleMap
+  name: SESSIONSTORAGE_MANIPULATION
+  maps:
+  - type: bug
+    value: '09000010110001'
+- !ruleMap
+  name: HARDCODED_CREDENTIALS
+  maps:
+  - type: bug
+    value: '09000010080004'
+- !ruleMap
+  name: XML_EXTERNAL_ENTITY
+  maps:
+  - type: bug
+    value: '09000010030002'
+- !ruleMap
+  name: MONGODB_QUERY_INJECTION
+  maps:
+  - type: bug
+    value: '09000010020006'
+- !ruleMap
+  name: PATH_MANIPULATION
+  maps:
+  - type: bug
+    value: '09000010090047'

@@ -1,0 +1,10 @@
+id: org.springframework.security.spring-security-oauth2-client
+language: Java
+message: pkg:maven/org.springframework.security/spring-security-oauth2-client
+metadata:
+  purl: pkg:maven/org.springframework.security/spring-security-oauth2-client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.security\.oauth2\.client\.web\.server\.authentication|org\.springframework\.security\.oauth2\.client\.web\.reactive\.function\.client|org\.springframework\.security\.oauth2\.client\.web\.method\.annotation|org\.springframework\.security\.oauth2\.client\.oidc\.authentication\.logout|org\.springframework\.security\.oauth2\.client\.oidc\.web\.server\.logout|org\.springframework\.security\.oauth2\.client|org\.springframework\.security\.oauth2\.client\.aot\.hint|org\.springframework\.security\.oauth2\.client\.oidc\.authentication|org\.springframework\.security\.oauth2\.client\.userinfo|org\.springframework\.security\.oauth2\.client\.oidc\.web\.logout|org\.springframework\.security\.oauth2\.client\.web|org\.springframework\.security\.oauth2\.client\.registration|org\.springframework\.security\.oauth2\.client\.jackson2|org\.springframework\.security\.oauth2\.client\.endpoint|org\.springframework\.security\.oauth2\.client\.web\.reactive\.result\.method\.annotation|org\.springframework\.security\.oauth2\.client\.annotation|org\.springframework\.security\.oauth2\.client\.oidc\.userinfo|org\.springframework\.security\.oauth2\.client\.web\.server|org\.springframework\.security\.oauth2\.client\.authentication|org\.springframework\.security\.oauth2\.client\.oidc\.session|org\.springframework\.security\.oauth2\.client\.http|org\.springframework\.security\.oauth2\.client\.oidc\.server\.session)\.

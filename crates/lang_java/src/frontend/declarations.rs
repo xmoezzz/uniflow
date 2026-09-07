@@ -8,9 +8,10 @@ struct JavaClassDecl {
 #[derive(Clone, Debug)]
 struct JavaMethodText {
     signature: String,
+    signature_span: uniflow_hir::Span,
     body: String,
     span: uniflow_hir::Span,
-    body_start_byte: usize,
+    body_span: uniflow_hir::Span,
 }
 
 #[derive(Clone, Debug)]
@@ -36,13 +37,15 @@ struct IndexedMethodReturnEntry {
     return_type: String,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct JavaEnv {
     vars: HashMap<String, SymbolId>,
     types: HashMap<String, String>,
     field_types: HashMap<String, String>,
     this_symbol: Option<SymbolId>,
     current_class: String,
+    callable_values: HashSet<SymbolId>,
+    expected_callable_arity: Option<usize>,
 }
 
 fn parse_package(source: &str) -> Option<String> {
@@ -65,12 +68,16 @@ fn detect_class_decl(source: &str) -> Option<JavaClassDecl> {
         \b(?:class|interface|record)\s+([A-Za-z_][A-Za-z0-9_]*)
         (?:\s+extends\s+([A-Za-z0-9_.$]+))?
         (?:\s+implements\s+([A-Za-z0-9_.$,\s]+))?
-        "
+        ",
     )
     .expect("valid regex");
     let caps = re.captures(source)?;
     let whole = caps.get(0)?;
-    let simple_name = caps.get(1).map(|m| m.as_str()).unwrap_or("Main").to_string();
+    let simple_name = caps
+        .get(1)
+        .map(|m| m.as_str())
+        .unwrap_or("Main")
+        .to_string();
     let mut bases = Vec::new();
     if let Some(ext) = caps.get(2) {
         bases.push(ext.as_str().trim().to_string());
@@ -90,8 +97,13 @@ fn detect_class_decl(source: &str) -> Option<JavaClassDecl> {
     })
 }
 
-fn parse_imports(source: &str, builder: &mut ModuleBuilder, mut resolver: JavaResolver) -> JavaResolver {
-    let re = Regex::new(r"(?m)^\s*import\s+(static\s+)?([A-Za-z0-9_.*]+)\s*;").expect("valid regex");
+fn parse_imports(
+    source: &str,
+    builder: &mut ModuleBuilder,
+    mut resolver: JavaResolver,
+) -> JavaResolver {
+    let re =
+        Regex::new(r"(?m)^\s*import\s+(static\s+)?([A-Za-z0-9_.*]+)\s*;").expect("valid regex");
     for caps in re.captures_iter(source) {
         let is_static = caps.get(1).is_some();
         let path = caps.get(2).map(|m| m.as_str()).unwrap_or_default();
@@ -103,7 +115,11 @@ fn parse_imports(source: &str, builder: &mut ModuleBuilder, mut resolver: JavaRe
                     .static_wildcard_imports
                     .push(path.trim_end_matches(".*").to_string());
             } else {
-                resolver.static_exact_imports.entry(alias).or_default().push(path.to_string());
+                resolver
+                    .static_exact_imports
+                    .entry(alias)
+                    .or_default()
+                    .push(path.to_string());
             }
             continue;
         }
@@ -112,49 +128,57 @@ fn parse_imports(source: &str, builder: &mut ModuleBuilder, mut resolver: JavaRe
                 .wildcard_imports
                 .push(path.trim_end_matches(".*").to_string());
         } else {
-            resolver.exact_imports.entry(alias).or_default().push(path.to_string());
+            resolver
+                .exact_imports
+                .entry(alias)
+                .or_default()
+                .push(path.to_string());
         }
     }
     resolver
 }
 
 fn extract_class_body(source: &str) -> Option<&str> {
+    Some(&source[extract_class_body_range(source)?])
+}
+
+fn extract_class_body_range(source: &str) -> Option<std::ops::Range<usize>> {
     let decl_re = Regex::new(r"\b(?:class|interface|record)\b").expect("valid regex");
     let decl = decl_re.find(source)?;
     let open = source[decl.start()..].find('{')? + decl.start();
     let close = find_matching_brace(source, open)?;
-    Some(&source[open + 1..close])
+    Some(open + 1..close)
 }
 
 fn extract_methods(body: &str) -> Vec<JavaMethodText> {
-    let mut out = Vec::new();
-    let mut idx = 0usize;
-    while idx < body.len() {
-        let Some(open_rel) = body[idx..].find('{') else {
-            break;
-        };
-        let open = idx + open_rel;
-        let line_start = body[..open].rfind('\n').map(|n| n + 1).unwrap_or(0);
-        let signature = body[line_start..open].trim();
-        if is_method_signature(signature) {
-            if let Some(close) = find_matching_brace(body, open) {
-                let inner = body[open + 1..close].to_string();
-                out.push(JavaMethodText {
-                    signature: signature.to_string(),
-                    body: inner,
-                    span: span_from_offsets(uniflow_hir::FileId(0), body, line_start, close + 1),
-                    body_start_byte: open + 1,
-                });
-                idx = close + 1;
-                continue;
-            }
-        }
-        idx = open + 1;
-    }
-    out
+    let syntax = uniflow_parser_core::java_syntax::JavaSyntax::parse_members(body);
+    syntax.roots.iter().filter_map(|&id| {
+        let method = &syntax.nodes[id];
+        let block = method.body.clone()?;
+        let open = block.start;
+        let close = block.end - 1;
+        let signature = &body[method.range.start..open];
+        Some(JavaMethodText {
+            signature: signature.trim().to_string(),
+            signature_span: span_from_offsets(
+                uniflow_hir::FileId(0), body, method.range.start, open,
+            ),
+            body: body[open + 1..close].to_string(),
+            span: span_from_offsets(
+                uniflow_hir::FileId(0), body, method.range.start, block.end,
+            ),
+            body_span: span_from_offsets(
+                uniflow_hir::FileId(0), body, open + 1, open + 1,
+            ),
+        })
+    }).collect()
 }
 
-fn extract_fields(builder: &mut ModuleBuilder, body: &str, resolver: &JavaResolver) -> Vec<ParsedField> {
+fn extract_fields(
+    builder: &mut ModuleBuilder,
+    body: &str,
+    resolver: &JavaResolver,
+) -> Vec<ParsedField> {
     let mut out = Vec::new();
     let mut start = 0usize;
     let mut depth = 0usize;
@@ -166,8 +190,11 @@ fn extract_fields(builder: &mut ModuleBuilder, body: &str, resolver: &JavaResolv
             '{' => depth += 1,
             '}' => depth = depth.saturating_sub(1),
             ';' if depth == 0 => {
-                let stmt = body[start..=idx].trim();
-                if let Some(field) = parse_field_decl(builder, stmt, resolver, start, idx + 1, body) {
+                let raw = &body[start..=idx];
+                let stmt = raw.trim();
+                let declaration_start = start + raw.len() - raw.trim_start().len();
+                if let Some(field) = parse_field_decl(builder, stmt, resolver, declaration_start, idx + 1, body)
+                {
                     out.push(field);
                 }
                 start = idx + 1;
@@ -192,9 +219,17 @@ fn parse_field_decl(
     if trimmed.is_empty() || trimmed.contains('(') {
         return None;
     }
-    if ["class ", "interface ", "enum ", "@", "return ", "package ", "import "]
-        .iter()
-        .any(|prefix| trimmed.starts_with(prefix))
+    if [
+        "class ",
+        "interface ",
+        "enum ",
+        "@",
+        "return ",
+        "package ",
+        "import ",
+    ]
+    .iter()
+    .any(|prefix| trimmed.starts_with(prefix))
     {
         return None;
     }
@@ -232,19 +267,14 @@ fn parse_field_decl(
     })
 }
 
-fn is_method_signature(signature: &str) -> bool {
-    let trimmed = signature.trim();
-    trimmed.contains('(')
-        && trimmed.contains(')')
-        && !trimmed.contains('=')
-        && !["if", "for", "while", "switch", "catch", "try", "else"]
-            .iter()
-            .any(|kw| trimmed.starts_with(kw))
-}
-
-fn parse_method_signature(signature: &str, simple_class_name: &str) -> Option<ParsedMethodSignature> {
+fn parse_method_signature(
+    signature: &str,
+    simple_class_name: &str,
+) -> Option<ParsedMethodSignature> {
+    let cleaned = mask_java_annotations(signature);
+    let signature = cleaned.as_str();
     let open = signature.find('(')?;
-    let close = signature.rfind(')')?;
+    let close = matching_delimiter(signature, open, '(', ')')?;
     if close <= open {
         return None;
     }
@@ -319,3 +349,34 @@ fn parse_method_signature(signature: &str, simple_class_name: &str) -> Option<Pa
     })
 }
 
+fn mask_java_annotations(text: &str) -> String {
+    use uniflow_parser_core::{Lexer, LexerSpec, TokKind};
+    let tokens = Lexer::new(text, &LexerSpec::default()).tokenize();
+    let mut ranges = Vec::new();
+    let mut i = 0;
+    while i < tokens.len() {
+        if tokens[i].text != "@" { i += 1; continue; }
+        let start = tokens[i].start as usize;
+        i += 1;
+        if !tokens.get(i).is_some_and(|t| t.kind == TokKind::Ident) { continue; }
+        let mut end = tokens[i].end as usize;
+        i += 1;
+        while i + 1 < tokens.len() && tokens[i].text == "." && tokens[i + 1].kind == TokKind::Ident {
+            end = tokens[i + 1].end as usize;
+            i += 2;
+        }
+        if tokens.get(i).is_some_and(|t| t.text == "(") {
+            if let Some(close) = matching_delimiter(text, tokens[i].start as usize, '(', ')') {
+                end = close + 1;
+                while i < tokens.len() && (tokens[i].start as usize) < end { i += 1; }
+            }
+        }
+        ranges.push(start..end);
+    }
+    let mut result = text.to_owned();
+    for range in ranges.into_iter().rev() {
+        let blank = text[range.clone()].bytes().map(|b| if b == b'\n' { '\n' } else { ' ' }).collect::<String>();
+        result.replace_range(range, &blank);
+    }
+    result
+}

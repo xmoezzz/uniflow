@@ -277,15 +277,25 @@ impl JavaParser {
         );
 
         let class_symbol = builder.add_symbol(&class_name, SymbolKind::Class);
-        let class_body = extract_class_body(&source).unwrap_or(source.as_str());
-        let parsed_fields = extract_fields(&mut builder, class_body, &resolver);
+        let body_range = extract_class_body_range(&source).unwrap_or(0..source.len());
+        let class_body = &source[body_range.clone()];
+        let class_body_base = span_from_offsets(
+            builder.file_id(), &source, body_range.start, body_range.start,
+        );
+        let mut parsed_fields = extract_fields(&mut builder, class_body, &resolver);
+        for field in &mut parsed_fields {
+            field.field.span = offset_java_span(class_body_base, field.field.span);
+        }
         let fields = parsed_fields
             .iter()
             .map(|field| field.field.clone())
             .collect::<Vec<_>>();
 
         let mut methods = Vec::new();
-        for method_text in extract_methods(class_body) {
+        for mut method_text in extract_methods(class_body) {
+            method_text.span = offset_java_span(class_body_base, method_text.span);
+            method_text.signature_span = offset_java_span(class_body_base, method_text.signature_span);
+            method_text.body_span = offset_java_span(class_body_base, method_text.body_span);
             if let Some(method) = parse_method(
                 &mut builder,
                 &class_name,

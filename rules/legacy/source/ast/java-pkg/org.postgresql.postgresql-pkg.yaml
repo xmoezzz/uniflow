@@ -1,0 +1,10 @@
+id: org.postgresql.postgresql
+language: Java
+message: pkg:maven/org.postgresql/postgresql
+metadata:
+  purl: pkg:maven/org.postgresql/postgresql
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.postgresql\.xa|org\.postgresql\.ds|org\.postgresql\.plugin|org\.postgresql\.util\.internal|org\.postgresql\.jdbcurlresolver|org\.postgresql\.jdbc2|org\.postgresql\.copy|org\.postgresql\.util|org\.postgresql\.geometric|org\.postgresql\.jdbc|org\.postgresql\.replication\.fluent\.physical|org\.postgresql\.core\.v3|org\.postgresql\.shaded\.com\.ongres\.scram\.client|org\.postgresql\.jre7\.sasl|org\.postgresql\.jdbc3|org\.postgresql\.ssl|org\.postgresql\.shaded\.com\.ongres\.scram\.common\.util|org\.postgresql\.hostchooser|org\.postgresql\.sspi|org\.postgresql\.core\.v3\.replication|org\.postgresql\.shaded\.com\.ongres\.scram\.common\.bouncycastle\.base64|org\.postgresql\.core\.v3\.adaptivefetch|org\.postgresql\.largeobject|org\.postgresql\.core|org\.postgresql\.translation|org\.postgresql\.jdbc2\.optional|org\.postgresql\.shaded\.com\.ongres\.scram\.common\.bouncycastle\.pbkdf2|org\.postgresql\.shaded\.com\.ongres\.scram\.common\.exception|org\.postgresql\.gss|org\.postgresql\.shaded\.com\.ongres\.scram\.common\.stringprep|org\.postgresql\.shaded\.com\.ongres\.scram\.common|org\.postgresql\.ds\.common|org\.postgresql\.replication\.fluent|org\.postgresql\.shaded\.com\.ongres\.scram\.common\.message|org\.postgresql\.osgi|org\.postgresql\.shaded\.com\.ongres\.scram\.common\.gssapi|org\.postgresql\.fastpath|org\.postgresql\.replication|org\.postgresql\.shaded\.com\.ongres\.stringprep|org\.postgresql\.xml|org\.postgresql\.ssl\.jdbc4|org\.postgresql\.replication\.fluent\.logical|org\.postgresql|org\.postgresql\.shaded\.com\.ongres\.saslprep)\.

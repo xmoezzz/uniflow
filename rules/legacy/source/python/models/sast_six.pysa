@@ -1,0 +1,36 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                six
+
+# DataflowSourceRule six 1
+# [{'NamespaceName': 'six.moves', 'ClassName': '', 'FunctionName': 'input', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_six_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^six\.moves.*\.input$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule six 4
+# [{'NamespaceName': 'six.moves', 'ClassName': '', 'FunctionName': 'reload_module', 'RuleName': 'desc.dataflow.python.unsafe_reflection', 'Origin': 'Fortify'}, {'NamespaceName': 'six', 'ClassName': '', 'FunctionName': 'exec_', 'RuleName': 'desc.dataflow.python.dynamic_code_evaluation_code_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'six', 'ClassName': '', 'FunctionName': 'print_', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'six', 'ClassName': '', 'FunctionName': 'print_', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_six_functions_sinks",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^six\.moves.*\.reload_module$"),
+      name.matches("^six.*\.exec_"),
+      name.matches("^six.*\.print_")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_system_information_leak_internal]
+    )
+  ]
+)

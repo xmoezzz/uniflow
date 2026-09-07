@@ -1,0 +1,920 @@
+count: 31
+data: '2022-12-06 10:39:36'
+rules:
+  SCS0001:
+    kingdom: 代码执行
+    category: 命令注入
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP
+      text: Top 10 2013-A1-Injection
+    - name: OWASP
+      text: Command Injection
+    - name: CWE-78
+      text: Improper Neutralization of Special Elements used in an OS Command ('OS
+        Command Injection')
+  SCS0002:
+    kingdom: 代码执行
+    category: SQL注入
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP
+      text: Query Parameterization Cheat Sheet
+    - name: OWASP
+      text: SQL Injection Prevention Cheat Sheet
+    - name: CWE-89
+      text: Improper Neutralization of Special Elements used in an SQL Command ('SQL
+        Injection')
+  SCS0003:
+    kingdom: 代码执行
+    category: XPath注入
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP
+      text: XPATH Injection
+    - name: CWE-643
+      text: Improper Neutralization of Data within XPath Expressions ('XPath Injection')
+  SCS0004:
+    kingdom: 安全特性
+    category: 证书验证不可用
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-295
+      text: Improper Certificate Validation
+  SCS0005:
+    kingdom: 安全特性
+    category: 弱随机数生成器
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: OWASP
+      text: Insecure Randomness
+    - name: CWE-338
+      text: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)
+  SCS0006:
+    kingdom: 安全特性
+    category: 弱哈希函数
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-327
+      text: Use of a Broken or Risky Cryptographic Algorithm
+  SCS0007:
+    kingdom: 代码执行
+    category: XXE注入
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP.ORG
+      text: XML External Entity (XXE) Processing
+    - name: OWASP.ORG
+      text: XML External Entity (XXE) Prevention Cheat Sheet (.NET)
+    - name: CWE-611
+      text: Improper Restriction of XML External Entity Reference ('XXE')
+  SCS0008:
+    kingdom: 安全特性
+    category: Cookie缺少Secure标记
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: OWASP
+      text: Secure Flag
+    - name: CWE-614
+      text: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute
+  SCS0009:
+    kingdom: 安全特性
+    category: Cookie缺少HttpOnly标记
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: OWASP
+      text: HttpOnly
+    - name: CWE-1004
+      text: Sensitive Cookie Without 'HttpOnly' Flag
+  SCS0010:
+    kingdom: 安全特性
+    category: 弱加密算法
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-327
+      text: Use of a Broken or Risky Cryptographic Algorithm
+  SCS0011:
+    kingdom: 安全特性
+    category: 使用了不安全的XSLT设置
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-611
+      text: Improper Restriction of XML External Entity Reference
+  SCS0012:
+    kingdom: 安全边界
+    category: 控制器方法可能存在授权绕过漏洞
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-284
+      text: Improper Access Control
+  SCS0013:
+    kingdom: 安全特性
+    category: 可能使用弱加密模式
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-327
+      text: Use of a Broken or Risky Cryptographic Algorithm
+  SCS0015:
+    kingdom: 安全特性
+    category: 硬编码密码
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-259
+      text: Use of Hard-coded Password
+  SCS0016:
+    kingdom: 代码执行
+    category: CSRF攻击
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP
+      text: CSRF Prevention Cheat Sheet
+    - name: OWASP
+      text: Cross-Site Request Forgery
+    - name: CWE-352
+      text: Cross-Site Request Forgery (CSRF)
+  SCS0017:
+    kingdom: 安全特性
+    category: 请求验证被禁用
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: OWASP
+      text: ASP.NET Request Validation
+    - name: CWE-554
+      text: ASP.NET Misconfiguration
+  SCS0018:
+    kingdom: 安全边界
+    category: 路径遍历
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP
+      text: Path Traversal
+    - name: CWE-22
+      text: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+  SCS0019:
+    kingdom: 安全特性
+    category: OutputCache注解禁用授权检查
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-524
+      text: Use of Cache Containing Sensitive Information
+  SCS0021:
+    kingdom: 安全特性
+    category: 请求验证被禁用
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: OWASP
+      text: ASP.NET Request Validation
+    - name: CWE-554
+      text: ASP.NET Misconfiguration
+  SCS0022:
+    kingdom: 安全特性
+    category: 事件验证已禁用
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-554
+      text: ASP.NET Misconfiguration
+  SCS0023:
+    kingdom: 安全特性
+    category: 视图状态未加密
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-554
+      text: ASP.NET Misconfiguration
+  SCS0024:
+    kingdom: 安全特性
+    category: 视图状态MAC已禁用
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: CWE-554
+      text: ASP.NET Misconfiguration
+  SCS0026:
+    kingdom: 代码执行
+    category: LDAP注入
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP
+      text: LDAP Injection Prevention Cheat Sheet
+    - name: OWASP
+      text: LDAP Injection
+    - name: CWE-90
+      text: Improper Neutralization of Special Elements used in an LDAP Query ('LDAP
+        Injection')
+  SCS0027:
+    kingdom: 代码执行
+    category: 开放重定向漏洞
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: OWASP
+      text: Unvalidated Redirects and Forwards Cheat Sheet
+    - name: CWE-601
+      text: URL Redirection to Untrusted Site ('Open Redirect')
+  SCS0028:
+    kingdom: 代码执行
+    category: 不安全的反序列化
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP
+      text: Deserialization of untrusted data
+    - name: CWE-502
+      text: Deserialization of Untrusted Data
+  SCS0029:
+    kingdom: 代码执行
+    category: XSS漏洞
+    sub_category: ''
+    severity: '4.0'
+    groups:
+    - name: OWASP
+      text: Top 10 2013-A3
+    - name: OWASP
+      text: XSS Prevention Cheat Sheet
+    - name: CWE-79
+      text: Improper Neutralization of Input During Web Page Generation ('Cross-site
+        Scripting')
+  SCS0030:
+    kingdom: 安全特性
+    category: 只有页面启用请求验证
+    sub_category: ''
+    severity: '2.0'
+    groups:
+    - name: OWASP
+      text: ASP.NET Request Validation
+    - name: CWE-554
+      text: ASP.NET Misconfiguration
+  SCS0031:
+    kingdom: 代码执行
+    category: LDAP注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: OWASP
+      text: LDAP Injection Prevention Cheat Sheet
+    - name: OWASP
+      text: LDAP Injection
+    - name: CWE-90
+      text: Improper Neutralization of Special Elements used in an LDAP Query ('LDAP
+        Injection')
+  SCS0032:
+    kingdom: 安全特性
+    category: 密码最小长度过短
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: CWE-521
+      text: Weak Password Requirements
+  SCS0033:
+    kingdom: 安全特性
+    category: 密码复杂度过低
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: CWE-521
+      text: Weak Password Requirements
+  SCS0034:
+    kingdom: 安全特性
+    category: 密码最小长度未设置
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: CWE-521
+      text: Weak Password Requirements
+  SCSANZU:
+    kingdom: 污点规则
+    category: 自定义污点告警
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.encapsulation_external:
+    kingdom: 污点规则
+    category: 外部封装
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_regular_expression:
+    kingdom: 污点规则
+    category: 正则表达式
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_xquery_injection:
+    kingdom: 污点规则
+    category: xquery注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_persistent:
+    kingdom: 污点规则
+    category: 持久化
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.cleartext_storage:
+    kingdom: 污点规则
+    category: 明文存储
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_script_injection:
+    kingdom: 污点规则
+    category: 脚本注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_castle_activerecord:
+    kingdom: 污点规则
+    category: castle activerecord
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_setting_manipulation:
+    kingdom: 污点规则
+    category: 设置操作
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_database:
+    kingdom: 污点规则
+    category: 数据库
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_cookies:
+    kingdom: 污点规则
+    category: Cookies
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_mongodb:
+    kingdom: 污点规则
+    category: mongodb
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_unsafe_reflection:
+    kingdom: 污点规则
+    category: 不安全反射
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_xpath_injection:
+    kingdom: 污点规则
+    category: XPath注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_inter_component_communication:
+    kingdom: 污点规则
+    category: 组件间通信
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_unsafe_yaml_deserialization:
+    kingdom: 污点规则
+    category: 不安全的Yaml反序列化
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.desc.dataflow.dotnet.sql_injection_partiql:
+    kingdom: 污点规则
+    category: SQL注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_unsafe_json_deserialization:
+    kingdom: 污点规则
+    category: 不安全的Json反序列化
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_nhibernate:
+    kingdom: 污点规则
+    category: nhibernate
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_registry_manipulation:
+    kingdom: 污点规则
+    category: 注册表操作
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_memcached_injection:
+    kingdom: 污点规则
+    category: Memcached注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_password_management:
+    kingdom: 污点规则
+    category: 密码管理
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.denial_of_service_format_string:
+    kingdom: 污点规则
+    category: 拒绝服务格式字符串
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.encapsulation_system_information_leak:
+    kingdom: 污点规则
+    category: 系统信息泄漏
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_hardcoded_encryption_key:
+    kingdom: 污点规则
+    category: 硬编码加密密钥
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_resource_injection:
+    kingdom: 污点规则
+    category: 资源注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.sha512_with_no_salt:
+    kingdom: 污点规则
+    category: 无盐sha512
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.privacy_violation_heap_inspection:
+    kingdom: 污点规则
+    category: 隐私侵犯堆检查
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_log_forging:
+    kingdom: 污点规则
+    category: 日志伪造
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_command_injection:
+    kingdom: 污点规则
+    category: 命令注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.desc.dataflow.dotnet.nosql_injection_dynamodb:
+    kingdom: 污点规则
+    category: Nosql注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_formula_injection:
+    kingdom: 污点规则
+    category: Formula注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.code_quality_erroneous_class_compare:
+    kingdom: 污点规则
+    category: 类比较
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_path_manipulation:
+    kingdom: 污点规则
+    category: 路径操作
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_inter_component_communication_cloud:
+    kingdom: 污点规则
+    category: 组件间通信云
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.dynamic_code_evaluation_code_injection:
+    kingdom: 污点规则
+    category: 代码注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_connection_string_parameter_pollution:
+    kingdom: 污点规则
+    category: 连接字符串参数污染
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_zip_entry_overwrite:
+    kingdom: 污点规则
+    category: Zip条目覆盖
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_poor_validation:
+    kingdom: 污点规则
+    category: 弱验证
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_subsonic:
+    kingdom: 污点规则
+    category: Subsonic
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.encapsulation_trust_boundary_violation:
+    kingdom: 污点规则
+    category: 违反封装信任边界
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_sql_injection:
+    kingdom: 污点规则
+    category: Sql注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_predictable_salt:
+    kingdom: 污点规则
+    category: 可预测盐
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_json_injection:
+    kingdom: 污点规则
+    category: Json注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_privacy_violation:
+    kingdom: 污点规则
+    category: 侵犯隐私
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.code_quality_file_separator:
+    kingdom: 污点规则
+    category: 文件分隔符
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_weak_cryptography:
+    kingdom: 污点规则
+    category: 弱密码
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_health_information:
+    kingdom: 污点规则
+    category: 健康信息
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_reflected:
+    kingdom: 污点规则
+    category: 反射
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.encapsulation_internal:
+    kingdom: 污点规则
+    category: 内部封装
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_xslt_injection:
+    kingdom: 污点规则
+    category: Xslt注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_unsafe_deserialization:
+    kingdom: 污点规则
+    category: 不安全的反序列化
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_plain_text_password_in_transit:
+    kingdom: 污点规则
+    category: 传输明文密码
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.embedded_malicious_code:
+    kingdom: 污点规则
+    category: 嵌入恶意代码
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_xml_injection:
+    kingdom: 污点规则
+    category: XML注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_logging:
+    kingdom: 污点规则
+    category: 日志记录
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_xml_external_entity_injection:
+    kingdom: 污点规则
+    category: XML外部实体注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_heap_inspection:
+    kingdom: 污点规则
+    category: 堆检查
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_insufficient_key_size_2:
+    kingdom: 污点规则
+    category: 密钥大小不足2
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.desc.dataflow.dotnet.nosql_injection_cosmosdb:
+    kingdom: 污点规则
+    category: Nosql注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_base_path_overwriting:
+    kingdom: 污点规则
+    category: 基础路径覆盖
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_process_control:
+    kingdom: 污点规则
+    category: 控制过程
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_linq:
+    kingdom: 污点规则
+    category: Ling表达式
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_routing:
+    kingdom: 污点规则
+    category: Routing
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_ldap_manipulation:
+    kingdom: 污点规则
+    category: Ldap操作
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_http_parameter_pollution:
+    kingdom: 污点规则
+    category: Http参数污染
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_xml_entity_expansion_injection:
+    kingdom: 污点规则
+    category: Xml实体扩展注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_user_controlled_key_size:
+    kingdom: 污点规则
+    category: 用户控制的密钥大小
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_ldap_injection:
+    kingdom: 污点规则
+    category: Ldap注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_ldap:
+    kingdom: 污点规则
+    category: Ldap
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_insufficient_key_size:
+    kingdom: 污点规则
+    category: 密钥大小不足
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_dangerous_file_inclusion:
+    kingdom: 污点规则
+    category: 包含危险文件
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_server_side_request_forgery:
+    kingdom: 污点规则
+    category: 服务器端请求伪造
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.security_features_permission_manipulation:
+    kingdom: 污点规则
+    category: 权限操作
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_code_injection:
+    kingdom: 污点规则
+    category: 代码注入
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_open_redirect:
+    kingdom: 污点规则
+    category: Open重定向
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning
+  SCSANZU.input_validation_and_representation_denial_of_service:
+    kingdom: 污点规则
+    category: 拒绝服务
+    sub_category: ''
+    severity: '3.0'
+    groups:
+    - name: SCSANZU
+      text: SCSANZU default warning

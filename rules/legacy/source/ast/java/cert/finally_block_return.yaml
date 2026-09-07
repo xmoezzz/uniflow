@@ -1,0 +1,11 @@
+id: finally_block_return
+message: '0102000010120004'
+language: Java
+rule:
+  kind: finally_clause
+  has:
+    stopBy: 
+      any:
+        - kind: method_declaration
+        - kind: lambda_expression
+    kind: return_statement

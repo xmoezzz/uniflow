@@ -1,0 +1,7 @@
+id: obsolete-functions
+message: '0102000010130009'
+language: Java
+rule:
+  any:
+  - pattern: System.getenv($$$)
+  - pattern: System.runFinalizersOnExit($$$)

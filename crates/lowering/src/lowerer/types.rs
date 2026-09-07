@@ -1,8 +1,18 @@
 fn infer_call_return_type(call: &CallExpr, receiver_ty: Option<&str>) -> Option<String> {
     match &call.target {
         CallTarget::Named(name) => {
+            if let Some((owner, method)) = name.rsplit_once('.') {
+                if let Some(ty) = uniflow_hir::java_api::java_api_return_type(owner, method, call.args.len()) {
+                    return Some(ty.to_string());
+                }
+            }
             if let Some(ty) = receiver_ty {
                 if let Some(method) = name.rsplit('.').next() {
+                    if let Some(return_type) =
+                        uniflow_hir::java_api::java_api_return_type(ty, method, call.args.len())
+                    {
+                        return Some(return_type.to_string());
+                    }
                     if matches!(method, "append" | "add" | "put" | "push") {
                         return Some(ty.to_string());
                     }
@@ -58,14 +68,6 @@ fn ir_return_type_name(ty: &Type) -> Option<&str> {
     }
 }
 
-fn lower_callee(target: &CallTarget) -> Callee {
-    match target {
-        CallTarget::Named(name) => Callee::Static(name.clone()),
-        CallTarget::Dynamic(_) => Callee::Unknown,
-        CallTarget::Resolved(symbol) => Callee::Static(format!("symbol#{}", symbol.0)),
-    }
-}
-
 fn lower_type_name(name: Option<&str>) -> Type {
     match name.unwrap_or("unknown") {
         "void" => Type::Void,
@@ -76,5 +78,3 @@ fn lower_type_name(name: Option<&str>) -> Type {
         other => Type::Object(other.to_string()),
     }
 }
-
-

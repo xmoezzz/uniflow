@@ -1,0 +1,10 @@
+id: com.mysql.mysql-connector-j
+language: Java
+message: pkg:maven/com.mysql/mysql-connector-j
+metadata:
+  purl: pkg:maven/com.mysql/mysql-connector-j
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.mysql\.cj\.jdbc\.result|com\.mysql\.cj\.jdbc\.jmx|com\.mysql\.cj\.util|com\.mysql\.cj\.protocol\.a|com\.mysql\.jdbc|com\.mysql\.cj\.protocol\.result|com\.mysql\.cj\.interceptors|com\.mysql\.cj\.protocol\.a\.authentication|com\.mysql\.cj\.jdbc\.ha|com\.mysql\.cj\.log|com\.mysql\.cj\.callback|com\.mysql\.cj\.jdbc\.util|com\.mysql\.cj\.sasl|com\.mysql\.cj\.xdevapi|com\.mysql\.cj\.conf\.url|com\.mysql\.cj\.admin|com\.mysql\.cj\.conf|com\.mysql\.cj\.jdbc|com\.mysql\.cj\.jdbc\.admin|com\.mysql\.cj\.jdbc\.integration\.c3p0|com\.mysql\.cj|com\.mysql\.cj\.telemetry|com\.mysql\.cj\.protocol|com\.mysql\.cj\.jdbc\.interceptors|com\.mysql\.cj\.exceptions|com\.mysql\.cj\.jdbc\.exceptions|com\.mysql\.cj\.otel|com\.mysql\.cj\.protocol\.a\.result|com\.mysql\.cj\.protocol\.x|com\.mysql\.cj\.result|com\.mysql\.cj\.x\.protobuf)\.

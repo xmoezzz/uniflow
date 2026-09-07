@@ -1,0 +1,10 @@
+id: io.quarkus.quarkus-vertx-http
+language: Java
+message: pkg:maven/io.quarkus/quarkus-vertx-http
+metadata:
+  purl: pkg:maven/io.quarkus/quarkus-vertx-http
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.quarkus\.devui\.runtime|io\.quarkus\.vertx\.http\.runtime\.filters|io\.quarkus\.vertx\.http\.runtime\.management|io\.quarkus\.vertx\.http\.runtime\.security\.annotation|io\.quarkus\.devui\.runtime\.config|io\.quarkus\.vertx\.http\.runtime\.filters\.accesslog|io\.quarkus\.devui\.runtime\.continuoustesting|io\.quarkus\.vertx\.http\.runtime\.cors|io\.quarkus\.vertx\.http|io\.quarkus\.devui\.runtime\.readme|io\.quarkus\.devui\.runtime\.jsonrpc|io\.quarkus\.devui\.runtime\.comms|io\.quarkus\.devui\.runtime\.jsonrpc\.json|io\.quarkus\.vertx\.http\.runtime\.handlers|io\.quarkus\.vertx\.http\.runtime\.security|io\.quarkus\.vertx\.http\.runtime\.devmode|io\.quarkus\.vertx\.http\.runtime|io\.quarkus\.vertx\.http\.runtime\.attribute|io\.quarkus\.devui\.runtime\.build|io\.quarkus\.vertx\.http\.runtime\.options|io\.quarkus\.vertx\.http\.runtime\.webjar|io\.quarkus\.devui\.runtime\.logstream)\.

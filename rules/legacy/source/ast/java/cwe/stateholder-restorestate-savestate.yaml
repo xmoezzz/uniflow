@@ -1,0 +1,53 @@
+id: stateholder-restorestate-savestate
+message: '0202000010130024'
+language: Java
+rule:
+  any:
+    - all:
+      - kind: method_declaration
+        has:
+          field: name
+          pattern: restoreState
+      - inside:
+          stopBy: 
+            kind: class_declaration
+          kind: class_declaration
+          all:
+            - has:
+                kind: superclass
+                has:
+                  stopBy: end
+                  kind: type_identifier
+                  regex: StateHolder
+            - not:
+                has:
+                  field: body
+                  has:
+                    kind: method_declaration
+                    has:
+                      field: name
+                      pattern: saveState
+    - all:
+      - kind: method_declaration
+        has:
+          field: name
+          pattern: saveState
+      - inside:
+          stopBy: 
+            kind: class_declaration
+          kind: class_declaration
+          all:
+            - has:
+                kind: superclass
+                has:
+                  stopBy: end
+                  kind: type_identifier
+                  regex: StateHolder
+            - not:
+                has:
+                  field: body
+                  has:
+                    kind: method_declaration
+                    has:
+                      field: name
+                      pattern: restoreState

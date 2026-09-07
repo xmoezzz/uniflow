@@ -1,0 +1,10 @@
+id: org.keycloak.keycloak-model-infinispan
+language: Java
+message: pkg:maven/org.keycloak/keycloak-model-infinispan
+metadata:
+  purl: pkg:maven/org.keycloak/keycloak-model-infinispan
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.keycloak\.models\.sessions\.infinispan|org\.keycloak\.cluster\.infinispan|org\.keycloak\.models\.sessions\.infinispan\.stream|org\.keycloak\.models\.sessions\.infinispan\.events|org\.keycloak\.connections\.infinispan|org\.keycloak\.models\.cache\.infinispan|org\.keycloak\.models\.sessions\.infinispan\.changes|org\.keycloak\.models\.cache\.infinispan\.entities|org\.keycloak\.models\.cache\.infinispan\.events|org\.keycloak\.models\.cache\.infinispan\.stream|org\.keycloak\.models\.cache\.infinispan\.authorization|org\.keycloak\.models\.cache\.infinispan\.authorization\.events|org\.keycloak\.models\.sessions\.infinispan\.changes\.sessions|org\.keycloak\.models\.cache\.infinispan\.authorization\.entities|org\.keycloak\.models\.cache\.infinispan\.authorization\.stream|org\.keycloak\.models\.sessions\.infinispan\.initializer|org\.keycloak\.models\.sessions\.infinispan\.remotestore|org\.keycloak\.models\.sessions\.infinispan\.util|org\.keycloak\.marshalling|org\.keycloak\.models\.sessions\.infinispan\.entities|org\.keycloak\.keys\.infinispan)\.

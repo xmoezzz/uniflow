@@ -1,0 +1,10 @@
+id: org.springframework.spring-webmvc
+language: Java
+message: pkg:maven/org.springframework/spring-webmvc
+metadata:
+  purl: pkg:maven/org.springframework/spring-webmvc
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.web\.servlet\.support|org\.springframework\.web\.servlet\.view\.xslt|org\.springframework\.web\.servlet\.view\.feed|org\.springframework\.web\.servlet\.mvc\.method\.annotation|org\.springframework\.web\.servlet\.function\.support|org\.springframework\.web\.servlet\.config|org\.springframework\.web\.servlet\.view\.json|org\.springframework\.web\.servlet\.view\.freemarker|org\.springframework\.web\.servlet\.view|org\.springframework\.web\.servlet\.mvc\.condition|org\.springframework\.web\.servlet\.mvc\.annotation|org\.springframework\.web\.servlet\.mvc\.method|org\.springframework\.web\.servlet\.view\.script|org\.springframework\.web\.servlet\.view\.document|org\.springframework\.web\.servlet\.mvc\.support|org\.springframework\.web\.servlet\.theme|org\.springframework\.web\.servlet\.handler|org\.springframework\.web\.servlet|org\.springframework\.web\.servlet\.function|org\.springframework\.web\.servlet\.i18n|org\.springframework\.web\.servlet\.config\.annotation|org\.springframework\.web\.servlet\.mvc|org\.springframework\.web\.servlet\.view\.xml|org\.springframework\.web\.servlet\.resource|org\.springframework\.web\.servlet\.tags|org\.springframework\.web\.servlet\.view\.groovy|org\.springframework\.web\.servlet\.tags\.form)\.

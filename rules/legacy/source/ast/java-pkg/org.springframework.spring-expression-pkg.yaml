@@ -1,0 +1,10 @@
+id: org.springframework.spring-expression
+language: Java
+message: pkg:maven/org.springframework/spring-expression
+metadata:
+  purl: pkg:maven/org.springframework/spring-expression
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.expression\.spel\.ast|org\.springframework\.expression\.common|org\.springframework\.expression\.spel\.support|org\.springframework\.expression\.spel\.standard|org\.springframework\.expression|org\.springframework\.expression\.spel)\.

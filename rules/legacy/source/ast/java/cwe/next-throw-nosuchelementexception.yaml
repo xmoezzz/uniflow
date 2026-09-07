@@ -1,0 +1,19 @@
+id: next-throw-nosuchelementexception
+message: '0202000010150448'
+language: Java
+rule:
+  kind: method_declaration
+  all:
+  - has:
+      kind: modifiers
+      regex: Override
+  - has:
+      field: name
+      pattern: next
+  - has:
+      field: body
+      not:
+        has:
+          stopBy: end
+          kind: type_identifier
+          regex: ^NoSuchElementException$

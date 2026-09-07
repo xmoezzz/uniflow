@@ -1,0 +1,10 @@
+id: commons-httpclient.commons-httpclient
+language: Java
+message: pkg:maven/commons-httpclient/commons-httpclient
+metadata:
+  purl: pkg:maven/commons-httpclient/commons-httpclient
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.commons\.httpclient\.util|org\.apache\.commons\.httpclient\.cookie|org\.apache\.commons\.httpclient\.methods|org\.apache\.commons\.httpclient\.methods\.multipart|org\.apache\.commons\.httpclient\.protocol|org\.apache\.commons\.httpclient\.auth|org\.apache\.commons\.httpclient|org\.apache\.commons\.httpclient\.params)\.

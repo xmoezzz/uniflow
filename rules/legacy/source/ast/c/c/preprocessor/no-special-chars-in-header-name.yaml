@@ -1,0 +1,8 @@
+id: no-special-chars-in-header-name
+message: '0601000010140104'
+language: C
+rule:
+  kind: preproc_include
+  has:
+    field: path
+    regex: "\\*|'|\\\\"

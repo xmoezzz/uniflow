@@ -1,0 +1,38 @@
+id: unused-field
+message: '0202000010130006'
+language: Java
+
+rule:
+  kind: field_declaration
+  all:
+  - not:
+      has:
+        kind: modifiers
+        has:
+          kind: marker_annotation
+  - has:
+      field: declarator
+      has:
+        field: name
+        pattern: $NAME
+  - inside:
+      kind: class_body
+      all:
+      - inside:
+          kind: class_declaration
+          not:
+            has:
+              kind: modifiers
+              has:
+                kind: marker_annotation
+      - not:
+          has:
+            stopBy: end
+            all:
+            - kind: identifier
+            - pattern: $NAME
+            - inside:
+                not:
+                  has:
+                    field: name
+                    pattern: $NAME

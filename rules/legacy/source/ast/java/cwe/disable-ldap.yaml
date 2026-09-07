@@ -1,0 +1,8 @@
+id: disable-ldap
+message: '0202000010150443'
+language: Java
+rule:
+  kind: method_invocation
+  has:
+    field: arguments
+    regex: SECURITY_AUTHENTICATION,\s*\"none\"

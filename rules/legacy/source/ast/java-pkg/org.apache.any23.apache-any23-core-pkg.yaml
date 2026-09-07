@@ -1,0 +1,10 @@
+id: org.apache.any23.apache-any23-core
+language: Java
+message: pkg:maven/org.apache.any23/apache-any23-core
+metadata:
+  purl: pkg:maven/org.apache.any23/apache-any23-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.any23\.extractor\.rdfa|org\.apache\.any23\.http|org\.apache\.any23\.extractor\.csv|org\.apache\.any23\.vocab|org\.apache\.any23\.validator\.rule|org\.apache\.any23\.extractor\.calendar|org\.apache\.any23|org\.apache\.any23\.extractor\.yaml|org\.apache\.any23\.extractor\.microdata|org\.apache\.any23\.extractor\.rdf|org\.apache\.any23\.extractor\.html\.microformats2|org\.apache\.any23\.extractor\.html\.microformats2\.annotations|org\.apache\.any23\.filter|org\.apache\.any23\.source|org\.apache\.any23\.extractor\.html|org\.apache\.any23\.rdf|org\.apache\.any23\.writer|org\.apache\.any23\.extractor\.html\.annotations|org\.apache\.any23\.util|org\.apache\.any23\.extractor\.xpath|org\.apache\.any23\.extractor|org\.apache\.any23\.validator)\.

@@ -1,0 +1,10 @@
+id: org.mapfish.print.print-lib
+language: Java
+message: pkg:maven/org.mapfish.print/print-lib
+metadata:
+  purl: pkg:maven/org.mapfish.print/print-lib
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.mapfish\.print\.wrapper\.json|org\.mapfish\.print\.wrapper\.yaml|org\.mapfish\.print\.config|org\.mapfish\.print\.servlet|org\.mapfish\.print\.wrapper\.multi|org\.mapfish\.print\.attribute|org\.mapfish\.print\.map\.style\.json|org\.mapfish\.print\.map\.geotools\.grid|org\.mapfish\.print\.processor\.http\.matcher|org\.mapfish\.print\.servlet\.job\.impl\.hibernate|org\.mapfish\.print\.map\.image|org\.mapfish\.print\.map\.style|org\.mapfish\.print\.http|org\.mapfish\.print\.url\.data|org\.mapfish\.print\.map\.tiled\.wmts|org\.mapfish\.print\.output|org\.mapfish\.print\.map\.image\.wms|org\.mapfish\.print\.servlet\.job|org\.mapfish\.print\.servlet\.fileloader|org\.mapfish\.print\.cli|org\.mapfish\.print\.processor|org\.mapfish\.print\.processor\.map|org\.mapfish\.print\.map\.geotools|org\.mapfish\.print\.map\.tiled\.wms|org\.mapfish\.print\.processor\.map\.scalebar|org\.mapfish\.print\.map\.geotools\.function|org\.mapfish\.print\.parser|org\.mapfish\.print\.attribute\.map|org\.mapfish\.print\.servlet\.job\.loader|org\.mapfish\.print\.processor\.jasper|org\.mapfish\.print\.config\.access|org\.mapfish\.print\.map\.tiled|org\.mapfish\.print\.map\.tiled\.osm|org\.mapfish\.print\.map|org\.mapfish\.print|org\.mapfish\.print\.processor\.http|org\.mapfish\.print\.servlet\.registry|org\.mapfish\.print\.test\.util|org\.mapfish\.print\.wrapper|org\.mapfish\.print\.servlet\.job\.impl|org\.mapfish\.print\.metrics)\.

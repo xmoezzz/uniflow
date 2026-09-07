@@ -1,0 +1,10 @@
+id: org.testng.testng
+language: Java
+message: pkg:maven/org.testng/testng
+metadata:
+  purl: pkg:maven/org.testng/testng
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.testng\.internal\.thread|org\.testng\.annotations|org\.testng\.xml\.internal|org\.testng\.reporters\.jq|org\.testng\.internal\.thread\.graph|org\.testng\.thread|org\.testng\.reporters\.util|org\.testng\.log4testng|org\.testng\.internal\.protocols|org\.testng\.reporters|org\.testng\.util|org\.testng\.internal\.invokers\.objects|org\.testng\.internal\.reflect|org\.testng\.log|org\.testng\.internal\.collections|org\.testng\.internal\.junit|org\.testng\.internal\.objects|org\.testng\.collections|org\.testng\.internal\.objects\.pojo|org\.testng|org\.testng\.xml|org\.testng\.asserts|org\.testng\.internal|org\.testng\.internal\.annotations|org\.testng\.internal\.invokers)\.

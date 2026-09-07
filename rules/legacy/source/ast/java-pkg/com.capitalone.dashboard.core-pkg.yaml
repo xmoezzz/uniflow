@@ -1,0 +1,10 @@
+id: com.capitalone.dashboard.core
+language: Java
+message: pkg:maven/com.capitalone.dashboard/core
+metadata:
+  purl: pkg:maven/com.capitalone.dashboard/core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(ext\.java\.util|com\.capitalone\.dashboard\.model\.adapter|com\.capitalone\.dashboard\.auth|com\.capitalone\.dashboard\.auth\.apitoken|com\.capitalone\.dashboard\.model\.score|com\.capitalone\.dashboard\.model\.webhook\.github|com\.capitalone\.dashboard\.config|com\.capitalone\.dashboard\.model\.score\.settings|hygieia\.transformer|com\.capitalone\.dashboard\.service|com\.capitalone\.dashboard\.model|com\.capitalone\.dashboard\.client|com\.capitalone\.dashboard\.util|com\.capitalone\.dashboard\.collector|com\.capitalone\.dashboard\.status|com\.capitalone\.dashboard\.event\.constants\.sync|com\.capitalone\.dashboard\.misc|com\.capitalone\.dashboard\.response|com\.capitalone\.dashboard\.testutil|com\.capitalone\.dashboard\.event\.sync|com\.capitalone\.dashboard\.config\.collector|com\.capitalone\.dashboard\.event|com\.capitalone\.dashboard\.model\.quality|com\.capitalone\.dashboard\.repository|org\.bson\.types|com\.capitalone\.dashboard\.mapper|org\.json\.simple|com\.capitalone\.dashboard\.request|com\.capitalone\.dashboard\.model\.relation)\.

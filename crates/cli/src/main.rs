@@ -6,7 +6,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
-use uniflow_baseline::{builtin_pack_manifest, builtin_security_pack};
+use uniflow_baseline::{
+    audit_legacy_rule_tree, builtin_pack_manifest, builtin_security_pack, bundled_legacy_raw_assets,
+    decrypt_legacy_rule_tree, BaselineScanOptions, OracleFormsMetadata,
+};
 use uniflow_cache::{build_project_with_cache_options, load_project_cache, save_project_cache};
 use uniflow_checker_api::{event_kind, CheckerFinding};
 use uniflow_checker_host::{
@@ -19,10 +22,15 @@ use uniflow_frontend::{
 use uniflow_hir::Language;
 use uniflow_ir::{sample_java_sql_program, validate_program};
 use uniflow_lowering::lower_program;
-use uniflow_models::{load_with_defaults, mit_catalog_manifest, mit_models_for};
+use uniflow_models::{
+    audit_legacy_jvm_rule_tree, compile_legacy_csharp_pack, compile_legacy_go_pack,
+    compile_legacy_jvm_rule_tree, compile_legacy_native_dataflow_pack,
+    compile_legacy_pysa_rule_tree, load_with_defaults, mit_catalog_manifest, mit_models_for,
+    LegacyCsharpPack, LegacyGoPack, LegacyNativeDataflowPack,
+};
 use uniflow_platform::PlatformProfile;
 use uniflow_report::{
-    export_dot, export_markdown_report_with_checkers, export_sarif_with_checkers,
+    export_dot, export_markdown_report_with_checkers, export_sarif_with_checker_manifests,
 };
 use uniflow_rules::RuleSet;
 use uniflow_taint::{analyze, pretty_findings, TaintFinding};
@@ -41,8 +49,27 @@ struct Cli {
 enum LangArg {
     C,
     Cpp,
+    #[value(name = "csharp", alias = "cs")]
+    CSharp,
+    #[value(name = "objc", alias = "objective-c")]
+    ObjC,
+    #[value(name = "objcpp", alias = "objective-cpp")]
+    ObjCpp,
     Java,
+    Kotlin,
+    Swift,
     Python,
+    #[value(name = "go", alias = "golang")]
+    Go,
+    #[value(name = "javascript", alias = "js")]
+    JavaScript,
+    Jsp,
+    Sql,
+    Php,
+    Ruby,
+    Rust,
+    #[value(name = "shell", alias = "sh")]
+    Shell,
 }
 
 impl From<LangArg> for Language {
@@ -50,8 +77,21 @@ impl From<LangArg> for Language {
         match value {
             LangArg::C => Language::C,
             LangArg::Cpp => Language::Cpp,
+            LangArg::CSharp => Language::CSharp,
+            LangArg::ObjC => Language::ObjC,
+            LangArg::ObjCpp => Language::ObjCpp,
             LangArg::Java => Language::Java,
+            LangArg::Kotlin => Language::Kotlin,
+            LangArg::Swift => Language::Swift,
             LangArg::Python => Language::Python,
+            LangArg::Go => Language::Go,
+            LangArg::JavaScript => Language::JavaScript,
+            LangArg::Jsp => Language::Jsp,
+            LangArg::Sql => Language::Sql,
+            LangArg::Php => Language::Php,
+            LangArg::Ruby => Language::Ruby,
+            LangArg::Rust => Language::Rust,
+            LangArg::Shell => Language::Shell,
         }
     }
 }
@@ -173,6 +213,104 @@ enum Command {
     },
     ListRulePacks,
     ListBaselinePacks,
+    ListBundledLegacyAssets {
+        #[arg(long)]
+        prefix: Option<String>,
+    },
+    AuditLegacyRules {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        json_out: Option<String>,
+    },
+    DecryptLegacyRules {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        output: String,
+        #[arg(long, default_value_t = false)]
+        overwrite: bool,
+        #[arg(long)]
+        json_out: Option<String>,
+    },
+    AuditLegacyJvmRules {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        json_out: Option<String>,
+    },
+    CompileLegacyJvmRules {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        language: LangArg,
+        #[arg(long)]
+        namespace: String,
+        #[arg(long)]
+        output: String,
+        #[arg(long)]
+        diagnostics_out: Option<String>,
+        /// Separate metadata audit; missing translations are not hidden in model counts.
+        #[arg(long)]
+        metadata_report_out: Option<String>,
+    },
+    /// Attach original knowledge-base text to native rules by their LEGACY-MSG ids.
+    EnrichLegacyJvmBaseline {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        knowledge: String,
+        #[arg(long)]
+        output: String,
+        #[arg(long)]
+        metadata_report_out: Option<String>,
+    },
+    CompileLegacyNativeRules {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        language: LangArg,
+        #[arg(long)]
+        namespace: String,
+        #[arg(long)]
+        output: String,
+        #[arg(long)]
+        diagnostics_out: Option<String>,
+    },
+    CompileLegacyPysaRules {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        namespace: String,
+        #[arg(long)]
+        output: String,
+        #[arg(long)]
+        diagnostics_out: Option<String>,
+    },
+    CompileLegacyGoRules {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        namespace: String,
+        #[arg(long)]
+        output: String,
+        #[arg(long)]
+        diagnostics_out: Option<String>,
+    },
+    CompileLegacyCsharpRules {
+        #[arg(long)]
+        input: String,
+        #[arg(long)]
+        messages: String,
+        #[arg(long)]
+        vulnerabilities: String,
+        #[arg(long)]
+        namespace: String,
+        #[arg(long)]
+        output: String,
+        #[arg(long)]
+        diagnostics_out: Option<String>,
+    },
     DumpMitRules {
         #[arg(long)]
         language: LangArg,
@@ -186,6 +324,15 @@ enum Command {
         inputs: Vec<String>,
         #[arg(long)]
         json_out: Option<String>,
+        /// Oracle Forms metadata JSON used by metadata-aware PL/SQL rules.
+        #[arg(long)]
+        forms_metadata: Option<String>,
+        /// XPath 1.0 expression for the bundled configurable SQL AST rule.
+        #[arg(long)]
+        sql_xpath_query: Option<String>,
+        /// Finding message used with --sql-xpath-query.
+        #[arg(long)]
+        sql_xpath_message: Option<String>,
     },
     Demo {
         #[arg(long)]
@@ -220,6 +367,9 @@ enum Command {
         rules: Option<String>,
         #[arg(long, default_value_t = false)]
         use_default_models: bool,
+        /// Restrict reportable rules by id while retaining their dataflow dependencies.
+        #[arg(long = "rule-id", value_name = "ID")]
+        rule_ids: Vec<String>,
         #[arg(long, default_value_t = false)]
         dump_hir: bool,
         #[arg(long, default_value_t = false)]
@@ -264,6 +414,9 @@ enum Command {
         rules: Option<String>,
         #[arg(long, default_value_t = false)]
         use_default_models: bool,
+        /// Restrict reportable rules by id while retaining their dataflow dependencies.
+        #[arg(long = "rule-id", value_name = "ID")]
+        rule_ids: Vec<String>,
         #[arg(long, default_value_t = false)]
         list_files: bool,
         #[arg(long, default_value_t = false)]
@@ -432,6 +585,256 @@ fn main() -> Result<()> {
         Command::ListBaselinePacks => {
             println!("{}", builtin_pack_manifest());
         }
+        Command::ListBundledLegacyAssets { prefix } => {
+            let assets = bundled_legacy_raw_assets()
+                .iter()
+                .filter(|asset| {
+                    prefix
+                        .as_deref()
+                        .is_none_or(|prefix| asset.path.starts_with(prefix))
+                })
+                .map(|asset| json!({ "path": asset.path, "bytes": asset.bytes.len() }))
+                .collect::<Vec<_>>();
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&assets)
+                    .context("failed to serialize bundled legacy asset list")?
+            );
+        }
+        Command::AuditLegacyRules { input, json_out } => {
+            let audit = audit_legacy_rule_tree(Path::new(&input))?;
+            let json = serde_json::to_string_pretty(&audit)
+                .context("failed to serialize legacy rule audit")?;
+            if let Some(path) = json_out {
+                write_text_file(&path, &json)?;
+            } else {
+                println!("{json}");
+            }
+        }
+        Command::DecryptLegacyRules {
+            input,
+            output,
+            overwrite,
+            json_out,
+        } => {
+            let report =
+                decrypt_legacy_rule_tree(Path::new(&input), Path::new(&output), overwrite)?;
+            let json = serde_json::to_string_pretty(&report)
+                .context("failed to serialize legacy rule decryption report")?;
+            if let Some(path) = json_out {
+                write_text_file(&path, &json)?;
+            } else {
+                println!("{json}");
+            }
+        }
+        Command::AuditLegacyJvmRules { input, json_out } => {
+            let report = audit_legacy_jvm_rule_tree(Path::new(&input))?;
+            let json = serde_json::to_string_pretty(&report)
+                .context("failed to serialize legacy JVM rule report")?;
+            if let Some(path) = json_out {
+                write_text_file(&path, &json)?;
+            } else {
+                println!("{json}");
+            }
+        }
+        Command::CompileLegacyJvmRules {
+            input,
+            language,
+            namespace,
+            output,
+            diagnostics_out,
+            metadata_report_out,
+        } => {
+            let compilation = compile_legacy_jvm_rule_tree(
+                Path::new(&input),
+                Language::from(language),
+                &namespace,
+            )?;
+            let yaml = serde_yaml::to_string(&compilation.rules)
+                .context("failed to serialize compiled legacy JVM rules")?;
+            write_text_file(&output, &yaml)?;
+            if let Some(path) = diagnostics_out {
+                let json = serde_json::to_string_pretty(&compilation.diagnostics)
+                    .context("failed to serialize legacy JVM compile diagnostics")?;
+                write_text_file(&path, &json)?;
+            }
+            if let Some(path) = metadata_report_out {
+                write_text_file(&path, &serde_json::to_string_pretty(&compilation.metadata_report)?)?;
+            }
+            println!(
+                "compiled {} sources, {} sinks, {} sanitizers, {} propagators; {} deferred features",
+                compilation.rules.sources.len(),
+                compilation.rules.sinks.len(),
+                compilation.rules.sanitizers.len(),
+                compilation.rules.propagators.len(),
+                compilation.diagnostics.len()
+            );
+        }
+        Command::EnrichLegacyJvmBaseline { input, knowledge, output, metadata_report_out } => {
+            let text = fs::read_to_string(&input)?;
+            let mut document: serde_yaml::Value = serde_yaml::from_str(&text)?;
+            let mut pack = uniflow_baseline::BaselinePack::from_yaml_str(&text)?;
+            let mut catalog = uniflow_models::LegacyJvmKnowledgeCatalog::from_tree(Path::new(&knowledge))?;
+            let mut names = std::collections::BTreeMap::new();
+            let mut metadata = Vec::new();
+            for rule in &pack.rules {
+                names.insert(rule.id.clone(), rule.id.clone());
+                for standard in &rule.standards {
+                    if let Some(id) = standard.strip_prefix("LEGACY-MSG-") {
+                        for id in id.split(',') { catalog.add_rule_mapping(&rule.id, "ast", id.trim())?; }
+                    }
+                }
+                metadata.push(serde_yaml::from_value::<uniflow_rules::RuleMetadata>(serde_yaml::to_value(rule)?)?);
+            }
+            let report = catalog.enrich(&mut metadata, &names);
+            for (rule, metadata) in pack.rules.iter_mut().zip(metadata) {
+                rule.translations = serde_yaml::from_value(serde_yaml::to_value(metadata.translations)?)?;
+                rule.standards = metadata.standards;
+                rule.cwe = metadata.cwe;
+            }
+            pack.validate()?;
+            for (value, rule) in document.get_mut("rules").and_then(serde_yaml::Value::as_sequence_mut)
+                .context("baseline document has no rules sequence")?.iter_mut().zip(&pack.rules) {
+                value["translations"] = serde_yaml::to_value(&rule.translations)?;
+                value["standards"] = serde_yaml::to_value(&rule.standards)?;
+                value["cwe"] = serde_yaml::to_value(&rule.cwe)?;
+            }
+            write_text_file(&output, &serde_yaml::to_string(&document)?)?;
+            if let Some(path) = metadata_report_out {
+                write_text_file(&path, &serde_json::to_string_pretty(&report)?)?;
+            }
+            println!(
+                "completed {} of {} baseline rule presentations; {} contain original source prose",
+                report.enriched_sinks,
+                pack.rules.len(),
+                report.source_enriched_sinks
+            );
+        }
+        Command::CompileLegacyNativeRules {
+            input,
+            language,
+            namespace,
+            output,
+            diagnostics_out,
+        } => {
+            let text = fs::read_to_string(&input)
+                .with_context(|| format!("failed to read legacy native rules from {input}"))?;
+            let pack = LegacyNativeDataflowPack::from_yaml_str(&text)?;
+            let compilation =
+                compile_legacy_native_dataflow_pack(&pack, Language::from(language), &namespace)?;
+            let yaml = serde_yaml::to_string(&compilation.rules)
+                .context("failed to serialize compiled legacy native rules")?;
+            write_text_file(&output, &yaml)?;
+            if let Some(path) = diagnostics_out {
+                let json = serde_json::to_string_pretty(&compilation.diagnostics)
+                    .context("failed to serialize legacy native compile diagnostics")?;
+                write_text_file(&path, &json)?;
+            }
+            println!(
+                "compiled {} sources, {} sinks, {} sanitizers, {} transforms, {} propagators; {} deferred features",
+                compilation.rules.sources.len(),
+                compilation.rules.sinks.len(),
+                compilation.rules.sanitizers.len(),
+                compilation.rules.taint_transforms.len(),
+                compilation.rules.propagators.len(),
+                compilation.diagnostics.len()
+            );
+        }
+        Command::CompileLegacyPysaRules {
+            input,
+            namespace,
+            output,
+            diagnostics_out,
+        } => {
+            let compilation = compile_legacy_pysa_rule_tree(Path::new(&input), &namespace)?;
+            let yaml = serde_yaml::to_string(&compilation.rules)
+                .context("failed to serialize compiled legacy Pysa rules")?;
+            write_text_file(&output, &yaml)?;
+            if let Some(path) = diagnostics_out {
+                let json = serde_json::to_string_pretty(&compilation.diagnostics)
+                    .context("failed to serialize legacy Pysa compile diagnostics")?;
+                write_text_file(&path, &json)?;
+            }
+            println!(
+                "compiled {} Pysa models from {} files: {} call sources, {} call sinks, {} field sources, {} field sinks, {} function sources, {} function sinks, {} sanitizers, {} propagators; {} deferred features",
+                compilation.models,
+                compilation.files,
+                compilation.rules.sources.len(),
+                compilation.rules.sinks.len(),
+                compilation.rules.field_sources.len(),
+                compilation.rules.field_sinks.len(),
+                compilation.rules.function_sources.len(),
+                compilation.rules.function_sinks.len(),
+                compilation.rules.sanitizers.len() + compilation.rules.field_sanitizers.len(),
+                compilation.rules.propagators.len(),
+                compilation.diagnostics.len()
+            );
+        }
+        Command::CompileLegacyGoRules {
+            input,
+            namespace,
+            output,
+            diagnostics_out,
+        } => {
+            let text = fs::read_to_string(&input)
+                .with_context(|| format!("failed to read legacy Go rules from {input}"))?;
+            let pack = LegacyGoPack::from_yaml_str(&text)?;
+            let compilation = compile_legacy_go_pack(&pack, &namespace)?;
+            let yaml = serde_yaml::to_string(&compilation.rules)
+                .context("failed to serialize compiled legacy Go rules")?;
+            write_text_file(&output, &yaml)?;
+            if let Some(path) = diagnostics_out {
+                let json = serde_json::to_string_pretty(&compilation.diagnostics)
+                    .context("failed to serialize legacy Go compile diagnostics")?;
+                write_text_file(&path, &json)?;
+            }
+            println!(
+                "compiled {} sources and {} sinks with {} sink conditions and {} call conditions; {} deferred features",
+                compilation.rules.sources.len(),
+                compilation.rules.sinks.len(),
+                compilation.rules.sink_conditions.len(),
+                compilation.rules.call_conditions.len(),
+                compilation.diagnostics.len()
+            );
+        }
+        Command::CompileLegacyCsharpRules {
+            input,
+            messages,
+            vulnerabilities,
+            namespace,
+            output,
+            diagnostics_out,
+        } => {
+            let config = fs::read_to_string(&input)
+                .with_context(|| format!("failed to read legacy C# rules from {input}"))?;
+            let messages = fs::read_to_string(&messages)
+                .with_context(|| format!("failed to read legacy C# messages from {messages}"))?;
+            let vulnerabilities = fs::read_to_string(&vulnerabilities).with_context(|| {
+                format!("failed to read legacy C# vulnerabilities from {vulnerabilities}")
+            })?;
+            let pack = LegacyCsharpPack::from_yaml_str(&config)?;
+            let compilation =
+                compile_legacy_csharp_pack(&pack, &messages, &vulnerabilities, &namespace)?;
+            let yaml = serde_yaml::to_string(&compilation.rules)
+                .context("failed to serialize compiled legacy C# rules")?;
+            write_text_file(&output, &yaml)?;
+            if let Some(path) = diagnostics_out {
+                let json = serde_json::to_string_pretty(&compilation.diagnostics)
+                    .context("failed to serialize legacy C# compile diagnostics")?;
+                write_text_file(&path, &json)?;
+            }
+            println!(
+                "compiled {} call sources, {} field sources, {} entry sources, {} call sinks, {} field sinks, {} sanitizers and {} propagators; {} deferred features",
+                compilation.rules.sources.len(),
+                compilation.rules.field_sources.len(),
+                compilation.rules.function_sources.len(),
+                compilation.rules.sinks.len(),
+                compilation.rules.field_sinks.len(),
+                compilation.rules.sanitizers.len(),
+                compilation.rules.propagators.len(),
+                compilation.diagnostics.len()
+            );
+        }
         Command::DumpMitRules { language, output } => {
             let rules = mit_models_for(Language::from(language))?;
             let yaml = serde_yaml::to_string(&rules).context("failed to serialize MIT rules")?;
@@ -445,11 +848,31 @@ fn main() -> Result<()> {
             language,
             inputs,
             json_out,
+            forms_metadata,
+            sql_xpath_query,
+            sql_xpath_message,
         } => {
             let language = Language::from(language);
             let roots = inputs.iter().map(PathBuf::from).collect::<Vec<_>>();
             let files = collect_source_files(language.clone(), &roots)?;
-            let pack = builtin_security_pack()?;
+            let mut pack = builtin_security_pack()?;
+            if let Some(query) = sql_xpath_query {
+                let template = pack
+                    .rules
+                    .iter_mut()
+                    .find(|rule| rule.id == "LEGACY-SQL-XPath")
+                    .context("bundled SQL XPath template is missing")?;
+                template.matcher.sql_xpath_query = query;
+                if let Some(message) = sql_xpath_message {
+                    template.matcher.sql_xpath_message = message;
+                }
+                pack.validate()?;
+            } else {
+                anyhow::ensure!(
+                    sql_xpath_message.is_none(),
+                    "--sql-xpath-message requires --sql-xpath-query"
+                );
+            }
             let mut entries = Vec::with_capacity(files.len());
             let mut source_by_path = HashMap::new();
             for file in &files {
@@ -464,7 +887,20 @@ fn main() -> Result<()> {
                 &entries,
                 &FrontendOptions::default(),
             )?;
-            let findings = pack.scan_hir(&program, &source_by_path);
+            let options = BaselineScanOptions {
+                oracle_forms_metadata: forms_metadata
+                    .as_deref()
+                    .map(|path| {
+                        let text = fs::read_to_string(path).with_context(|| {
+                            format!("failed to read Oracle Forms metadata from {path}")
+                        })?;
+                        serde_json::from_str::<OracleFormsMetadata>(&text).with_context(|| {
+                            format!("failed to parse Oracle Forms metadata from {path}")
+                        })
+                    })
+                    .transpose()?,
+            };
+            let findings = pack.scan_hir_with_options(&program, &source_by_path, &options);
             let json = serde_json::to_string_pretty(&findings)
                 .context("failed to serialize baseline findings")?;
             if let Some(path) = json_out {
@@ -499,6 +935,7 @@ fn main() -> Result<()> {
                     markdown_out,
                 },
                 &[],
+                &[],
             )?;
             print_findings(&findings, pretty)?;
         }
@@ -509,6 +946,7 @@ fn main() -> Result<()> {
             input,
             rules,
             use_default_models,
+            rule_ids,
             dump_hir,
             dump_ir,
             dump_graph,
@@ -530,11 +968,12 @@ fn main() -> Result<()> {
                 fs::read_to_string(&input)
                     .with_context(|| format!("failed to read source from {input}"))
             })?;
-            let rules = tracker.phase(
+            let mut rules = tracker.phase(
                 "load-rules",
                 rules.clone().unwrap_or_else(|| "defaults".to_string()),
                 |_| load_rules(language.clone(), rules.as_deref(), use_default_models),
             )?;
+            rules.retain_reportable_ids(&rule_ids)?;
             let hir = tracker.phase("parse-source", input.clone(), |_| {
                 parse_source_with_options(language, &input, &source, &frontend_options)
             })?;
@@ -568,6 +1007,7 @@ fn main() -> Result<()> {
             inputs,
             rules,
             use_default_models,
+            rule_ids,
             list_files,
             dump_hir,
             dump_ir,
@@ -592,11 +1032,12 @@ fn main() -> Result<()> {
             let use_cache = cache_in.is_some() || cache_out.is_some() || dump_cache_plan;
             let total_steps = 11;
             let mut tracker = ProgressTracker::new(total_steps);
-            let rules = tracker.phase(
+            let mut rules = tracker.phase(
                 "load-rules",
                 rules.clone().unwrap_or_else(|| "defaults".to_string()),
                 |_| load_rules(language.clone(), rules.as_deref(), use_default_models),
             )?;
+            rules.retain_reportable_ids(&rule_ids)?;
             let files = tracker.phase(
                 "collect-files",
                 format!("{} input roots", paths.len()),
@@ -752,15 +1193,27 @@ fn run_and_print_with_progress(
             )
         },
     )?;
+    let checker_manifests = checker_manager.manifests();
     let mut checker_findings = Vec::new();
     checker_findings.extend(checker_manager.broadcast(
         event_kind::ANALYSIS_START,
         json!({
             "language": format!("{:?}", hir.language),
             "files": hir.files.iter().map(|file| file.path.clone()).collect::<Vec<_>>(),
-            "checkers": checker_manager.manifests(),
+            "checkers": &checker_manifests,
         }),
     )?);
+    if !checker_manager.is_empty() {
+        for file in &hir.files {
+            let source = fs::read_to_string(&file.path).with_context(|| {
+                format!("failed to read checker source event from {}", file.path)
+            })?;
+            checker_findings.extend(checker_manager.broadcast(
+                event_kind::SOURCE_FILE,
+                source_file_payload(&file.path, &hir.language, source),
+            )?);
+        }
+    }
     checker_findings.extend(checker_manager.broadcast(
         event_kind::HIR_PROGRAM,
         serde_json::to_value(&hir).context("failed to serialize HIR checker event")?,
@@ -869,12 +1322,17 @@ fn run_and_print_with_progress(
     for diagnostic in checker_manager.take_diagnostics() {
         eprintln!(
             "checker diagnostic: {}",
-            serde_json::to_string(&diagnostic)
-                .context("failed to serialize checker diagnostic")?
+            serde_json::to_string(&diagnostic).context("failed to serialize checker diagnostic")?
         );
     }
     tracker.phase("reports", "sarif / dot / markdown / findings", |_| {
-        maybe_write_reports(&flow, &findings, report_outputs, &checker_findings)?;
+        maybe_write_reports(
+            &flow,
+            &findings,
+            report_outputs,
+            &checker_findings,
+            &checker_manifests,
+        )?;
         print_all_findings(&findings, &checker_findings, pretty_findings_flag)
     })?;
     tracker.finish();
@@ -916,9 +1374,15 @@ fn maybe_write_reports(
     findings: &[TaintFinding],
     outputs: &ReportOutputs,
     checker_findings: &[CheckerFinding],
+    checker_manifests: &[uniflow_checker_api::CheckerManifest],
 ) -> Result<()> {
     if let Some(path) = outputs.sarif_out.as_deref() {
-        let value = export_sarif_with_checkers("uniflow", findings, checker_findings);
+        let value = export_sarif_with_checker_manifests(
+            "uniflow",
+            findings,
+            checker_findings,
+            checker_manifests,
+        );
         write_text_file(
             path,
             &serde_json::to_string_pretty(&value).context("failed to encode SARIF")?,
@@ -995,6 +1459,14 @@ fn print_findings(findings: &[TaintFinding], pretty: bool) -> Result<()> {
     }
 }
 
+fn source_file_payload(path: &str, language: &Language, source: String) -> serde_json::Value {
+    json!({
+        "path": path,
+        "language": language.as_str(),
+        "source": source,
+    })
+}
+
 fn shorten_path(path: &str) -> String {
     const MAX_LEN: usize = 80;
     if path.chars().count() <= MAX_LEN {
@@ -1009,4 +1481,66 @@ fn shorten_path(path: &str) -> String {
         .rev()
         .collect();
     format!("...{}", tail)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_exposes_every_supported_language() {
+        let actual = LangArg::value_variants()
+            .iter()
+            .copied()
+            .map(Language::from)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual,
+            vec![
+                Language::C,
+                Language::Cpp,
+                Language::CSharp,
+                Language::ObjC,
+                Language::ObjCpp,
+                Language::Java,
+                Language::Kotlin,
+                Language::Swift,
+                Language::Python,
+                Language::Go,
+                Language::JavaScript,
+                Language::Jsp,
+                Language::Sql,
+                Language::Php,
+                Language::Ruby,
+                Language::Rust,
+                Language::Shell,
+            ]
+        );
+    }
+
+    #[test]
+    fn cli_accepts_objective_cpp_alias() {
+        let cli = Cli::try_parse_from([
+            "uniflow",
+            "analyze-source",
+            "--language",
+            "objective-cpp",
+            "--input",
+            "sample.mm",
+        ])
+        .expect("Objective-C++ alias should parse");
+        let Command::AnalyzeSource { language, .. } = cli.command else {
+            panic!("expected analyze-source");
+        };
+        assert!(matches!(Language::from(language), Language::ObjCpp));
+    }
+
+    #[test]
+    fn source_file_checker_payload_preserves_host_markup() {
+        let source = "<main><% value(); %></main>".to_string();
+        let payload = source_file_payload("view.jsp", &Language::Jsp, source.clone());
+        assert_eq!(payload["path"], "view.jsp");
+        assert_eq!(payload["language"], "jsp");
+        assert_eq!(payload["source"], source);
+    }
 }

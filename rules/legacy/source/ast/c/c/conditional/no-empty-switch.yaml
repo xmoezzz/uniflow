@@ -1,0 +1,11 @@
+id: no-empty-switch
+message: '0701000010130032,0601000010140027'
+language: C
+rule:
+  all:
+    - kind: switch_statement
+    - not:
+        has:
+          kind: case_statement
+          stopBy:
+            kind: switch_statement

@@ -1,0 +1,10 @@
+id: org.apache.hadoop.hadoop-hdds-common
+language: Java
+message: pkg:maven/org.apache.hadoop/hadoop-hdds-common
+metadata:
+  purl: pkg:maven/org.apache.hadoop/hadoop-hdds-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hadoop\.ozone|org\.apache\.hadoop\.hdds\.scm\.net|org\.apache\.hadoop\.hdds\.ratis\.conf|org\.apache\.hadoop\.hdds\.fs|org\.apache\.hadoop\.hdds\.security\.exception|org\.apache\.hadoop\.hdds\.client|org\.apache\.hadoop\.hdds\.scm|org\.apache\.hadoop\.ozone\.lock|org\.apache\.hadoop\.ozone\.container\.common\.helpers|org\.apache\.hadoop\.hdds\.annotation|org\.apache\.hadoop\.ozone\.lease|org\.apache\.hadoop\.ozone\.common\.statemachine|org\.apache\.hadoop\.hdds\.security\.token|org\.apache\.hadoop\.hdds\.scm\.container|org\.apache\.hadoop\.hdds\.scm\.container\.common\.helpers|org\.apache\.hadoop\.hdds\.scm\.protocolPB|org\.apache\.hadoop\.hdds\.freon|org\.apache\.hadoop\.hdds\.ratis\.retrypolicy|org\.apache\.hadoop\.hdds\.scm\.client|org\.apache\.hadoop\.hdds\.scm\.storage|org\.apache\.hadoop\.hdds\.scm\.exceptions|org\.apache\.hadoop\.hdds\.cli|org\.apache\.hadoop\.ozone\.common\.utils|org\.apache\.hadoop\.hdds\.scm\.protocol|org\.apache\.hadoop\.hdds\.protocol|org\.apache\.hadoop\.util|org\.apache\.hadoop\.hdds|org\.apache\.hadoop\.hdds\.ratis|org\.apache\.hadoop\.hdds\.scm\.pipeline|org\.apache\.hadoop\.hdds\.scm\.utils|org\.apache\.hadoop\.ozone\.audit|org\.apache\.hadoop\.hdds\.recon|org\.apache\.hadoop\.hdds\.security\.x509\.certificate\.utils|org\.apache\.hadoop\.hdds\.utils|org\.apache\.hadoop\.hdds\.function|org\.apache\.hadoop\.hdds\.tracing|org\.apache\.hadoop\.hdds\.conf|org\.apache\.hadoop\.ozone\.common|org\.apache\.hadoop\.hdds\.security\.x509)\.

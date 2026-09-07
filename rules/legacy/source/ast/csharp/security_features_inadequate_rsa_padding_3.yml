@@ -1,0 +1,87 @@
+# YAML Rule is more powerful!
+# https://ast-grep.github.io/guide/rule-config.html#rule
+id: security_features_inadequate_rsa_padding_3
+message: '0503000010080009'
+language: cs
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - has:
+            kind: variable_declaration
+            stopBy: end
+            all:
+              - has:
+                  field: type
+                  regex: ^(.*\.)?RSA(Encryption|Signature)Padding$
+              - has:
+                  kind: variable_declarator
+                  stopBy: end
+                  has: 
+                    kind: identifier
+                    pattern: $VAR
+
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?RSA(Encryption|Signature)Padding$
+            - has:
+                field: name
+                pattern: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?RSA(Encryption|Signature)Padding$
+        - has:
+            kind: variable_declaration
+            stopBy: end
+            has:
+              kind: variable_declarator
+              pattern: $VAR
+              stopBy: end
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?RSA(Encryption|Signature)Padding$
+            - has:
+                field: name
+                pattern: '$VAR'
+
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: compilation_unit
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  all:
+  - pattern: $_.Pkcs1
+  - kind: member_access_expression
+  - has:
+        filed: expression
+        pattern: $VAR
+        inside:
+          matches: recursion-find-object-decl

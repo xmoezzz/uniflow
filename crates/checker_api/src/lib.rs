@@ -23,12 +23,71 @@ pub mod capability {
 
 pub mod event_kind {
     pub const ANALYSIS_START: &str = "analysis_start";
+    pub const SOURCE_FILE: &str = "source_file";
     pub const HIR_PROGRAM: &str = "hir_program";
     pub const IR_PROGRAM: &str = "ir_program";
     pub const FLOW_SUMMARY: &str = "flow_summary";
     pub const CALL: &str = "call";
     pub const TAINT_FINDING: &str = "taint_finding";
     pub const ANALYSIS_END: &str = "analysis_end";
+
+    pub fn is_known(kind: &str) -> bool {
+        matches!(
+            kind,
+            ANALYSIS_START
+                | SOURCE_FILE
+                | HIR_PROGRAM
+                | IR_PROGRAM
+                | FLOW_SUMMARY
+                | CALL
+                | TAINT_FINDING
+                | ANALYSIS_END
+        )
+    }
+}
+
+/// The two supported checker execution models. Frontend checkers inspect source
+/// and HIR for coding-style/local semantic rules. Unified-dataflow checkers may
+/// additionally consume IR, call, flow-summary and taint events.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckerKind {
+    Frontend,
+    #[default]
+    UnifiedDataflow,
+}
+
+/// Stable metadata for one rule implemented by an external checker. Keeping
+/// this in the manifest lets CLI/SARIF/UI consumers describe rules before a
+/// finding is emitted and makes checker packages self-documenting.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CheckerRule {
+    pub id: String,
+    pub title: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default = "default_level")]
+    pub default_level: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub help_uri: Option<String>,
+    #[serde(default)]
+    pub properties: BTreeMap<String, Value>,
+}
+
+impl CheckerRule {
+    pub fn new(id: impl Into<String>, title: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            title: title.into(),
+            description: String::new(),
+            default_level: default_level(),
+            tags: Vec::new(),
+            help_uri: None,
+            properties: BTreeMap::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,7 +99,11 @@ pub struct CheckerManifest {
     #[serde(default)]
     pub description: String,
     #[serde(default)]
+    pub kind: CheckerKind,
+    #[serde(default)]
     pub event_kinds: Vec<String>,
+    #[serde(default)]
+    pub rules: Vec<CheckerRule>,
 }
 
 impl CheckerManifest {
@@ -51,12 +114,23 @@ impl CheckerManifest {
             name: name.into(),
             version: version.into(),
             description: String::new(),
+            kind: CheckerKind::UnifiedDataflow,
             event_kinds: Vec::new(),
+            rules: Vec::new(),
         }
     }
 
     pub fn subscribes_to(&self, kind: &str) -> bool {
-        self.event_kinds.is_empty() || self.event_kinds.iter().any(|item| item == kind)
+        let phase_allowed = self.kind != CheckerKind::Frontend
+            || matches!(
+                kind,
+                event_kind::ANALYSIS_START
+                    | event_kind::SOURCE_FILE
+                    | event_kind::HIR_PROGRAM
+                    | event_kind::ANALYSIS_END
+            );
+        phase_allowed
+            && (self.event_kinds.is_empty() || self.event_kinds.iter().any(|item| item == kind))
     }
 }
 
@@ -343,6 +417,50 @@ mod tests {
         manifest.event_kinds = vec![event_kind::CALL.to_string()];
         assert!(manifest.subscribes_to(event_kind::CALL));
         assert!(!manifest.subscribes_to(event_kind::HIR_PROGRAM));
+    }
+
+    #[test]
+    fn manifest_rule_metadata_round_trips() {
+        let mut manifest = CheckerManifest::new("example.checker", "Example", "1.0.0");
+        let mut rule = CheckerRule::new("sql-injection", "SQL injection");
+        rule.description = "Untrusted data reaches a SQL execution sink.".to_string();
+        rule.default_level = "error".to_string();
+        rule.tags = vec!["security".to_string(), "cwe-89".to_string()];
+        rule.help_uri = Some("https://example.invalid/rules/sql-injection".to_string());
+        rule.properties
+            .insert("precision".to_string(), serde_json::json!("high"));
+        manifest.rules.push(rule);
+
+        let encoded = serde_json::to_value(&manifest).expect("serialize manifest");
+        let decoded: CheckerManifest =
+            serde_json::from_value(encoded).expect("deserialize manifest");
+        assert_eq!(decoded.rules.len(), 1);
+        assert_eq!(decoded.rules[0].id, "sql-injection");
+        assert_eq!(decoded.rules[0].default_level, "error");
+        assert_eq!(decoded.rules[0].properties["precision"], "high");
+    }
+
+    #[test]
+    fn legacy_manifest_without_rules_remains_compatible() {
+        let manifest: CheckerManifest = serde_json::from_value(serde_json::json!({
+            "abi_version": 1,
+            "id": "legacy.checker",
+            "name": "Legacy",
+            "version": "1.0.0"
+        }))
+        .expect("legacy manifest");
+        assert!(manifest.rules.is_empty());
+        assert_eq!(manifest.kind, CheckerKind::UnifiedDataflow);
+    }
+
+    #[test]
+    fn frontend_default_subscription_excludes_dataflow_events() {
+        let mut manifest = CheckerManifest::new("style.checker", "Style", "1.0.0");
+        manifest.kind = CheckerKind::Frontend;
+        assert!(manifest.subscribes_to(event_kind::HIR_PROGRAM));
+        assert!(manifest.subscribes_to(event_kind::SOURCE_FILE));
+        assert!(!manifest.subscribes_to(event_kind::IR_PROGRAM));
+        assert!(!manifest.subscribes_to(event_kind::CALL));
     }
 
     #[test]

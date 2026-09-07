@@ -1,0 +1,10 @@
+id: org.springframework.cloud.spring-cloud-gateway-server
+language: Java
+message: pkg:maven/org.springframework.cloud/spring-cloud-gateway-server
+metadata:
+  purl: pkg:maven/org.springframework.cloud/spring-cloud-gateway-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.cloud\.gateway\.support\.tagsprovider|org\.springframework\.cloud\.gateway\.discovery|org\.springframework\.cloud\.gateway\.filter\.cors|org\.springframework\.cloud\.gateway\.filter\.factory\.rewrite|org\.springframework\.cloud\.gateway\.config|org\.springframework\.cloud\.gateway\.support\.config|org\.springframework\.cloud\.gateway\.filter\.factory\.cache\.postprocessor|org\.springframework\.cloud\.gateway\.route\.builder|org\.springframework\.cloud\.gateway\.config\.conditional|org\.springframework\.cloud\.gateway\.event|org\.springframework\.cloud\.gateway\.filter\.factory|org\.springframework\.cloud\.gateway\.filter\.headers\.observation|org\.springframework\.cloud\.gateway\.filter|org\.springframework\.cloud\.gateway\.support\.ipresolver|org\.springframework\.cloud\.gateway\.filter\.factory\.cache|org\.springframework\.cloud\.gateway\.filter\.headers|org\.springframework\.cloud\.gateway\.route|org\.springframework\.cloud\.gateway\.handler|org\.springframework\.cloud\.gateway\.support|org\.springframework\.cloud\.gateway\.filter\.factory\.cache\.keygenerator|org\.springframework\.cloud\.gateway\.filter\.ratelimit|org\.springframework\.cloud\.gateway\.actuate|org\.springframework\.cloud\.gateway\.handler\.predicate)\.

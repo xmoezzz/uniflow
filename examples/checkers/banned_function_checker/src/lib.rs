@@ -1,6 +1,6 @@
 use uniflow_checker_api::{
     event_kind, export_checker, Checker, CheckerEvent, CheckerFinding, CheckerLocation,
-    CheckerManifest,
+    CheckerManifest, CheckerRule,
 };
 
 #[derive(Default)]
@@ -14,8 +14,14 @@ impl Checker for BannedFunctionChecker {
             env!("CARGO_PKG_VERSION"),
         );
         manifest.description =
-            "Reports calls to unsafe C string-copy functions such as strcpy and strcat.".to_string();
+            "Reports calls to unsafe C string-copy functions such as strcpy and strcat."
+                .to_string();
         manifest.event_kinds = vec![event_kind::CALL.to_string()];
+        let mut rule = CheckerRule::new("dangerous-call", "Call to a banned function");
+        rule.description =
+            "Reports calls to functions that cannot enforce destination buffer bounds.".to_string();
+        rule.tags = vec!["security".to_string(), "correctness".to_string()];
+        manifest.rules = vec![rule];
         manifest
     }
 
@@ -23,10 +29,17 @@ impl Checker for BannedFunctionChecker {
         if event.kind != event_kind::CALL {
             return Vec::new();
         }
-        let Some(callee) = event.payload.get("callee_name").and_then(|value| value.as_str()) else {
+        let Some(callee) = event
+            .payload
+            .get("callee_name")
+            .and_then(|value| value.as_str())
+        else {
             return Vec::new();
         };
-        let simple_name = callee.rsplit(['.', ':']).find(|part| !part.is_empty()).unwrap_or(callee);
+        let simple_name = callee
+            .rsplit(['.', ':'])
+            .find(|part| !part.is_empty())
+            .unwrap_or(callee);
         if !matches!(simple_name, "strcpy" | "strcat" | "gets") {
             return Vec::new();
         }
@@ -56,8 +69,14 @@ impl Checker for BannedFunctionChecker {
 fn parse_location(text: &str) -> CheckerLocation {
     let trimmed = text.trim().trim_start_matches('@');
     let mut parts = trimmed.rsplitn(3, ':');
-    let column = parts.next().and_then(|value| value.parse().ok()).unwrap_or(1);
-    let line = parts.next().and_then(|value| value.parse().ok()).unwrap_or(1);
+    let column = parts
+        .next()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(1);
+    let line = parts
+        .next()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(1);
     let uri = parts.next().unwrap_or(trimmed).to_string();
     CheckerLocation {
         uri,

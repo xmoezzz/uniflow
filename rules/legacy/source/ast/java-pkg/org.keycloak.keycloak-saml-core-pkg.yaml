@@ -1,0 +1,10 @@
+id: org.keycloak.keycloak-saml-core
+language: Java
+message: pkg:maven/org.keycloak/keycloak-saml-core
+metadata:
+  purl: pkg:maven/org.keycloak/keycloak-saml-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.keycloak\.saml\.processing\.api\.saml\.v2\.sig|org\.keycloak\.saml\.processing\.core\.saml\.v2\.common|org\.keycloak\.saml\.processing\.core\.parsers\.saml\.xmldsig|org\.keycloak\.saml\.processing\.core\.util|org\.keycloak\.saml\.processing\.api\.saml\.v2\.response|org\.keycloak\.saml|org\.keycloak\.saml\.processing\.core\.saml\.v2\.constants|org\.keycloak\.saml\.processing\.core\.parsers\.saml\.metadata|org\.keycloak\.saml\.processing\.core\.saml\.v2\.util|org\.keycloak\.rotation|org\.keycloak\.saml\.processing\.core\.parsers\.saml\.protocol|org\.keycloak\.saml\.processing\.core\.saml\.v2\.holders|org\.keycloak\.saml\.common|org\.keycloak\.saml\.processing\.core\.parsers\.saml\.mdui|org\.keycloak\.saml\.processing\.api\.saml\.v2\.request|org\.keycloak\.saml\.common\.parsers|org\.keycloak\.saml\.common\.util|org\.keycloak\.saml\.processing\.core\.saml\.v2\.writers|org\.keycloak\.saml\.validators|org\.keycloak\.saml\.processing\.core\.parsers\.saml\.assertion|org\.keycloak\.saml\.processing\.core\.saml\.v2\.factories|org\.keycloak\.saml\.processing\.web\.util|org\.keycloak\.saml\.processing\.api\.util|org\.keycloak\.saml\.processing\.core\.parsers\.util|org\.keycloak\.saml\.processing\.core\.saml\.v1\.writers|org\.keycloak\.saml\.processing\.core\.constants|org\.keycloak\.saml\.processing\.core\.parsers\.saml\.mdattr|org\.keycloak\.saml\.processing\.core\.parsers\.saml|org\.keycloak\.saml\.processing\.core\.saml\.v1)\.

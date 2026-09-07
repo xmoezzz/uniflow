@@ -1,0 +1,81 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                xml
+
+# DataflowSourceRule xml 7
+# [{'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'Element', 'FunctionName': 'itertext', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': '', 'FunctionName': 'tostring|tostringlist', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'ElementTree', 'FunctionName': 'write', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'ElementTree|Element', 'FunctionName': 'findtext', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'ElementTree|Element', 'FunctionName': '__init__', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'xml.dom.minidom', 'ClassName': 'Document|Node', 'FunctionName': 'toxml|toprettyxml', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.dom\\.(minidom|pulldom)', 'ClassName': 'Document', 'FunctionName': 'writexml', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_xml_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^xml\.etree\.(c)?ElementTree.*\.(tostring|tostringlist)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+
+ModelQuery(
+  name="get_xml_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^xml\.etree\.(c)?ElementTree\.Element\.itertext$"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.(ElementTree|Element)\.findtext$"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.ElementTree\.write$"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.(ElementTree|Element)\.__init__"),
+      name.matches("(xml\.dom\.(minidom|pulldom))\.Document\.writexml$"),
+      name.matches("^xml\.dom\.minidom\.(Document|Node)\.(toxml|toprettyxml)")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule xml 15
+# [{'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'XMLPullParser', 'FunctionName': 'feed', 'RuleName': 'desc.dataflow.python.xee_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'Element|ElementTree', 'FunctionName': 'find|findall|findtext|iterfind', 'RuleName': 'desc.dataflow.python.xpath_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': '', 'FunctionName': 'parse|XML|XMLID|fromstringlist|fromstring|iterparse', 'RuleName': 'desc.dataflow.python.xee_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'XMLParser', 'FunctionName': 'feed', 'RuleName': 'desc.dataflow.python.xee_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'ElementTree', 'FunctionName': 'parse', 'RuleName': 'desc.dataflow.python.xee_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'ElementTree|Element', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'Element', 'FunctionName': 'set', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'Element', 'FunctionName': 'append|extend', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': 'Element', 'FunctionName': 'insert', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.etree\\.(c)?ElementTree', 'ClassName': '', 'FunctionName': 'SubElement', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.dom\\.minidom|xml\\.sax|xml\\.dom\\.pulldom', 'ClassName': '', 'FunctionName': 'parse|parseString', 'RuleName': 'desc.dataflow.python.xee_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml.dom.minidom', 'ClassName': 'Document', 'FunctionName': 'createElement|createElementNS|createTextNode|createComment|createProcessingInstruction|createAttribute|createAttributeNS', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml\\.sax|xml\\.dom\\.pulldom', 'ClassName': '', 'FunctionName': 'parse|parseString', 'RuleName': 'desc.dataflow.python.xxe_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml.sax.expatreader', 'ClassName': 'ExpatParser', 'FunctionName': 'parse', 'RuleName': 'desc.dataflow.python.xee_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'xml.sax.expatreader', 'ClassName': 'ExpatParser', 'FunctionName': 'parse', 'RuleName': 'desc.dataflow.python.xxe_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_xml_functions_sinks",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("(xml\.dom\.minidom|xml\.sax|xml\.dom\.pulldom).*\.(parse|parseString)"),
+      name.matches("^xml\.etree\.(c)?ElementTree.*\.SubElement$"),
+      name.matches("(xml\.sax|xml\.dom\.pulldom).*\.(parse|parseString)"),
+      name.matches("^xml\.etree\.(c)?ElementTree.*\.(parse|XML|XMLID|fromstringlist|fromstring|iterparse)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_xxe_injection]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_xml_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^xml\.sax\.expatreader\.ExpatParser\.parse$"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.(Element|ElementTree)\.(find|findall|findtext|iterfind)"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.XMLParser\.feed$"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.Element\.set$"),
+      name.matches("^xml\.dom\.minidom\.Document\.(createElement|createElementNS|createTextNode|createComment|createProcessingInstruction|createAttribute|createAttributeNS)"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.Element\.(append|extend)"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.Element\.insert$"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.ElementTree\.parse$"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.XMLPullParser\.feed$"),
+      name.matches("^xml\.etree\.(c)?ElementTree\.(ElementTree|Element)\.__init__")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_xxe_injection]
+    )
+  ]
+)

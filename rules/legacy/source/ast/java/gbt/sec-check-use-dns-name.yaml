@@ -1,0 +1,98 @@
+id: sec-check-use-dns-name
+message: '0402000010170019'
+language: Java
+
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^InetAddress$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^InetAddress$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^InetAddress$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^InetAddress$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  kind: if_statement
+  has:
+    field: condition
+    has:
+      kind: method_invocation
+      all:
+      - has:
+          field: arguments
+          regex: \.com
+      - has:
+          field: object
+          all:
+          - has:
+              field: name
+              regex: getCanonicalHostName
+          - has:
+              field: object
+              pattern: $VAR
+              matches: recursion-find-object-decl

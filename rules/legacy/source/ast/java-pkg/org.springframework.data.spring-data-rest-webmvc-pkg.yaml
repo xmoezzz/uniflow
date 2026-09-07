@@ -1,0 +1,10 @@
+id: org.springframework.data.spring-data-rest-webmvc
+language: Java
+message: pkg:maven/org.springframework.data/spring-data-rest-webmvc
+metadata:
+  purl: pkg:maven/org.springframework.data/spring-data-rest-webmvc
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.data\.rest\.webmvc\.json\.patch|org\.springframework\.data\.rest\.webmvc\.json|org\.springframework\.data\.rest\.webmvc\.alps|org\.springframework\.data\.rest\.webmvc\.aot|org\.springframework\.data\.rest\.webmvc\.config|org\.springframework\.data\.rest\.webmvc\.util|org\.springframework\.data\.rest\.webmvc\.mapping|org\.springframework\.data\.rest\.webmvc\.convert|org\.springframework\.data\.rest\.webmvc\.support|org\.springframework\.data\.rest\.webmvc\.spi|org\.springframework\.data\.rest\.webmvc)\.

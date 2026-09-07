@@ -1,0 +1,15 @@
+id: no-break-in-loops
+message: '0601000010140079'
+language: C
+rule:
+  all:
+    - kind: break_statement
+    - inside:
+        stopBy:
+          any:
+            - kind: switch_statement
+            - kind: while_statement
+            - kind: for_statement
+        any:
+          - kind: while_statement
+          - kind: for_statement

@@ -1,0 +1,332 @@
+id: legacy-ruby-semgrep
+title: Migrated Ruby Semgrep search rules
+rules:
+- id: LEGACY-RUBY-SEMGREP-cookie-serialization
+  title: Unsafe Rails cookie serialization
+  languages: [ruby]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\bcookies_serializer\s*=\s*:(marshal|hybrid)\b' }
+  cwe: [CWE-502]
+  standards: [LEGACY-SEMGREP-cookie-serialization]
+  message: Use the JSON cookie serializer instead of Marshal-compatible formats.
+- id: LEGACY-RUBY-SEMGREP-dangerous-syscall
+  title: Direct syscall invocation
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bsyscall\b' }
+  standards: [LEGACY-SEMGREP-dangerous-syscall]
+  message: Avoid direct system calls from application code.
+- id: LEGACY-RUBY-SEMGREP-file-disclosure
+  title: Rails static asset serving enabled
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bserve_static_assets\s*=\s*true\b' }
+  standards: [LEGACY-SEMGREP-file-disclosure]
+  message: Serve only intended public assets through a hardened static server.
+- id: LEGACY-RUBY-SEMGREP-force-ssl-false
+  title: Rails force_ssl disabled
+  languages: [ruby]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\bforce_ssl\s*=\s*false\b' }
+  cwe: [CWE-319]
+  standards: [LEGACY-SEMGREP-force-ssl-false]
+  message: Enable force_ssl in production deployments.
+- id: LEGACY-RUBY-SEMGREP-json-entity-escape
+  title: JSON HTML entity escaping disabled
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bescape_html_entities_in_json\s*=\s*false\b' }
+  cwe: [CWE-79]
+  standards: [LEGACY-SEMGREP-json-entity-escape]
+  message: Keep HTML entity escaping enabled for JSON embedded in pages.
+- id: LEGACY-RUBY-SEMGREP-model-attributes-attr-protected
+  title: Deprecated attr_protected authorization
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\battr_protected\b' }
+  standards: [LEGACY-SEMGREP-model-attributes-attr-protected]
+  message: Use explicit strong-parameter allowlists.
+- id: LEGACY-RUBY-SEMGREP-nested-attributes-bypass
+  title: Nested attributes allow destruction
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\baccepts_nested_attributes_for\b.*\ballow_destroy\s*:\s*false\b' }
+  standards: [LEGACY-SEMGREP-nested-attributes-bypass]
+  message: Review nested-attribute lifecycle authorization explicitly.
+- id: LEGACY-RUBY-SEMGREP-ssl-mode-no-verify
+  title: TLS certificate verification disabled
+  languages: [ruby]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\bOpenSSL::SSL::VERIFY_NONE\b' }
+  cwe: [CWE-295]
+  standards: [LEGACY-SEMGREP-ssl-mode-no-verify]
+  message: Verify the peer certificate and hostname.
+- id: LEGACY-RUBY-SEMGREP-timing-attack
+  title: Basic authentication helper
+  languages: [ruby]
+  severity: warning
+  confidence: medium
+  matcher: { code_pattern: '\bhttp_basic_authenticate_with\b' }
+  cwe: [CWE-208]
+  standards: [LEGACY-SEMGREP-timing-attack]
+  message: Ensure credential comparisons are constant-time and secrets are securely stored.
+- id: LEGACY-RUBY-SEMGREP-yaml-parsing
+  title: YAML request parameter parser enabled
+  languages: [ruby]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\bparam_parsers\s*\[\s*Mime::YAML\s*\]\s*=\s*:yaml\b' }
+  cwe: [CWE-502]
+  standards: [LEGACY-SEMGREP-yaml-parsing]
+  message: Do not deserialize YAML request bodies into arbitrary Ruby objects.
+- id: LEGACY-RUBY-SEMGREP-skip-forgery-protection
+  title: Rails forgery protection skipped
+  languages: [ruby]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\bskip_forgery_protection\b' }
+  cwe: [CWE-352]
+  standards: [LEGACY-SEMGREP-skip-forgery-protection]
+  message: Keep CSRF protection enabled for state-changing browser endpoints.
+- id: LEGACY-RUBY-SEMGREP-avoid-content-tag
+  title: Dynamic content_tag rendering
+  languages: [ruby]
+  severity: warning
+  confidence: medium
+  matcher: { code_pattern: '\bcontent_tag\s*\(' }
+  cwe: [CWE-79]
+  standards: [LEGACY-SEMGREP-avoid-content-tag]
+  message: Escape or sanitize externally influenced content passed to content_tag.
+- id: LEGACY-RUBY-SEMGREP-avoid-html-safe
+  title: html_safe bypass
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\.html_safe\b' }
+  cwe: [CWE-79]
+  standards: [LEGACY-SEMGREP-avoid-html-safe]
+  message: Do not mark externally influenced strings as HTML-safe.
+- id: LEGACY-RUBY-SEMGREP-avoid-raw
+  title: Raw HTML rendering
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\braw\s*\(' }
+  cwe: [CWE-79]
+  standards: [LEGACY-SEMGREP-avoid-raw]
+  message: Escape or sanitize externally influenced content instead of rendering it raw.
+- id: LEGACY-RUBY-SEMGREP-avoid-render-inline
+  title: Inline template rendering
+  languages: [ruby]
+  severity: warning
+  confidence: medium
+  matcher: { code_pattern: '\brender\s+inline\s*:' }
+  cwe: [CWE-79]
+  standards: [LEGACY-SEMGREP-avoid-render-inline]
+  message: Use a fixed template and escaped parameters instead of inline rendering.
+- id: LEGACY-RUBY-SEMGREP-avoid-render-text
+  title: Legacy render text usage
+  languages: [ruby]
+  severity: warning
+  confidence: medium
+  matcher: { code_pattern: '\brender\s+text\s*:' }
+  cwe: [CWE-79]
+  standards: [LEGACY-SEMGREP-avoid-render-text]
+  message: Use a safe response renderer with explicit content type and escaping.
+- id: LEGACY-RUBY-SEMGREP-manual-template-creation
+  title: Manual ERB template creation
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bERB\.new\s*\(' }
+  cwe: [CWE-1336]
+  standards: [LEGACY-SEMGREP-manual-template-creation]
+  message: Do not compile externally influenced strings as ERB templates.
+- id: LEGACY-RUBY-SEMGREP-libxml-backend
+  title: Rails LibXML backend enabled
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  pattern: '\bActiveSupport::XmlMini\.backend\s*=\s*["'']LibXML["'']'
+  cwe: [CWE-611]
+  standards: [LEGACY-SEMGREP-libxml-backend]
+  message: Harden XML parsing and disable external entity resolution.
+- id: LEGACY-RUBY-SEMGREP-weak-hashes-md5
+  title: MD5 digest usage
+  languages: [ruby]
+  severity: error
+  confidence: high
+  matcher: { code_pattern: '\b(Digest::MD5|OpenSSL::Digest::MD5)\b' }
+  cwe: [CWE-328]
+  standards: [LEGACY-SEMGREP-weak-hashes-md5]
+  message: Replace MD5 with an approved modern digest.
+- id: LEGACY-RUBY-SEMGREP-weak-hashes-sha1
+  title: SHA-1 digest usage
+  languages: [ruby]
+  severity: error
+  confidence: high
+  pattern: '(\bDigest::SHA1\b|\bOpenSSL::Digest::SHA1\b|\bOpenSSL::HMAC\b.*["'']sha1["''])'
+  cwe: [CWE-328]
+  standards: [LEGACY-SEMGREP-weak-hashes-sha1]
+  message: Replace SHA-1 with an approved modern digest.
+- id: LEGACY-RUBY-SEMGREP-dangerous-open
+  title: Dynamic command passed to open
+  languages: [ruby]
+  severity: warning
+  confidence: low
+  matcher:
+    callee: '^open$'
+    forbids_receiver: true
+    min_args: 1
+    non_string_literal_args: [0]
+  cwe: [CWE-94]
+  standards: [LEGACY-SEMGREP-dangerous-open]
+  message: Audit dynamic values passed to open because pipe-prefixed input may execute a command.
+- id: LEGACY-RUBY-SEMGREP-dangerous-open3-pipeline
+  title: Dynamic Open3 pipeline
+  languages: [ruby]
+  severity: warning
+  confidence: low
+  matcher:
+    callee: '^(pipeline|pipeline_r|pipeline_rw|pipeline_start|pipeline_w)$'
+    requires_receiver: true
+    receiver_path_pattern: '^Open3$'
+    forbids_string_literal_args: true
+  cwe: [CWE-94]
+  standards: [LEGACY-SEMGREP-dangerous-open3-pipeline]
+  message: Pass fixed command components to Open3 pipeline APIs.
+- id: LEGACY-RUBY-SEMGREP-nested-attributes
+  title: Rails nested attributes enabled
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher:
+    code_pattern: '\baccepts_nested_attributes_for\b'
+  standards: [LEGACY-SEMGREP-nested-attributes]
+  message: Review authorization and lifecycle behavior for nested attributes.
+- id: LEGACY-RUBY-SEMGREP-jruby-xml
+  title: Non-REXML XmlMini backend
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  pattern: '\bXmlMini\.backend\s*=\s*[^;\n]+'
+  matcher:
+    matched_text_not_pattern: '=\s*["'']REXML["'']\s*$'
+  cwe: [CWE-611]
+  standards: [LEGACY-SEMGREP-jruby-xml]
+  message: Use the hardened REXML backend or explicitly disable external entity expansion.
+- id: LEGACY-RUBY-SEMGREP-check-permit-attributes-high
+  title: High-risk Rails permitted attribute
+  languages: [ruby]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '^permit$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    argument_token_patterns: { 0: '(?i)(admin|account_id)' }
+  cwe: [CWE-915]
+  standards: [LEGACY-SEMGREP-check-permit-attributes-high]
+  message: Do not mass-assign administrative or account ownership attributes.
+- id: LEGACY-RUBY-SEMGREP-check-permit-attributes-medium
+  title: Sensitive Rails permitted attribute
+  languages: [ruby]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^permit$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    argument_token_patterns: { 0: '(?i)(role|banned)' }
+  cwe: [CWE-915]
+  standards: [LEGACY-SEMGREP-check-permit-attributes-medium]
+  message: Review mass assignment of role or banned-state attributes.
+- id: LEGACY-RUBY-SEMGREP-ruby-jwt-decode-without-verify
+  title: JWT decoded without verification
+  languages: [ruby]
+  severity: warning
+  confidence: low
+  matcher:
+    callee: '^decode$'
+    requires_receiver: true
+    receiver_path_pattern: '^JWT$'
+    required_file_pattern: '(?m)\brequire\s*(?:\(\s*)?["'']jwt["'']'
+    min_args: 3
+    bool_arg_values: { 2: false }
+  cwe: [CWE-345]
+  standards: [LEGACY-SEMGREP-ruby-jwt-decode-without-verify]
+  message: Verify JWT signatures before accepting decoded claims.
+- id: LEGACY-RUBY-SEMGREP-ruby-jwt-none-alg
+  title: JWT none algorithm
+  languages: [ruby]
+  severity: error
+  confidence: low
+  matcher:
+    callee: '^encode$'
+    requires_receiver: true
+    receiver_path_pattern: '^JWT$'
+    required_file_pattern: '(?m)\brequire\s*(?:\(\s*)?["'']jwt["'']'
+    min_args: 3
+    string_arg_patterns: { 2: '^none$' }
+  cwe: [CWE-327]
+  standards: [LEGACY-SEMGREP-ruby-jwt-none-alg]
+  message: Do not create JWTs using the none algorithm.
+- id: LEGACY-RUBY-SEMGREP-ruby-jwt-hardcoded-secret
+  title: Hardcoded JWT secret
+  languages: [ruby]
+  severity: error
+  confidence: low
+  matcher:
+    call_alternatives:
+    - callee: '^encode$'
+      requires_receiver: true
+      receiver_path_pattern: '^JWT$'
+      required_file_pattern: '(?m)\brequire\s*(?:\(\s*)?["'']jwt["'']'
+      min_args: 2
+      string_constant_arg_patterns: { 1: '.*' }
+    - callee: '^decode$'
+      requires_receiver: true
+      receiver_path_pattern: '^JWT$'
+      required_file_pattern: '(?m)\brequire\s*(?:\(\s*)?["'']jwt["'']'
+      min_args: 2
+      string_constant_arg_patterns: { 1: '.*' }
+    - callee: '^encode$'
+      requires_receiver: true
+      receiver_path_pattern: '^JWT$'
+      required_file_pattern: '(?m)\brequire\s*(?:\(\s*)?["'']jwt["'']'
+      min_args: 2
+      null_args: [1]
+    - callee: '^decode$'
+      requires_receiver: true
+      receiver_path_pattern: '^JWT$'
+      required_file_pattern: '(?m)\brequire\s*(?:\(\s*)?["'']jwt["'']'
+      min_args: 2
+      null_args: [1]
+  cwe: [CWE-522]
+  standards: [LEGACY-SEMGREP-ruby-jwt-hardcoded-secret]
+  message: Load JWT secrets from protected configuration instead of source literals.
+- id: LEGACY-RUBY-SEMGREP-ruby-jwt-exposed-data
+  title: Function input encoded into JWT
+  languages: [ruby]
+  severity: warning
+  confidence: low
+  matcher:
+    callee: '^encode$'
+    requires_receiver: true
+    receiver_path_pattern: '^JWT$'
+    required_file_pattern: '(?m)\brequire\s*(?:\(\s*)?["'']jwt["'']'
+    min_args: 1
+    parameter_args: [0]
+  cwe: [CWE-522]
+  standards: [LEGACY-SEMGREP-ruby-jwt-exposed-data]
+  message: Review function inputs before exposing them as JWT claims.

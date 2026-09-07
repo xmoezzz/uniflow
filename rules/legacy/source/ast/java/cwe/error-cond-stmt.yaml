@@ -1,0 +1,16 @@
+id: error-cond-stmt
+message: '0202000010130127'
+language: Java
+rule:
+  any:
+  - kind: if_statement
+  - kind: for_statement
+  - kind: while_statement
+  - kind: do_statement
+  has:
+    field: condition
+    any:
+    - pattern: ($_ = $_)
+    - pattern: $_ = $_
+    - has:
+        kind: assignment_expression

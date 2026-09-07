@@ -1,0 +1,10 @@
+id: org.apache.cxf.cxf-rt-rs-extension-providers
+language: Java
+message: pkg:maven/org.apache.cxf/cxf-rt-rs-extension-providers
+metadata:
+  purl: pkg:maven/org.apache.cxf/cxf-rt-rs-extension-providers
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.jaxrs\.provider\.jsrjsonb|org\.apache\.cxf\.jaxrs\.provider\.aegis|org\.apache\.cxf\.jaxrs\.provider\.json\.utils|org\.apache\.cxf\.jaxrs\.provider\.jsrjsonp|org\.apache\.cxf\.jaxrs\.provider\.dom4j|org\.apache\.cxf\.jaxrs\.provider\.json|org\.apache\.cxf\.jaxrs\.provider\.jsonp)\.

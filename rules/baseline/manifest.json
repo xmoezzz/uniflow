@@ -8,7 +8,7 @@
         "c",
         "cpp"
       ],
-      "rule_count": 75
+      "rule_count": 90
     },
     {
       "id": "python-security",
@@ -32,11 +32,115 @@
       "languages": [
         "c",
         "cpp",
+        "csharp",
+        "objc",
+        "objcpp",
         "java",
-        "python"
+        "kotlin",
+        "swift",
+        "python",
+        "go",
+        "javascript",
+        "jsp",
+        "sql",
+        "php",
+        "ruby",
+        "rust",
+        "shell"
       ],
       "rule_count": 25
+    },
+    {
+      "id": "legacy-swift-security",
+      "file": "swift-security.yml",
+      "languages": [
+        "swift"
+      ],
+      "rule_count": 4
+    },
+    {
+      "id": "legacy-java-packages",
+      "file": "../legacy/source/ast/java-pkg/*.yaml",
+      "languages": [
+        "java"
+      ],
+      "rule_count": 544
+    },
+    {
+      "id": "legacy-java-ast",
+      "file": "legacy-java-ast.yml",
+      "metadata_report": "../legacy/java-ast-metadata-report.json",
+      "languages": [
+        "java"
+      ],
+      "rule_count": 130,
+      "source_rule_count": 130,
+      "remaining_rule_count": 0
+    },
+    {
+      "id": "legacy-js-semgrep-regex",
+      "file": "legacy-js-semgrep-regex.yml",
+      "languages": [
+        "javascript"
+      ],
+      "rule_count": 31,
+      "taint_rule_count": 64,
+      "source_rule_count": 185,
+      "remaining_rule_count": 0
+    },
+    {
+      "id": "legacy-ruby-semgrep",
+      "file": "legacy-ruby-semgrep.yml",
+      "languages": [
+        "ruby"
+      ],
+      "rule_count": 30,
+      "taint_rule_count": 36,
+      "source_rule_count": 111,
+      "remaining_rule_count": 0
+    },
+    {
+      "id": "legacy-semgrep-search-compat",
+      "file": "generated from ../legacy/source/semgrep/{javascript,ruby}/**/*.yaml",
+      "languages": [
+        "javascript",
+        "ruby"
+      ],
+      "rule_count": 135,
+      "source_rule_count": 135,
+      "remaining_rule_count": 0
+    },
+    {
+      "id": "legacy-c-ast",
+      "file": "legacy-c-ast.yml",
+      "languages": [
+        "c",
+        "cpp"
+      ],
+      "rule_count": 53,
+      "source_rule_count": 53,
+      "remaining_rule_count": 0
+    },
+    {
+      "id": "legacy-csharp-ast",
+      "file": "legacy-csharp-ast.yml",
+      "languages": [
+        "csharp"
+      ],
+      "rule_count": 33,
+      "source_rule_count": 33,
+      "remaining_rule_count": 0
+    },
+    {
+      "id": "legacy-sql",
+      "file": "legacy-sql.yml",
+      "languages": [
+        "sql"
+      ],
+      "rule_count": 54,
+      "source_rule_count": 54,
+      "remaining_rule_count": 0
     }
   ],
-  "rule_count": 200
+  "rule_count": 1229
 }

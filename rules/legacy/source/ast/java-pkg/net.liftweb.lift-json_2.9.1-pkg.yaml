@@ -1,0 +1,10 @@
+id: net.liftweb.lift-json_2.9.1
+language: Java
+message: pkg:maven/net.liftweb/lift-json_2.9.1
+metadata:
+  purl: pkg:maven/net.liftweb/lift-json_2.9.1
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(net\.liftweb\.json)\.

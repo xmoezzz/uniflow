@@ -1,0 +1,10 @@
+id: org.apache.pulsar.pulsar-broker-common
+language: Java
+message: pkg:maven/org.apache.pulsar/pulsar-broker-common
+metadata:
+  purl: pkg:maven/org.apache.pulsar/pulsar-broker-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.pulsar\.broker\.authentication|org\.apache\.pulsar\.bookie\.rackawareness|org\.apache\.pulsar\.broker|org\.apache\.pulsar\.broker\.limiter|org\.apache\.pulsar\.broker\.resources|org\.apache\.pulsar\.broker\.stats\.prometheus|org\.apache\.pulsar\.broker\.validator|org\.apache\.pulsar\.broker\.authorization|org\.apache\.pulsar\.common\.configuration|org\.apache\.pulsar\.jetty\.tls|org\.apache\.pulsar\.broker\.web\.plugin\.servlet|org\.apache\.pulsar\.jetty|org\.apache\.pulsar\.broker\.authentication\.metrics|org\.apache\.pulsar\.broker\.web|org\.apache\.pulsar\.zookeeper|org\.apache\.pulsar\.broker\.authentication\.utils)\.

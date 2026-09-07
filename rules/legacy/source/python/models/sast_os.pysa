@@ -1,0 +1,57 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                os
+
+# DataflowSourceRule os 6
+# [{'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'getpriority|nice', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'getlogin|getpgid|getpgrp|getpid|getppid|getresuid|getresgid|getcwdu|getcwd|ctermid|getuid|getgid|geteuid|getegid|getgroups|getsid|uname|tcgetpgrp|listdir|major|minor|pathconf|confstr|getloadavg|sysconf|scandir', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'getenv', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'strerror', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'read', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '(os\\.|posix|nt|riscos|os2emx)path', 'ClassName': '', 'FunctionName': 'ismount', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_os_functions_sources",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^os.*\.(getlogin|getpgid|getpgrp|getpid|getppid|getresuid|getresgid|getcwdu|getcwd|ctermid|getuid|getgid|geteuid|getegid|getgroups|getsid|uname|tcgetpgrp|listdir|major|minor|pathconf|confstr|getloadavg|sysconf|scandir)"),
+      name.matches("^os.*\.read$"),
+      name.matches("((os\.|posix|nt|riscos|os2emx)path).*\.ismount$"),
+      name.matches("^os.*\.strerror$"),
+      name.matches("^os.*\.(getpriority|nice)"),
+      name.matches("^os.*\.getenv$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule os 20
+# [{'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'chown', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'ch(mod|own)|lch(mod|own)', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'setpriority', 'RuleName': 'desc.dataflow.python.setting_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'nice', 'RuleName': 'desc.dataflow.python.setting_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'ch(mod|own)|lch(mod|own)', 'RuleName': 'desc.dataflow.python.file_permission_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'system|popen(2|3|4)?', 'RuleName': 'desc.dataflow.python.command_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'chdir|fchdir|access|chroot|chmod|lchflags|lchmod|lchown|link|listdir|lstat|mkdir|mkdirs|mkfifo|mknode|pathconf|readlink|removedirs|remove|rename|renames|rmdir|symlink|unlink|startfile|fdopen|walk|fwalk|scandir', 'RuleName': 'desc.dataflow.python.portability_flaw_file_separator', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'rename|renames', 'RuleName': 'desc.dataflow.python.portability_flaw_file_separator', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'replace', 'RuleName': 'desc.dataflow.python.portability_flaw_file_separator', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'open', 'RuleName': 'desc.dataflow.python.portability_flaw_file_separator', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'chdir|fchdir|access|chroot|chmod|lchflags|lchmod|lchown|link|listdir|lstat|mkdir|mkdirs|mkfifo|mknode|pathconf|readlink|removedirs|remove|rename|renames|rmdir|symlink|unlink|startfile|fdopen|open|walk', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'rename|renames', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'replace', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'chdir|fchdir|access|chroot|chmod|lchflags|lchmod|lchown|link|listdir|lstat|mkdir|mkdirs|mkfifo|mknode|pathconf|readlink|removedirs|remove|rename|renames|rmdir|symlink|unlink|startfile|fdopen|open|walk|fwalk|scandir', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'spawn.*', 'RuleName': 'desc.dataflow.python.command_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'exec.*', 'RuleName': 'desc.dataflow.python.command_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'initgroups|setresuid|setregid|setegid|setrsuid|seteuid|setuid|setresgid|setreuid|setgid|setgroups|setpgid|setresgid|setsid|tcsetpgrp', 'RuleName': 'desc.dataflow.python.often_misused_privilege_management', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'putenv|unsetenv', 'RuleName': 'desc.dataflow.python.setting_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'os', 'ClassName': '', 'FunctionName': 'add_dll_directory', 'RuleName': 'desc.dataflow.python.setting_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': '(os\\.|posix|nt|riscos|os2emx)path', 'ClassName': '', 'FunctionName': 'ismount', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_os_functions_sinks",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^os.*\.(initgroups|setresuid|setregid|setegid|setrsuid|seteuid|setuid|setresgid|setreuid|setgid|setgroups|setpgid|setresgid|setsid|tcsetpgrp)"),
+      name.matches("^os.*\.exec\.*"),
+      name.matches("^os.*\.add_dll_directory$"),
+      name.matches("^os.*\.replace$"),
+      name.matches("((os\.|posix|nt|riscos|os2emx)path).*\.ismount$"),
+      name.matches("^os.*\.chown$"),
+      name.matches("^os.*\.(rename|renames)"),
+      name.matches("^os.*\.nice$"),
+      name.matches("^os.*\.(system|popen(2|3|4)?)"),
+      name.matches("^os.*\.setpriority$"),
+      name.matches("^os.*\.(chdir|fchdir|access|chroot|chmod|lchflags|lchmod|lchown|link|listdir|lstat|mkdir|mkdirs|mkfifo|mknode|pathconf|readlink|removedirs|remove|rename|renames|rmdir|symlink|unlink|startfile|fdopen|walk|fwalk|scandir)"),
+      name.matches("^os.*\.(ch(mod|own)|lch(mod|own))"),
+      name.matches("^os.*\.(chdir|fchdir|access|chroot|chmod|lchflags|lchmod|lchown|link|listdir|lstat|mkdir|mkdirs|mkfifo|mknode|pathconf|readlink|removedirs|remove|rename|renames|rmdir|symlink|unlink|startfile|fdopen|open|walk)"),
+      name.matches("^os.*\.spawn\.*"),
+      name.matches("^os.*\.(chdir|fchdir|access|chroot|chmod|lchflags|lchmod|lchown|link|listdir|lstat|mkdir|mkdirs|mkfifo|mknode|pathconf|readlink|removedirs|remove|rename|renames|rmdir|symlink|unlink|startfile|fdopen|open|walk|fwalk|scandir)"),
+      name.matches("^os.*\.(putenv|unsetenv)"),
+      name.matches("^os.*\.open$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_path_manipulation]
+    )
+  ]
+)

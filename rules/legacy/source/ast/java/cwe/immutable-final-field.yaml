@@ -1,0 +1,19 @@
+id: immutable-final-field
+message: '0202000010070024'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+    - not:
+        has:
+          kind: modifiers
+          regex: final
+    - inside:
+        stopBy: 
+          kind: class_declaration
+        all:
+          - has:
+              kind: modifiers
+              has:
+                kind: marker_annotation
+                regex: '@Immutable'

@@ -1,0 +1,35 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                MiscUtils
+
+# DataflowSourceRule MiscUtils 1
+# [{'NamespaceName': 'MiscUtils', 'ClassName': 'CSVParser', 'FunctionName': 'parse', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_MiscUtils_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^MiscUtils\.CSVParser\.parse$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule MiscUtils 2
+# [{'NamespaceName': 'MiscUtils.Configurable', 'ClassName': 'Configurable', 'FunctionName': 'setSetting', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'MiscUtils.Configurable', 'ClassName': 'Configurable', 'FunctionName': 'setting', 'RuleName': 'desc.dataflow.python.resource_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_MiscUtils_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^MiscUtils\.Configurable\.Configurable\.setSetting$"),
+      name.matches("^MiscUtils\.Configurable\.Configurable\.setting$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_resource_injection]
+    )
+  ]
+)

@@ -1,0 +1,55 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                WebKit
+
+# DataflowSourceRule WebKit 12
+# [{'NamespaceName': 'WebKit.HTTPRequest', 'ClassName': 'HTTPRequest', 'FunctionName': 'field', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPRequest', 'ClassName': 'HTTPRequest', 'FunctionName': 'value', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPRequest', 'ClassName': 'HTTPRequest', 'FunctionName': 'cookie(s)?', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPRequest', 'ClassName': 'HTTPRequest', 'FunctionName': 'queryString', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPRequest', 'ClassName': 'HTTPRequest', 'FunctionName': 'rawInput', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPRequest', 'ClassName': 'HTTPRequest', 'FunctionName': 'pathInfo', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPRequest', 'ClassName': 'HTTPRequest', 'FunctionName': 'uri', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit', 'ClassName': 'Cookie', 'FunctionName': 'name|path|value|comment', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'field', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.Session', 'ClassName': 'Session', 'FunctionName': 'value', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.Session', 'ClassName': 'Session', 'FunctionName': 'sessionEncode', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.Session', 'ClassName': 'Session', 'FunctionName': 'identifier', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_WebKit_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^WebKit\.HTTPRequest\.HTTPRequest\.field$"),
+      name.matches("^WebKit\.Session\.Session\.value$"),
+      name.matches("^WebKit\.HTTPRequest\.HTTPRequest\.rawInput$"),
+      name.matches("^WebKit\.HTTPRequest\.HTTPRequest\.cookie(s)?"),
+      name.matches("^WebKit\.Cookie\.(name|path|value|comment)"),
+      name.matches("^WebKit\.HTTPRequest\.HTTPRequest\.pathInfo$"),
+      name.matches("^WebKit\.HTTPRequest\.HTTPRequest\.value$"),
+      name.matches("^WebKit\.HTTPResponse\.HTTPResponse\.field$"),
+      name.matches("^WebKit\.Session\.Session\.sessionEncode$"),
+      name.matches("^WebKit\.HTTPRequest\.HTTPRequest\.uri$"),
+      name.matches("^WebKit\.Session\.Session\.identifier$"),
+      name.matches("^WebKit\.HTTPRequest\.HTTPRequest\.queryString$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule WebKit 13
+# [{'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_reflected', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_poor_validation', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'sendRedirect', 'RuleName': 'desc.dataflow.python.open_redirect', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'write', 'RuleName': 'desc.dataflow.python.cross_site_scripting_persistent', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'setHeader', 'RuleName': 'desc.dataflow.python.header_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'setCookie', 'RuleName': 'desc.dataflow.python.header_manipulation_cookies', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'addCookie', 'RuleName': 'desc.dataflow.python.header_manipulation_cookies', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': '(add|set)Header', 'RuleName': 'desc.dataflow.python.header_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPResponse', 'ClassName': 'HTTPResponse', 'FunctionName': 'setStatus', 'RuleName': 'desc.dataflow.python.header_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPContent', 'ClassName': 'HTTPContent', 'FunctionName': 'write(ln)?', 'RuleName': 'desc.dataflow.python.cross_site_scripting_reflected', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPContent', 'ClassName': 'HTTPContent', 'FunctionName': 'write(ln)?', 'RuleName': 'desc.dataflow.python.cross_site_scripting_poor_validation', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.HTTPContent', 'ClassName': 'HTTPContent', 'FunctionName': 'write(ln)?', 'RuleName': 'desc.dataflow.python.cross_site_scripting_persistent', 'Origin': 'Fortify'}, {'NamespaceName': 'WebKit.Servlet', 'ClassName': 'Servlet', 'FunctionName': 'log', 'RuleName': 'desc.dataflow.python.log_forging', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_WebKit_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^WebKit\.HTTPResponse\.HTTPResponse\.sendRedirect$"),
+      name.matches("^WebKit\.HTTPResponse\.HTTPResponse\.setHeader$"),
+      name.matches("^WebKit\.HTTPResponse\.HTTPResponse\.write$"),
+      name.matches("^WebKit\.HTTPResponse\.HTTPResponse\.((add|set)Header)"),
+      name.matches("^WebKit\.Servlet\.Servlet\.log$"),
+      name.matches("^WebKit\.HTTPResponse\.HTTPResponse\.addCookie$"),
+      name.matches("^WebKit\.HTTPResponse\.HTTPResponse\.setStatus$"),
+      name.matches("^WebKit\.HTTPResponse\.HTTPResponse\.setCookie$"),
+      name.matches("^WebKit\.HTTPContent\.HTTPContent\.write(ln)?")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_log_forging]
+    )
+  ]
+)

@@ -1,0 +1,10 @@
+id: org.apache.hugegraph.hugegraph-api
+language: Java
+message: pkg:maven/org.apache.hugegraph/hugegraph-api
+metadata:
+  purl: pkg:maven/org.apache.hugegraph/hugegraph-api
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hugegraph\.server|org\.apache\.hugegraph\.api\.gremlin|org\.apache\.hugegraph\.define|org\.apache\.hugegraph\.api\.profile|org\.apache\.hugegraph\.api\.cypher|org\.apache\.hugegraph\.api\.filter|org\.apache\.hugegraph\.serializer|org\.apache\.hugegraph\.opencypher|org\.apache\.hugegraph\.api\.variables|org\.apache\.hugegraph\.config|org\.apache\.hugegraph\.metrics|org\.apache\.hugegraph\.version|org\.apache\.hugegraph\.api\.arthas|org\.apache\.hugegraph\.core|org\.apache\.hugegraph\.api\.traversers|org\.apache\.hugegraph\.api\.metrics|org\.apache\.hugegraph\.rpc|org\.apache\.hugegraph\.api\.auth|org\.apache\.hugegraph\.api\.graph|org\.apache\.hugegraph\.api\.raft|org\.apache\.hugegraph\.api\.schema|org\.apache\.hugegraph\.api|org\.apache\.hugegraph\.auth|org\.apache\.hugegraph\.api\.job)\.

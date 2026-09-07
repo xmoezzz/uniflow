@@ -1,0 +1,10 @@
+id: javax.faces.jsf-impl
+language: Java
+message: pkg:maven/javax.faces/jsf-impl
+metadata:
+  purl: pkg:maven/javax.faces/jsf-impl
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.sun\.faces\.context|com\.sun\.faces\.scripting|com\.sun\.faces\.el|com\.sun\.faces\.config\.configprovider|com\.sun\.faces\.spi|com\.sun\.faces\.ext\.component|com\.sun\.faces\.config|com\.sun\.faces\.mgbean|com\.sun\.faces\.taglib\.jsf_core|com\.sun\.faces\.taglib\.html_basic|com\.sun\.faces\.ext\.render|com\.sun\.faces\.io|com\.sun\.faces\.util|com\.sun\.faces\.vendor|com\.sun\.faces\.renderkit|com\.sun\.faces\.ext\.validator|com\.sun\.faces\.config\.processor|com\.sun\.faces\.lifecycle|com\.sun\.faces\.ext\.taglib|com\.sun\.faces\.renderkit\.html_basic|com\.sun\.faces\.taglib|com\.sun\.faces|com\.sun\.faces\.application)\.

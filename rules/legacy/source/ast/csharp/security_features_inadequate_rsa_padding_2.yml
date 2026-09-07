@@ -1,0 +1,11 @@
+id: security_features_inadequate_rsa_padding_2
+message: '0503000010080009'
+language: cs
+rule:
+  kind: object_creation_expression
+  all:
+  - any:
+      - pattern: new RSAPKCS1KeyExchangeDeformatter($$$)
+      - pattern: new RSAPKCS1KeyExchangeFormatter($$$)
+      - pattern: new RSAPKCS1SignatureDeformatter($$$)
+      - pattern: new RSAPKCS1SignatureFormatter($$$)

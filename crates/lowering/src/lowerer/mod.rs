@@ -13,5 +13,6 @@ use uniflow_ir::{
 include!("entry.rs");
 include!("function.rs");
 include!("cfg.rs");
+include!("finally.rs");
 include!("types.rs");
 include!("tests.rs");

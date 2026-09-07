@@ -1,0 +1,12 @@
+id: static-public-final-object
+message: '0202000010130143'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+    - has:
+        kind: modifiers
+        all:
+          - regex: public
+          - regex: static
+          - regex: final

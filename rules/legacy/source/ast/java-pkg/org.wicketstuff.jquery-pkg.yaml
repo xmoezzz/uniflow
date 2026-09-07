@@ -1,0 +1,10 @@
+id: org.wicketstuff.jquery
+language: Java
+message: pkg:maven/org.wicketstuff/jquery
+metadata:
+  purl: pkg:maven/org.wicketstuff/jquery
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.wicketstuff\.jquery\.jgrowl|org\.wicketstuff\.jquery\.validation|org\.wicketstuff\.jquery\.lavalamp|org\.wicketstuff\.jquery\.accordion|org\.wicketstuff\.jquery\.codepress|org\.wicketstuff\.jquery\.cornerz|org\.wicketstuff\.jquery\.lightbox|org\.wicketstuff\.jquery\.ajaxbackbutton|org\.wicketstuff\.jquery\.ui\.slider|org\.wicketstuff\.jquery\.datepicker|org\.wicketstuff\.jquery\.crop|org\.wicketstuff\.jquery\.block|org\.wicketstuff\.jquery\.sparkline|org\.wicketstuff\.jquery|org\.wicketstuff\.jquery\.hints|org\.wicketstuff\.jquery\.dnd|org\.wicketstuff\.jquery\.tabs|org\.wicketstuff\.jquery\.ui|org\.wicketstuff\.jquery\.resize)\.

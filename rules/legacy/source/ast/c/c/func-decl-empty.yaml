@@ -1,0 +1,7 @@
+id: func-decl-empty
+message: '0601000010140007,0701000010130014'
+language: C
+rule:
+  pattern: '$ $NAME() {$$$}'
+  kind: function_definition
+

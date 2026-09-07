@@ -1,0 +1,484 @@
+rules:
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F009B
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: url
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: parse
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0091
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: parent
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: dialogArguments
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0092
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: arg
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: path
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0093
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: arg
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: body
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0094
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: (process|child_process)
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (argc|argv)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0095
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: (query)
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (remote)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0096
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: (document)
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (URL)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0097
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: (request)
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (url|params)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0098
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: (form)
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (expInput)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sourceRule
+  id: 6C33FFFC-60B4-4E34-891D-E9700D7F0099
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (getConnectedDataURL)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs:
+  - !addSign
+    s: unsafeData
+- !sinkRule
+  defaultGrade: 3.0
+  effect: null
+  id: C48553D7-D9E5-4DF0-898C-39C6AF55DABF
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: child_process
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (exec|execSync|execFile|execFileSync)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  possibility: null
+  rule: command_exec
+  sinkPoints:
+  - check: !checkSign
+      sign: unsafeData
+    ins:
+    - !valuePositionRangeFull
+      startInclusive: 0
+      endInclusive: 100
+    master: false
+  sourcePoints: []
+  veracity: null
+- !sinkRule
+  defaultGrade: 3.0
+  effect: null
+  id: C48553D7-D9E5-4DF0-898C-39C6AF55DAB1
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: fs
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: createWriteStream
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  possibility: null
+  rule: unsec_write_filesystem
+  sinkPoints:
+  - check: !checkSign
+      sign: unsafeData
+    ins:
+    - !valuePositionSingle
+      position: 0
+    master: false
+  sourcePoints: []
+  veracity: null
+- !sinkRule
+  defaultGrade: 3.0
+  effect: null
+  id: C48553D7-D9E5-4DF0-898C-39C6AF55DAB2
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: render
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  possibility: null
+  rule: object_inject
+  sinkPoints:
+  - check: !checkSign
+      sign: unsafeData
+    ins:
+    - !valuePositionSingle
+      position: 1
+    master: false
+  sourcePoints: []
+  veracity: null
+- !sinkRule
+  defaultGrade: 3.0
+  effect: null
+  id: C48553D7-D9E5-4DF0-898C-39C6AF55DAB3
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: document
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: cookie
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  possibility: null
+  rule: http_response_splitting
+  sinkPoints:
+  - check: !checkSign
+      sign: unsafeData
+    ins:
+    - !valuePositionSingle
+      position: 0
+    master: false
+  sourcePoints: []
+  veracity: null
+- !sinkRule
+  defaultGrade: 3.0
+  effect: null
+  id: C48553D7-D9E5-4DF0-898C-39C6AF55DAB4
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: query
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  possibility: null
+  rule: sql_inject
+  sinkPoints:
+  - check: !checkSign
+      sign: unsafeData
+    ins:
+    - !valuePositionSingle
+      position: 0
+    master: false
+  sourcePoints: []
+  veracity: null
+- !sinkRule
+  defaultGrade: 3.0
+  effect: null
+  id: C48553D7-D9E5-4DF0-898C-39C6AF55DAB5
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: eval
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  possibility: null
+  rule: dynamic_parse_code
+  sinkPoints:
+  - check: !checkSign
+      sign: unsafeData
+    ins:
+    - !valuePositionSingle
+      position: 0
+    master: false
+  sourcePoints: []
+  veracity: null
+- !sinkRule
+  defaultGrade: 3.0
+  effect: null
+  id: C48553D7-D9E5-4DF0-898C-39C6AF55DAB6
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: document
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: write
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  possibility: null
+  rule: weak_verify
+  sinkPoints:
+  - check: !checkSign
+      sign: unsafeData
+    ins:
+    - !valuePositionSingle
+      position: 0
+    master: false
+  sourcePoints: []
+  veracity: null
+- !sinkRule
+  defaultGrade: 3.0
+  effect: null
+  id: C48553D7-D9E5-4DF0-898C-39C6AF55D111
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: setHeader
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+  possibility: null
+  rule: same_site
+  sinkPoints:
+  - check: !checkSign
+      sign: unsafeData
+    ins:
+    - !valuePositionSingle
+      position: 1
+    master: false
+  sourcePoints: []
+  veracity: null
+- !cleanseRule
+  id: CFE71580-DB2F-4A69-BC3B-AC942DBDA65B
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: match
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+    params: {}
+  outs:
+  - !valuePositionThis {}
+  signs: []
+- !cleanseRule
+  id: CFE71580-DB2F-4A69-BC3B-AC942DBDA651
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: shell-quote
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: parse
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+    params: {}
+  outs:
+  - !valuePositionThis {}
+  signs: []
+- !cleanseRule
+  id: CFE71580-DB2F-4A69-BC3B-AC942DBDA652
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: RegExp
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: test
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+    params: {}
+  outs:
+  - !valuePositionSingle
+    position: 0
+  signs: []

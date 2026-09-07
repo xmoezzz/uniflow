@@ -1,0 +1,23 @@
+id: final-clone-method
+message: '0202000010130113'
+language: Java
+rule:
+  kind: method_declaration
+  all:
+    - has:
+        field: name
+        pattern: clone
+    - inside:
+        stopBy: 
+          kind: class_declaration
+        kind: class_declaration
+        has:
+          kind: super_interfaces
+          has:
+            stopBy: end
+            kind: type_identifier
+            regex: ^Cloneable$
+    - not:
+        has: 
+          kind: modifiers
+          regex: final

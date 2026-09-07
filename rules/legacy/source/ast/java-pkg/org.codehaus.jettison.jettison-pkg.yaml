@@ -1,0 +1,10 @@
+id: org.codehaus.jettison.jettison
+language: Java
+message: pkg:maven/org.codehaus.jettison/jettison
+metadata:
+  purl: pkg:maven/org.codehaus.jettison/jettison
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.codehaus\.jettison\.json|org\.codehaus\.jettison\.util|org\.codehaus\.jettison\.badgerfish|org\.codehaus\.jettison|org\.codehaus\.jettison\.mapped)\.

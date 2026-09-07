@@ -1,0 +1,8 @@
+id: no-macro-to-basic-type
+message: '0701000010130001,0601000010140099,0601000010140009'
+language: C
+rule:
+  pattern: '#define $A $B'
+constraints:
+  B:
+    regex: "^(char|short|int|long|unsigned int|unsigned long)$"

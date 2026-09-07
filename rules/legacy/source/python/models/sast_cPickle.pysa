@@ -1,0 +1,32 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                cPickle
+
+# DataflowSourceRule cPickle 1
+# [{'NamespaceName': 'cPickle', 'ClassName': '', 'FunctionName': 'Unpickler', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_cPickle_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^cPickle.*\.Unpickler$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule cPickle 1
+# [{'NamespaceName': 'cPickle', 'ClassName': '', 'FunctionName': 'Unpickler', 'RuleName': 'desc.dataflow.python.dynamic_code_evaluation_unsafe_pickle_deserialization', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_cPickle_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^cPickle.*\.Unpickler$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_dynamic_code_evaluation_unsafe_pickle_deserialization]
+    )
+  ]
+)

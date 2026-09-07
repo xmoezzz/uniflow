@@ -1,0 +1,10 @@
+id: de.gurkenlabs.litiengine
+language: Java
+message: pkg:maven/de.gurkenlabs/litiengine
+metadata:
+  purl: pkg:maven/de.gurkenlabs/litiengine
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(de\.gurkenlabs\.litiengine\.util\.geom|de\.gurkenlabs\.litiengine\.resources|de\.gurkenlabs\.litiengine\.entities|de\.gurkenlabs\.litiengine\.graphics\.emitters|de\.gurkenlabs\.litiengine\.entities\.behavior|de\.gurkenlabs\.litiengine\.util\.io|de\.gurkenlabs\.litiengine\.abilities\.effects|de\.gurkenlabs\.litiengine\.environment|de\.gurkenlabs\.litiengine\.sound|de\.gurkenlabs\.litiengine\.util|de\.gurkenlabs\.litiengine\.graphics\.emitters\.xml|de\.gurkenlabs\.litiengine\.gui\.screens|de\.gurkenlabs\.litiengine\.physics|de\.gurkenlabs\.litiengine\.configuration|de\.gurkenlabs\.litiengine\.input|de\.gurkenlabs\.litiengine\.attributes|de\.gurkenlabs\.litiengine\.environment\.tilemap\.xml|de\.gurkenlabs\.litiengine\.gui|de\.gurkenlabs\.litiengine\.graphics|de\.gurkenlabs\.litiengine\.graphics\.animation|de\.gurkenlabs\.litiengine\.tweening|de\.gurkenlabs\.litiengine\.abilities|de\.gurkenlabs\.litiengine\.environment\.tilemap|de\.gurkenlabs\.litiengine\.graphics\.emitters\.particles|de\.gurkenlabs\.litiengine)\.

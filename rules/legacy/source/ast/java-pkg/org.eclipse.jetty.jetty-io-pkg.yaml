@@ -1,0 +1,10 @@
+id: org.eclipse.jetty.jetty-io
+language: Java
+message: pkg:maven/org.eclipse.jetty/jetty-io
+metadata:
+  purl: pkg:maven/org.eclipse.jetty/jetty-io
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.jetty\.io|org\.eclipse\.jetty\.io\.content|org\.eclipse\.jetty\.io\.ssl|org\.eclipse\.jetty\.io\.internal|org\.eclipse\.jetty\.io\.jmx)\.

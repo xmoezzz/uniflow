@@ -1,0 +1,10 @@
+id: commons-beanutils.commons-beanutils
+language: Java
+message: pkg:maven/commons-beanutils/commons-beanutils
+metadata:
+  purl: pkg:maven/commons-beanutils/commons-beanutils
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.commons\.beanutils\.locale|org\.apache\.commons\.beanutils\.locale\.converters|org\.apache\.commons\.beanutils|org\.apache\.commons\.beanutils\.expression|org\.apache\.commons\.beanutils\.converters)\.

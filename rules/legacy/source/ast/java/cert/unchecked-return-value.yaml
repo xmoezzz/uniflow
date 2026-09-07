@@ -1,0 +1,88 @@
+id: unchecked-return-value
+message: '0102000010070022'
+language: Java
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^(.*\.)?(File)$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?(File)$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?(File)$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?(File)$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  all:
+    - kind: method_invocation
+    - has:
+        field: name
+        regex: ^mkdir$
+    - has:
+        field: object
+        pattern: $VAR
+        inside:
+          matches: recursion-find-object-decl
+    - inside:
+        kind: expression_statement

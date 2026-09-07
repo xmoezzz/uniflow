@@ -1,0 +1,10 @@
+id: org.springframework.amqp.spring-amqp
+language: Java
+message: pkg:maven/org.springframework.amqp/spring-amqp
+metadata:
+  purl: pkg:maven/org.springframework.amqp/spring-amqp
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.amqp\.support\.converter|org\.springframework\.amqp|org\.springframework\.amqp\.support\.postprocessor|org\.springframework\.amqp\.core|org\.springframework\.amqp\.utils\.test|org\.springframework\.amqp\.utils|org\.springframework\.amqp\.support|org\.springframework\.amqp\.event)\.

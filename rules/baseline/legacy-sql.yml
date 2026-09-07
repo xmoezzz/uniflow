@@ -1,0 +1,606 @@
+id: legacy-sql
+title: Migrated legacy SQL rules
+rules:
+- id: LEGACY-SQL-CharacterDatatypeUsage
+  title: Non-preferred character datatype
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\b(varchar|char)\s*\(' }
+  standards: [LEGACY-SQL-CharacterDatatypeUsage]
+  message: Use VARCHAR2 for Oracle variable-length character data.
+- id: LEGACY-SQL-ComparisonWithBoolean
+  title: Explicit boolean comparison
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '(=|<>)\s*(true|false)\b' }
+  standards: [LEGACY-SQL-ComparisonWithBoolean]
+  message: Use the boolean expression directly rather than comparing it with a boolean literal.
+- id: LEGACY-SQL-ComparisonWithNull
+  title: Invalid NULL comparison
+  languages: [sql]
+  severity: error
+  confidence: high
+  pattern: '(^|[^:])(=|<>|!=)\s*(null\b|''''(\s|;|\)))'
+  standards: [LEGACY-SQL-ComparisonWithNull]
+  message: Use IS NULL or IS NOT NULL for null tests.
+- id: LEGACY-SQL-DbmsOutputPut
+  title: DBMS_OUTPUT usage
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '(?i)\bDBMS_OUTPUT\.PUT(_LINE)?\s*\(' }
+  standards: [LEGACY-SQL-DbmsOutputPut]
+  message: Use the approved logging mechanism instead of DBMS_OUTPUT.
+- id: LEGACY-SQL-EmptyStringAssignment
+  title: Empty string assignment
+  languages: [sql]
+  severity: warning
+  confidence: high
+  pattern: ':=\s*''''\s*;'
+  standards: [LEGACY-SQL-EmptyStringAssignment]
+  message: Assign NULL explicitly rather than relying on Oracle empty-string semantics.
+- id: LEGACY-SQL-InequalityUsage
+  title: Non-standard inequality operator
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '!=' }
+  standards: [LEGACY-SQL-InequalityUsage]
+  message: Use the SQL-standard <> inequality operator.
+- id: LEGACY-SQL-InsertWithoutColumns
+  title: INSERT without explicit columns
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\binsert\s+into\s+[A-Za-z_][A-Za-z0-9_$#\.]*\s+values\s*\(' }
+  standards: [LEGACY-SQL-InsertWithoutColumns]
+  message: Name every target column in INSERT statements.
+- id: LEGACY-SQL-SelectAllColumns
+  title: SELECT all columns
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bselect\s+\*\s+from\b' }
+  standards: [LEGACY-SQL-SelectAllColumns]
+  message: Select only the columns required by the caller.
+- id: LEGACY-SQL-ToDateWithoutFormat
+  title: TO_DATE without format model
+  languages: [sql]
+  severity: warning
+  confidence: high
+  pattern: '\bto_date\s*\(\s*[^,()]+\)'
+  standards: [LEGACY-SQL-ToDateWithoutFormat]
+  message: Supply an explicit format model to TO_DATE.
+- id: LEGACY-SQL-UnnecessaryLike
+  title: LIKE without wildcard
+  languages: [sql]
+  severity: warning
+  confidence: high
+  pattern: '\blike\s*[''\"][^%_''\"]*[''\"]'
+  standards: [LEGACY-SQL-UnnecessaryLike]
+  message: Use equality when the LIKE pattern contains no wildcard.
+- id: LEGACY-SQL-NvlWithNullParameter
+  title: NVL with empty-string fallback
+  languages: [sql]
+  severity: warning
+  confidence: high
+  pattern: '\bnvl\s*\([^,]+,\s*''''\s*\)'
+  standards: [LEGACY-SQL-NvlWithNullParameter]
+  message: Do not use an Oracle empty string as the NVL fallback value.
+- id: LEGACY-SQL-ToCharInOrderBy
+  title: TO_CHAR in ORDER BY
+  languages: [sql]
+  severity: warning
+  confidence: high
+  pattern: '\border\s+by\b.*\bto_char\s*\('
+  standards: [LEGACY-SQL-ToCharInOrderBy]
+  message: Sort by the native value instead of its formatted character representation.
+- id: LEGACY-SQL-AddParenthesesInNestedExpression
+  title: Mixed AND and OR without grouping
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: add_parentheses_in_nested_expression }
+  standards: [LEGACY-SQL-AddParenthesesInNestedExpression]
+  message: Parenthesize mixed AND and OR expressions to make precedence explicit.
+  translations:
+    zh-CN: { title: AND/OR 混合表达式缺少分组, message: 请用括号明确 AND 与 OR 的求值顺序。 }
+    en: { title: Mixed AND/OR expression lacks grouping, message: Parenthesize mixed AND and OR expressions to make precedence explicit. }
+    zh-TW: { title: AND/OR 混合運算式缺少分組, message: 請用括號明確 AND 與 OR 的求值順序。 }
+- id: LEGACY-SQL-CollapsibleIfStatements
+  title: Collapsible nested IF statements
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: collapsible_if_statements }
+  standards: [LEGACY-SQL-CollapsibleIfStatements]
+  message: Combine nested single-branch IF statements into one condition.
+  translations:
+    zh-CN: { title: 可合并的嵌套 IF, message: 请将只有单分支的嵌套 IF 合并为一个条件。 }
+    en: { title: Collapsible nested IF statements, message: Combine nested single-branch IF statements into one condition. }
+    zh-TW: { title: 可合併的巢狀 IF, message: 請將只有單分支的巢狀 IF 合併為一個條件。 }
+- id: LEGACY-SQL-ConcatenationWithNull
+  title: Concatenation with NULL or empty string
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: concatenation_with_null }
+  standards: [LEGACY-SQL-ConcatenationWithNull]
+  message: Remove ineffective concatenation with NULL or an empty string.
+  translations:
+    zh-CN: { title: 与 NULL 或空字符串拼接, message: 请移除与 NULL 或空字符串的无效拼接。 }
+    en: { title: Concatenation with NULL or empty string, message: Remove ineffective concatenation with NULL or an empty string. }
+    zh-TW: { title: 與 NULL 或空字串串接, message: 請移除與 NULL 或空字串的無效串接。 }
+- id: LEGACY-SQL-DeclareSectionWithoutDeclarations
+  title: DECLARE section without declarations
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: declare_section_without_declarations }
+  standards: [LEGACY-SQL-DeclareSectionWithoutDeclarations]
+  message: Remove DECLARE when the block has no declarations.
+  translations:
+    zh-CN: { title: DECLARE 区域没有声明, message: 块中没有声明时请移除 DECLARE。 }
+    en: { title: DECLARE section without declarations, message: Remove DECLARE when the block has no declarations. }
+    zh-TW: { title: DECLARE 區域沒有宣告, message: 區塊中沒有宣告時請移除 DECLARE。 }
+- id: LEGACY-SQL-DuplicateConditionIfElsif
+  title: Duplicate IF or ELSIF condition
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: duplicate_condition_if_elsif }
+  standards: [LEGACY-SQL-DuplicateConditionIfElsif]
+  message: Remove or correct the repeated condition in this IF chain.
+  translations:
+    zh-CN: { title: IF/ELSIF 条件重复, message: 请移除或修正 IF 链中的重复条件。 }
+    en: { title: Duplicate IF/ELSIF condition, message: Remove or correct the repeated condition in this IF chain. }
+    zh-TW: { title: IF/ELSIF 條件重複, message: 請移除或修正 IF 鏈中的重複條件。 }
+- id: LEGACY-SQL-DuplicatedValueInIn
+  title: Duplicate value in IN list
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: duplicated_value_in_in }
+  standards: [LEGACY-SQL-DuplicatedValueInIn]
+  message: Remove duplicate expressions from the IN list.
+  translations:
+    zh-CN: { title: IN 列表中存在重复值, message: 请移除 IN 列表中的重复表达式。 }
+    en: { title: Duplicate value in IN list, message: Remove duplicate expressions from the IN list. }
+    zh-TW: { title: IN 清單中存在重複值, message: 請移除 IN 清單中的重複運算式。 }
+- id: LEGACY-SQL-EmptyBlock
+  title: Empty PL/SQL block
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: empty_block }
+  standards: [LEGACY-SQL-EmptyBlock]
+  message: Implement or remove a block whose only statement is NULL.
+  translations:
+    zh-CN: { title: 空 PL/SQL 块, message: 请实现或移除仅包含 NULL 的块。 }
+    en: { title: Empty PL/SQL block, message: Implement or remove a block whose only statement is NULL. }
+    zh-TW: { title: 空 PL/SQL 區塊, message: 請實作或移除僅包含 NULL 的區塊。 }
+- id: LEGACY-SQL-ExplicitInParameter
+  title: Implicit IN parameter mode
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: explicit_in_parameter }
+  standards: [LEGACY-SQL-ExplicitInParameter]
+  message: Declare input parameters with an explicit IN mode.
+  translations:
+    zh-CN: { title: 隐式 IN 参数模式, message: 请为输入参数显式声明 IN 模式。 }
+    en: { title: Implicit IN parameter mode, message: Declare input parameters with an explicit IN mode. }
+    zh-TW: { title: 隱式 IN 參數模式, message: 請為輸入參數明確宣告 IN 模式。 }
+- id: LEGACY-SQL-FunctionWithOutParameter
+  title: Function declares an OUT parameter
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: function_with_out_parameter }
+  standards: [LEGACY-SQL-FunctionWithOutParameter]
+  message: Return function output through its return value instead of an OUT parameter.
+  translations:
+    zh-CN: { title: 函数声明了 OUT 参数, message: 请通过函数返回值输出结果，而不是使用 OUT 参数。 }
+    en: { title: Function declares an OUT parameter, message: Return function output through its return value instead of an OUT parameter. }
+    zh-TW: { title: 函式宣告了 OUT 參數, message: 請透過函式回傳值輸出結果，而不是使用 OUT 參數。 }
+- id: LEGACY-SQL-IdenticalExpression
+  title: Identical comparison operands
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: identical_expression }
+  standards: [LEGACY-SQL-IdenticalExpression]
+  message: Correct a comparison that uses the same expression on both sides.
+  translations:
+    zh-CN: { title: 比较运算两侧表达式相同, message: 请修正两侧使用相同表达式的比较。 }
+    en: { title: Identical comparison operands, message: Correct a comparison that uses the same expression on both sides. }
+    zh-TW: { title: 比較運算兩側運算式相同, message: 請修正兩側使用相同運算式的比較。 }
+- id: LEGACY-SQL-IfWithExit
+  title: IF containing only EXIT
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: if_with_exit }
+  standards: [LEGACY-SQL-IfWithExit]
+  message: Replace this IF statement with EXIT WHEN.
+  translations:
+    zh-CN: { title: IF 中仅包含 EXIT, message: 请将该 IF 语句替换为 EXIT WHEN。 }
+    en: { title: IF containing only EXIT, message: Replace this IF statement with EXIT WHEN. }
+    zh-TW: { title: IF 中僅包含 EXIT, message: 請將該 IF 陳述式替換為 EXIT WHEN。 }
+- id: LEGACY-SQL-ReturnOfBooleanExpression
+  title: IF returns boolean constants
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: return_of_boolean_expression }
+  standards: [LEGACY-SQL-ReturnOfBooleanExpression]
+  message: Return the boolean expression directly.
+  translations:
+    zh-CN: { title: IF 返回布尔常量, message: 请直接返回布尔表达式。 }
+    en: { title: IF returns boolean constants, message: Return the boolean expression directly. }
+    zh-TW: { title: IF 回傳布林常數, message: 請直接回傳布林運算式。 }
+- id: LEGACY-SQL-SameBranch
+  title: Duplicate IF branch implementation
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: same_branch }
+  standards: [LEGACY-SQL-SameBranch]
+  message: Merge or correct IF branches with identical implementations.
+  translations:
+    zh-CN: { title: IF 分支实现重复, message: 请合并或修正实现相同的 IF 分支。 }
+    en: { title: Duplicate IF branch implementation, message: Merge or correct IF branches with identical implementations. }
+    zh-TW: { title: IF 分支實作重複, message: 請合併或修正實作相同的 IF 分支。 }
+- id: LEGACY-SQL-SameCondition
+  title: Duplicate condition in boolean expression
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: same_condition }
+  standards: [LEGACY-SQL-SameCondition]
+  message: Remove the duplicate boolean condition.
+  translations:
+    zh-CN: { title: 布尔表达式中条件重复, message: 请移除重复的布尔条件。 }
+    en: { title: Duplicate condition in boolean expression, message: Remove the duplicate boolean condition. }
+    zh-TW: { title: 布林運算式中條件重複, message: 請移除重複的布林條件。 }
+- id: LEGACY-SQL-SelectWithRownumAndOrderBy
+  title: ROWNUM filter and ORDER BY in same query
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: select_with_rownum_and_order_by }
+  standards: [LEGACY-SQL-SelectWithRownumAndOrderBy]
+  message: Apply ORDER BY in a subquery before filtering with ROWNUM.
+  translations:
+    zh-CN: { title: 同一查询中使用 ROWNUM 和 ORDER BY, message: 请先在子查询中排序，再用 ROWNUM 过滤。 }
+    en: { title: ROWNUM and ORDER BY in same query, message: Apply ORDER BY in a subquery before filtering with ROWNUM. }
+    zh-TW: { title: 同一查詢中使用 ROWNUM 和 ORDER BY, message: 請先在子查詢中排序，再用 ROWNUM 過濾。 }
+- id: LEGACY-SQL-UnnecessaryElse
+  title: ELSE after terminating branch
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: unnecessary_else }
+  standards: [LEGACY-SQL-UnnecessaryElse]
+  message: Remove ELSE after branches that already terminate control flow.
+  translations:
+    zh-CN: { title: 终止分支后的 ELSE 多余, message: 前置分支已终止控制流，请移除 ELSE。 }
+    en: { title: ELSE after terminating branch, message: Remove ELSE after branches that already terminate control flow. }
+    zh-TW: { title: 終止分支後的 ELSE 多餘, message: 前置分支已終止控制流程，請移除 ELSE。 }
+- id: LEGACY-SQL-UnnecessaryNullStatement
+  title: Unnecessary NULL statement
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: unnecessary_null_statement }
+  standards: [LEGACY-SQL-UnnecessaryNullStatement]
+  message: Remove NULL when the same block contains executable statements.
+  translations:
+    zh-CN: { title: 多余的 NULL 语句, message: 同一块中存在可执行语句时请移除 NULL。 }
+    en: { title: Unnecessary NULL statement, message: Remove NULL when the same block contains executable statements. }
+    zh-TW: { title: 多餘的 NULL 陳述式, message: 同一區塊中存在可執行陳述式時請移除 NULL。 }
+- id: LEGACY-SQL-UselessParenthesis
+  title: Redundant nested parentheses
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: useless_parenthesis }
+  standards: [LEGACY-SQL-UselessParenthesis]
+  message: Remove the redundant outer parentheses.
+  translations:
+    zh-CN: { title: 多余的嵌套括号, message: 请移除多余的外层括号。 }
+    en: { title: Redundant nested parentheses, message: Remove the redundant outer parentheses. }
+    zh-TW: { title: 多餘的巢狀括號, message: 請移除多餘的外層括號。 }
+- id: LEGACY-SQL-VariableInitializationWithFunctionCall
+  title: Declaration initializer calls a function
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: variable_initialization_with_function_call }
+  standards: [LEGACY-SQL-VariableInitializationWithFunctionCall]
+  message: Move the function call into the executable block so exceptions can be handled.
+  translations:
+    zh-CN: { title: 变量声明初始化时调用函数, message: 请将函数调用移入可执行块，以便处理异常。 }
+    en: { title: Declaration initializer calls a function, message: Move the function call into the executable block so exceptions can be handled. }
+    zh-TW: { title: 變數宣告初始化時呼叫函式, message: 請將函式呼叫移入可執行區塊，以便處理例外。 }
+- id: LEGACY-SQL-VariableInitializationWithNull
+  title: Redundant NULL initializer
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: variable_initialization_with_null }
+  standards: [LEGACY-SQL-VariableInitializationWithNull]
+  message: Remove the explicit NULL initializer because variables default to NULL.
+  translations:
+    zh-CN: { title: 多余的 NULL 初始化, message: 变量默认初始化为 NULL，请移除显式初始化。 }
+    en: { title: Redundant NULL initializer, message: Remove the explicit NULL initializer because variables default to NULL. }
+    zh-TW: { title: 多餘的 NULL 初始化, message: 變數預設初始化為 NULL，請移除明確初始化。 }
+- id: LEGACY-SQL-CommitRollback
+  title: Transaction control inside database object
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: commit_rollback }
+  standards: [LEGACY-SQL-CommitRollback]
+  message: Leave COMMIT and ROLLBACK to the transaction owner unless the routine is autonomous.
+  translations:
+    zh-CN: { title: 数据库对象内控制事务, message: 除自治事务外，请由事务所有者执行 COMMIT 或 ROLLBACK。 }
+    en: { title: Transaction control inside database object, message: Leave COMMIT and ROLLBACK to the transaction owner unless the routine is autonomous. }
+    zh-TW: { title: 資料庫物件內控制交易, message: 除自治交易外，請由交易擁有者執行 COMMIT 或 ROLLBACK。 }
+- id: LEGACY-SQL-ColumnsShouldHaveTableName
+  title: Unqualified selected column
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: columns_should_have_table_name }
+  standards: [LEGACY-SQL-ColumnsShouldHaveTableName]
+  message: Qualify selected columns with their table or alias.
+  translations:
+    zh-CN: { title: 查询列缺少表限定名, message: 请使用表名或别名限定查询列。 }
+    en: { title: Unqualified selected column, message: Qualify selected columns with their table or alias. }
+    zh-TW: { title: 查詢欄位缺少資料表限定名, message: 請使用資料表名稱或別名限定查詢欄位。 }
+- id: LEGACY-SQL-CursorBodyInPackageSpec
+  title: Cursor body in package specification
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: cursor_body_in_package_spec }
+  standards: [LEGACY-SQL-CursorBodyInPackageSpec]
+  message: Move the cursor query body into the package body.
+  translations:
+    zh-CN: { title: 包规范中包含游标体, message: 请将游标查询体移到包体中。 }
+    en: { title: Cursor body in package specification, message: Move the cursor query body into the package body. }
+    zh-TW: { title: 套件規格中包含游標主體, message: 請將游標查詢主體移到套件主體中。 }
+- id: LEGACY-SQL-DeadCode
+  title: Unreachable statement after control transfer
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: dead_code }
+  standards: [LEGACY-SQL-DeadCode]
+  message: Remove code that follows an unconditional control-transfer statement in the same block.
+  translations:
+    zh-CN: { title: 控制转移后的不可达语句, message: 请移除同一块内无条件控制转移之后的代码。 }
+    en: { title: Unreachable statement after control transfer, message: Remove code that follows an unconditional control-transfer statement in the same block. }
+    zh-TW: { title: 控制轉移後的不可達陳述式, message: 請移除同一區塊內無條件控制轉移之後的程式碼。 }
+- id: LEGACY-SQL-DisabledTest
+  title: Disabled test without explanation
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: disabled_test }
+  standards: [LEGACY-SQL-DisabledTest]
+  message: Explain why this test is disabled in the disabled annotation.
+  translations:
+    zh-CN: { title: 禁用测试缺少说明, message: 请在禁用注解中说明测试被禁用的原因。 }
+    en: { title: Disabled test without explanation, message: Explain why this test is disabled in the disabled annotation. }
+    zh-TW: { title: 停用測試缺少說明, message: 請在停用註解中說明測試被停用的原因。 }
+- id: LEGACY-SQL-NotASelectedExpression
+  title: DISTINCT query orders by unselected expression
+  languages: [sql]
+  severity: error
+  confidence: high
+  matcher: { sql_style: not_a_selected_expression }
+  standards: [LEGACY-SQL-NotASelectedExpression]
+  message: Add the ORDER BY expression to the DISTINCT projection or order by its alias.
+  translations:
+    zh-CN: { title: DISTINCT 查询按未选择表达式排序, message: 请将排序表达式加入投影或使用其别名。 }
+    en: { title: DISTINCT orders by unselected expression, message: Add the ORDER BY expression to the DISTINCT projection or order by its alias. }
+    zh-TW: { title: DISTINCT 查詢按未選取運算式排序, message: 請將排序運算式加入投影或使用其別名。 }
+- id: LEGACY-SQL-NotFound
+  title: Negated cursor FOUND attribute
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: not_found }
+  standards: [LEGACY-SQL-NotFound]
+  message: Use cursor%NOTFOUND instead of NOT cursor%FOUND.
+  translations:
+    zh-CN: { title: 对游标 FOUND 属性取反, message: 请使用 cursor%NOTFOUND，而不是 NOT cursor%FOUND。 }
+    en: { title: Negated cursor FOUND attribute, message: Use cursor%NOTFOUND instead of NOT cursor%FOUND. }
+    zh-TW: { title: 對游標 FOUND 屬性取反, message: 請使用 cursor%NOTFOUND，而不是 NOT cursor%FOUND。 }
+- id: LEGACY-SQL-ParsingError
+  title: PL/SQL parsing recovery error
+  languages: [sql]
+  severity: error
+  confidence: high
+  matcher: { sql_style: parsing_error }
+  standards: [LEGACY-SQL-ParsingError]
+  message: Correct the unbalanced delimiter or unterminated PL/SQL block.
+  translations:
+    zh-CN: { title: PL/SQL 解析恢复错误, message: 请修正不平衡的分隔符或未结束的 PL/SQL 块。 }
+    en: { title: PL/SQL parsing recovery error, message: Correct the unbalanced delimiter or unterminated PL/SQL block. }
+    zh-TW: { title: PL/SQL 剖析復原錯誤, message: 請修正不平衡的分隔符或未結束的 PL/SQL 區塊。 }
+- id: LEGACY-SQL-QueryWithoutExceptionHandling
+  title: SELECT INTO without exception handling
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: query_without_exception_handling }
+  standards: [LEGACY-SQL-QueryWithoutExceptionHandling]
+  message: Handle exceptions raised by this SELECT INTO statement.
+  translations:
+    zh-CN: { title: SELECT INTO 缺少异常处理, message: 请处理该 SELECT INTO 语句可能抛出的异常。 }
+    en: { title: SELECT INTO without exception handling, message: Handle exceptions raised by this SELECT INTO statement. }
+    zh-TW: { title: SELECT INTO 缺少例外處理, message: 請處理該 SELECT INTO 陳述式可能拋出的例外。 }
+- id: LEGACY-SQL-RaiseStandardException
+  title: Explicitly raising predefined exception
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: raise_standard_exception }
+  standards: [LEGACY-SQL-RaiseStandardException]
+  message: Avoid using a predefined exception as ordinary control flow.
+  translations:
+    zh-CN: { title: 显式抛出预定义异常, message: 请勿将预定义异常用作普通控制流。 }
+    en: { title: Explicitly raising predefined exception, message: Avoid using a predefined exception as ordinary control flow. }
+    zh-TW: { title: 明確拋出預定義例外, message: 請勿將預定義例外用作一般控制流程。 }
+- id: LEGACY-SQL-RedundantExpectation
+  title: Expectation compares a value with itself
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: redundant_expectation }
+  standards: [LEGACY-SQL-RedundantExpectation]
+  message: Compare the actual value with the intended expected value.
+  translations:
+    zh-CN: { title: 断言将值与自身比较, message: 请将实际值与预期值进行比较。 }
+    en: { title: Expectation compares a value with itself, message: Compare the actual value with the intended expected value. }
+    zh-TW: { title: 斷言將值與自身比較, message: 請將實際值與預期值進行比較。 }
+- id: LEGACY-SQL-TooManyRowsHandler
+  title: TOO_MANY_ROWS handler discards the error
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: too_many_rows_handler }
+  standards: [LEGACY-SQL-TooManyRowsHandler]
+  message: Give SELECT INTO targets a defined value when TOO_MANY_ROWS is caught.
+  translations:
+    zh-CN: { title: TOO_MANY_ROWS 处理器丢弃错误, message: 捕获 TOO_MANY_ROWS 时请为 SELECT INTO 目标赋确定值。 }
+    en: { title: TOO_MANY_ROWS handler discards the error, message: Give SELECT INTO targets a defined value when TOO_MANY_ROWS is caught. }
+    zh-TW: { title: TOO_MANY_ROWS 處理器捨棄錯誤, message: 捕捉 TOO_MANY_ROWS 時請為 SELECT INTO 目標指定確定值。 }
+- id: LEGACY-SQL-UnhandledUserDefinedException
+  title: Unhandled user-defined exception
+  languages: [sql]
+  severity: error
+  confidence: high
+  matcher: { sql_style: unhandled_user_defined_exception }
+  standards: [LEGACY-SQL-UnhandledUserDefinedException]
+  message: Add a named handler for the raised user-defined exception.
+  translations:
+    zh-CN: { title: 未处理的用户自定义异常, message: 请为被抛出的用户自定义异常添加具名处理器。 }
+    en: { title: Unhandled user-defined exception, message: Add a named handler for the raised user-defined exception. }
+    zh-TW: { title: 未處理的使用者自訂例外, message: 請為被拋出的使用者自訂例外加入具名處理器。 }
+- id: LEGACY-SQL-UnnecessaryAliasInQuery
+  title: Unnecessary short table alias
+  languages: [sql]
+  severity: warning
+  confidence: medium
+  matcher: { sql_style: unnecessary_alias_in_query }
+  standards: [LEGACY-SQL-UnnecessaryAliasInQuery]
+  message: Use the table name when a short alias does not disambiguate a self-join.
+  translations:
+    zh-CN: { title: 不必要的短表别名, message: 非自连接场景请直接使用表名。 }
+    en: { title: Unnecessary short table alias, message: Use the table name when a short alias does not disambiguate a self-join. }
+    zh-TW: { title: 不必要的短資料表別名, message: 非自我連接情境請直接使用資料表名稱。 }
+- id: LEGACY-SQL-UnusedCursor
+  title: Unused local cursor
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: unused_cursor }
+  standards: [LEGACY-SQL-UnusedCursor]
+  message: Remove the local cursor or use it.
+  translations:
+    zh-CN: { title: 未使用的本地游标, message: 请移除或使用该本地游标。 }
+    en: { title: Unused local cursor, message: Remove the local cursor or use it. }
+    zh-TW: { title: 未使用的本機游標, message: 請移除或使用該本機游標。 }
+- id: LEGACY-SQL-UnusedParameter
+  title: Unused routine parameter
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: unused_parameter }
+  standards: [LEGACY-SQL-UnusedParameter]
+  message: Remove the parameter or use it in the routine.
+  translations:
+    zh-CN: { title: 未使用的过程参数, message: 请移除该参数或在过程中使用它。 }
+    en: { title: Unused routine parameter, message: Remove the parameter or use it in the routine. }
+    zh-TW: { title: 未使用的程序參數, message: 請移除該參數或在程序中使用它。 }
+- id: LEGACY-SQL-UnusedVariable
+  title: Unused local variable
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: unused_variable }
+  standards: [LEGACY-SQL-UnusedVariable]
+  message: Remove the local variable or use it.
+  translations:
+    zh-CN: { title: 未使用的局部变量, message: 请移除或使用该局部变量。 }
+    en: { title: Unused local variable, message: Remove the local variable or use it. }
+    zh-TW: { title: 未使用的區域變數, message: 請移除或使用該區域變數。 }
+- id: LEGACY-SQL-VariableHiding
+  title: Inner declaration hides an earlier variable
+  languages: [sql]
+  severity: warning
+  confidence: medium
+  matcher: { sql_style: variable_hiding }
+  standards: [LEGACY-SQL-VariableHiding]
+  message: Rename the inner variable so it does not hide an outer declaration.
+  translations:
+    zh-CN: { title: 内层声明隐藏外层变量, message: 请重命名内层变量，避免隐藏外层声明。 }
+    en: { title: Inner declaration hides an earlier variable, message: Rename the inner variable so it does not hide an outer declaration. }
+    zh-TW: { title: 內層宣告隱藏外層變數, message: 請重新命名內層變數，避免隱藏外層宣告。 }
+- id: LEGACY-SQL-VariableInCount
+  title: COUNT uses a local variable
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: variable_in_count }
+  standards: [LEGACY-SQL-VariableInCount]
+  message: Count rows or a table column instead of a local variable.
+  translations:
+    zh-CN: { title: COUNT 使用局部变量, message: 请统计行或表列，而不是局部变量。 }
+    en: { title: COUNT uses a local variable, message: Count rows or a table column instead of a local variable. }
+    zh-TW: { title: COUNT 使用區域變數, message: 請統計資料列或資料表欄位，而不是區域變數。 }
+- id: LEGACY-SQL-VariableName
+  title: Variable name violates the bundled convention
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher: { sql_style: variable_name }
+  standards: [LEGACY-SQL-VariableName]
+  message: Remove the trailing underscore from the variable name.
+  translations:
+    zh-CN: { title: 变量名违反内置约定, message: 请移除变量名末尾的下划线。 }
+    en: { title: Variable name violates bundled convention, message: Remove the trailing underscore from the variable name. }
+    zh-TW: { title: 變數名稱違反內建慣例, message: 請移除變數名稱末尾的底線。 }
+- id: LEGACY-SQL-InvalidReferenceToObject
+  title: Invalid reference to Oracle Forms object
+  languages: [sql]
+  severity: error
+  confidence: high
+  matcher: { sql_style: invalid_reference_to_object }
+  standards: [LEGACY-SQL-InvalidReferenceToObject]
+  message: The referenced Oracle Forms object is absent from the configured metadata.
+  translations:
+    zh-CN: { title: Oracle Forms 对象引用无效, message: 引用的 Oracle Forms 对象不存在于所配置的元数据中。 }
+    en: { title: Invalid reference to Oracle Forms object, message: The referenced Oracle Forms object is absent from the configured metadata. }
+    zh-TW: { title: Oracle Forms 物件參照無效, message: 參照的 Oracle Forms 物件不存在於已設定的中繼資料中。 }
+- id: LEGACY-SQL-XPath
+  title: Configurable SQL AST XPath rule
+  languages: [sql]
+  severity: warning
+  confidence: high
+  matcher:
+    sql_style: xpath
+    sql_xpath_query: ''
+    sql_xpath_message: The XPath expression matches this piece of code.
+  standards: [LEGACY-SQL-XPath]
+  message: The XPath expression matches this piece of code.
+  translations:
+    zh-CN: { title: 可配置的 SQL AST XPath 规则, message: XPath 表达式匹配了这段代码。 }
+    en: { title: Configurable SQL AST XPath rule, message: The XPath expression matches this piece of code. }
+    zh-TW: { title: 可設定的 SQL AST XPath 規則, message: XPath 運算式符合這段程式碼。 }

@@ -1,0 +1,10 @@
+id: org.eclipse.birt.runtime.org.apache.batik.dom
+language: Java
+message: pkg:maven/org.eclipse.birt.runtime/org.apache.batik.dom
+metadata:
+  purl: pkg:maven/org.eclipse.birt.runtime/org.apache.batik.dom
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.batik\.dom\.traversal|org\.apache\.batik\.dom\.events|org\.apache\.batik\.dom\.util|org\.apache\.batik\.dom)\.

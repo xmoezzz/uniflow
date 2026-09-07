@@ -1,0 +1,10 @@
+id: org.apache.nifi.nifi-jms-processors
+language: Java
+message: pkg:maven/org.apache.nifi/nifi-jms-processors
+metadata:
+  purl: pkg:maven/org.apache.nifi/nifi-jms-processors
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.nifi\.jms\.processors\.ioconcept\.reader|org\.apache\.nifi\.jms\.cf|org\.apache\.nifi\.jms\.processors|org\.apache\.nifi\.jms\.processors\.ioconcept\.reader\.record|org\.apache\.nifi\.jms\.processors\.ioconcept\.writer\.record|org\.apache\.nifi\.jms\.processors\.ioconcept\.writer)\.

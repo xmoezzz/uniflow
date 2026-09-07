@@ -1,0 +1,53 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                MySQLdb
+
+# DataflowSourceRule MySQLdb 3
+# [{'NamespaceName': 'MySQLdb.cursors', 'ClassName': 'CursorStoreResultMixIn|CursorUseResultMixIn', 'FunctionName': 'fetch(one|many|all)', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'MySQLdb.cursors', 'ClassName': 'CursorDictRowsMixIn', 'FunctionName': 'fetchoneDict|fetchmanyDict|fetchallDict', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'MySQLdb.cursors', 'ClassName': 'BaseCursor', 'FunctionName': '_fetch_row', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_MySQLdb_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^MySQLdb\.cursors\.(CursorStoreResultMixIn|CursorUseResultMixIn)\.(fetch(one|many|all))"),
+      name.matches("^MySQLdb\.cursors\.CursorDictRowsMixIn\.(fetchoneDict|fetchmanyDict|fetchallDict)"),
+      name.matches("^MySQLdb\.cursors\.BaseCursor\._fetch_row$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule MySQLdb 4
+# [{'NamespaceName': 'MySQLdb.cursors', 'ClassName': 'BaseCursor|CursorStoreResultMixIn', 'FunctionName': 'execute|executemany|_query|_do_query', 'RuleName': 'desc.dataflow.python.sql_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'MySQLdb.cursors', 'ClassName': 'BaseCursor|CursorStoreResultMixIn', 'FunctionName': 'execute|executemany|_query|_do_query|callproc', 'RuleName': 'desc.dataflow.python.access_control_database', 'Origin': 'Fortify'}, {'NamespaceName': 'MySQLdb', 'ClassName': '', 'FunctionName': 'connect|Connect|Connection', 'RuleName': 'desc.dataflow.python.password_management', 'Origin': 'Fortify'}, {'NamespaceName': 'MySQLdb', 'ClassName': '', 'FunctionName': 'connect|Connect|Connection', 'RuleName': 'desc.dataflow.python.password_management_weak_cryptography', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_MySQLdb_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^MySQLdb.*\.(connect|Connect|Connection)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_password_management_weak_cryptography]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_MySQLdb_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^MySQLdb\.cursors\.(BaseCursor|CursorStoreResultMixIn)\.(execute|executemany|_query|_do_query|callproc)"),
+      name.matches("^MySQLdb\.cursors\.(BaseCursor|CursorStoreResultMixIn)\.(execute|executemany|_query|_do_query)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_password_management_weak_cryptography]
+    )
+  ]
+)

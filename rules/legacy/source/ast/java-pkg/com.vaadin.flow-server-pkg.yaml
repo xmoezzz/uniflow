@@ -1,0 +1,10 @@
+id: com.vaadin.flow-server
+language: Java
+message: pkg:maven/com.vaadin/flow-server
+metadata:
+  purl: pkg:maven/com.vaadin/flow-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.vaadin\.flow\.component|com\.vaadin\.flow\.server\.webcomponent|com\.vaadin\.flow\.internal\.springcsrf|com\.vaadin\.flow\.theme|com\.vaadin\.flow\.di|com\.vaadin\.flow\.shared\.communication|com\.vaadin\.flow\.component\.template|com\.vaadin\.flow\.internal\.hilla|com\.vaadin\.flow\.component\.internal|com\.vaadin\.experimental|com\.vaadin\.flow\.dom|com\.vaadin\.flow\.shared\.util|com\.vaadin\.flow\.router\.internal|com\.vaadin\.flow\.server\.frontend|com\.vaadin\.flow\.server\.communication\.rpc|com\.vaadin\.flow\.function|com\.vaadin\.flow\.component\.page|com\.vaadin\.flow\.component\.dependency|com\.vaadin\.flow\.server\.communication\.streaming|com\.vaadin\.flow\.shared|com\.vaadin\.flow\.router|com\.vaadin\.flow\.internal\.nodefeature|com\.vaadin\.flow\.shared\.ui|com\.vaadin\.flow\.component\.webcomponent|com\.vaadin\.flow\.server\.frontend\.installer|com\.vaadin\.flow\.dom\.impl|com\.vaadin\.flow\.server\.startup|com\.vaadin\.flow\.server\.auth|com\.vaadin\.flow\.internal\.change|com\.vaadin\.flow\.i18n|com\.vaadin\.flow\.server\.communication|com\.vaadin\.flow\.internal|com\.vaadin\.flow\.component\.template\.internal|com\.vaadin\.flow\.server\.frontend\.scanner|com\.vaadin\.flow\.server)\.

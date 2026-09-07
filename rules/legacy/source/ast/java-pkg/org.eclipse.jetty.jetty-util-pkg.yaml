@@ -1,0 +1,10 @@
+id: org.eclipse.jetty.jetty-util
+language: Java
+message: pkg:maven/org.eclipse.jetty/jetty-util
+metadata:
+  purl: pkg:maven/org.eclipse.jetty/jetty-util
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.jetty\.util\.thread\.strategy|org\.eclipse\.jetty\.util\.compression|org\.eclipse\.jetty\.util\.ssl|org\.eclipse\.jetty\.util\.statistic|org\.eclipse\.jetty\.util\.resource|org\.eclipse\.jetty\.util\.jndi|org\.eclipse\.jetty\.util\.annotation|org\.eclipse\.jetty\.util\.security|org\.eclipse\.jetty\.util\.preventers|org\.eclipse\.jetty\.util\.component|org\.eclipse\.jetty\.util\.thread|org\.eclipse\.jetty\.util)\.

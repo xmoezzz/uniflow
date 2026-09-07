@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.frontend.taglib.clay
+language: Java
+message: pkg:maven/com.liferay/com.liferay.frontend.taglib.clay
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.frontend.taglib.clay
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.liferay\.frontend\.taglib\.clay\.servlet\.taglib\.contributor|com\.liferay\.frontend\.taglib\.clay\.internal\.servlet\.taglib|com\.liferay\.frontend\.taglib\.clay\.servlet\.taglib\.util|com\.liferay\.frontend\.taglib\.clay\.internal\.js\.loader\.modules\.extender\.npm|com\.liferay\.frontend\.taglib\.clay\.internal\.servlet|com\.liferay\.frontend\.taglib\.clay\.servlet\.taglib|com\.liferay\.frontend\.taglib\.clay\.internal|com\.liferay\.frontend\.taglib\.clay\.internal\.js\.importmaps\.extender|com\.liferay\.frontend\.taglib\.clay\.servlet\.taglib\.display\.context|com\.liferay\.frontend\.taglib\.clay\.internal\.servlet\.taglib\.display\.context|com\.liferay\.frontend\.taglib\.clay\.internal\.servlet\.taglib\.util)\.

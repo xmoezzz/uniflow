@@ -92,10 +92,12 @@ pub fn new_call_with_arg_names(
     args: Vec<Expr>,
     arg_names: Vec<Option<String>>,
 ) -> Expr {
+    let qualifier_is_explicit = receiver.is_some();
     Expr::Call(CallExpr {
         id: builder.alloc_expr_id(),
         target: CallTarget::Named(target_name.to_string()),
         receiver: receiver.map(Box::new),
+        qualifier_is_explicit,
         args,
         arg_names,
         span: default_span(),
@@ -118,10 +120,12 @@ pub fn new_dynamic_call_with_arg_names(
     args: Vec<Expr>,
     arg_names: Vec<Option<String>>,
 ) -> Expr {
+    let qualifier_is_explicit = receiver.is_some();
     Expr::Call(CallExpr {
         id: builder.alloc_expr_id(),
         target: CallTarget::Dynamic(Box::new(callee)),
         receiver: receiver.map(Box::new),
+        qualifier_is_explicit,
         args,
         arg_names,
         span: default_span(),

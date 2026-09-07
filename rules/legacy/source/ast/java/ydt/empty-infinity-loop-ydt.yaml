@@ -1,0 +1,11 @@
+id: empty-infinity-loop-ydt
+message: '0902000010160149'
+language: Java
+rule:
+  any:
+    - pattern: while(true){$$$}
+    - pattern: while(true);
+    - pattern: for(;;){$$$}
+    - pattern: for(;;);
+    - pattern: do{$$$}while(true);
+    - pattern: do;while(true);

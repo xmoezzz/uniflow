@@ -1,0 +1,31 @@
+id: equals-hashcode-check
+message: '0802000010070016'
+language: Java
+rule:
+  any:
+  - kind: method_declaration
+    all:
+    - has:
+        field: name
+        regex: ^equals$
+    - inside:
+        kind: class_body
+        not:
+          has:
+            kind: method_declaration
+            has:
+              field: name
+              regex: ^hashCode$
+  - kind: method_declaration
+    all:
+    - has:
+        field: name
+        regex: ^hashCode$
+    - inside:
+        kind: class_body
+        not:
+          has:
+            kind: method_declaration
+            has:
+              field: name
+              regex: ^equals$

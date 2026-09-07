@@ -1,0 +1,10 @@
+id: org.apache.dolphinscheduler.dolphinscheduler-dao
+language: Java
+message: pkg:maven/org.apache.dolphinscheduler/dolphinscheduler-dao
+metadata:
+  purl: pkg:maven/org.apache.dolphinscheduler/dolphinscheduler-dao
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.dolphinscheduler\.dao\.entity|org\.apache\.dolphinscheduler\.dao\.repository\.impl|org\.apache\.dolphinscheduler\.dao\.repository|org\.apache\.dolphinscheduler\.dao|org\.apache\.dolphinscheduler\.dao\.utils|org\.apache\.dolphinscheduler\.dao\.entity\.event|org\.apache\.dolphinscheduler\.dao\.mapper|org\.apache\.dolphinscheduler\.dao\.model)\.

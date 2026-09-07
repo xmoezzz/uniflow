@@ -1,0 +1,19 @@
+id: rewrite-thread-run-method
+message: '0202000010150310'
+language: Java
+rule:
+  kind: class_declaration
+  all:
+  - has:
+      kind: superclass
+      has:
+        stopBy: end
+        regex: ^Thread$
+  - has:
+      field: body
+      not:
+        has:
+          kind: method_declaration
+          has:
+            field: name
+            pattern: run

@@ -1,0 +1,35 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                poplib
+
+# DataflowSourceRule poplib 1
+# [{'NamespaceName': 'poplib', 'ClassName': 'POP3', 'FunctionName': 'retr|getwelcome|list|top', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_poplib_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^poplib\.POP3\.(retr|getwelcome|list|top)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule poplib 3
+# [{'NamespaceName': 'poplib', 'ClassName': 'POP3', 'FunctionName': 'pass_|apop', 'RuleName': 'desc.dataflow.python.password_management_weak_cryptography', 'Origin': 'Fortify'}, {'NamespaceName': 'poplib', 'ClassName': 'POP3', 'FunctionName': 'pass_|apop', 'RuleName': 'desc.dataflow.python.password_management', 'Origin': 'Fortify'}, {'NamespaceName': 'poplib', 'ClassName': 'POP3', 'FunctionName': 'retr|dele|top|list', 'RuleName': 'desc.dataflow.python.resource_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_poplib_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^poplib\.POP3\.(retr|dele|top|list)"),
+      name.matches("^poplib\.POP3\.(pass_|apop)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_resource_injection]
+    )
+  ]
+)

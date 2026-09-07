@@ -1,0 +1,9 @@
+id: no-union-declaration-in-struct
+message: '0101000010120108'
+language: C
+rule:
+  all:
+    - kind: union_specifier
+    - inside:
+        kind: struct_specifier
+        stopBy: end

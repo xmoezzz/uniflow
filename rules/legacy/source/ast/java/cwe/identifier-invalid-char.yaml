@@ -1,0 +1,6 @@
+id: identifier-invalid-char
+message: '0202000010130033'
+language: Java
+rule:
+  kind: identifier
+  regex: \$

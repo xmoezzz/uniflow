@@ -1,0 +1,10 @@
+id: org.springframework.spring-beans
+language: Java
+message: pkg:maven/org.springframework/spring-beans
+metadata:
+  purl: pkg:maven/org.springframework/spring-beans
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.beans|org\.springframework\.beans\.factory\.config|org\.springframework\.beans\.factory\.xml|org\.springframework\.beans\.factory\.annotation|org\.springframework\.beans\.factory\.aot|org\.springframework\.beans\.propertyeditors|org\.springframework\.beans\.support|org\.springframework\.beans\.factory|org\.springframework\.beans\.factory\.parsing|org\.springframework\.beans\.factory\.groovy|org\.springframework\.beans\.factory\.support|org\.springframework\.beans\.factory\.wiring|org\.springframework\.beans\.factory\.serviceloader)\.

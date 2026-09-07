@@ -1,0 +1,10 @@
+id: org.grails.grails-databinding
+language: Java
+message: pkg:maven/org.grails/grails-databinding
+metadata:
+  purl: pkg:maven/org.grails/grails-databinding
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(grails\.databinding\.initializers|org\.grails\.databinding\.converters|grails\.databinding\.events|grails\.databinding\.converters|org\.grails\.databinding\.errors|org\.grails\.databinding\.compiler|grails\.databinding|grails\.databinding\.errors|org\.grails\.databinding|org\.grails\.databinding\.xml)\.

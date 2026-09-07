@@ -1,0 +1,10 @@
+id: com.orientechnologies.orientdb-server
+language: Java
+message: pkg:maven/com.orientechnologies/orientdb-server
+metadata:
+  purl: pkg:maven/com.orientechnologies/orientdb-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.orientechnologies\.orient\.server\.network\.protocol\.http\.command\.get|com\.orientechnologies\.orient\.server\.plugin|com\.orientechnologies\.orient\.server\.network\.protocol\.http\.command\.delete|com\.orientechnologies\.orient\.server\.security\.authenticator|com\.orientechnologies\.orient\.server\.network\.protocol\.http\.command|com\.orientechnologies\.orient\.server\.network\.protocol\.http\.command\.post|com\.orientechnologies\.orient\.server\.network\.protocol\.http\.command\.patch|com\.orientechnologies\.orient\.server\.network\.protocol\.http\.multipart|com\.orientechnologies\.orient\.server\.distributed\.task|com\.orientechnologies\.orient\.server\.network\.protocol\.binary|com\.orientechnologies\.orient\.server\.network|com\.orientechnologies\.orient\.server\.network\.protocol\.http\.command\.options|com\.orientechnologies\.orient\.server\.distributed|com\.orientechnologies\.orient\.server\.network\.protocol\.http|com\.orientechnologies\.orient\.server\.token|com\.orientechnologies\.orient\.server\.plugin\.mail|com\.orientechnologies\.orient\.server\.security|com\.orientechnologies\.orient\.server\.handler|com\.orientechnologies\.orient\.server\.tx|com\.orientechnologies\.orient\.server\.plugin\.livequery|com\.orientechnologies\.orient\.server\.distributed\.operation|com\.orientechnologies\.orient\.server\.network\.protocol|com\.orientechnologies\.orient\.server\.network\.protocol\.http\.command\.all|com\.orientechnologies\.orient\.server\.distributed\.config|com\.orientechnologies\.orient\.server|com\.orientechnologies\.orient\.server\.network\.protocol\.http\.command\.put)\.

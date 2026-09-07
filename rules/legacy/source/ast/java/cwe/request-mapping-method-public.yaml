@@ -1,0 +1,12 @@
+id: request-mapping-method-public
+message: '0202000010150437'
+language: Java
+rule:
+  kind: method_declaration
+  all:
+  - has:
+      kind: modifiers
+      all:
+      - regex: RequestMapping
+      - not:
+          regex: public

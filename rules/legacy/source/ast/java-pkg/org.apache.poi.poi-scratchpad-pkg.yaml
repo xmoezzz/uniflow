@@ -1,0 +1,10 @@
+id: org.apache.poi.poi-scratchpad
+language: Java
+message: pkg:maven/org.apache.poi/poi-scratchpad
+metadata:
+  purl: pkg:maven/org.apache.poi/poi-scratchpad
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.poi\.hsmf\.dev|org\.apache\.poi\.hemf\.record\.emfplus|org\.apache\.poi\.hpbf\.extractor|org\.apache\.poi\.hsmf\.exceptions|org\.apache\.poi\.hmef\.extractor|org\.apache\.poi\.hdgf\.extractor|org\.apache\.poi\.hslf\.model\.textproperties|org\.apache\.poi\.hslf\.blip|org\.apache\.poi\.hsmf\.parsers|org\.apache\.poi\.hwpf\.extractor|org\.apache\.poi\.hwpf\.model\.types|org\.apache\.poi\.hemf\.draw|org\.apache\.poi\.hpbf|org\.apache\.poi\.hslf\.extractor|org\.apache\.poi\.hdgf\.pointers|org\.apache\.poi\.hwpf\.usermodel|org\.apache\.poi\.hslf\.record|org\.apache\.poi\.hsmf\.extractor|org\.apache\.poi\.hwpf\.model|org\.apache\.poi\.hmef\.dev|org\.apache\.poi\.hdgf\.exceptions|org\.apache\.poi\.hwpf|org\.apache\.poi\.hemf\.record\.emf|org\.apache\.poi\.hwpf\.converter|org\.apache\.poi\.hwmf\.draw|META-INF\.versions\.9|org\.apache\.poi\.hwmf\.usermodel|org\.apache\.poi\.hslf\.usermodel|org\.apache\.poi\.hsmf|org\.apache\.poi\.hmef\.attribute|org\.apache\.poi\.hslf\.exceptions|org\.apache\.poi\.hdgf\.chunks|org\.apache\.poi\.hwpf\.util|org\.apache\.poi\.hssf\.converter|org\.apache\.poi\.hpbf\.model\.qcbits|org\.apache\.poi\.hwpf\.model\.io|org\.apache\.poi\.hwpf\.sprm|org\.apache\.poi\.hpbf\.model|org\.apache\.poi\.hmef|org\.apache\.poi\.hdgf|org\.apache\.poi\.hemf\.usermodel|org\.apache\.poi\.hslf\.model|org\.apache\.poi\.hdgf\.streams|org\.apache\.poi\.hdgf\.dev|org\.apache\.poi\.hslf\.dev|org\.apache\.poi\.hsmf\.datatypes|org\.apache\.poi\.hwmf\.record|org\.apache\.poi\.hwpf\.dev|org\.apache\.poi\.hpbf\.dev|org\.apache\.poi\.hslf\.util|org\.apache\.poi\.extractor\.ole2)\.

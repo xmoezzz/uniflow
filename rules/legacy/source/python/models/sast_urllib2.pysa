@@ -1,0 +1,63 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                urllib2
+
+# DataflowSourceRule urllib2 2
+# [{'NamespaceName': 'urllib2', 'ClassName': '', 'FunctionName': 'urlopen', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'OpenerDirector', 'FunctionName': 'open', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_urllib2_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^urllib2.*\.urlopen$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+
+ModelQuery(
+  name="get_urllib2_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^urllib2\.OpenerDirector\.open$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule urllib2 13
+# [{'NamespaceName': 'urllib2', 'ClassName': '', 'FunctionName': 'urlopen', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'Request', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': '', 'FunctionName': 'urlopen', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'Request', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'OpenerDirector', 'FunctionName': 'open', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': '', 'FunctionName': 'urlopen', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'OpenerDirector', 'FunctionName': 'open', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'Request', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'OpenerDirector', 'FunctionName': 'open', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'HTTPPasswordMgr(WithDefaultRealm)?', 'FunctionName': 'add_password', 'RuleName': 'desc.dataflow.python.password_management', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'HTTPPasswordMgr(WithDefaultRealm)?', 'FunctionName': 'add_password', 'RuleName': 'desc.dataflow.python.password_management_weak_cryptography', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'Request', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.header_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'urllib2', 'ClassName': 'Request', 'FunctionName': 'add_header|add_unredirected_header', 'RuleName': 'desc.dataflow.python.header_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_urllib2_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^urllib2.*\.urlopen$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_header_manipulation]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_urllib2_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^urllib2\.OpenerDirector\.open$"),
+      name.matches("^urllib2\.Request\.__init__"),
+      name.matches("^urllib2\.Request\.(add_header|add_unredirected_header)"),
+      name.matches("^urllib2\.HTTPPasswordMgr(WithDefaultRealm)?\.add_password$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_header_manipulation]
+    )
+  ]
+)

@@ -1,0 +1,10 @@
+id: org.cloudfoundry.identity.cloudfoundry-identity-login
+language: Java
+message: pkg:maven/org.cloudfoundry.identity/cloudfoundry-identity-login
+metadata:
+  purl: pkg:maven/org.cloudfoundry.identity/cloudfoundry-identity-login
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.cloudfoundry\.identity\.uaa\.authentication\.manager|org\.cloudfoundry\.identity\.web|org\.cloudfoundry\.identity\.uaa\.login\.util|org\.cloudfoundry\.identity\.uaa\.login\.saml|org\.cloudfoundry\.identity\.uaa\.authentication|org\.cloudfoundry\.identity\.uaa\.oauth|org\.cloudfoundry\.identity\.uaa\.security|org\.cloudfoundry\.identity\.uaa\.openid2|org\.cloudfoundry\.identity\.uaa\.invitations|org\.cloudfoundry\.identity\.uaa\.login|org\.cloudfoundry\.identity\.uaa\.zone)\.

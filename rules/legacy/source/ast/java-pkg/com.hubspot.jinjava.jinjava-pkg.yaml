@@ -1,0 +1,10 @@
+id: com.hubspot.jinjava.jinjava
+language: Java
+message: pkg:maven/com.hubspot.jinjava/jinjava
+metadata:
+  purl: pkg:maven/com.hubspot.jinjava/jinjava
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.hubspot\.jinjava\.objects\.serialization|com\.hubspot\.jinjava\.lib\.fn\.eager|jinjava\.org\.jsoup\.parser|jinjava\.de\.odysseus\.el\.tree\.impl|com\.hubspot\.jinjava\.lib\.expression|jinjava\.org\.jsoup\.internal|com\.hubspot\.jinjava|com\.hubspot\.jinjava\.loader|jinjava\.de\.odysseus\.el\.misc|com\.hubspot\.jinjava\.lib\.exptest|jinjava\.de\.odysseus\.el\.util|com\.hubspot\.jinjava\.lib\.tag|jinjava\.org\.jsoup\.nodes|com\.hubspot\.jinjava\.random|com\.hubspot\.jinjava\.util|com\.hubspot\.jinjava\.tree|com\.hubspot\.jinjava\.objects|com\.hubspot\.jinjava\.lib|com\.hubspot\.jinjava\.interpret\.errorcategory|com\.hubspot\.jinjava\.tree\.output|com\.hubspot\.jinjava\.tree\.parse|com\.hubspot\.jinjava\.interpret|jinjava\.javax\.el|jinjava\.org\.jsoup|com\.hubspot\.jinjava\.features|com\.hubspot\.jinjava\.doc\.annotations|com\.hubspot\.jinjava\.el\.ext\.eager|com\.hubspot\.jinjava\.el\.ext|com\.hubspot\.jinjava\.mode|com\.hubspot\.jinjava\.objects\.date|com\.hubspot\.jinjava\.lib\.tag\.eager|com\.hubspot\.jinjava\.lib\.fn|jinjava\.de\.odysseus\.el|jinjava\.de\.odysseus\.el\.tree\.impl\.ast|jinjava\.org\.jsoup\.helper|com\.hubspot\.jinjava\.lib\.filter\.time|com\.hubspot\.jinjava\.objects\.collections|com\.hubspot\.jinjava\.lib\.tag\.eager\.importing|com\.hubspot\.jinjava\.lib\.filter|com\.hubspot\.jinjava\.doc|jinjava\.de\.odysseus\.el\.tree|com\.hubspot\.jinjava\.el|jinjava\.org\.jsoup\.safety|jinjava\.org\.jsoup\.select)\.

@@ -1,0 +1,10 @@
+id: com.mchange.c3p0
+language: Java
+message: pkg:maven/com.mchange/c3p0
+metadata:
+  purl: pkg:maven/com.mchange/c3p0
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.mchange\.v2|com\.mchange\.v2\.c3p0|com\.mchange|com\.mchange\.v2\.c3p0\.mbean|com\.mchange\.v2\.c3p0\.cfg|com\.mchange\.v2\.c3p0\.codegen|com\.mchange\.v2\.c3p0\.example|com\.mchange\.v2\.c3p0\.debug|com\.mchange\.v2\.c3p0\.management|com\.mchange\.v2\.c3p0\.subst|com\.mchange\.v2\.c3p0\.util|com\.mchange\.v2\.c3p0\.filter|com\.mchange\.v2\.resourcepool|com\.mchange\.v2\.c3p0\.stmt|com\.mchange\.v2\.c3p0\.jboss|com\.mchange\.v2\.c3p0\.impl)\.

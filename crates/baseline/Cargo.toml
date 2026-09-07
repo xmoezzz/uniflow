@@ -7,12 +7,22 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+aes.workspace = true
 regex.workspace = true
+sxd-document.workspace = true
+sxd-xpath.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 serde_yaml.workspace = true
 uniflow-hir = { path = "../hir" }
+uniflow-parser-core = { path = "../parser_core" }
 
 [dev-dependencies]
+regex-syntax.workspace = true
+sha2.workspace = true
 uniflow-lang-c = { path = "../lang_c" }
+uniflow-lang-frontends = { path = "../lang_frontends" }
 uniflow-lang-java = { path = "../lang_java" }
-uniflow-parser-core = { path = "../parser_core" }
+
+[build-dependencies]
+serde_yaml.workspace = true

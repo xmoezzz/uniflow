@@ -1,5 +1,8 @@
 fn python_models() -> RuleSet {
     RuleSet {
+        metadata: Vec::new(),
+        sink_reports: Vec::new(),
+        index_sinks: Vec::new(),
         sources: vec![
             SourceRule {
                 id: "python-flask-request-args-get".to_string(),
@@ -1371,6 +1374,16 @@ fn python_models() -> RuleSet {
                 ],
             },
         ],
+        sink_conditions: Vec::new(),
+        call_conditions: Vec::new(),
+        taint_transforms: Vec::new(),
+        field_sources: Vec::new(),
+        unused_return_sinks: Vec::new(),
+        named_value_sources: Vec::new(),
+        field_sinks: Vec::new(),
+        field_sanitizers: Vec::new(),
+        function_sources: Vec::new(),
+        function_sinks: Vec::new(),
+        model_dependencies: Vec::new(),
     }
 }
-

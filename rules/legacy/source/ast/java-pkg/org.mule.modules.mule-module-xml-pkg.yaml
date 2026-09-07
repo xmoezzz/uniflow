@@ -1,0 +1,10 @@
+id: org.mule.modules.mule-module-xml
+language: Java
+message: pkg:maven/org.mule.modules/mule-module-xml
+metadata:
+  purl: pkg:maven/org.mule.modules/mule-module-xml
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.mule\.module\.xml\.el|org\.mule\.module\.xml\.transformer\.jaxb|org\.mule\.module\.xml\.transformer\.wire|org\.mule\.module\.xml\.i18n|org\.mule\.module\.xml\.xpath|org\.mule\.module\.xml\.util|org\.mule\.module\.xml\.expression|org\.mule\.api\.annotations\.expression|org\.mule\.module\.xml\.stax|org\.mule\.module\.xml\.config|org\.mule\.module\.xml\.transformer|org\.mule\.module\.xml\.filters)\.

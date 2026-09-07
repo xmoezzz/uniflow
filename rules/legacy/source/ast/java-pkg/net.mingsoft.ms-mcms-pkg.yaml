@@ -1,0 +1,10 @@
+id: net.mingsoft.ms-mcms
+language: Java
+message: pkg:maven/net.mingsoft/ms-mcms
+metadata:
+  purl: pkg:maven/net.mingsoft/ms-mcms
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(net\.mingsoft\.config|net\.mingsoft\.cms\.aop|net\.mingsoft\.cms\.action|net\.mingsoft\.cms\.constant|net\.mingsoft\.cms\.biz|net\.mingsoft\.cms\.constant\.e|net\.mingsoft\.cms\.dao|net\.mingsoft\.cms\.action\.web|net\.mingsoft\.cms\.util|net\.mingsoft\.cms\.entity|net\.mingsoft\.cms\.biz\.impl|net\.mingsoft\.cms\.bean)\.

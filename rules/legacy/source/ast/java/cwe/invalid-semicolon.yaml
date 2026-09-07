@@ -1,0 +1,11 @@
+id: invalid-semicolon
+message: '0202000010130131'
+language: Java
+rule:
+  pattern: ;
+  follows:
+    all:
+    - pattern: ;
+    - not:
+        inside:
+          pattern: for($$$;;$$$)

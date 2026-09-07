@@ -13,7 +13,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use uniflow_checker_api::{
     capability, CheckerCreateFn, CheckerDestroyFn, CheckerEntryV1, CheckerEntryV2, CheckerEvent,
-    CheckerFinding, CheckerFreeStringFn, CheckerManifest, CheckerManifestJsonFn,
+    CheckerFinding, CheckerFreeStringFn, CheckerKind, CheckerManifest, CheckerManifestJsonFn,
     CheckerOnEventJsonFn, CheckerResponse, UniflowCheckerV1, UniflowCheckerV2,
     CHECKER_ABI_VERSION_V1, CHECKER_ABI_VERSION_V2, CHECKER_ENTRY_SYMBOL_V1,
     CHECKER_ENTRY_SYMBOL_V2,
@@ -171,11 +171,14 @@ impl CheckerManager {
                 }
             };
             for finding in &mut produced {
-                if let Err(error) = validate_finding(finding) {
+                if let Err(error) = validate_finding(&checker.manifest, finding) {
                     checker.enabled = false;
                     if self.options.failure_policy == CheckerFailurePolicy::FailFast {
                         return Err(error).with_context(|| {
-                            format!("checker {} returned an invalid finding", checker.manifest.id)
+                            format!(
+                                "checker {} returned an invalid finding",
+                                checker.manifest.id
+                            )
                         });
                     }
                     self.diagnostics.push(CheckerDiagnostic {
@@ -289,17 +292,22 @@ impl LoadedChecker {
             .with_context(|| format!("failed to load checker library {}", canonical.display()))?;
 
         let (abi_version, callbacks) = unsafe { load_callbacks(&library, &canonical) }?;
-        let manifest_text = unsafe {
-            take_plugin_string((callbacks.manifest_json)(), callbacks.free_string)
-        }
-        .with_context(|| format!("checker {} returned an invalid manifest", canonical.display()))?;
-        let manifest: CheckerManifest = serde_json::from_str(&manifest_text).with_context(|| {
-            format!(
-                "checker {} manifest is not valid CheckerManifest JSON: {}",
-                canonical.display(),
-                manifest_text
-            )
-        })?;
+        let manifest_text =
+            unsafe { take_plugin_string((callbacks.manifest_json)(), callbacks.free_string) }
+                .with_context(|| {
+                    format!(
+                        "checker {} returned an invalid manifest",
+                        canonical.display()
+                    )
+                })?;
+        let manifest: CheckerManifest =
+            serde_json::from_str(&manifest_text).with_context(|| {
+                format!(
+                    "checker {} manifest is not valid CheckerManifest JSON: {}",
+                    canonical.display(),
+                    manifest_text
+                )
+            })?;
         validate_manifest(&manifest, abi_version, &canonical)?;
 
         let instance = unsafe { (callbacks.create)() };
@@ -321,7 +329,8 @@ impl LoadedChecker {
     }
 
     fn handle_event(&mut self, event: &CheckerEvent) -> Result<Vec<CheckerFinding>> {
-        let event_json = serde_json::to_string(event).context("failed to serialize checker event")?;
+        let event_json =
+            serde_json::to_string(event).context("failed to serialize checker event")?;
         let event_c = std::ffi::CString::new(event_json)
             .map_err(|_| anyhow!("checker event contains an interior NUL byte"))?;
         let response_text = unsafe {
@@ -338,12 +347,13 @@ impl LoadedChecker {
                 event.kind
             )
         })?;
-        let response: CheckerResponse = serde_json::from_str(&response_text).with_context(|| {
-            format!(
-                "checker {} response is not valid CheckerResponse JSON: {}",
-                self.manifest.id, response_text
-            )
-        })?;
+        let response: CheckerResponse =
+            serde_json::from_str(&response_text).with_context(|| {
+                format!(
+                    "checker {} response is not valid CheckerResponse JSON: {}",
+                    self.manifest.id, response_text
+                )
+            })?;
         if let Some(error) = response.error {
             bail!(
                 "checker {} failed while handling {}: {}",
@@ -492,8 +502,14 @@ impl WorkerChecker {
                     path.display()
                 )
             })?;
-        let stdin = child.stdin.take().context("checker worker stdin unavailable")?;
-        let stdout = child.stdout.take().context("checker worker stdout unavailable")?;
+        let stdin = child
+            .stdin
+            .take()
+            .context("checker worker stdin unavailable")?;
+        let stdout = child
+            .stdout
+            .take()
+            .context("checker worker stdout unavailable")?;
         let (sender, responses) = mpsc::channel();
         thread::Builder::new()
             .name("uniflow-checker-worker-output".to_string())
@@ -533,7 +549,9 @@ impl WorkerChecker {
         let text = serde_json::to_string(request).context("failed to serialize worker request")?;
         writeln!(self.stdin, "{IPC_PREFIX}{text}")
             .context("failed to write checker worker request")?;
-        self.stdin.flush().context("failed to flush checker worker request")?;
+        self.stdin
+            .flush()
+            .context("failed to flush checker worker request")?;
 
         let response_text = self.responses.recv_timeout(timeout).map_err(|error| {
             let _ = self.child.kill();
@@ -556,7 +574,9 @@ impl WorkerChecker {
             bail!(
                 "checker worker for {} failed: {}",
                 self.path.display(),
-                response.error.unwrap_or_else(|| "unknown worker error".to_string())
+                response
+                    .error
+                    .unwrap_or_else(|| "unknown worker error".to_string())
             );
         }
         Ok(response)
@@ -567,7 +587,12 @@ impl WorkerChecker {
         event: &CheckerEvent,
         timeout: Duration,
     ) -> Result<Vec<CheckerFinding>> {
-        let response = self.request(&WorkerRequest::Event { event: event.clone() }, timeout)?;
+        let response = self.request(
+            &WorkerRequest::Event {
+                event: event.clone(),
+            },
+            timeout,
+        )?;
         Ok(response.findings)
     }
 }
@@ -694,7 +719,10 @@ fn validate_manifest(manifest: &CheckerManifest, table_abi: u32, path: &Path) ->
             table_abi
         );
     }
-    if !matches!(manifest.abi_version, CHECKER_ABI_VERSION_V1 | CHECKER_ABI_VERSION_V2) {
+    if !matches!(
+        manifest.abi_version,
+        CHECKER_ABI_VERSION_V1 | CHECKER_ABI_VERSION_V2
+    ) {
         bail!(
             "checker {} uses unsupported ABI {}",
             path.display(),
@@ -709,7 +737,10 @@ fn validate_manifest(manifest: &CheckerManifest, table_abi: u32, path: &Path) ->
         .chars()
         .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
     {
-        bail!("checker id '{}' contains unsupported characters", manifest.id);
+        bail!(
+            "checker id '{}' contains unsupported characters",
+            manifest.id
+        );
     }
     if manifest.name.trim().is_empty() {
         bail!("checker {} has an empty name", path.display());
@@ -723,25 +754,117 @@ fn validate_manifest(manifest: &CheckerManifest, table_abi: u32, path: &Path) ->
             bail!("checker {} declares an empty event kind", manifest.id);
         }
         if !kinds.insert(kind) {
-            bail!("checker {} declares duplicate event kind '{}'", manifest.id, kind);
+            bail!(
+                "checker {} declares duplicate event kind '{}'",
+                manifest.id,
+                kind
+            );
+        }
+        if !uniflow_checker_api::event_kind::is_known(kind) {
+            bail!(
+                "checker {} declares unknown event kind '{}'",
+                manifest.id,
+                kind
+            );
+        }
+        if manifest.kind == CheckerKind::Frontend
+            && !matches!(
+                kind.as_str(),
+                uniflow_checker_api::event_kind::ANALYSIS_START
+                    | uniflow_checker_api::event_kind::SOURCE_FILE
+                    | uniflow_checker_api::event_kind::HIR_PROGRAM
+                    | uniflow_checker_api::event_kind::ANALYSIS_END
+            )
+        {
+            bail!(
+                "frontend checker {} cannot subscribe to dataflow event '{}'",
+                manifest.id,
+                kind
+            );
+        }
+    }
+    let mut rule_ids = HashSet::new();
+    for rule in &manifest.rules {
+        if rule.id.trim().is_empty() {
+            bail!("checker {} declares an empty rule id", manifest.id);
+        }
+        if !rule
+            .id
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-'))
+        {
+            bail!(
+                "checker {} rule id '{}' contains unsupported characters",
+                manifest.id,
+                rule.id
+            );
+        }
+        if !rule_ids.insert(rule.id.as_str()) {
+            bail!(
+                "checker {} declares duplicate rule id '{}'",
+                manifest.id,
+                rule.id
+            );
+        }
+        if rule.title.trim().is_empty() {
+            bail!(
+                "checker {} rule '{}' has an empty title",
+                manifest.id,
+                rule.id
+            );
+        }
+        if !matches!(
+            rule.default_level.as_str(),
+            "error" | "warning" | "note" | "none"
+        ) {
+            bail!(
+                "checker {} rule '{}' has unsupported default level '{}'",
+                manifest.id,
+                rule.id,
+                rule.default_level
+            );
         }
     }
     Ok(())
 }
 
-fn validate_finding(finding: &CheckerFinding) -> Result<()> {
+fn validate_finding(manifest: &CheckerManifest, finding: &CheckerFinding) -> Result<()> {
     if finding.rule_id.trim().is_empty() {
         bail!("finding has an empty rule id");
     }
     if finding.message.trim().is_empty() {
         bail!("finding {} has an empty message", finding.rule_id);
     }
-    if !matches!(finding.level.as_str(), "error" | "warning" | "note" | "none") {
+    if !matches!(
+        finding.level.as_str(),
+        "error" | "warning" | "note" | "none"
+    ) {
         bail!(
             "finding {} has unsupported level '{}'",
             finding.rule_id,
             finding.level
         );
+    }
+    if !manifest.rules.is_empty() {
+        let qualified_finding = if finding.rule_id.starts_with(&format!("{}.", manifest.id)) {
+            finding.rule_id.clone()
+        } else {
+            format!("{}.{}", manifest.id, finding.rule_id)
+        };
+        if !manifest.rules.iter().any(|rule| {
+            let qualified_rule = if rule.id.starts_with(&format!("{}.", manifest.id)) {
+                rule.id.clone()
+            } else {
+                format!("{}.{}", manifest.id, rule.id)
+            };
+            qualified_rule == qualified_finding
+        }) {
+            bail!(
+                "checker {} emitted undeclared rule '{}'",
+                manifest.id,
+                finding.rule_id
+            );
+        }
     }
     validate_location(&finding.location, "primary")?;
     for location in &finding.related_locations {
@@ -785,8 +908,20 @@ fn normalize_finding(manifest: &CheckerManifest, finding: &mut CheckerFinding) {
     finding
         .properties
         .insert("checkerAbi".to_string(), json!(manifest.abi_version));
+    finding.properties.insert(
+        "checkerKind".to_string(),
+        json!(match manifest.kind {
+            CheckerKind::Frontend => "frontend",
+            CheckerKind::UnifiedDataflow => "unified_dataflow",
+        }),
+    );
 
-    if finding.fingerprint.as_deref().unwrap_or_default().is_empty() {
+    if finding
+        .fingerprint
+        .as_deref()
+        .unwrap_or_default()
+        .is_empty()
+    {
         let mut digest = Sha256::new();
         for value in [
             manifest.id.as_str(),
@@ -810,7 +945,9 @@ unsafe fn take_plugin_string(
     if value.is_null() {
         bail!("plugin returned a null string");
     }
-    let text = unsafe { CStr::from_ptr(value) }.to_string_lossy().into_owned();
+    let text = unsafe { CStr::from_ptr(value) }
+        .to_string_lossy()
+        .into_owned();
     unsafe { free_string(value) };
     Ok(text)
 }
@@ -827,7 +964,9 @@ mod tests {
             name: "Test".to_string(),
             version: "1".to_string(),
             description: String::new(),
+            kind: CheckerKind::UnifiedDataflow,
             event_kinds: Vec::new(),
+            rules: Vec::new(),
         }
     }
 
@@ -844,7 +983,7 @@ mod tests {
                 label: String::new(),
             },
         );
-        validate_finding(&finding).expect("valid");
+        validate_finding(&manifest, &finding).expect("valid");
         normalize_finding(&manifest, &mut finding);
         assert_eq!(finding.rule_id, "test.checker.rule");
         assert!(finding.fingerprint.is_some());
@@ -864,7 +1003,7 @@ mod tests {
                 label: String::new(),
             },
         );
-        assert!(validate_finding(&finding).is_err());
+        assert!(validate_finding(&manifest(), &finding).is_err());
     }
 
     #[test]
@@ -879,7 +1018,7 @@ mod tests {
                 label: String::new(),
             },
         );
-        assert!(validate_finding(&finding).is_err());
+        assert!(validate_finding(&manifest(), &finding).is_err());
     }
 
     #[test]
@@ -887,6 +1026,68 @@ mod tests {
         let mut manifest = manifest();
         manifest.event_kinds = vec!["call".to_string(), "call".to_string()];
         assert!(validate_manifest(&manifest, CHECKER_ABI_VERSION_V2, Path::new("test")).is_err());
+    }
+
+    #[test]
+    fn validates_declared_rules_and_rejects_undeclared_findings() {
+        let mut manifest = manifest();
+        manifest.rules = vec![uniflow_checker_api::CheckerRule::new(
+            "declared",
+            "Declared rule",
+        )];
+        validate_manifest(&manifest, CHECKER_ABI_VERSION_V2, Path::new("test"))
+            .expect("declared rule metadata should be valid");
+        let location = CheckerLocation {
+            uri: "demo.c".to_string(),
+            line: 1,
+            column: 1,
+            label: String::new(),
+        };
+        let declared = CheckerFinding::new("declared", "message", location.clone());
+        validate_finding(&manifest, &declared).expect("declared finding");
+        let qualified = CheckerFinding::new("test.checker.declared", "message", location.clone());
+        validate_finding(&manifest, &qualified).expect("qualified declared finding");
+        let unknown = CheckerFinding::new("unknown", "message", location);
+        assert!(validate_finding(&manifest, &unknown).is_err());
+
+        manifest.rules = vec![uniflow_checker_api::CheckerRule::new(
+            "test.checker.qualified",
+            "Qualified rule",
+        )];
+        let local = CheckerFinding::new(
+            "qualified",
+            "message",
+            CheckerLocation {
+                uri: "demo.c".to_string(),
+                line: 1,
+                column: 1,
+                label: String::new(),
+            },
+        );
+        validate_finding(&manifest, &local).expect("local finding for qualified declaration");
+
+        manifest.rules = vec![
+            uniflow_checker_api::CheckerRule::new("declared", "Declared"),
+            uniflow_checker_api::CheckerRule::new("declared", "Duplicate"),
+        ];
+        assert!(validate_manifest(&manifest, CHECKER_ABI_VERSION_V2, Path::new("test")).is_err());
+    }
+
+    #[test]
+    fn rejects_unknown_manifest_event() {
+        let mut manifest = manifest();
+        manifest.event_kinds = vec!["flow_summry".to_string()];
+        assert!(validate_manifest(&manifest, CHECKER_ABI_VERSION_V2, Path::new("test")).is_err());
+    }
+
+    #[test]
+    fn frontend_manifest_rejects_dataflow_events() {
+        let mut manifest = manifest();
+        manifest.kind = CheckerKind::Frontend;
+        manifest.event_kinds = vec![uniflow_checker_api::event_kind::IR_PROGRAM.to_string()];
+        assert!(validate_manifest(&manifest, CHECKER_ABI_VERSION_V2, Path::new("test")).is_err());
+        manifest.event_kinds = vec![uniflow_checker_api::event_kind::HIR_PROGRAM.to_string()];
+        assert!(validate_manifest(&manifest, CHECKER_ABI_VERSION_V2, Path::new("test")).is_ok());
     }
 
     #[test]

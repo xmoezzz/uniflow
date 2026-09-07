@@ -1,0 +1,10 @@
+id: org.jvnet.hudson.plugins.ftppublisher
+language: Java
+message: pkg:maven/org.jvnet.hudson.plugins/ftppublisher
+metadata:
+  purl: pkg:maven/org.jvnet.hudson.plugins/ftppublisher
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.zanox\.hudson\.plugins)\.

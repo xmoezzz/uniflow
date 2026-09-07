@@ -1,0 +1,36 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                imaplib
+
+# DataflowSourceRule imaplib 1
+# [{'NamespaceName': 'imaplib', 'ClassName': 'IMAP4', 'FunctionName': 'fetch|getacl|getannotation|getquota|getquotaroot|list|lsub|myrights|namespace|partial|read|readline|search|sort|status|thread', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_imaplib_methods_sources",
+  find="methods",
+  where=[
+    name.matches("^imaplib\.IMAP4\.(fetch|getacl|getannotation|getquota|getquotaroot|list|lsub|myrights|namespace|partial|read|readline|search|sort|status|thread)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule imaplib 4
+# [{'NamespaceName': 'imaplib', 'ClassName': 'IMAP4', 'FunctionName': 'login|login_cram_md5', 'RuleName': 'desc.dataflow.python.password_management_weak_cryptography', 'Origin': 'Fortify'}, {'NamespaceName': 'imaplib', 'ClassName': 'IMAP4', 'FunctionName': 'login|login_cram_md5', 'RuleName': 'desc.dataflow.python.password_management', 'Origin': 'Fortify'}, {'NamespaceName': 'imaplib', 'ClassName': 'IMAP4', 'FunctionName': 'append|copy|create|delete|fetch|getannotation|lsub|myrights|partial|rename|select|setannotation|store|subscribe|unsubscribe', 'RuleName': 'desc.dataflow.python.resource_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'imaplib', 'ClassName': 'IMAP4', 'FunctionName': 'setacl|setquota', 'RuleName': 'desc.dataflow.python.setting_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_imaplib_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^imaplib\.IMAP4\.(login|login_cram_md5)"),
+      name.matches("^imaplib\.IMAP4\.(append|copy|create|delete|fetch|getannotation|lsub|myrights|partial|rename|select|setannotation|store|subscribe|unsubscribe)"),
+      name.matches("^imaplib\.IMAP4\.(setacl|setquota)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_setting_manipulation]
+    )
+  ]
+)

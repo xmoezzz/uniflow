@@ -1,0 +1,10 @@
+id: org.sonatype.nexus.nexus-repository
+language: Java
+message: pkg:maven/org.sonatype.nexus/nexus-repository
+metadata:
+  purl: pkg:maven/org.sonatype.nexus/nexus-repository
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.sonatype\.nexus\.repository\.browse|org\.sonatype\.nexus\.repository\.attributes\.internal|org\.sonatype\.nexus\.repository\.browse\.internal\.orient|org\.sonatype\.nexus\.repository\.search\.upgrade\.orient|org\.sonatype\.nexus\.repository\.storage\.internal|org\.sonatype\.nexus\.repository\.attributes|org\.sonatype\.nexus\.repository\.selector\.internal|org\.sonatype\.nexus\.repository\.webhooks\.internal|org\.sonatype\.nexus\.repository\.view|org\.sonatype\.nexus\.repository\.purge\.internal|org\.sonatype\.nexus\.repository\.security\.internal|org\.sonatype\.nexus\.repository\.rest\.internal\.resources|org\.sonatype\.nexus\.repository\.rest\.cma|org\.sonatype\.nexus\.repository\.upload\.internal|org\.sonatype\.nexus\.repository\.filter\.export|org\.sonatype\.nexus\.repository\.repair|org\.sonatype\.nexus\.repository\.transaction|org\.sonatype\.nexus\.repository\.importtask|org\.sonatype\.nexus\.repository\.browse\.internal|org\.sonatype\.nexus\.repository\.storage|org\.sonatype\.nexus\.repository\.search|org\.sonatype\.nexus\.repository\.upload|org\.sonatype\.nexus\.repository\.cache|org\.sonatype\.nexus\.repository\.maintenance|org\.sonatype\.nexus\.repository\.maintenance\.internal|org\.sonatype\.nexus\.repository\.upgrade|org\.sonatype\.nexus\.repository\.upload\.cma|org\.sonatype\.nexus\.repository\.tools\.orient|org\.sonatype\.nexus\.repository\.rest\.internal\.resources\.doc)\.

@@ -1,0 +1,10 @@
+id: com.cronutils.cron-utils
+language: Java
+message: pkg:maven/com.cronutils/cron-utils
+metadata:
+  purl: pkg:maven/com.cronutils/cron-utils
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.cronutils\.model\.field\.value|com\.cronutils\.model\.field\.constraint|com\.cronutils\.model\.field|com\.cronutils\.model\.time|com\.cronutils\.utils|com\.cronutils\.model|com\.cronutils\.descriptor\.refactor|com\.cronutils\.model\.field\.expression|com\.cronutils\.converter|com\.cronutils|com\.cronutils\.model\.field\.definition|com\.cronutils\.descriptor|com\.cronutils\.model\.definition|com\.cronutils\.parser|com\.cronutils\.validation|com\.cronutils\.model\.field\.expression\.visitor|com\.cronutils\.builder|com\.cronutils\.mapper|com\.cronutils\.model\.time\.generator)\.

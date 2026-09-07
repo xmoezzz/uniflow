@@ -1,0 +1,10 @@
+id: com.googlecode.wicket-jquery-ui.wicket-jquery-ui-plugins
+language: Java
+message: pkg:maven/com.googlecode.wicket-jquery-ui/wicket-jquery-ui-plugins
+metadata:
+  purl: pkg:maven/com.googlecode.wicket-jquery-ui/wicket-jquery-ui-plugins
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.googlecode\.wicket\.jquery\.ui\.plugins|com\.googlecode\.wicket\.jquery\.ui\.plugins\.emoticons\.resource|com\.googlecode\.wicket\.jquery\.ui\.plugins\.sfmenu\.resource|com\.googlecode\.wicket\.jquery\.ui\.plugins\.sfmenu|com\.googlecode\.wicket\.jquery\.ui\.plugins\.sfmenu\.settings|com\.googlecode\.wicket\.jquery\.ui\.plugins\.fixedheadertable\.settings|com\.googlecode\.wicket\.jquery\.ui\.plugins\.fixedheadertable|com\.googlecode\.wicket\.jquery\.ui\.plugins\.wysiwyg\.settings|com\.googlecode\.wicket\.jquery\.ui\.plugins\.emoticons\.settings|com\.googlecode\.wicket\.jquery\.ui\.plugins\.wysiwyg\.toolbar|com\.googlecode\.wicket\.jquery\.ui\.plugins\.datepicker|com\.googlecode\.wicket\.jquery\.ui\.plugins\.emoticons|com\.googlecode\.wicket\.jquery\.ui\.plugins\.wysiwyg|com\.googlecode\.wicket\.jquery\.ui\.plugins\.wysiwyg\.resource|com\.googlecode\.wicket\.jquery\.ui\.plugins\.fixedheadertable\.resource)\.

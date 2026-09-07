@@ -1,0 +1,10 @@
+id: check-rsa-nopadding
+message: '0402000010150203'
+language: Java
+
+rule:
+  kind: method_invocation
+  pattern: Cipher.getInstance($$$)
+  has:
+    field: arguments
+    regex: \"RSA/.*/NoPadding\"

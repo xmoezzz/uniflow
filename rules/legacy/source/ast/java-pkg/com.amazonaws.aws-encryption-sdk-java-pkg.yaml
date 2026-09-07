@@ -1,0 +1,10 @@
+id: com.amazonaws.aws-encryption-sdk-java
+language: Java
+message: pkg:maven/com.amazonaws/aws-encryption-sdk-java
+metadata:
+  purl: pkg:maven/com.amazonaws/aws-encryption-sdk-java
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.amazonaws\.encryptionsdk\.model|com\.amazonaws\.encryptionsdk\.kms|com\.amazonaws\.encryptionsdk\.caching|com\.amazonaws\.encryptionsdk\.multi|com\.amazonaws\.encryptionsdk|com\.amazonaws\.encryptionsdk\.jce|com\.amazonaws\.encryptionsdk\.kmssdkv2|com\.amazonaws\.encryptionsdk\.exception|com\.amazonaws\.encryptionsdk\.internal)\.

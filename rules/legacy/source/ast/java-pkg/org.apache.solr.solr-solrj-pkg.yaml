@@ -1,0 +1,10 @@
+id: org.apache.solr.solr-solrj
+language: Java
+message: pkg:maven/org.apache.solr/solr-solrj
+metadata:
+  purl: pkg:maven/org.apache.solr/solr-solrj
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.solr\.client\.solrj|org\.apache\.solr\.cluster\.api|org\.apache\.solr\.client\.solrj\.util|org\.apache\.solr\.client\.solrj\.impl|org\.apache\.solr\.client\.solrj\.embedded|org\.apache\.solr\.client\.solrj\.request\.json|org\.apache\.solr\.client\.solrj\.routing|org\.apache\.solr\.common\.annotation|org\.apache\.solr\.common\.cloud|org\.apache\.solr\.common\.params|org\.apache\.solr\.common\.util|org\.apache\.solr\.client\.solrj\.response\.schema|org\.apache\.solr\.client\.solrj\.request\.beans|org\.apache\.solr\.common|org\.apache\.solr\.client\.solrj\.beans|org\.apache\.solr\.client\.solrj\.response\.json|org\.apache\.solr\.client\.solrj\.request|org\.apache\.solr\.client\.solrj\.response|org\.apache\.solr\.client\.solrj\.request\.schema|org\.apache\.solr\.client\.solrj\.cloud|org\.noggit|org\.apache\.solr\.common\.luke)\.

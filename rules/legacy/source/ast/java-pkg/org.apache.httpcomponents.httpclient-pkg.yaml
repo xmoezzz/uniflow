@@ -1,0 +1,10 @@
+id: org.apache.httpcomponents.httpclient
+language: Java
+message: pkg:maven/org.apache.httpcomponents/httpclient
+metadata:
+  purl: pkg:maven/org.apache.httpcomponents/httpclient
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.http\.impl\.execchain|org\.apache\.http\.conn\.util|org\.apache\.http\.conn\.socket|org\.apache\.http\.conn\.ssl|org\.apache\.http\.conn\.params|org\.apache\.http\.impl\.conn|org\.apache\.http\.client\.entity|org\.apache\.http\.client\.config|org\.apache\.http\.impl\.conn\.tsccm|org\.apache\.http\.conn\.routing|org\.apache\.http\.auth\.params|org\.apache\.http\.client|org\.apache\.http\.cookie|org\.apache\.http\.impl\.cookie|org\.apache\.http\.client\.params|org\.apache\.http\.auth|org\.apache\.http\.client\.protocol|org\.apache\.http\.impl\.client|org\.apache\.http\.cookie\.params|org\.apache\.http\.conn\.scheme|org\.apache\.http\.conn|org\.apache\.http\.impl\.auth|org\.apache\.http\.client\.methods|org\.apache\.http\.client\.utils)\.

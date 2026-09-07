@@ -1,0 +1,10 @@
+id: org.apache.flex.blazeds.flex-messaging-core
+language: Java
+message: pkg:maven/org.apache.flex.blazeds/flex-messaging-core
+metadata:
+  purl: pkg:maven/org.apache.flex.blazeds/flex-messaging-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(flex\.messaging\.io\.amf|flex\.messaging\.util|flex\.messaging\.messages|flex\.management\.runtime\.messaging\.log|flex\.management\.runtime\.messaging|flex\.messaging|flex\.messaging\.validators|flex\.messaging\.config|flex\.messaging\.services\.messaging|flex\.messaging\.util\.concurrent|flex\.messaging\.io|flex\.management\.runtime\.messaging\.client|flex\.messaging\.io\.amf\.client\.exceptions|flex\.messaging\.client|flex\.management\.jmx|flex\.messaging\.log|flex\.management\.runtime\.messaging\.services\.messaging\.adapters|flex\.messaging\.cluster|flex\.messaging\.io\.amf\.translator|flex\.management\.runtime|flex\.messaging\.services\.messaging\.adapters|flex\.management|flex\.management\.runtime\.messaging\.endpoints|flex\.messaging\.io\.amf\.client|flex\.management\.runtime\.messaging\.services\.messaging|flex\.messaging\.endpoints|flex\.messaging\.security|flex\.messaging\.io\.amfx|flex\.messaging\.factories|flex\.messaging\.endpoints\.amf|flex\.messaging\.io\.amf\.translator\.decoder|flex\.messaging\.services|flex\.management\.runtime\.messaging\.services)\.

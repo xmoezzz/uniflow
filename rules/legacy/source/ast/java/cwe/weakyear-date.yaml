@@ -1,0 +1,6 @@
+id: weakyear-date
+message: '0202000010150430'
+language: Java
+rule:
+  kind: string_literal
+  regex: ^\"YYYY/MM/dd\"$

@@ -1,0 +1,10 @@
+id: org.apache.karaf.org.apache.karaf.client
+language: Java
+message: pkg:maven/org.apache.karaf/org.apache.karaf.client
+metadata:
+  purl: pkg:maven/org.apache.karaf/org.apache.karaf.client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.felix\.utils\.properties|org\.apache\.karaf\.client|org\.apache\.karaf\.util\.config)\.

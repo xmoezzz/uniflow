@@ -1,0 +1,10 @@
+id: org.apache.qpid.qpid-broker
+language: Java
+message: pkg:maven/org.apache.qpid/qpid-broker
+metadata:
+  purl: pkg:maven/org.apache.qpid/qpid-broker
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.qpid\.server)\.

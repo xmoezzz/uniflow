@@ -1,0 +1,217 @@
+rules:
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD5A
+  ins:
+  - !valuePositionSingle
+    position: 0
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: Opcode
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: hbcGet
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: Hbc
+    overrides: true
+    modifiers:
+    - static
+  check: !not
+    child: !checkIsType
+      argument: !valuePositionSingle
+        position: 0
+      className: !regexPattern
+        caseInsensitive: false
+        pattern: GlobalObject
+      nsName: !regexPattern
+        caseInsensitive: false
+        pattern: Hbc
+  outs:
+  - !valuePositionReturn {}
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD21
+  ins:
+  - !valuePositionSingle
+    position: 1
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: Opcode
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: PutOwnByIndex
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: Hbc
+    overrides: true
+    modifiers:
+    - static
+  outs:
+  - !valuePositionSingle
+    position: 0
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD5A
+  ins:
+  - !valuePositionRangeFull
+    startInclusive: 0
+    endInclusive: 100
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: GlobalObject
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: concat
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: Hbc
+    overrides: true
+    modifiers:
+    - static
+  outs:
+  - !valuePositionReturn {}
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD51
+  ins:
+  - !valuePositionSingle
+    position: 0
+  - !valuePositionSingle
+    position: 1
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (slice|join)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+    modifiers:
+    - static
+  outs:
+  - !valuePositionReturn {}
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD52
+  ins:
+  - !valuePositionRangeFull
+    startInclusive: 0
+    endInclusive: 100
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: Opcode
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (Add)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: Hbc
+    overrides: true
+    modifiers:
+    - static
+  outs:
+  - !valuePositionReturn {}
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD53
+  ins:
+  - !valuePositionRangeFull
+    startInclusive: 0
+    endInclusive: 100
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: Opcode
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (CreateThis)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: Hbc
+    overrides: true
+    modifiers:
+    - static
+  outs:
+  - !valuePositionReturn {}
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD54
+  ins:
+  - !valuePositionSingle
+    position: 0
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (extend|forge)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+    modifiers:
+    - static
+  outs:
+  - !valuePositionReturn {}
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD55
+  ins:
+  - !valuePositionRangeFull
+    startInclusive: 0
+    endInclusive: 100
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: Opcode
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (SelectObject)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: Hbc
+    overrides: true
+    modifiers:
+    - static
+  outs:
+  - !valuePositionReturn {}
+- !passthroughRule
+  id: FE5A4309-1752-41E0-AEEF-4BD86376DD56
+  ins:
+  - !valuePositionRangeFull
+    startInclusive: 0
+    endInclusive: 100
+  method:
+    className: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: (normalizePath)
+    nsName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    overrides: true
+    modifiers:
+    - static
+  outs:
+  - !valuePositionReturn {}

@@ -9,7 +9,15 @@ use uniflow_frontend::{
 };
 use uniflow_hir::{Language, Program};
 
-const CACHE_VERSION: u32 = 4;
+// v8 also separates JavaScript's keyword set from Kotlin/Go/Rust words such as
+// `data`, `go` and `defer`, so older JavaScript HIR must not be reused.
+// v7 added Kotlin constructor/type normalization and JSP implicit-object and
+// top-level call semantics to the cached HIR/IR contract.
+// v6 remaps dynamic/resolved call targets during multi-file HIR merge and
+// distinguishes Python function objects from unknown factory return values.
+// It also includes ScriptEngine/XPath/DocumentBuilder and NIO Path signatures.
+// v5 added Java prefix/postfix updates, including expression-position writes.
+const CACHE_VERSION: u32 = 8;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CachedUnit {
@@ -355,6 +363,56 @@ mod tests {
         ));
         fs::create_dir_all(&path).expect("temporary project directory should be created");
         path
+    }
+
+    #[test]
+    fn java_numeric_updates_invalidate_v4_cache_and_roundtrip_current() {
+        let root = temp_project("java-numeric-updates");
+        let source = root.join("Updates.java");
+        fs::write(&source, "class Updates { int f(int i) { return i++; } }").unwrap();
+        let files = vec![source];
+        let first = build_project_with_cache(Language::Java, &files, None).unwrap();
+        let mut old = first.cache.clone();
+        old.version = 4;
+        // Poison the old parsed program, not the source hash: compatibility
+        // must reject the cache even when every file appears unchanged.
+        old.project_program.as_mut().unwrap().modules.clear();
+        let rebuilt = build_project_with_cache(Language::Java, &files, Some(&old)).unwrap();
+        assert_eq!(rebuilt.plan.reparsed.len(), 1);
+        assert!(rebuilt.plan.reused.is_empty());
+        assert!(!rebuilt.program.modules.is_empty());
+        let json = serde_json::to_string(&rebuilt.cache).unwrap();
+        assert!(json.contains("PostIncrement"));
+        let restored = serde_json::from_str(&json).unwrap();
+        let reused = build_project_with_cache(Language::Java, &files, Some(&restored)).unwrap();
+        assert_eq!(reused.plan.reused.len(), 1);
+        assert!(reused.plan.reparsed.is_empty());
+        assert_eq!(serde_json::to_value(reused.program).unwrap(), serde_json::to_value(rebuilt.program).unwrap());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn python_callback_binding_invalidates_v5_cache() {
+        let root = temp_project("python-callback-binding");
+        let app = root.join("app.py");
+        let repo = root.join("repo.py");
+        fs::write(&repo, "def pick(handlers):\n    return handlers[0]\n").unwrap();
+        fs::write(&app, "from repo import pick\ndef handle(handlers, arg):\n    cb = pick(handlers)\n    return cb(arg)\n").unwrap();
+        let files = vec![repo, app];
+        let first = build_project_with_cache(Language::Python, &files, None).unwrap();
+        let mut old = first.cache;
+        old.version = 5;
+        old.project_program.as_mut().unwrap().modules.clear();
+        let rebuilt = build_project_with_cache(Language::Python, &files, Some(&old)).unwrap();
+        assert_eq!(rebuilt.plan.reparsed.len(), 2);
+        assert!(rebuilt.plan.reused.is_empty());
+        assert_eq!(rebuilt.cache.version, CACHE_VERSION);
+        assert_eq!(serde_json::to_value(&rebuilt.program).unwrap(), serde_json::to_value(&first.program).unwrap());
+        let restored = serde_json::from_str(&serde_json::to_string(&rebuilt.cache).unwrap()).unwrap();
+        let reused = build_project_with_cache(Language::Python, &files, Some(&restored)).unwrap();
+        assert_eq!(reused.plan.reused.len(), 2);
+        assert_eq!(serde_json::to_value(&reused.program).unwrap(), serde_json::to_value(&first.program).unwrap());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

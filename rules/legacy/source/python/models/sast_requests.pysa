@@ -1,0 +1,64 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                requests
+
+# DataflowSourceRule requests 3
+# [{'NamespaceName': 'requests.api', 'ClassName': '', 'FunctionName': 'get|put|post|delete|head|options', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'requests.sessions', 'ClassName': 'Session', 'FunctionName': 'get|put|post|delete|head|options', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'requests.models', 'ClassName': 'Response', 'FunctionName': 'json', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_requests_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^requests\.api.*\.(get|put|post|delete|head|options)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+
+ModelQuery(
+  name="get_requests_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^requests\.sessions\.Session\.(get|put|post|delete|head|options)"),
+      name.matches("^requests\.models\.Response\.json$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule requests 3
+# [{'NamespaceName': 'requests.api', 'ClassName': '', 'FunctionName': 'get|put|post|delete|head|options', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'requests.sessions', 'ClassName': 'Session', 'FunctionName': 'get|put|post|delete|head|options', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'requests.models', 'ClassName': '(Prepared)?Request', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_requests_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^requests\.api.*\.(get|put|post|delete|head|options)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_server_side_request_forgery]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_requests_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^requests\.sessions\.Session\.(get|put|post|delete|head|options)"),
+      name.matches("^requests\.models\.(Prepared)?Request\.__init__")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_server_side_request_forgery]
+    )
+  ]
+)

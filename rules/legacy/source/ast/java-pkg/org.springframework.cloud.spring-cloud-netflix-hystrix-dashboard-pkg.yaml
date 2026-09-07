@@ -1,0 +1,10 @@
+id: org.springframework.cloud.spring-cloud-netflix-hystrix-dashboard
+language: Java
+message: pkg:maven/org.springframework.cloud/spring-cloud-netflix-hystrix-dashboard
+metadata:
+  purl: pkg:maven/org.springframework.cloud/spring-cloud-netflix-hystrix-dashboard
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.cloud\.netflix\.hystrix\.dashboard)\.

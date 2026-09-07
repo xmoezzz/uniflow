@@ -1,0 +1,10 @@
+id: com.sonyericsson.hudson.plugins.gerrit.gerrit-trigger
+language: Java
+message: pkg:maven/com.sonyericsson.hudson.plugins.gerrit/gerrit-trigger
+metadata:
+  purl: pkg:maven/com.sonyericsson.hudson.plugins.gerrit/gerrit-trigger
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.hudsontrigger|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.gerritnotifier|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.hudsontrigger\.data|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.config|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.hudsontrigger\.actions\.manual|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.gerritnotifier\.job|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.utils|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.hudsontrigger\.actions|com\.sonyericsson\.hudson\.plugins\.gerrit\.trigger\.gerritnotifier\.model)\.

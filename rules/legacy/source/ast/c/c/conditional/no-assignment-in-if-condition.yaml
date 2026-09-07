@@ -1,0 +1,12 @@
+id: no-assignment-in-if-condition
+message: '0701000010130041'
+language: C
+rule:
+  all:
+    - kind: assignment_expression
+    - inside:
+        kind: parenthesized_expression
+        stopBy:
+          kind: if_statement
+        inside:
+          kind: if_statement

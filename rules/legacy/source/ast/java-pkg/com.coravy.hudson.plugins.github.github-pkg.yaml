@@ -1,0 +1,10 @@
+id: com.coravy.hudson.plugins.github.github
+language: Java
+message: pkg:maven/com.coravy.hudson.plugins.github/github
+metadata:
+  purl: pkg:maven/com.coravy.hudson.plugins.github/github
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.coravy\.hudson\.plugins\.github)\.

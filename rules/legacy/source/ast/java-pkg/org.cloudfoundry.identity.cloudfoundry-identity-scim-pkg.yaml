@@ -1,0 +1,10 @@
+id: org.cloudfoundry.identity.cloudfoundry-identity-scim
+language: Java
+message: pkg:maven/org.cloudfoundry.identity/cloudfoundry-identity-scim
+metadata:
+  purl: pkg:maven/org.cloudfoundry.identity/cloudfoundry-identity-scim
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.cloudfoundry\.identity\.uaa\.scim\.security|org\.cloudfoundry\.identity\.uaa\.password|org\.cloudfoundry\.identity\.uaa\.authorization\.external|org\.cloudfoundry\.identity\.uaa\.scim\.validate|org\.cloudfoundry\.identity\.uaa\.scim\.jdbc|org\.cloudfoundry\.identity\.uaa\.password\.event|org\.cloudfoundry\.identity\.uaa\.login|org\.cloudfoundry\.identity\.uaa\.scim\.util|org\.cloudfoundry\.identity\.uaa\.scim\.endpoints|org\.cloudfoundry\.identity\.uaa\.scim\.event|org\.cloudfoundry\.identity\.uaa\.scim\.remote|org\.cloudfoundry\.identity\.uaa\.scim\.exception|org\.cloudfoundry\.identity\.uaa\.scim\.bootstrap|org\.cloudfoundry\.identity\.uaa\.scim)\.

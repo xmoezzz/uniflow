@@ -1,0 +1,10 @@
+id: io.micronaut.micronaut-core
+language: Java
+message: pkg:maven/io.micronaut/micronaut-core
+metadata:
+  purl: pkg:maven/io.micronaut/micronaut-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.micronaut\.core\.version|io\.micronaut\.core\.beans|io\.micronaut\.core\.optim|io\.micronaut\.core\.reflect\.exception|io\.micronaut\.core\.convert\.converters|io\.micronaut\.core\.type|io\.micronaut\.core\.util\.locale|io\.micronaut\.core\.io\.service|io\.micronaut\.core\.bind\.annotation|io\.micronaut\.core\.util|io\.micronaut\.core\.order|io\.micronaut\.core\.value|io\.micronaut\.core\.version\.annotation|io\.micronaut\.core\.convert\.format|io\.micronaut\.core\.convert|io\.micronaut\.core\.naming|io\.micronaut\.core\.graal|io\.micronaut\.core\.annotation|io\.micronaut\.core\.serialize\.exceptions|io\.micronaut\.core\.expressions|io\.micronaut\.core\.io\.socket|io\.micronaut\.core\.io\.scan|io\.micronaut\.core\.bind\.exceptions|io\.micronaut\.core\.convert\.exceptions|io\.micronaut\.core\.io|io\.micronaut\.core\.naming\.conventions|io\.micronaut\.core\.io\.file|io\.micronaut\.core\.bind|io\.micronaut\.core\.serialize|io\.micronaut\.core\.propagation|io\.micronaut\.core\.io\.buffer|io\.micronaut\.core\.reflect|io\.micronaut\.core\.convert\.value|io\.micronaut\.core\.util\.clhm|io\.micronaut\.core\.util\.functional|io\.micronaut\.core\.execution|io\.micronaut\.core\.attr|io\.micronaut\.core\.cli\.exceptions|io\.micronaut\.core\.beans\.exceptions|io\.micronaut\.core\.exceptions|io\.micronaut\.core\.cli)\.

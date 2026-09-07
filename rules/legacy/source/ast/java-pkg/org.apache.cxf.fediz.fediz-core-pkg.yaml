@@ -1,0 +1,10 @@
+id: org.apache.cxf.fediz.fediz-core
+language: Java
+message: pkg:maven/org.apache.cxf.fediz/fediz-core
+metadata:
+  purl: pkg:maven/org.apache.cxf.fediz/fediz-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.fediz\.core\.util|org\.apache\.cxf\.fediz\.core\.saml|org\.apache\.cxf\.fediz\.core\.config|org\.apache\.cxf\.fediz\.core\.config\.jaxb|org\.apache\.cxf\.fediz\.core\.handler|org\.apache\.cxf\.fediz\.core\.metadata|org\.apache\.cxf\.fediz\.core\.processor|org\.apache\.cxf\.fediz\.core\.servlet|org\.apache\.cxf\.fediz\.core\.spi|org\.apache\.cxf\.fediz\.core\.samlsso|org\.apache\.cxf\.fediz\.core|org\.apache\.cxf\.fediz\.core\.exception)\.

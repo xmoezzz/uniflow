@@ -1,5 +1,6 @@
 use crate::{
-    collect_project_headers, collect_source_files, conditionals::prepare_source, CompileCommandDatabase, FrontendOptions,
+    collect_project_headers, collect_source_files, conditionals::prepare_source,
+    CompileCommandDatabase, FrontendOptions,
 };
 use anyhow::{bail, Context, Result};
 use std::fs;
@@ -7,6 +8,9 @@ use std::path::{Path, PathBuf};
 use uniflow_hir::{Language, Program};
 use uniflow_lang_c::CParser;
 use uniflow_lang_cpp::CppParser;
+use uniflow_lang_frontends::{
+    parse_file as parse_descriptor_file, parse_project_sources as parse_descriptor_project_sources,
+};
 use uniflow_lang_java::{parse_project_sources as parse_java_project_sources, JavaParser};
 use uniflow_lang_python::{parse_project_sources as parse_python_project_sources, PythonParser};
 use uniflow_parser_core::SourceParser;
@@ -45,6 +49,19 @@ fn parse_prepared_source(language: Language, path: &str, source: &str) -> Result
         Language::Cpp => CppParser::default().parse_file(path, source),
         Language::Java => JavaParser::default().parse_file(path, source),
         Language::Python => PythonParser::default().parse_file(path, source),
+        Language::CSharp
+        | Language::ObjC
+        | Language::ObjCpp
+        | Language::Kotlin
+        | Language::Swift
+        | Language::Go
+        | Language::JavaScript
+        | Language::Jsp
+        | Language::Sql
+        | Language::Php
+        | Language::Ruby
+        | Language::Rust
+        | Language::Shell => parse_descriptor_file(language, path, source),
         Language::Unknown => bail!("language must be specified"),
     }
 }
@@ -58,7 +75,10 @@ pub fn parse_source_file_with_options(
     path: &Path,
     options: &FrontendOptions,
 ) -> Result<Program> {
-    if matches!(language, Language::C | Language::Cpp) {
+    if matches!(
+        language,
+        Language::C | Language::Cpp | Language::ObjC | Language::ObjCpp
+    ) {
         return parse_project_files_with_options(language, &[path.to_path_buf()], options);
     }
     let source = fs::read_to_string(path)
@@ -106,7 +126,61 @@ pub fn parse_project_sources_with_options(
             }
             Ok(project)
         }
+        Language::CSharp
+        | Language::ObjC
+        | Language::ObjCpp
+        | Language::Kotlin
+        | Language::Swift
+        | Language::Go
+        | Language::JavaScript
+        | Language::Jsp
+        | Language::Sql
+        | Language::Php
+        | Language::Ruby
+        | Language::Rust
+        | Language::Shell => parse_descriptor_project_sources(language, &prepared_entries),
         Language::Unknown => bail!("language must be specified"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_frontend_dispatches_all_descriptor_languages() {
+        let cases = [
+            (
+                Language::CSharp,
+                "string run(string x) { return x; }",
+                "a.cs",
+            ),
+            (Language::ObjC, "char *run(char *x) { return x; }", "a.m"),
+            (Language::ObjCpp, "char *run(char *x) { return x; }", "a.mm"),
+            (Language::Kotlin, "fun run(x) { return x\n }", "a.kt"),
+            (Language::Swift, "func run(x) { return x\n }", "a.swift"),
+            (Language::Go, "func run(x) { return x\n }", "a.go"),
+            (
+                Language::JavaScript,
+                "function run(x) { return x; }",
+                "a.js",
+            ),
+            (Language::Jsp, "<% int run(int x) { return x; } %>", "a.jsp"),
+            (Language::Sql, "SELECT value FROM items;", "a.sql"),
+            (
+                Language::Php,
+                "<?php function run($x) { return $x; } ?>",
+                "a.php",
+            ),
+            (Language::Ruby, "def run(x)\n return x\nend\n", "a.rb"),
+            (Language::Rust, "fn run(x) { return x; }", "a.rs"),
+            (Language::Shell, "function run() { echo $x\n }", "a.sh"),
+        ];
+        for (language, source, path) in cases {
+            let program = parse_source(language.clone(), path, source).expect(path);
+            assert_eq!(program.language, language, "{path}");
+            assert!(!program.modules.is_empty(), "{path}");
+        }
     }
 }
 

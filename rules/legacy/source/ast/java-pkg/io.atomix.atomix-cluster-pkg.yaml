@@ -1,0 +1,10 @@
+id: io.atomix.atomix-cluster
+language: Java
+message: pkg:maven/io.atomix/atomix-cluster
+metadata:
+  purl: pkg:maven/io.atomix/atomix-cluster
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.atomix\.cluster|io\.atomix\.cluster\.impl|io\.atomix\.cluster\.protocol|io\.atomix\.cluster\.messaging|io\.atomix\.cluster\.discovery|io\.atomix\.cluster\.messaging\.impl)\.

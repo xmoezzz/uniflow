@@ -1,0 +1,10 @@
+id: ca.uhn.hapi.fhir.org.hl7.fhir.r4b
+language: Java
+message: pkg:maven/ca.uhn.hapi.fhir/org.hl7.fhir.r4b
+metadata:
+  purl: pkg:maven/ca.uhn.hapi.fhir/org.hl7.fhir.r4b
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.hl7\.fhir\.r4b\.utils\.formats|org\.hl7\.fhir\.r4b\.utils\.validation|org\.hl7\.fhir\.r4b\.utils\.validation\.constants|org\.hl7\.fhir\.r4b\.utils|org\.hl7\.fhir\.r4b\.patterns|org\.hl7\.fhir\.r4b\.conformance|org\.hl7\.fhir\.r4b\.openapi|org\.hl7\.fhir\.r4b\.renderers|org\.hl7\.fhir\.r4b\.terminologies|org\.hl7\.fhir\.r4b\.utils\.client\.network|org\.hl7\.fhir\.r4b\.comparison|org\.hl7\.fhir\.r4b\.fhirpath|org\.hl7\.fhir\.r4b\.formats|org\.hl7\.fhir\.r4b\.elementmodel|org\.hl7\.fhir\.r4b\.utils\.structuremap|org\.hl7\.fhir\.r4b\.model|org\.hl7\.fhir\.r4b\.test\.utils|org\.hl7\.fhir\.r4b\.renderers\.spreadsheets|org\.hl7\.fhir\.r4b\.renderers\.utils|org\.hl7\.fhir\.r4b\.context|org\.hl7\.fhir\.r4b\.utils\.client)\.

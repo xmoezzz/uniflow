@@ -1,0 +1,10 @@
+id: org.apache.kylin.kylin-core-common
+language: Java
+message: pkg:maven/org.apache.kylin/kylin-core-common
+metadata:
+  purl: pkg:maven/org.apache.kylin/kylin-core-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.kylin\.tool\.util|org\.apache\.kylin\.rest\.exception|org\.apache\.kylin\.loader\.utils|org\.apache\.kylin\.rest\.response|org\.apache\.kylin\.common\.scheduler|org\.apache\.kylin\.guava30\.shaded\.common\.eventbus|org\.apache\.kylin\.common\.extension|org\.apache\.kylin\.loader|org\.apache\.kylin\.tool\.restclient|org\.apache\.kylin\.rest\.aspect|org\.apache\.kylin\.rest\.cache|org\.apache\.kylin\.common\.event|org\.apache\.kylin\.common|org\.apache\.kylin\.common\.lock|org\.apache\.kylin\.common\.persistence|org\.apache\.kylin\.rest\.util|org\.apache\.kylin\.common\.persistence\.event|org\.apache\.kylin\.common\.hystrix|org\.apache\.kylin\.job\.exception|org\.apache\.kylin\.common\.state|org\.apache\.kylin\.common\.exception|org\.apache\.kylin\.common\.msg|org\.apache\.kylin\.common\.persistence\.metadata\.jdbc|org\.apache\.kylin\.common\.persistence\.metadata|org\.apache\.kylin\.common\.storage|org\.apache\.kylin\.common\.debug|org\.apache\.kylin\.common\.persistence\.transaction|org\.apache\.kylin\.common\.constant|org\.apache\.kylin\.common\.util|org\.apache\.kylin\.query\.util|org\.apache\.kylin\.common\.annotation|org\.apache\.kylin\.common\.exception\.code|org\.apache\.kylin\.common\.response|org\.apache\.kylin\.query\.exception|org\.apache\.kylin\.common\.logging)\.

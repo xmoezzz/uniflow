@@ -1,0 +1,10 @@
+id: com.esotericsoftware.yamlbeans.yamlbeans
+language: Java
+message: pkg:maven/com.esotericsoftware.yamlbeans/yamlbeans
+metadata:
+  purl: pkg:maven/com.esotericsoftware.yamlbeans/yamlbeans
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.esotericsoftware\.yamlbeans\.tokenizer|com\.esotericsoftware\.yamlbeans\.constants|com\.esotericsoftware\.yamlbeans|com\.esotericsoftware\.yamlbeans\.document|com\.esotericsoftware\.yamlbeans\.scalar|com\.esotericsoftware\.yamlbeans\.parser|com\.esotericsoftware\.yamlbeans\.emitter)\.

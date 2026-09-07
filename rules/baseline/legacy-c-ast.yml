@@ -1,0 +1,702 @@
+id: legacy-c-ast
+title: Migrated legacy C and C++ AST rules
+rules:
+- id: LEGACY-C-AST-nullptr-zero
+  title: Pointer initialized with integer zero
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: null_pointer_zero
+  standards: ['0701000010130028']
+  message: Pointer initialized with integer zero.
+  translations:
+    zh-CN:
+      title: 指针不应使用整数零初始化
+      message: 指针不应使用整数零初始化。
+    en:
+      title: Pointer initialized with integer zero
+      message: Pointer initialized with integer zero.
+    zh-TW:
+      title: 指標不應使用整數零初始化
+      message: 指標不應使用整數零初始化。
+- id: LEGACY-C-AST-no-assignment-outside-statement
+  title: Assignment outside expression statement
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: assignment_outside_statement
+  standards: ['0601000010140036', '0601000010140048', '2401000010120097']
+  message: Assignment outside expression statement.
+  translations:
+    zh-CN:
+      title: 赋值表达式不应出现在独立语句之外
+      message: 赋值表达式不应出现在独立语句之外。
+    en:
+      title: Assignment outside expression statement
+      message: Assignment outside expression statement.
+    zh-TW:
+      title: 賦值運算式不應出現在獨立陳述式之外
+      message: 賦值運算式不應出現在獨立陳述式之外。
+- id: LEGACY-C-AST-no-unary-in-expressions
+  title: Update operator in a larger expression
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: update_in_expression
+  standards: ['0701000010130043', '0601000010140067']
+  message: Update operator in a larger expression.
+  translations:
+    zh-CN:
+      title: 复杂表达式中不应使用自增或自减
+      message: 复杂表达式中不应使用自增或自减。
+    en:
+      title: Update operator in a larger expression
+      message: Update operator in a larger expression.
+    zh-TW:
+      title: 複雜運算式中不應使用遞增或遞減
+      message: 複雜運算式中不應使用遞增或遞減。
+- id: LEGACY-C-AST-no-side-effect-in-sizeof
+  title: Side effect inside sizeof
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: side_effect_in_sizeof
+  standards: ['0601000010140053', '0701000010130051']
+  message: Side effect inside sizeof.
+  translations:
+    zh-CN:
+      title: sizeof 中不应包含副作用
+      message: sizeof 中不应包含副作用。
+    en:
+      title: Side effect inside sizeof
+      message: Side effect inside sizeof.
+    zh-TW:
+      title: sizeof 中不應包含副作用
+      message: sizeof 中不應包含副作用。
+- id: LEGACY-C-AST-no-comma-expression
+  title: Comma expression
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: comma_expression
+  standards: ['0601000010140052']
+  message: Comma expression.
+  translations:
+    zh-CN:
+      title: 不应使用逗号表达式
+      message: 不应使用逗号表达式。
+    en:
+      title: Comma expression
+      message: Comma expression.
+    zh-TW:
+      title: 不應使用逗號運算式
+      message: 不應使用逗號運算式。
+- id: LEGACY-C-AST-no-assignment-in-if-condition
+  title: Assignment in if condition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: assignment_in_if
+  standards: ['0701000010130041']
+  message: Assignment in if condition.
+  translations:
+    zh-CN:
+      title: if 条件中不应赋值
+      message: if 条件中不应赋值。
+    en:
+      title: Assignment in if condition
+      message: Assignment in if condition.
+    zh-TW:
+      title: if 條件中不應賦值
+      message: if 條件中不應賦值。
+- id: LEGACY-C-AST-no-conditional-expression
+  title: Conditional expression
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: conditional_expression
+  standards: ['0601000010140069']
+  message: Conditional expression.
+  translations:
+    zh-CN:
+      title: 不应使用条件表达式
+      message: 不应使用条件表达式。
+    en:
+      title: Conditional expression
+      message: Conditional expression.
+    zh-TW:
+      title: 不應使用條件運算式
+      message: 不應使用條件運算式。
+- id: LEGACY-C-AST-conditional-braces
+  title: Binary expression inside conditional expression
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: binary_in_conditional
+  standards: ['0701000010130017']
+  message: Binary expression inside conditional expression.
+  translations:
+    zh-CN:
+      title: 条件表达式中包含二元表达式
+      message: 条件表达式中包含二元表达式。
+    en:
+      title: Binary expression inside conditional expression
+      message: Binary expression inside conditional expression.
+    zh-TW:
+      title: 條件運算式中包含二元運算式
+      message: 條件運算式中包含二元運算式。
+- id: LEGACY-C-AST-no-dangerous-macro-in-reg-calls
+  title: Dangerous registry access macro
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: dangerous_registry_access_macro
+  standards: ['0201000010120137', '1501000010120137', '1601000010120137', '1701000010120137']
+  message: Dangerous registry access macro.
+  translations:
+    zh-CN:
+      title: 注册表调用不应使用完全访问宏
+      message: 注册表调用不应使用完全访问宏。
+    en:
+      title: Dangerous registry access macro
+      message: Dangerous registry access macro.
+    zh-TW:
+      title: 登錄檔呼叫不應使用完全存取巨集
+      message: 登錄檔呼叫不應使用完全存取巨集。
+- id: LEGACY-C-AST-void-fn-must-not-return-value
+  title: Void function returns a value
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: void_return_value
+  standards: ['0601000010140073']
+  message: Void function returns a value.
+  translations:
+    zh-CN:
+      title: void 函数不应返回值
+      message: void 函数不应返回值。
+    en:
+      title: Void function returns a value
+      message: Void function returns a value.
+    zh-TW:
+      title: void 函式不應傳回值
+      message: void 函式不應傳回值。
+- id: LEGACY-C-AST-non-void-fn-must-return
+  title: Non-void function has no return
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: non_void_missing_return
+  standards: ['0601000010140072', '0701000010130060']
+  message: Non-void function has no return.
+  translations:
+    zh-CN:
+      title: 非 void 函数缺少 return
+      message: 非 void 函数缺少 return。
+    en:
+      title: Non-void function has no return
+      message: Non-void function has no return.
+    zh-TW:
+      title: 非 void 函式缺少 return
+      message: 非 void 函式缺少 return。
+- id: LEGACY-C-AST-non-void-fn-must-return-value
+  title: Non-void function returns without a value
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: non_void_empty_return
+  standards: ['0601000010140074']
+  message: Non-void function returns without a value.
+  translations:
+    zh-CN:
+      title: 非 void 函数的 return 缺少返回值
+      message: 非 void 函数的 return 缺少返回值。
+    en:
+      title: Non-void function returns without a value
+      message: Non-void function returns without a value.
+    zh-TW:
+      title: 非 void 函式的 return 缺少傳回值
+      message: 非 void 函式的 return 缺少傳回值。
+- id: LEGACY-C-AST-func-decl-empty
+  title: Empty parameter list in function definition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: empty_definition_parameters
+  standards: ['0601000010140007', '0701000010130014']
+  message: Empty parameter list in function definition.
+  translations:
+    zh-CN:
+      title: 函数定义使用空参数列表
+      message: 函数定义使用空参数列表。
+    en:
+      title: Empty parameter list in function definition
+      message: Empty parameter list in function definition.
+    zh-TW:
+      title: 函式定義使用空參數列表
+      message: 函式定義使用空參數列表。
+- id: LEGACY-C-AST-no-unnamed-argument
+  title: Unnamed function parameter
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: unnamed_parameter
+  standards: ['0701000010130008']
+  message: Unnamed function parameter.
+  translations:
+    zh-CN:
+      title: 函数参数缺少名称
+      message: 函数参数缺少名称。
+    en:
+      title: Unnamed function parameter
+      message: Unnamed function parameter.
+    zh-TW:
+      title: 函式參數缺少名稱
+      message: 函式參數缺少名稱。
+- id: LEGACY-C-AST-no-unnamed-struct
+  title: Unnamed aggregate definition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: unnamed_aggregate
+  standards: ['0701000010130006', '0701000010130007']
+  message: Unnamed aggregate definition.
+  translations:
+    zh-CN:
+      title: 聚合类型定义缺少名称
+      message: 聚合类型定义缺少名称。
+    en:
+      title: Unnamed aggregate definition
+      message: Unnamed aggregate definition.
+    zh-TW:
+      title: 聚合型別定義缺少名稱
+      message: 聚合型別定義缺少名稱。
+- id: LEGACY-C-AST-no-union-declaration-in-struct
+  title: Union declaration inside struct
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: union_inside_struct
+  standards: ['0101000010120108']
+  message: Union declaration inside struct.
+  translations:
+    zh-CN:
+      title: 结构体中不应声明 union
+      message: 结构体中不应声明 union。
+    en:
+      title: Union declaration inside struct
+      message: Union declaration inside struct.
+    zh-TW:
+      title: 結構中不應宣告 union
+      message: 結構中不應宣告 union。
+- id: LEGACY-C-AST-array-declaration-must-be-sized
+  title: Array initializer has no declared size
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: unsized_initialized_array
+  standards: ['0701000010130011', '0601000010140012']
+  message: Array initializer has no declared size.
+  translations:
+    zh-CN:
+      title: 数组初始化声明未指定大小
+      message: 数组初始化声明未指定大小。
+    en:
+      title: Array initializer has no declared size
+      message: Array initializer has no declared size.
+    zh-TW:
+      title: 陣列初始化宣告未指定大小
+      message: 陣列初始化宣告未指定大小。
+- id: LEGACY-C-AST-no-extern-declaration-in-function
+  title: Extern declaration inside function
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: local_extern
+  standards: ['0701000010130010']
+  message: Extern declaration inside function.
+  translations:
+    zh-CN:
+      title: 函数内不应使用 extern 声明
+      message: 函数内不应使用 extern 声明。
+    en:
+      title: Extern declaration inside function
+      message: Extern declaration inside function.
+    zh-TW:
+      title: 函式內不應使用 extern 宣告
+      message: 函式內不應使用 extern 宣告。
+- id: LEGACY-C-AST-no-init-in-extern-declaration
+  title: Initialized extern declaration
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: initialized_extern
+  standards: ['0701000010130012']
+  message: Initialized extern declaration.
+  translations:
+    zh-CN:
+      title: extern 声明不应包含初始化
+      message: extern 声明不应包含初始化。
+    en:
+      title: Initialized extern declaration
+      message: Initialized extern declaration.
+    zh-TW:
+      title: extern 宣告不應包含初始化
+      message: extern 宣告不應包含初始化。
+- id: LEGACY-C-AST-function-like-macros-must-have-braces
+  title: Function macro replacement parentheses
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: function_replacement_parentheses
+  standards: ['0601000010140008', '0101000010110299', '0901000010110299']
+  message: Function macro replacement parentheses matches the legacy preprocessor rule.
+  translations:
+    zh-CN:
+      title: 函数宏替换文本的括号检查
+      message: 函数宏替换文本的括号检查，请检查宏定义。
+    en:
+      title: Function macro replacement parentheses
+      message: Review this macro definition against the coding standard.
+    zh-TW:
+      title: 函式巨集替換文字的括號檢查
+      message: 函式巨集替換文字的括號檢查，請檢查巨集定義。
+- id: LEGACY-C-AST-no-redefine-keyword
+  title: Keyword macro redefinition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: redefined_keyword
+  standards: ['0701000010130000', '0701000010130005', '0601000010140006']
+  message: Keyword macro redefinition matches the legacy preprocessor rule.
+  translations:
+    zh-CN:
+      title: 禁止用对象宏重新定义关键字
+      message: 禁止用对象宏重新定义关键字，请检查宏定义。
+    en:
+      title: Keyword macro redefinition
+      message: Review this macro definition against the coding standard.
+    zh-TW:
+      title: 禁止用物件巨集重新定義關鍵字
+      message: 禁止用物件巨集重新定義關鍵字，請檢查巨集定義。
+- id: LEGACY-C-AST-no-concat-in-macros
+  title: Hash in function macro replacement
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: hash_in_function_replacement
+  standards: ['0601000010140097']
+  message: Hash in function macro replacement matches the legacy preprocessor rule.
+  translations:
+    zh-CN:
+      title: 函数宏替换文本中包含井号
+      message: 函数宏替换文本中包含井号，请检查宏定义。
+    en:
+      title: Hash in function macro replacement
+      message: Review this macro definition against the coding standard.
+    zh-TW:
+      title: 函式巨集替換文字中包含井號
+      message: 函式巨集替換文字中包含井號，請檢查巨集定義。
+- id: LEGACY-C-AST-no-concat-twice-in-macros
+  title: Repeated hash in function macro replacement
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: repeated_hash_in_function_replacement
+  standards: ['0601000010140098']
+  message: Repeated hash in function macro replacement matches the legacy preprocessor rule.
+  translations:
+    zh-CN:
+      title: 函数宏替换文本中重复使用井号
+      message: 函数宏替换文本中重复使用井号，请检查宏定义。
+    en:
+      title: Repeated hash in function macro replacement
+      message: Review this macro definition against the coding standard.
+    zh-TW:
+      title: 函式巨集替換文字中重複使用井號
+      message: 函式巨集替換文字中重複使用井號，請檢查巨集定義。
+- id: LEGACY-C-AST-no-macro-to-basic-type
+  title: Basic type object macro
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: basic_type_replacement
+  standards: ['0701000010130001', '0601000010140099', '0601000010140009']
+  message: Basic type object macro matches the legacy preprocessor rule.
+  translations:
+    zh-CN:
+      title: 禁止用对象宏代替基本类型
+      message: 禁止用对象宏代替基本类型，请检查宏定义。
+    en:
+      title: Basic type object macro
+      message: Review this macro definition against the coding standard.
+    zh-TW:
+      title: 禁止用物件巨集代替基本型別
+      message: 禁止用物件巨集代替基本型別，請檢查巨集定義。
+- id: LEGACY-C-AST-no-semicolon-after-macro
+  title: Trailing semicolon in macro replacement
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: trailing_semicolon
+  standards: ['0101000010110303']
+  message: Trailing semicolon in macro replacement matches the legacy preprocessor rule.
+  translations:
+    zh-CN:
+      title: 宏替换文本不应以分号结尾
+      message: 宏替换文本不应以分号结尾，请检查宏定义。
+    en:
+      title: Trailing semicolon in macro replacement
+      message: Review this macro definition against the coding standard.
+    zh-TW:
+      title: 巨集替換文字不應以分號結尾
+      message: 巨集替換文字不應以分號結尾，請檢查巨集定義。
+- id: LEGACY-C-AST-if-else-braces
+  title: If and else bodies require braces
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: if_else_braces }
+  standards: [LEGACY-MSG-0701000010130016, LEGACY-MSG-0601000010140019]
+  message: If and else bodies require braces.
+- id: LEGACY-C-AST-loop-body-braces
+  title: Loop body requires braces
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: loop_body_braces }
+  standards: [LEGACY-MSG-0701000010130015, LEGACY-MSG-0601000010140018]
+  message: Loop body requires braces.
+- id: LEGACY-C-AST-if-else-if-must-have-else
+  title: Else-if chain needs final else
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: else_if_needs_else }
+  standards: [LEGACY-MSG-0601000010140024, LEGACY-MSG-0701000010130030]
+  message: Else-if chain needs final else.
+- id: LEGACY-C-AST-no-empty-switch
+  title: Switch requires a label
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: empty_switch }
+  standards: [LEGACY-MSG-0701000010130032, LEGACY-MSG-0601000010140027]
+  message: Switch requires a label.
+- id: LEGACY-C-AST-switch-must-have-case
+  title: Switch requires a non-default case
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: switch_needs_case }
+  standards: [LEGACY-MSG-0601000010140028, LEGACY-MSG-0701000010130034]
+  message: Switch requires a non-default case.
+- id: LEGACY-C-AST-no-empty-statement
+  title: Empty statement prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: empty_statement }
+  standards: [LEGACY-MSG-0601000010140070]
+  message: Empty statement prohibited.
+- id: LEGACY-C-AST-no-semicolon-after-for-if-while
+  title: Control statement has an empty body
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: empty_control_body }
+  standards: [LEGACY-MSG-2401000010120092]
+  message: Control statement has an empty body.
+- id: LEGACY-C-AST-no-break-in-loops
+  title: Break in a loop is prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: break_in_loop }
+  standards: [LEGACY-MSG-0601000010140079]
+  message: Break in a loop is prohibited.
+- id: LEGACY-C-AST-no-constant-in-loop-condition
+  title: Numeric constant in restricted loop condition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_style: constant_loop_condition }
+  standards: [LEGACY-MSG-0601000010140080]
+  message: Numeric constant in restricted loop condition.
+- id: LEGACY-C-AST-no-gets
+  title: gets call prohibited
+  languages: [c, cpp]
+  severity: error
+  confidence: high
+  matcher: { callee: '(^|::)gets$', min_args: 1, max_args: 1 }
+  standards: [LEGACY-C-AST-no-gets]
+  message: Use a bounded input API instead of gets.
+- id: LEGACY-C-AST-no-exit-abort
+  title: Process termination call prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { callee: '(^|::)(exit|abort)$' }
+  standards: [LEGACY-C-AST-no-exit-abort]
+  message: Propagate an error instead of terminating the process from library code.
+- id: LEGACY-C-AST-no-setjmp-longjmp
+  title: Non-local jump prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { callee: '(^|::)(setjmp|longjmp)$' }
+  standards: [LEGACY-C-AST-no-setjmp-longjmp]
+  message: Use structured control flow instead of setjmp or longjmp.
+- id: LEGACY-C-AST-no-goto
+  title: goto statement prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bgoto\b', exclude_preprocessor: true }
+  standards: [LEGACY-C-AST-no-goto]
+  message: Use structured control flow instead of goto.
+- id: LEGACY-C-AST-no-continue
+  title: continue statement prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bcontinue\s*;', exclude_preprocessor: true }
+  standards: [LEGACY-C-AST-no-continue]
+  message: Restructure the loop so continue is unnecessary.
+- id: LEGACY-C-AST-no-register-storage-class
+  title: register storage class prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bregister\b', exclude_preprocessor: true }
+  standards: [LEGACY-C-AST-no-register-storage-class]
+  message: Remove the obsolete register storage-class specifier.
+- id: LEGACY-C-AST-no-long-long
+  title: long long type prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\blong\s+long\b', exclude_preprocessor: true }
+  standards: [LEGACY-C-AST-no-long-long]
+  message: Use the project-approved fixed-width integer type.
+- id: LEGACY-C-AST-number-literal-suffix-must-be-upper-case
+  title: Lowercase integer literal suffix
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\b(?:0[xX][0-9A-Fa-f]+|[0-9]+)[uUlL]*[ul]\b', exclude_preprocessor: true }
+  standards: [LEGACY-C-AST-number-literal-suffix-must-be-upper-case]
+  message: Use uppercase U and L integer-literal suffixes.
+- id: LEGACY-C-AST-no-pragma
+  title: pragma directive prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '^\s*#\s*pragma\b' }
+  standards: [LEGACY-C-AST-no-pragma]
+  message: Avoid implementation-specific pragma directives.
+- id: LEGACY-C-AST-no-union
+  title: union declaration prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bunion\s+[A-Za-z_]', exclude_preprocessor: true }
+  standards: [LEGACY-C-AST-no-union]
+  message: Avoid union-based type punning and ambiguous active members.
+- id: LEGACY-C-AST-no-variadic-parameter
+  title: Variadic parameter prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\.\.\.', exclude_preprocessor: true }
+  standards: [LEGACY-C-AST-no-variadic-parameter]
+  message: Use a typed parameter representation instead of C varargs.
+- id: LEGACY-C-AST-no-assignment-plus-minus
+  title: Compound plus or minus assignment prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '(\+=|-=)', exclude_preprocessor: true }
+  standards: [LEGACY-C-AST-no-assignment-plus-minus]
+  message: Express the update explicitly according to the coding standard.
+- id: LEGACY-C-AST-no-infinite-for
+  title: Infinite for loop prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\bfor\s*\(\s*;\s*;\s*\)' }
+  standards: [LEGACY-C-AST-no-infinite-for]
+  message: Make loop termination explicit.
+- id: LEGACY-C-AST-no-infinite-loop
+  title: Constant infinite loop prohibited
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '(\bfor\s*\(\s*;\s*;\s*\)|\bwhile\s*\(\s*1\s*\))' }
+  standards: [LEGACY-C-AST-no-infinite-loop]
+  message: Make loop termination explicit.
+- id: LEGACY-C-AST-no-l-O-as-identifier
+  title: Ambiguous single-letter identifier
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { lexical_kind: identifier, lexical_pattern: '^(l|O)$' }
+  standards: [LEGACY-C-AST-no-l-O-as-identifier]
+  message: Avoid identifiers that can be confused with numeric literals.
+- id: LEGACY-C-AST-no-absolute-include
+  title: Absolute include path
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: '^\s*#\s*include\s*\"([A-Za-z]:|/)'
+  standards: [LEGACY-C-AST-no-absolute-include]
+  message: Use a project-relative include path.
+- id: LEGACY-C-AST-no-special-chars-in-header-name
+  title: Special character in include path
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  pattern: '^\s*#\s*include\s*[<\"][^>\"]*(\*|''|\\)[^>\"]*[>\"]'
+  standards: [LEGACY-C-AST-no-special-chars-in-header-name]
+  message: Use a portable header name without special characters.
+- id: LEGACY-C-AST-no-overload-comma
+  title: Comma operator overload prohibited
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\boperator\s*,\s*\(' }
+  standards: [LEGACY-C-AST-no-overload-comma, CERT-EXP04-A]
+  message: Do not overload the comma operator.
+- id: LEGACY-C-AST-no-overload-logical-and-or
+  title: Logical operator overload prohibited
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { code_pattern: '\boperator\s*(&&|\|\|)\s*\(' }
+  standards: [LEGACY-C-AST-no-overload-logical-and-or, CERT-EXP02-A]
+  message: Do not overload short-circuit logical operators.

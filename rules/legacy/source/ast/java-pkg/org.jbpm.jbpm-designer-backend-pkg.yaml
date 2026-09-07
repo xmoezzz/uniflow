@@ -1,0 +1,10 @@
+id: org.jbpm.jbpm-designer-backend
+language: Java
+message: pkg:maven/org.jbpm/jbpm-designer-backend
+metadata:
+  purl: pkg:maven/org.jbpm/jbpm-designer-backend
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jbpm\.designer\.web\.profile|org\.jbpm\.designer\.web\.preference|org\.jbpm\.designer\.web\.stencilset|org\.jbpm\.designer\.repository\.filters|org\.jbpm\.designer\.server\.indexing|org\.jbpm\.designer\.expressioneditor\.parser|org\.jbpm\.designer\.web\.server|org\.jbpm\.designer\.repository\.vfs|org\.jbpm\.designer\.bpmn2\.resource|org\.jbpm\.designer\.filter|org\.jbpm\.designer\.server|org\.jbpm\.designer\.bpmn2\.impl|org\.jbpm\.designer\.web\.filter|org\.jbpm\.designer\.web\.preprocessing\.impl|org\.jbpm\.designer\.epn\.impl|org\.jbpm\.designer\.web|org\.jbpm\.designer\.bpmn2|org\.jbpm\.designer\.taskforms\.builder|org\.jbpm\.designer\.bpmn2\.validation|org\.jbpm\.designer\.expressioneditor\.model|org\.jbpm\.designer\.taskforms|org\.jbpm\.designer\.web\.plugin\.impl|org\.jbpm\.designer\.expressioneditor\.marshalling|org\.jbpm\.designer\.web\.server\.menu|org\.jbpm\.designer\.repository\.servlet|org\.jbpm\.designer\.web\.batikprotocolhandler|org\.jbpm\.designer\.web\.plugin|org\.jbpm\.designer\.expressioneditor\.server|org\.jbpm\.designer\.server\.diagram|org\.jbpm\.designer\.query|org\.jbpm\.designer\.bpmn2\.util|org\.jbpm\.designer\.web\.stencilset\.impl|org\.jbpm\.designer\.web\.server\.menu\.connector|org\.jbpm\.designer\.repository\.impl|org\.jbpm\.designer\.stencilset|org\.jbpm\.designer\.util|org\.jbpm\.designer\.validation|org\.jbpm\.designer\.web\.profile\.impl|org\.jbpm\.designer\.web\.repository\.impl|org\.jbpm\.designer\.web\.repository|org\.jbpm\.designer\.epn|org\.jbpm\.designer\.server\.indexing\.bpmn2|org\.jbpm\.designer\.repository\.guvnor|org\.jbpm\.designer\.web\.preprocessing|org\.jbpm\.designer\.repository|org\.jbpm\.designer\.server\.service|org\.jbpm\.designer\.web\.filter\.impl|org\.jbpm\.designer\.web\.server\.menu\.connector\.commands)\.

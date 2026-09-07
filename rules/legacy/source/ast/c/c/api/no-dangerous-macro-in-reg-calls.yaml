@@ -1,0 +1,18 @@
+id: no-dangerous-macro-in-reg-calls
+message: '0201000010120137,1501000010120137,1601000010120137,1701000010120137'
+language: C
+rule:
+  all:
+    - kind: 'identifier'
+    - any:
+        - regex: '^KEY_ALL_ACCESS$'
+        - regex: '^ALL_ACCESS$'
+    - inside:
+        kind: call_expression
+        has:
+          kind: identifier
+          any:
+            - regex: '^Reg(Open|Create)KeyEx[AW]?$'
+            - regex: '^SHRegCreateUSKey[AW]?$'
+        stopBy:
+          kind: call_expression

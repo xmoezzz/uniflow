@@ -1,0 +1,80 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                lxml
+
+# DataflowSourceRule lxml 8
+# [{'NamespaceName': 'lxml.etree', 'ClassName': '', 'FunctionName': 'tostring|tostringlist|tounicode', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': '_ElementTree', 'FunctionName': 'write(_c14n)?', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': 'XSLT', 'FunctionName': 'transform|tostring', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': 'iterparse', 'FunctionName': '__init__', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': '_ElementTree', 'FunctionName': 'parse', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': 'XMLPullParser|_FeedParser', 'FunctionName': 'feed', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.objectify', 'ClassName': '', 'FunctionName': 'dump', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml\\.(etree|objectify)', 'ClassName': '', 'FunctionName': 'fromstring|fromstringlist|parseid|parse|XML|XMLID|XMLDTDID', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_lxml_functions_sources",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("(lxml\.(etree|objectify)).*\.(fromstring|fromstringlist|parseid|parse|XML|XMLID|XMLDTDID)"),
+      name.matches("^lxml\.objectify.*\.dump$"),
+      name.matches("^lxml\.etree.*\.(tostring|tostringlist|tounicode)")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+
+ModelQuery(
+  name="get_lxml_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^lxml\.etree\._ElementTree\.write(_c14n)?"),
+      name.matches("^lxml\.etree\.(XMLPullParser|_FeedParser)\.feed$"),
+      name.matches("^lxml\.etree\.XSLT\.(transform|tostring)"),
+      name.matches("^lxml\.etree\._ElementTree\.parse$"),
+      name.matches("^lxml\.etree\.iterparse\.__init__")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule lxml 10
+# [{'NamespaceName': 'lxml.etree', 'ClassName': 'XMLPullParser|_FeedParser', 'FunctionName': 'feed', 'RuleName': 'desc.dataflow.python.xxe_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': 'XPath', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.xpath_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': '_ElementTree', 'FunctionName': 'find|findall|findtext|xpath|iterfind', 'RuleName': 'desc.dataflow.python.xpath_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': '_Element', 'FunctionName': 'xpath', 'RuleName': 'desc.dataflow.python.xpath_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': 'XPathDocumentEvaluator', 'FunctionName': '__call__', 'RuleName': 'desc.dataflow.python.xpath_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': 'XSLT', 'FunctionName': '__call__|__init__', 'RuleName': 'desc.dataflow.python.xslt_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml.etree', 'ClassName': '_ElementTree', 'FunctionName': 'xslt', 'RuleName': 'desc.dataflow.python.xslt_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml\\.(etree|objectify)', 'ClassName': '', 'FunctionName': 'fromstring|fromstringlist|parse|parseid|XMLID|XMLDTDID|XML', 'RuleName': 'desc.dataflow.python.xxe_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml\\.(etree|objectify)', 'ClassName': '_ElementTree', 'FunctionName': 'parse', 'RuleName': 'desc.dataflow.python.xxe_injection', 'Origin': 'Fortify'}, {'NamespaceName': 'lxml\\.(etree|objectify)', 'ClassName': '', 'FunctionName': '(Data|Sub)?Element|ProcessingInstruction|PI|Comment', 'RuleName': 'desc.dataflow.python.xml_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_lxml_functions_sinks",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("(lxml\.(etree|objectify)).*\.(fromstring|fromstringlist|parse|parseid|XMLID|XMLDTDID|XML)"),
+      name.matches("(lxml\.(etree|objectify)).*\.((Data|Sub)?Element|ProcessingInstruction|PI|Comment)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_xml_injection]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_lxml_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^lxml\.etree\.XSLT\.(__call__|__init__)"),
+      name.matches("^lxml\.etree\.(XMLPullParser|_FeedParser)\.feed$"),
+      name.matches("^lxml\.etree\.XPath\.__init__"),
+      name.matches("(lxml\.(etree|objectify))\._ElementTree\.parse$"),
+      name.matches("^lxml\.etree\.XPathDocumentEvaluator\.__call__"),
+      name.matches("^lxml\.etree\._ElementTree\.xslt$"),
+      name.matches("^lxml\.etree\._Element\.xpath$"),
+      name.matches("^lxml\.etree\._ElementTree\.(find|findall|findtext|xpath|iterfind)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_xml_injection]
+    )
+  ]
+)

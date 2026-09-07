@@ -1,7 +1,7 @@
 mod semantics;
 use anyhow::Result;
 use regex::Regex;
-use uniflow_hir::{Item, Language};
+use uniflow_hir::{CallTarget, Expr, Item, LValue, Language, Stmt};
 use uniflow_lang_c::parse_c_like_file;
 use uniflow_parser_core::SourceParser;
 
@@ -24,8 +24,234 @@ impl SourceParser for CppParser {
                 .push(build_cpp_source_map(file.id, source, &normalized));
         }
         restore_cpp_class_semantics(&mut program, &class_metadata);
+        restore_cpp_lambda_semantics(&mut program);
         attach_cpp_semantics(&mut program, &semantic_index);
         Ok(program)
+    }
+}
+
+/// The surface normalizer represents a capturing C++ lambda with a bind
+/// intrinsic plus a synthetic function. Recover which leading synthetic
+/// parameters are captures so the shared lowering/value-flow engine can bind
+/// closure fields to formal capture parameters just like native HIR lambdas.
+fn restore_cpp_lambda_semantics(program: &mut uniflow_hir::Program) {
+    let symbol_names = program
+        .symbols
+        .iter()
+        .map(|symbol| (symbol.id, symbol.name.clone()))
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut capture_counts = std::collections::HashMap::<String, usize>::new();
+    for module in &program.modules {
+        for item in &module.items {
+            match item {
+                Item::Function(function) => collect_cpp_lambda_binds_block(
+                    &function.body,
+                    &symbol_names,
+                    &mut capture_counts,
+                ),
+                Item::Class(class) => {
+                    for method in &class.methods {
+                        collect_cpp_lambda_binds_block(
+                            &method.body,
+                            &symbol_names,
+                            &mut capture_counts,
+                        );
+                    }
+                }
+                Item::GlobalVar(global) => {
+                    if let Some(init) = &global.init {
+                        collect_cpp_lambda_binds_expr(init, &symbol_names, &mut capture_counts);
+                    }
+                }
+            }
+        }
+    }
+    for module in &mut program.modules {
+        for item in &mut module.items {
+            let Item::Function(function) = item else {
+                continue;
+            };
+            let Some(count) = capture_counts.get(&function.name).copied() else {
+                continue;
+            };
+            let count = count.min(function.params.len());
+            let explicit = function.params.split_off(count);
+            function.captures = std::mem::take(&mut function.params);
+            function.params = explicit;
+        }
+    }
+}
+
+fn collect_cpp_lambda_binds_block(
+    block: &uniflow_hir::Block,
+    symbol_names: &std::collections::HashMap<uniflow_hir::SymbolId, String>,
+    out: &mut std::collections::HashMap<String, usize>,
+) {
+    for stmt in &block.stmts {
+        match stmt {
+            Stmt::Let { init, .. } => {
+                if let Some(expr) = init {
+                    collect_cpp_lambda_binds_expr(expr, symbol_names, out);
+                }
+            }
+            Stmt::Assign { lhs, rhs, .. } => {
+                collect_cpp_lambda_binds_lvalue(lhs, symbol_names, out);
+                collect_cpp_lambda_binds_expr(rhs, symbol_names, out);
+            }
+            Stmt::Expr { expr, .. } => collect_cpp_lambda_binds_expr(expr, symbol_names, out),
+            Stmt::If {
+                cond,
+                then_block,
+                else_block,
+                ..
+            } => {
+                collect_cpp_lambda_binds_expr(cond, symbol_names, out);
+                collect_cpp_lambda_binds_block(then_block, symbol_names, out);
+                if let Some(block) = else_block {
+                    collect_cpp_lambda_binds_block(block, symbol_names, out);
+                }
+            }
+            Stmt::While { cond, body, .. } | Stmt::DoWhile { cond, body, .. } => {
+                collect_cpp_lambda_binds_expr(cond, symbol_names, out);
+                collect_cpp_lambda_binds_block(body, symbol_names, out);
+            }
+            Stmt::ForEach { iterable, body, .. } => {
+                collect_cpp_lambda_binds_expr(iterable, symbol_names, out);
+                collect_cpp_lambda_binds_block(body, symbol_names, out);
+            }
+            Stmt::For { init, cond, update, body, .. } => {
+                collect_cpp_lambda_binds_block(init, symbol_names, out);
+                if let Some(cond) = cond { collect_cpp_lambda_binds_expr(cond, symbol_names, out); }
+                collect_cpp_lambda_binds_block(update, symbol_names, out);
+                collect_cpp_lambda_binds_block(body, symbol_names, out);
+            }
+            Stmt::Return { value, .. } | Stmt::Throw { value, .. } => {
+                if let Some(expr) = value {
+                    collect_cpp_lambda_binds_expr(expr, symbol_names, out);
+                }
+            }
+            Stmt::Try {
+                try_block,
+                catches,
+                finally_block,
+                ..
+            } => {
+                collect_cpp_lambda_binds_block(try_block, symbol_names, out);
+                for catch in catches {
+                    collect_cpp_lambda_binds_block(&catch.body, symbol_names, out);
+                }
+                if let Some(block) = finally_block {
+                    collect_cpp_lambda_binds_block(block, symbol_names, out);
+                }
+            }
+            Stmt::Switch {
+                scrutinee,
+                clauses,
+                default,
+                ..
+            } => {
+                collect_cpp_lambda_binds_expr(scrutinee, symbol_names, out);
+                for clause in clauses {
+                    for value in &clause.values {
+                        collect_cpp_lambda_binds_expr(value, symbol_names, out);
+                    }
+                    collect_cpp_lambda_binds_block(&clause.body, symbol_names, out);
+                }
+                if let Some(block) = default {
+                    collect_cpp_lambda_binds_block(block, symbol_names, out);
+                }
+            }
+            Stmt::Break { .. } | Stmt::Continue { .. } => {}
+        }
+    }
+}
+
+fn collect_cpp_lambda_binds_lvalue(
+    lvalue: &LValue,
+    symbol_names: &std::collections::HashMap<uniflow_hir::SymbolId, String>,
+    out: &mut std::collections::HashMap<String, usize>,
+) {
+    match lvalue {
+        LValue::Var(_) => {}
+        LValue::Field { base, .. } => collect_cpp_lambda_binds_expr(base, symbol_names, out),
+        LValue::Index { base, index } => {
+            collect_cpp_lambda_binds_expr(base, symbol_names, out);
+            collect_cpp_lambda_binds_expr(index, symbol_names, out);
+        }
+    }
+}
+
+fn collect_cpp_lambda_binds_expr(
+    expr: &Expr,
+    symbol_names: &std::collections::HashMap<uniflow_hir::SymbolId, String>,
+    out: &mut std::collections::HashMap<String, usize>,
+) {
+    match expr {
+        Expr::Call(call) => {
+            if matches!(&call.target, CallTarget::Named(name) if name == "__uniflow_cpp_lambda_bind")
+            {
+                if let Some(Expr::VarRef { symbol, .. }) = call.args.first() {
+                    if let Some(name) = symbol_names.get(symbol) {
+                        out.insert(name.clone(), call.args.len().saturating_sub(1));
+                    }
+                }
+            }
+            if let CallTarget::Dynamic(callee) = &call.target {
+                collect_cpp_lambda_binds_expr(callee, symbol_names, out);
+            }
+            if let Some(receiver) = &call.receiver {
+                collect_cpp_lambda_binds_expr(receiver, symbol_names, out);
+            }
+            for arg in &call.args {
+                collect_cpp_lambda_binds_expr(arg, symbol_names, out);
+            }
+        }
+        Expr::Unary { expr, .. } | Expr::Cast { expr, .. } => {
+            collect_cpp_lambda_binds_expr(expr, symbol_names, out)
+        }
+        Expr::Binary { lhs, rhs, .. } => {
+            collect_cpp_lambda_binds_expr(lhs, symbol_names, out);
+            collect_cpp_lambda_binds_expr(rhs, symbol_names, out);
+        }
+        Expr::FieldRead { base, .. } => collect_cpp_lambda_binds_expr(base, symbol_names, out),
+        Expr::IndexRead { base, index, .. } => {
+            collect_cpp_lambda_binds_expr(base, symbol_names, out);
+            collect_cpp_lambda_binds_expr(index, symbol_names, out);
+        }
+        Expr::Lambda { body, .. } => collect_cpp_lambda_binds_block(body, symbol_names, out),
+        Expr::New { args, .. } => {
+            for arg in args {
+                collect_cpp_lambda_binds_expr(arg, symbol_names, out);
+            }
+        }
+        Expr::Conditional {
+            cond,
+            then_expr,
+            else_expr,
+            ..
+        } => {
+            collect_cpp_lambda_binds_expr(cond, symbol_names, out);
+            collect_cpp_lambda_binds_expr(then_expr, symbol_names, out);
+            collect_cpp_lambda_binds_expr(else_expr, symbol_names, out);
+        }
+        Expr::Assign { lhs, rhs, .. } => {
+            collect_cpp_lambda_binds_lvalue(lhs, symbol_names, out);
+            collect_cpp_lambda_binds_expr(rhs, symbol_names, out);
+        }
+        Expr::Interp { parts, .. }
+        | Expr::Collection {
+            elements: parts, ..
+        } => {
+            for part in parts {
+                collect_cpp_lambda_binds_expr(part, symbol_names, out);
+            }
+        }
+        Expr::Range { low, high, .. } => {
+            collect_cpp_lambda_binds_expr(low, symbol_names, out);
+            collect_cpp_lambda_binds_expr(high, symbol_names, out);
+        }
+        Expr::VarRef { .. } | Expr::Literal { .. } | Expr::Opaque { .. } | Expr::Unknown { .. } => {
+        }
     }
 }
 
@@ -168,8 +394,8 @@ fn restore_cpp_class_semantics(
     metadata: &std::collections::HashMap<String, CppClassMetadata>,
 ) {
     use uniflow_hir::{
-        CppOwnershipKind, CppReferenceKind, CppValueSemantics, Param, ParamKind, Symbol,
-        SymbolId, SymbolKind, Type, TypeId, TypeKind,
+        CppOwnershipKind, CppReferenceKind, CppValueSemantics, Param, ParamKind, Symbol, SymbolId,
+        SymbolKind, Type, TypeId, TypeKind,
     };
 
     let class_names = program
@@ -181,8 +407,18 @@ fn restore_cpp_class_semantics(
             _ => None,
         })
         .collect::<std::collections::HashSet<_>>();
-    let mut next_symbol = program.symbols.iter().map(|symbol| symbol.id.0).max().map_or(0, |id| id + 1);
-    let mut next_type = program.types.iter().map(|ty| ty.id.0).max().map_or(0, |id| id + 1);
+    let mut next_symbol = program
+        .symbols
+        .iter()
+        .map(|symbol| symbol.id.0)
+        .max()
+        .map_or(0, |id| id + 1);
+    let mut next_type = program
+        .types
+        .iter()
+        .map(|ty| ty.id.0)
+        .max()
+        .map_or(0, |id| id + 1);
     let mut class_types = program
         .types
         .iter()
@@ -261,7 +497,11 @@ fn restore_cpp_class_semantics(
             }
             if let Some(discovered) = methods.remove(&class.name) {
                 for method in discovered {
-                    if let Some(existing) = class.methods.iter_mut().find(|existing| existing.name == method.name) {
+                    if let Some(existing) = class
+                        .methods
+                        .iter_mut()
+                        .find(|existing| existing.name == method.name)
+                    {
                         *existing = method;
                     } else {
                         class.methods.push(method);
@@ -278,16 +518,13 @@ fn restore_cpp_class_semantics(
 }
 
 fn attach_cpp_semantics(program: &mut uniflow_hir::Program, index: &semantics::SemanticIndex) {
+    use std::collections::HashMap;
     use uniflow_hir::{
         Block, CppMethodSemantics, CppSymbolSemantics, CppValueSemantics, Stmt, SymbolId,
         SymbolKind,
     };
-    use std::collections::HashMap;
 
-    fn method_for_name(
-        index: &semantics::SemanticIndex,
-        name: &str,
-    ) -> Option<CppMethodSemantics> {
+    fn method_for_name(index: &semantics::SemanticIndex, name: &str) -> Option<CppMethodSemantics> {
         let normalized = name.replace('.', "::");
         index.methods.get(&normalized).cloned().or_else(|| {
             let mut matches = index
@@ -309,9 +546,13 @@ fn attach_cpp_semantics(program: &mut uniflow_hir::Program, index: &semantics::S
         let normalized = function_name.replace('.', "::");
         let simple = normalized.rsplit("::").next().unwrap_or(&normalized);
         let qualified = owner.map(|owner| format!("{owner}::{simple}"));
-        for key in [Some(normalized.as_str()), qualified.as_deref(), Some(simple)]
-            .into_iter()
-            .flatten()
+        for key in [
+            Some(normalized.as_str()),
+            qualified.as_deref(),
+            Some(simple),
+        ]
+        .into_iter()
+        .flatten()
         {
             if let Some(values) = index.scoped_values.get(&(key.to_string(), arity)) {
                 return Some(values);
@@ -334,6 +575,11 @@ fn attach_cpp_semantics(program: &mut uniflow_hir::Program, index: &semantics::S
     fn collect_block_symbols(block: &Block, out: &mut Vec<SymbolId>) {
         for stmt in &block.stmts {
             match stmt {
+                Stmt::For { init, update, body, .. } => {
+                    collect_block_symbols(init, out);
+                    collect_block_symbols(update, out);
+                    collect_block_symbols(body, out);
+                }
                 Stmt::Let { symbol, .. } => out.push(*symbol),
                 Stmt::If {
                     then_block,
@@ -345,11 +591,23 @@ fn attach_cpp_semantics(program: &mut uniflow_hir::Program, index: &semantics::S
                         collect_block_symbols(block, out);
                     }
                 }
-                Stmt::While { body, .. } | Stmt::ForEach { body, .. } => {
+                Stmt::While { body, .. }
+                | Stmt::ForEach { body, .. }
+                | Stmt::DoWhile { body, .. } => {
                     if let Stmt::ForEach { item_symbol, .. } = stmt {
                         out.push(*item_symbol);
                     }
                     collect_block_symbols(body, out);
+                }
+                Stmt::Switch {
+                    clauses, default, ..
+                } => {
+                    for clause in clauses {
+                        collect_block_symbols(&clause.body, out);
+                    }
+                    if let Some(block) = default {
+                        collect_block_symbols(block, out);
+                    }
                 }
                 Stmt::Try {
                     try_block,
@@ -371,7 +629,9 @@ fn attach_cpp_semantics(program: &mut uniflow_hir::Program, index: &semantics::S
                 Stmt::Assign { .. }
                 | Stmt::Expr { .. }
                 | Stmt::Return { .. }
-                | Stmt::Throw { .. } => {}
+                | Stmt::Throw { .. }
+                | Stmt::Break { .. }
+                | Stmt::Continue { .. } => {}
             }
         }
     }
@@ -383,7 +643,8 @@ fn attach_cpp_semantics(program: &mut uniflow_hir::Program, index: &semantics::S
         symbol_names: &HashMap<SymbolId, String>,
         out: &mut HashMap<SymbolId, CppValueSemantics>,
     ) {
-        let Some(scoped) = scoped_values_for_function(index, &function.name, owner, function.params.len())
+        let Some(scoped) =
+            scoped_values_for_function(index, &function.name, owner, function.params.len())
         else {
             return;
         };
@@ -398,26 +659,26 @@ fn attach_cpp_semantics(program: &mut uniflow_hir::Program, index: &semantics::S
         }
         collect_block_symbols(&function.body, &mut symbols);
         for symbol in symbols {
-            let Some(name) = symbol_names.get(&symbol) else { continue };
+            let Some(name) = symbol_names.get(&symbol) else {
+                continue;
+            };
             if let Some(value) = scoped.get(name) {
                 out.insert(symbol, value.clone());
             }
         }
     }
 
-    fn write_legacy_attributes(
-        symbol: &mut uniflow_hir::Symbol,
-        typed: &CppSymbolSemantics,
-    ) {
+    fn write_legacy_attributes(symbol: &mut uniflow_hir::Symbol, typed: &CppSymbolSemantics) {
         if let Some(meta) = &typed.method {
-            symbol.attributes.insert("cpp.owner".into(), meta.owner.clone());
+            symbol
+                .attributes
+                .insert("cpp.owner".into(), meta.owner.clone());
             symbol
                 .attributes
                 .insert("cpp.virtual".into(), meta.is_virtual.to_string());
-            symbol.attributes.insert(
-                "cpp.pure_virtual".into(),
-                meta.is_pure_virtual.to_string(),
-            );
+            symbol
+                .attributes
+                .insert("cpp.pure_virtual".into(), meta.is_pure_virtual.to_string());
             symbol
                 .attributes
                 .insert("cpp.override".into(), meta.is_override.to_string());
@@ -584,6 +845,7 @@ fn inject_cpp_raii_cleanup(
         match expr {
             Expr::VarRef { id, .. }
             | Expr::Literal { id, .. }
+            | Expr::Opaque { id, .. }
             | Expr::Unknown { id, .. } => *max_expr = (*max_expr).max(id.0),
             Expr::Unary { id, expr, .. } | Expr::Cast { id, expr, .. } => {
                 *max_expr = (*max_expr).max(id.0);
@@ -594,11 +856,55 @@ fn inject_cpp_raii_cleanup(
                 collect_expr_ids(lhs, max_expr, max_stmt);
                 collect_expr_ids(rhs, max_expr, max_stmt);
             }
+            Expr::Conditional {
+                id,
+                cond,
+                then_expr,
+                else_expr,
+                ..
+            } => {
+                *max_expr = (*max_expr).max(id.0);
+                collect_expr_ids(cond, max_expr, max_stmt);
+                collect_expr_ids(then_expr, max_expr, max_stmt);
+                collect_expr_ids(else_expr, max_expr, max_stmt);
+            }
+            Expr::Assign { id, lhs, rhs, .. } => {
+                *max_expr = (*max_expr).max(id.0);
+                match lhs {
+                    uniflow_hir::LValue::Var(_) => {}
+                    uniflow_hir::LValue::Field { base, .. } => {
+                        collect_expr_ids(base, max_expr, max_stmt);
+                    }
+                    uniflow_hir::LValue::Index { base, index } => {
+                        collect_expr_ids(base, max_expr, max_stmt);
+                        collect_expr_ids(index, max_expr, max_stmt);
+                    }
+                }
+                collect_expr_ids(rhs, max_expr, max_stmt);
+            }
+            Expr::Interp { id, parts, .. }
+            | Expr::Collection {
+                id,
+                elements: parts,
+                ..
+            } => {
+                *max_expr = (*max_expr).max(id.0);
+                for part in parts {
+                    collect_expr_ids(part, max_expr, max_stmt);
+                }
+            }
+            Expr::Range { id, low, high, .. } => {
+                *max_expr = (*max_expr).max(id.0);
+                collect_expr_ids(low, max_expr, max_stmt);
+                collect_expr_ids(high, max_expr, max_stmt);
+            }
             Expr::FieldRead { id, base, .. } => {
                 *max_expr = (*max_expr).max(id.0);
                 collect_expr_ids(base, max_expr, max_stmt);
             }
-            Expr::IndexRead { id, base, index, .. } => {
+            Expr::IndexRead {
+                id, base, index, ..
+            } => {
                 *max_expr = (*max_expr).max(id.0);
                 collect_expr_ids(base, max_expr, max_stmt);
                 collect_expr_ids(index, max_expr, max_stmt);
@@ -630,13 +936,17 @@ fn inject_cpp_raii_cleanup(
             match stmt {
                 Stmt::Let { id, init, .. } => {
                     *max_stmt = (*max_stmt).max(id.0);
-                    if let Some(expr) = init { collect_expr_ids(expr, max_expr, max_stmt); }
+                    if let Some(expr) = init {
+                        collect_expr_ids(expr, max_expr, max_stmt);
+                    }
                 }
                 Stmt::Assign { id, lhs, rhs, .. } => {
                     *max_stmt = (*max_stmt).max(id.0);
                     match lhs {
                         uniflow_hir::LValue::Var(_) => {}
-                        uniflow_hir::LValue::Field { base, .. } => collect_expr_ids(base, max_expr, max_stmt),
+                        uniflow_hir::LValue::Field { base, .. } => {
+                            collect_expr_ids(base, max_expr, max_stmt)
+                        }
                         uniflow_hir::LValue::Index { base, index } => {
                             collect_expr_ids(base, max_expr, max_stmt);
                             collect_expr_ids(index, max_expr, max_stmt);
@@ -648,31 +958,87 @@ fn inject_cpp_raii_cleanup(
                     *max_stmt = (*max_stmt).max(id.0);
                     collect_expr_ids(expr, max_expr, max_stmt);
                 }
-                Stmt::If { id, cond, then_block, else_block, .. } => {
+                Stmt::If {
+                    id,
+                    cond,
+                    then_block,
+                    else_block,
+                    ..
+                } => {
                     *max_stmt = (*max_stmt).max(id.0);
                     collect_expr_ids(cond, max_expr, max_stmt);
                     collect_block_ids(then_block, max_expr, max_stmt);
-                    if let Some(block) = else_block { collect_block_ids(block, max_expr, max_stmt); }
+                    if let Some(block) = else_block {
+                        collect_block_ids(block, max_expr, max_stmt);
+                    }
                 }
                 Stmt::While { id, cond, body, .. } => {
                     *max_stmt = (*max_stmt).max(id.0);
                     collect_expr_ids(cond, max_expr, max_stmt);
                     collect_block_ids(body, max_expr, max_stmt);
                 }
-                Stmt::ForEach { id, iterable, body, .. } => {
+                Stmt::For { id, init, cond, update, body, .. } => {
+                    *max_stmt = (*max_stmt).max(id.0);
+                    collect_block_ids(init, max_expr, max_stmt);
+                    if let Some(cond) = cond { collect_expr_ids(cond, max_expr, max_stmt); }
+                    collect_block_ids(update, max_expr, max_stmt);
+                    collect_block_ids(body, max_expr, max_stmt);
+                }
+                Stmt::ForEach {
+                    id, iterable, body, ..
+                } => {
                     *max_stmt = (*max_stmt).max(id.0);
                     collect_expr_ids(iterable, max_expr, max_stmt);
                     collect_block_ids(body, max_expr, max_stmt);
                 }
                 Stmt::Return { id, value, .. } | Stmt::Throw { id, value, .. } => {
                     *max_stmt = (*max_stmt).max(id.0);
-                    if let Some(expr) = value { collect_expr_ids(expr, max_expr, max_stmt); }
+                    if let Some(expr) = value {
+                        collect_expr_ids(expr, max_expr, max_stmt);
+                    }
                 }
-                Stmt::Try { id, try_block, catches, finally_block, .. } => {
+                Stmt::Try {
+                    id,
+                    try_block,
+                    catches,
+                    finally_block,
+                    ..
+                } => {
                     *max_stmt = (*max_stmt).max(id.0);
                     collect_block_ids(try_block, max_expr, max_stmt);
-                    for catch in catches { collect_block_ids(&catch.body, max_expr, max_stmt); }
-                    if let Some(block) = finally_block { collect_block_ids(block, max_expr, max_stmt); }
+                    for catch in catches {
+                        collect_block_ids(&catch.body, max_expr, max_stmt);
+                    }
+                    if let Some(block) = finally_block {
+                        collect_block_ids(block, max_expr, max_stmt);
+                    }
+                }
+                Stmt::Break { id, .. } | Stmt::Continue { id, .. } => {
+                    *max_stmt = (*max_stmt).max(id.0);
+                }
+                Stmt::DoWhile { id, body, cond, .. } => {
+                    *max_stmt = (*max_stmt).max(id.0);
+                    collect_expr_ids(cond, max_expr, max_stmt);
+                    collect_block_ids(body, max_expr, max_stmt);
+                }
+                Stmt::Switch {
+                    id,
+                    scrutinee,
+                    clauses,
+                    default,
+                    ..
+                } => {
+                    *max_stmt = (*max_stmt).max(id.0);
+                    collect_expr_ids(scrutinee, max_expr, max_stmt);
+                    for clause in clauses {
+                        for value in &clause.values {
+                            collect_expr_ids(value, max_expr, max_stmt);
+                        }
+                        collect_block_ids(&clause.body, max_expr, max_stmt);
+                    }
+                    if let Some(block) = default {
+                        collect_block_ids(block, max_expr, max_stmt);
+                    }
                 }
             }
         }
@@ -681,9 +1047,7 @@ fn inject_cpp_raii_cleanup(
     fn returned_symbol(expr: Option<&Expr>) -> Option<SymbolId> {
         match expr? {
             Expr::VarRef { symbol, .. } => Some(*symbol),
-            Expr::Call(call)
-                if matches!(&call.target, CallTarget::Named(name) if name == "__uniflow_cpp_move" || name == "__uniflow_cpp_forward") =>
-            {
+            Expr::Call(call) if matches!(&call.target, CallTarget::Named(name) if name == "__uniflow_cpp_move" || name == "__uniflow_cpp_forward") => {
                 call.args.first().and_then(|arg| match arg {
                     Expr::VarRef { symbol, .. } => Some(*symbol),
                     _ => None,
@@ -711,7 +1075,12 @@ fn inject_cpp_raii_cleanup(
                 id: call_id,
                 target: CallTarget::Named("__uniflow_cpp_destroy".to_string()),
                 receiver: None,
-                args: vec![Expr::VarRef { id: arg_id, symbol, span }],
+                qualifier_is_explicit: false,
+                args: vec![Expr::VarRef {
+                    id: arg_id,
+                    symbol,
+                    span,
+                }],
                 arg_names: vec![None],
                 span,
             }),
@@ -749,7 +1118,11 @@ fn inject_cpp_raii_cleanup(
         let mut local_owners = Vec::<SymbolId>::new();
         for mut stmt in original {
             match &mut stmt {
-                Stmt::If { then_block, else_block, .. } => {
+                Stmt::If {
+                    then_block,
+                    else_block,
+                    ..
+                } => {
                     let mut active = inherited.to_vec();
                     active.extend(local_owners.iter().copied());
                     transform_block(
@@ -783,7 +1156,12 @@ fn inject_cpp_raii_cleanup(
                         next_stmt,
                     );
                 }
-                Stmt::Try { try_block, catches, finally_block, .. } => {
+                Stmt::Try {
+                    try_block,
+                    catches,
+                    finally_block,
+                    ..
+                } => {
                     let mut active = inherited.to_vec();
                     active.extend(local_owners.iter().copied());
                     // A throw from the try body transfers to this statement's handlers and
@@ -869,14 +1247,18 @@ fn inject_cpp_raii_cleanup(
     for module in &program.modules {
         for item in &module.items {
             match item {
-                Item::Function(function) => collect_block_ids(&function.body, &mut max_expr, &mut max_stmt),
+                Item::Function(function) => {
+                    collect_block_ids(&function.body, &mut max_expr, &mut max_stmt)
+                }
                 Item::Class(class) => {
                     for method in &class.methods {
                         collect_block_ids(&method.body, &mut max_expr, &mut max_stmt);
                     }
                 }
                 Item::GlobalVar(global) => {
-                    if let Some(expr) = &global.init { collect_expr_ids(expr, &mut max_expr, &mut max_stmt); }
+                    if let Some(expr) = &global.init {
+                        collect_expr_ids(expr, &mut max_expr, &mut max_stmt);
+                    }
                 }
             }
         }
@@ -912,7 +1294,6 @@ fn inject_cpp_raii_cleanup(
     }
 }
 
-
 fn lower_constructor_initializer_lists(source: &str) -> String {
     // Constructor initializers are collected into typed HIR metadata and lowered explicitly.
     // The fallback C grammar only needs the initializer list removed from the surface syntax.
@@ -937,7 +1318,11 @@ fn lower_cpp_lambdas(source: &str) -> String {
     }
 
     fn skip_space(source: &str, mut index: usize) -> usize {
-        while source.as_bytes().get(index).is_some_and(|byte| byte.is_ascii_whitespace()) {
+        while source
+            .as_bytes()
+            .get(index)
+            .is_some_and(|byte| byte.is_ascii_whitespace())
+        {
             index += 1;
         }
         index
@@ -974,7 +1359,9 @@ fn lower_cpp_lambdas(source: &str) -> String {
         while index < bytes.len() {
             let byte = bytes[index];
             if line_comment {
-                if byte == b'\n' { line_comment = false; }
+                if byte == b'\n' {
+                    line_comment = false;
+                }
                 index += 1;
                 continue;
             }
@@ -1067,7 +1454,11 @@ fn lower_cpp_lambdas(source: &str) -> String {
         if source[index..].starts_with("->") {
             index = skip_space(source, index + 2);
             let type_start = index;
-            while source.as_bytes().get(index).is_some_and(|byte| *byte != b'{') {
+            while source
+                .as_bytes()
+                .get(index)
+                .is_some_and(|byte| *byte != b'{')
+            {
                 index += 1;
             }
             return_type = source[type_start..index].trim().to_string();
@@ -1100,15 +1491,21 @@ fn lower_cpp_lambdas(source: &str) -> String {
         split_cpp_list(params)
             .into_iter()
             .filter_map(|param| param.split_whitespace().last())
-            .map(|name| name.trim_matches(|ch: char| ch == '*' || ch == '&').to_string())
+            .map(|name| {
+                name.trim_matches(|ch: char| ch == '*' || ch == '&')
+                    .to_string()
+            })
             .collect()
     }
 
-    fn referenced_identifiers(body: &str, excluded: &std::collections::HashSet<String>) -> Vec<String> {
+    fn referenced_identifiers(
+        body: &str,
+        excluded: &std::collections::HashSet<String>,
+    ) -> Vec<String> {
         let re = Regex::new(r"\b[A-Za-z_][A-Za-z0-9_]*\b").expect("valid identifier regex");
         let keywords = [
-            "if", "else", "for", "while", "return", "new", "delete", "true", "false",
-            "nullptr", "this", "auto", "const", "static", "sizeof", "throw", "try", "catch",
+            "if", "else", "for", "while", "return", "new", "delete", "true", "false", "nullptr",
+            "this", "auto", "const", "static", "sizeof", "throw", "try", "catch",
         ]
         .into_iter()
         .collect::<std::collections::HashSet<_>>();
@@ -1149,9 +1546,17 @@ fn lower_cpp_lambdas(source: &str) -> String {
         let mut default = None;
         for capture in split_cpp_list(&lambda.captures) {
             let capture = capture.trim();
-            if capture.is_empty() { continue; }
-            if capture == "=" { default = Some(false); continue; }
-            if capture == "&" { default = Some(true); continue; }
+            if capture.is_empty() {
+                continue;
+            }
+            if capture == "=" {
+                default = Some(false);
+                continue;
+            }
+            if capture == "&" {
+                default = Some(true);
+                continue;
+            }
             if capture == "this" || capture == "*this" {
                 out.push(("this".to_string(), capture == "this", "this".to_string()));
                 continue;
@@ -1245,7 +1650,8 @@ fn lower_observed_template_calls(source: &str) -> String {
     // the normal unknown-effect summary.
     let concrete_call = Regex::new(
         r"\b([A-Za-z_][A-Za-z0-9_:]*)\s*<\s*([A-Za-z_][A-Za-z0-9_:<>, *&0-9]*)\s*>\s*\(",
-    ).expect("valid concrete template call regex");
+    )
+    .expect("valid concrete template call regex");
     concrete_call
         .replace_all(source, |caps: &regex::Captures<'_>| {
             let name = caps.get(1).map_or("template_call", |m| m.as_str());
@@ -1256,7 +1662,14 @@ fn lower_observed_template_calls(source: &str) -> String {
                 .collect::<String>()
                 .trim_matches('_')
                 .to_string();
-            format!("{name}__uniflow_tpl_{}(", if identity.is_empty() { "unknown" } else { &identity })
+            format!(
+                "{name}__uniflow_tpl_{}(",
+                if identity.is_empty() {
+                    "unknown"
+                } else {
+                    &identity
+                }
+            )
         })
         .into_owned()
 }
@@ -1402,10 +1815,9 @@ fn lower_inline_cpp_methods(source: &str) -> String {
         Some(method)
     }
 
-    let class_re = Regex::new(
-        r"\b(?:class|struct)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*[^\{]+)?\s*\{",
-    )
-    .expect("valid class regex");
+    let class_re =
+        Regex::new(r"\b(?:class|struct)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*[^\{]+)?\s*\{")
+            .expect("valid class regex");
     let mut replacements = Vec::<(usize, usize, String)>::new();
     let mut definitions = Vec::<String>::new();
     let mut search = 0usize;
@@ -1470,7 +1882,8 @@ fn lower_inline_cpp_methods(source: &str) -> String {
                             "\n".repeat(trailing_newlines)
                         );
                         if let Some(external) = external_method_header(owner, header) {
-                            definitions.push(format!("\n{external} {}\n", &source[cursor..=body_end]));
+                            definitions
+                                .push(format!("\n{external} {}\n", &source[cursor..=body_end]));
                         }
                         replacements.push((declaration_start, body_end + 1, declaration));
                     }
@@ -1589,7 +2002,9 @@ pub fn normalize_cpp_for_hir(source: &str) -> String {
     // Deallocation is represented as an ordinary call so baseline/value-flow rules can attach
     // ownership models without requiring a C++-specific HIR statement.
     let delete_re = Regex::new(r"\bdelete(?:\s*\[\s*\])?\s+([^;]+);").expect("valid regex");
-    out = delete_re.replace_all(&out, "__uniflow_cpp_destroy($1);").into_owned();
+    out = delete_re
+        .replace_all(&out, "__uniflow_cpp_destroy($1);")
+        .into_owned();
 
     let rref_re = Regex::new(r"&&").expect("valid regex");
     out = rref_re.replace_all(&out, "*").into_owned();
@@ -1599,16 +2014,22 @@ pub fn normalize_cpp_for_hir(source: &str) -> String {
     out = lref_re.replace_all(&out, "$ty *$name").into_owned();
 
     let move_re = Regex::new(r"(?:std::)?move\s*\(([^()]*)\)").expect("valid regex");
-    out = move_re.replace_all(&out, "__uniflow_cpp_move($1)").into_owned();
-    let forward_re = Regex::new(r"(?:std::)?forward\s*(?:<[^>]+>)?\s*\(([^()]*)\)").expect("valid regex");
-    out = forward_re.replace_all(&out, "__uniflow_cpp_forward($1)").into_owned();
+    out = move_re
+        .replace_all(&out, "__uniflow_cpp_move($1)")
+        .into_owned();
+    let forward_re =
+        Regex::new(r"(?:std::)?forward\s*(?:<[^>]+>)?\s*\(([^()]*)\)").expect("valid regex");
+    out = forward_re
+        .replace_all(&out, "__uniflow_cpp_forward($1)")
+        .into_owned();
     for (kind, marker) in [
         ("static_cast", "__uniflow_cpp_cast_static"),
         ("dynamic_cast", "__uniflow_cpp_cast_dynamic"),
         ("reinterpret_cast", "__uniflow_cpp_cast_reinterpret"),
         ("const_cast", "__uniflow_cpp_cast_const"),
     ] {
-        let cast_re = Regex::new(&format!(r#"{kind}\s*<\s*([^>]+?)\s*>\s*\(([^()]*)\)"#)).expect("valid regex");
+        let cast_re = Regex::new(&format!(r#"{kind}\s*<\s*([^>]+?)\s*>\s*\(([^()]*)\)"#))
+            .expect("valid regex");
         out = cast_re
             .replace_all(&out, format!(r#"{marker}("$1", $2)"#))
             .into_owned();
@@ -1654,8 +2075,14 @@ void Widget::run() {
                 _ => None,
             })
             .expect("Widget class");
-        assert!(widget.methods.iter().any(|method| method.name == "Widget::Widget"));
-        assert!(widget.methods.iter().any(|method| method.name == "Widget::run"));
+        assert!(widget
+            .methods
+            .iter()
+            .any(|method| method.name == "Widget::Widget"));
+        assert!(widget
+            .methods
+            .iter()
+            .any(|method| method.name == "Widget::run"));
     }
 
     #[test]
@@ -1805,6 +2232,33 @@ void run() {
     }
 
     #[test]
+    fn restores_capturing_lambda_formals_from_bind_intrinsic() {
+        let source = r#"
+void run(char *prefix) {
+    auto callback = [prefix](char *suffix) { return prefix; };
+    callback(suffix());
+}
+"#;
+        let program = CppParser
+            .parse_file("capture.cpp", source)
+            .expect("parse capturing C++ lambda");
+        let lambda = program.modules[0]
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Function(function) if function.name == "__uniflow_lambda_callback" => {
+                    Some(function)
+                }
+                _ => None,
+            })
+            .expect("synthetic lambda function");
+        assert_eq!(lambda.params.len(), 1);
+        assert_eq!(lambda.params[0].name, "suffix");
+        assert_eq!(lambda.captures.len(), 1);
+        assert_eq!(lambda.captures[0].name, "prefix");
+    }
+
+    #[test]
     fn records_cpp_virtual_and_ownership_semantics_on_symbols() {
         let source = r#"
 class Base { public: virtual void run() = 0; };
@@ -1813,17 +2267,26 @@ void Child::run() noexcept { }
 std::unique_ptr<Child> child;
 "#;
         let program = CppParser.parse_file("sample.cpp", source).expect("parse");
-        assert!(program.symbols.iter().any(|symbol|
-            symbol.attributes.get("cpp.override").map(String::as_str) == Some("true")
-                || symbol.attributes.get("cpp.noexcept").map(String::as_str) == Some("true")
-        ));
-        assert!(program.symbols.iter().any(|symbol|
-            symbol.attributes.get("cpp.ownership").map(String::as_str) == Some("unique")
-        ));
-        assert!(program.symbols.iter().any(|symbol| symbol.cpp_method_semantics().is_some()));
-        assert!(program.symbols.iter().any(|symbol| symbol.cpp_ownership() == Some(uniflow_hir::CppOwnershipKind::Unique)));
+        assert!(program.symbols.iter().any(|symbol| symbol
+            .attributes
+            .get("cpp.override")
+            .map(String::as_str)
+            == Some("true")
+            || symbol.attributes.get("cpp.noexcept").map(String::as_str) == Some("true")));
+        assert!(program.symbols.iter().any(|symbol| symbol
+            .attributes
+            .get("cpp.ownership")
+            .map(String::as_str)
+            == Some("unique")));
+        assert!(program
+            .symbols
+            .iter()
+            .any(|symbol| symbol.cpp_method_semantics().is_some()));
+        assert!(program
+            .symbols
+            .iter()
+            .any(|symbol| symbol.cpp_ownership() == Some(uniflow_hir::CppOwnershipKind::Unique)));
     }
-
 
     #[test]
     fn parses_cpp_if_and_while_as_structured_hir() {
@@ -1834,16 +2297,29 @@ void run(int condition, int *value) {
     consume(value);
 }
 "#;
-        let program = CppParser.parse_file("control.cpp", source).expect("parse C++ control flow");
-        let function = program.modules[0].items.iter().find_map(|item| match item {
-            Item::Function(function) if function.name == "run" => Some(function),
-            _ => None,
-        }).expect("run");
-        assert!(function.body.stmts.iter().any(|stmt| matches!(stmt, uniflow_hir::Stmt::If { .. })));
-        assert!(function.body.stmts.iter().any(|stmt| matches!(stmt, uniflow_hir::Stmt::While { .. })));
+        let program = CppParser
+            .parse_file("control.cpp", source)
+            .expect("parse C++ control flow");
+        let function = program.modules[0]
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Function(function) if function.name == "run" => Some(function),
+                _ => None,
+            })
+            .expect("run");
+        assert!(function
+            .body
+            .stmts
+            .iter()
+            .any(|stmt| matches!(stmt, uniflow_hir::Stmt::If { .. })));
+        assert!(function
+            .body
+            .stmts
+            .iter()
+            .any(|stmt| matches!(stmt, uniflow_hir::Stmt::While { .. })));
         assert!(function.body.stmts.len() >= 3);
     }
-
 
     #[test]
     fn inline_methods_are_qualified_and_keep_virtual_contracts() {
@@ -1859,7 +2335,9 @@ public:
 "#;
         let normalized = normalize_cpp_for_hir(source);
         assert!(normalized.contains("Child::run"));
-        let program = CppParser.parse_file("inline.cpp", source).expect("parse inline methods");
+        let program = CppParser
+            .parse_file("inline.cpp", source)
+            .expect("parse inline methods");
         let child = program.modules[0]
             .items
             .iter()
@@ -1895,7 +2373,9 @@ void borrowed() {
     consume(value);
 }
 "#;
-        let program = CppParser.parse_file("scoped.cpp", source).expect("parse scoped ownership");
+        let program = CppParser
+            .parse_file("scoped.cpp", source)
+            .expect("parse scoped ownership");
         let ownership = program
             .symbols
             .iter()
@@ -1915,7 +2395,9 @@ void run() {
     consume(owner);
 }
 "#;
-        let program = CppParser.parse_file("raii.cpp", source).expect("parse RAII");
+        let program = CppParser
+            .parse_file("raii.cpp", source)
+            .expect("parse RAII");
         let run = program.modules[0]
             .items
             .iter()
@@ -1942,7 +2424,9 @@ void run() {
     return;
 }
 "#;
-        let program = CppParser.parse_file("raii_return.cpp", source).expect("parse RAII return");
+        let program = CppParser
+            .parse_file("raii_return.cpp", source)
+            .expect("parse RAII return");
         let run = program.modules[0]
             .items
             .iter()
@@ -1967,10 +2451,15 @@ void run() {
                 _ => false,
             })
             .count();
-        assert_eq!(destroy_count, 1, "return cleanup must be emitted exactly once");
-        assert!(matches!(run.body.stmts.last(), Some(uniflow_hir::Stmt::Return { .. })));
+        assert_eq!(
+            destroy_count, 1,
+            "return cleanup must be emitted exactly once"
+        );
+        assert!(matches!(
+            run.body.stmts.last(),
+            Some(uniflow_hir::Stmt::Return { .. })
+        ));
     }
-
 
     #[test]
     fn caught_throw_cleans_only_try_local_owners() {
@@ -2022,7 +2511,10 @@ void run() {
                     &call.target,
                     uniflow_hir::CallTarget::Named(name)
                         if name == "__uniflow_cpp_destroy"
-                ) => call.args.first(),
+                ) =>
+                {
+                    call.args.first()
+                }
                 _ => None,
             })
             .filter_map(|expr| match expr {
@@ -2044,7 +2536,9 @@ void run(int fail) {
     }
 }
 "#;
-        let program = CppParser.parse_file("exceptions.cpp", source).expect("parse try/catch");
+        let program = CppParser
+            .parse_file("exceptions.cpp", source)
+            .expect("parse try/catch");
         let run = program.modules[0]
             .items
             .iter()
@@ -2058,5 +2552,4 @@ void run(int fail) {
             _ => false,
         }));
     }
-
 }

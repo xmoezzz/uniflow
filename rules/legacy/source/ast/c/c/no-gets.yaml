@@ -1,0 +1,5 @@
+id: no-gets
+message: '0701000010130054'
+language: C
+rule:
+  pattern: 'gets($$$);'

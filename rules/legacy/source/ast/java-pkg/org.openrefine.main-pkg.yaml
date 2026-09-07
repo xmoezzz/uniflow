@@ -1,0 +1,10 @@
+id: org.openrefine.main
+language: Java
+message: pkg:maven/org.openrefine/main
+metadata:
+  purl: pkg:maven/org.openrefine/main
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.google\.refine\.clustering\.knn|com\.google\.refine\.operations\.row|com\.google\.refine\.commands\.lang|com\.google\.refine\.importers|com\.google\.refine\.templating|com\.google\.refine\.util|com\.google\.refine\.commands|com\.google\.refine\.commands\.column|com\.google\.refine\.messages|com\.google\.refine\.operations\.cell|com\.google\.refine\.commands\.browsing|com\.google\.refine\.commands\.importing|com\.google\.refine\.clustering\.binning|com\.google\.refine\.expr\.functions|com\.google\.refine\.model\.recon|com\.google\.refine\.expr|com\.google\.refine\.commands\.recon|com\.google\.refine\.operations\.recon|com\.google\.refine\.io|com\.google\.refine\.history|com\.google\.refine\.expr\.util|com\.google\.refine\.exporters\.sql|com\.google\.refine\.model|com\.google\.refine\.commands\.expr|com\.google\.refine\.exporters|com\.google\.refine\.grel|com\.google\.refine\.sorting|com\.google\.refine\.grel\.controls|com\.google\.refine\.browsing\.util|com\.google\.refine\.importers\.tree|com\.google\.refine\.expr\.functions\.strings|com\.google\.refine\.browsing\.filters|com\.google\.refine\.clustering|com\.google\.refine\.browsing|com\.google\.refine|com\.google\.refine\.commands\.project|com\.google\.refine\.model\.changes|com\.google\.refine\.expr\.functions\.date|com\.google\.refine\.expr\.functions\.html|com\.google\.refine\.expr\.functions\.math|com\.google\.refine\.expr\.functions\.booleans|com\.google\.refine\.operations\.column|com\.google\.refine\.preference|com\.google\.refine\.browsing\.facets|com\.google\.refine\.commands\.history|com\.google\.refine\.process|com\.google\.refine\.commands\.workspace|com\.google\.refine\.commands\.cell|com\.google\.refine\.commands\.row|com\.google\.refine\.expr\.functions\.xml|com\.google\.refine\.operations|com\.google\.refine\.grel\.ast|com\.google\.refine\.importing|com\.google\.refine\.expr\.functions\.arrays)\.

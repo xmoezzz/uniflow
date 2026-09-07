@@ -1,0 +1,10 @@
+id: io.ratpack.ratpack-core
+language: Java
+message: pkg:maven/io.ratpack/ratpack-core
+metadata:
+  purl: pkg:maven/io.ratpack/ratpack-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(ratpack\.core\.jackson|ratpack\.core\.health|ratpack\.core\.sse\.client|ratpack\.core\.path\.internal|ratpack\.core\.websocket\.internal|ratpack\.core\.impose|ratpack\.core\.logging|ratpack\.core\.path|ratpack\.core\.health\.internal|ratpack\.core\.sse\.client\.internal|ratpack\.core\.parse|ratpack\.core\.sse|ratpack\.core\.form\.internal|ratpack\.core\.websocket|ratpack\.core\.server\.internal|ratpack\.core\.render|ratpack\.core\.ssl\.internal|ratpack\.core\.handling\.direct|ratpack\.core\.server|ratpack\.core\.file\.checksummer\.internal|ratpack\.core\.reload\.internal|ratpack\.core\.jackson\.internal|ratpack\.core\.file\.internal|ratpack\.core\.handling\.internal|ratpack\.core\.config\.internal\.module|ratpack\.core\.sse\.internal|ratpack\.core\.error|ratpack\.core\.http|ratpack\.core\.render\.internal|ratpack\.core\.http\.internal|ratpack\.core\.http\.client\.internal|ratpack\.core\.http\.client|ratpack\.core\.service\.internal|ratpack\.core\.form|ratpack\.core\.file|ratpack\.core\.error\.internal|ratpack\.core\.handling|ratpack\.core\.service|ratpack\.core\.handling\.direct\.internal|ratpack\.core\.bytebuf)\.

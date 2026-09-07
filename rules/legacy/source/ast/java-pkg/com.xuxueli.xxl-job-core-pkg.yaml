@@ -1,0 +1,10 @@
+id: com.xuxueli.xxl-job-core
+language: Java
+message: pkg:maven/com.xuxueli/xxl-job-core
+metadata:
+  purl: pkg:maven/com.xuxueli/xxl-job-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.xxl\.job\.core\.handler|com\.xxl\.job\.core\.biz\.client|com\.xxl\.job\.core\.executor\.impl|com\.xxl\.job\.core\.handler\.annotation|com\.xxl\.job\.core\.thread|com\.xxl\.job\.core\.enums|com\.xxl\.job\.core\.biz\.impl|com\.xxl\.job\.core\.biz|com\.xxl\.job\.core\.glue|com\.xxl\.job\.core\.server|com\.xxl\.job\.core\.glue\.impl|com\.xxl\.job\.core\.context|com\.xxl\.job\.core\.util|com\.xxl\.job\.core\.executor|com\.xxl\.job\.core\.handler\.impl|com\.xxl\.job\.core\.log|com\.xxl\.job\.core\.biz\.model)\.

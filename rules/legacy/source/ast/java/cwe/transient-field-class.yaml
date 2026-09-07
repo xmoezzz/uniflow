@@ -1,0 +1,18 @@
+id: transient-field-class
+message: '0202000010150455'
+language: Java
+rule:
+  kind: field_declaration
+  all:
+  - has:
+      kind: modifiers
+      regex: transient
+  - inside:
+      stopBy:
+        kind: class_declaration
+      kind: class_declaration
+      not:
+        has:
+          any:
+          - kind: super_interfaces
+          - kind: superclass

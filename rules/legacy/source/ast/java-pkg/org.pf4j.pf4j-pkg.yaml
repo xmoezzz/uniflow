@@ -1,0 +1,10 @@
+id: org.pf4j.pf4j
+language: Java
+message: pkg:maven/org.pf4j/pf4j
+metadata:
+  purl: pkg:maven/org.pf4j/pf4j
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.pf4j\.util|org\.pf4j\.processor|META-INF\.versions\.9|org\.pf4j\.asm|org\.pf4j)\.

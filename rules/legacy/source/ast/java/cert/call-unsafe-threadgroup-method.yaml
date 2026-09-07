@@ -1,0 +1,91 @@
+id: call-unsafe-threadgroup-method
+message: '0102000010090007'
+language: Java
+utils:
+  is-threadgroup-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^(.*\.)?ThreadGroup$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?ThreadGroup$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?ThreadGroup$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?ThreadGroup$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+          
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-threadgroup-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  any:
+    - pattern: allowThreadSuspension
+    - pattern: resume
+    - pattern: stop
+    - pattern: suspend
+  inside:
+    kind: method_invocation
+    has:
+      field: object
+      pattern: $VAR
+      inside:
+        matches: recursion-find-object-decl

@@ -1,0 +1,10 @@
+id: commons-fileupload.commons-fileupload
+language: Java
+message: pkg:maven/commons-fileupload/commons-fileupload
+metadata:
+  purl: pkg:maven/commons-fileupload/commons-fileupload
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.commons\.fileupload\.disk|org\.apache\.commons\.fileupload|org\.apache\.commons\.fileupload\.util|org\.apache\.commons\.fileupload\.servlet|org\.apache\.commons\.fileupload\.portlet|org\.apache\.commons\.fileupload\.util\.mime)\.

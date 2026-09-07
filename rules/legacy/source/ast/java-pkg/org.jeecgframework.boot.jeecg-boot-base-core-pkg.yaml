@@ -1,0 +1,10 @@
+id: org.jeecgframework.boot.jeecg-boot-base-core
+language: Java
+message: pkg:maven/org.jeecgframework.boot/jeecg-boot-base-core
+metadata:
+  purl: pkg:maven/org.jeecgframework.boot/jeecg-boot-base-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jeecg\.config\.sign\.interceptor|org\.jeecg\.common\.util\.security\.entity|org\.jeecg\.common\.util\.filter|org\.jeecg\.common\.util|org\.jeecg\.common\.system\.util|org\.jeecg\.config\.shiro\.filters|org\.jeecg\.common\.aspect\.annotation|org\.jeecg\.common\.exception|org\.jeecg\.common\.system\.base\.entity|org\.jeecg\.common\.system\.base\.controller|org\.jeecg\.common\.es|org\.jeecg\.common\.aspect|org\.jeecg\.common\.handler|org\.jeecg\.common\.system\.base\.service\.impl|org\.jeecg\.common\.util\.encryption|org\.jeecg\.common\.system\.vo|org\.jeecg\.config\.thirdapp|org\.jeecg\.modules\.base\.mapper|org\.jeecg\.common\.constant|org\.jeecg\.config\.shiro|org\.jeecg\.common\.util\.dynamic\.db|org\.jeecg\.config\.sign\.util|org\.jeecg\.common\.system\.query|org\.jeecg\.config\.mybatis|org\.jeecg\.modules\.base\.service\.impl|org\.jeecg\.common\.util\.superSearch|org\.jeecg\.common\.api\.dto\.message|org\.jeecg\.config\.oss|org\.jeecg\.common\.api\.dto|org\.jeecg\.common\.util\.oss|org\.jeecg\.common\.util\.security|org\.jeecg\.common\.api\.vo|org\.jeecg\.modules\.base\.service|org\.jeecg\.common\.system\.base\.service|org\.jeecg\.common\.constant\.enums|org\.jeecg\.common\.api|org\.jeecg\.config)\.

@@ -1,0 +1,40 @@
+id: clone-call-override-method
+message: '0102000010110059'
+language: Java
+rule:
+  kind: method_invocation
+  all:
+  - has:
+      field: name
+      pattern: $FUNC_NAME
+  - all:
+      - not:
+          has:
+            field: object
+            any:
+              - kind: identifier
+              - kind: super
+      - inside:
+          stopBy: 
+            any:
+              - kind: method_declaration
+          kind: method_declaration
+          all:
+            - has:
+                field: name
+                regex: '^clone$'
+            - has:
+                field: type
+                regex: '^Object$'
+            - inside:
+                kind: class_body
+                has:
+                  kind: method_declaration
+                  all:
+                    - has:
+                        field: name
+                        pattern: '$FUNC_NAME'
+                    - not:
+                        has:
+                          kind: modifiers
+                          regex: 'final'

@@ -1,0 +1,11 @@
+id: content-length
+message: '0202000010070005'
+language: Java
+rule:
+  kind: method_invocation
+  pattern: $OBJ.$METHOD("Content-Length",$ARGS)
+  has:
+    kind: argument_list
+    has:
+      pattern: $ARGS
+      regex: '"-[0-9]*"'

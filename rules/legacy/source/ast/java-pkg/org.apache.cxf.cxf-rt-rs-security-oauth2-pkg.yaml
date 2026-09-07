@@ -1,0 +1,10 @@
+id: org.apache.cxf.cxf-rt-rs-security-oauth2
+language: Java
+message: pkg:maven/org.apache.cxf/cxf-rt-rs-security-oauth2
+metadata:
+  purl: pkg:maven/org.apache.cxf/cxf-rt-rs-security-oauth2
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.rs\.security\.oauth2\.provider|org\.apache\.cxf\.rs\.security\.oauth2\.tokens\.bearer|org\.apache\.cxf\.rs\.security\.oauth2\.grants\.jwt|org\.apache\.cxf\.rs\.security\.oauth2\.services|org\.apache\.cxf\.rs\.security\.oauth2\.utils|org\.apache\.cxf\.rs\.security\.oauth2\.utils\.crypto|org\.apache\.cxf\.rs\.security\.oauth2\.tokens\.hawk|org\.apache\.cxf\.rs\.security\.oauth2\.common|org\.apache\.cxf\.rs\.security\.oauth2\.filters|org\.apache\.cxf\.rs\.security\.oauth2\.tokens\.refresh|org\.apache\.cxf\.rs\.security\.oauth2\.client|org\.apache\.cxf\.rs\.security\.oauth2\.grants|org\.apache\.cxf\.rs\.security\.oauth2\.grants\.refresh|org\.apache\.cxf\.rs\.security\.oauth2\.grants\.clientcred|org\.apache\.cxf\.rs\.security\.oauth2\.grants\.code|org\.apache\.cxf\.rs\.security\.oauth2\.grants\.owner)\.

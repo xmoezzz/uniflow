@@ -1,0 +1,10 @@
+id: org.apache.zeppelin.zeppelin-zengine
+language: Java
+message: pkg:maven/org.apache.zeppelin/zeppelin-zengine
+metadata:
+  purl: pkg:maven/org.apache.zeppelin/zeppelin-zengine
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.zeppelin\.plugin|org\.apache\.zeppelin\.interpreter|org\.apache\.zeppelin\.notebook\.exception|org\.apache\.zeppelin\.notebook\.socket|org\.apache\.zeppelin\.interpreter\.launcher|org\.apache\.zeppelin\.notebook\.repo|org\.apache\.zeppelin\.healthcheck|org\.apache\.zeppelin\.notebook|org\.apache\.zeppelin\.interpreter\.install|org\.apache\.zeppelin\.notebook\.scheduler|org\.apache\.zeppelin\.user|org\.apache\.zeppelin\.ticket|org\.apache\.zeppelin\.util|org\.apache\.zeppelin\.notebook\.utility|org\.apache\.zeppelin\.interpreter\.remote|org\.apache\.zeppelin\.storage|org\.apache\.zeppelin\.interpreter\.recovery|org\.apache\.zeppelin\.search|org\.apache\.zeppelin\.helium|org\.apache\.zeppelin\.scheduler)\.

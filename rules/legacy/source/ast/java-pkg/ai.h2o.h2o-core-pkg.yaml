@@ -1,0 +1,10 @@
+id: ai.h2o.h2o-core
+language: Java
+message: pkg:maven/ai.h2o/h2o-core
+metadata:
+  purl: pkg:maven/ai.h2o/h2o-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(water\.rapids\.ast\.prims\.internal|water\.rapids\.ast\.prims\.repeaters|hex\.leaderboard|water\.api|water\.util|water\.exceptions|water\.api\.schemas4\.input|water\.rapids\.ast\.prims\.misc|water\.rapids\.vals|water\.rapids\.ast\.params|water\.jdbc|water\.rapids|water\.util\.fp|water\.api\.schemas4|hex\.grid|water\.persist|water\.api\.schemas3|water\.api\.schemas99|jsr166y|water\.udf\.specialized|water\.rapids\.ast\.prims\.reducers|water\.rapids\.ast\.prims\.search|hex\.createframe\.recipes|water\.rapids\.transforms|water\.fvec\.persist|hex|water\.parser|hex\.quantile|water\.rapids\.ast\.prims\.assign|hex\.createframe|water\.fvec\.task|water\.rapids\.ast\.prims\.mungers|water\.rapids\.ast|hex\.createframe\.columns|water\.rapids\.ast\.prims\.operators|water\.rapids\.ast\.prims\.string|water\.rapids\.ast\.prims\.advmath|water\.util\.annotations|water\.network|water\.server|water\.codegen|hex\.faulttolerance|water\.webserver|water\.rapids\.ast\.prims\.math|water\.rapids\.ast\.prims\.matrix|water\.tools|water\.rapids\.ast\.prims\.filters\.dropduplicates|hex\.tfidf|hex\.schemas|hex\.createframe\.postprocess|water|water\.fvec|water\.init|water\.rapids\.ast\.prims\.timeseries|water\.udf|water\.rapids\.ast\.prims\.testing|water\.nbhm|water\.rapids\.ast\.prims\.time|water\.rapids\.ast\.prims\.models|water\.api\.schemas4\.output|hex\.segments|water\.testing)\.

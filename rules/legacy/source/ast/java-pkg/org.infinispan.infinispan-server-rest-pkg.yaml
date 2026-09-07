@@ -1,0 +1,10 @@
+id: org.infinispan.infinispan-server-rest
+language: Java
+message: pkg:maven/org.infinispan/infinispan-server-rest
+metadata:
+  purl: pkg:maven/org.infinispan/infinispan-server-rest
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.infinispan\.rest\.configuration|org\.infinispan\.rest\.framework\.impl|org\.infinispan\.rest\.authentication|org\.infinispan\.rest\.framework|org\.infinispan\.rest\.operations\.mediatypes|org\.infinispan\.rest\.authentication\.impl|org\.infinispan\.rest\.operations\.exceptions|org\.infinispan\.rest\.cachemanager\.exceptions|org\.infinispan\.rest\.operations|org\.infinispan\.rest\.logging|org\.infinispan\.rest\.distribution|org\.infinispan\.rest|org\.infinispan\.rest\.stream|org\.infinispan\.rest\.resources|org\.infinispan\.rest\.cachemanager)\.

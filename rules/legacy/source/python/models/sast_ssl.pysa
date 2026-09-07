@@ -1,0 +1,42 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                ssl
+
+# DataflowSourceRule ssl 4
+# [{'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'shared_ciphers', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'ssl', 'ClassName': 'SSLSocket|SSLObject', 'FunctionName': 'version|selected_(alpn|npn)_protocol', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'recv|recvfrom|read', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'recv_into|recvfrom_into', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_ssl_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^ssl\.SSLSocket\.(recv|recvfrom|read)"),
+      name.matches("^ssl\.SSLSocket\.(recv_into|recvfrom_into)"),
+      name.matches("^ssl\.SSLSocket\.shared_ciphers$"),
+      name.matches("^ssl\.(SSLSocket|SSLObject)\.(version|selected_(alpn|npn)_protocol)")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule ssl 6
+# [{'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'sendfile', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'sendfile', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'connect', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'sendto', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'write|send|sendall|sendto', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'ssl', 'ClassName': 'SSLSocket', 'FunctionName': 'write|send|sendall|sendto', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_ssl_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^ssl\.SSLSocket\.(write|send|sendall|sendto)"),
+      name.matches("^ssl\.SSLSocket\.connect$"),
+      name.matches("^ssl\.SSLSocket\.sendfile$"),
+      name.matches("^ssl\.SSLSocket\.sendto$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_system_information_leak_external]
+    )
+  ]
+)

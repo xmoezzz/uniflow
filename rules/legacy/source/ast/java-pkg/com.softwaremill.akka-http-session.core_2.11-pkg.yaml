@@ -1,0 +1,10 @@
+id: com.softwaremill.akka-http-session.core_2.11
+language: Java
+message: pkg:maven/com.softwaremill.akka-http-session/core_2.11
+metadata:
+  purl: pkg:maven/com.softwaremill.akka-http-session/core_2.11
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.softwaremill\.session\.javadsl|com\.softwaremill\.session|com\.softwaremill\.session\.converters)\.

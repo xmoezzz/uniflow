@@ -1,0 +1,10 @@
+id: org.jvnet.hudson.plugins.analysis-core
+language: Java
+message: pkg:maven/org.jvnet.hudson.plugins/analysis-core
+metadata:
+  purl: pkg:maven/org.jvnet.hudson.plugins/analysis-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(hudson\.plugins\.analysis\.dashboard|hudson\.plugins\.analysis\.core|hudson\.plugins\.analysis\.util|hudson\.plugins\.analysis\.util\.model|hudson\.plugins\.analysis|hudson\.plugins\.analysis\.views|hudson\.plugins\.analysis\.graph)\.

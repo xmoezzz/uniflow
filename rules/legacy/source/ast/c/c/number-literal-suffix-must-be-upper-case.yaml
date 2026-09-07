@@ -1,0 +1,6 @@
+id: number-literal-suffix-must-be-upper-case
+message: '0701000010130068'
+language: C
+rule:
+  kind: number_literal
+  regex: "[ul]+$"

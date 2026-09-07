@@ -1,0 +1,10 @@
+id: org.graniteds.granite-generator
+language: Java
+message: pkg:maven/org.graniteds/granite-generator
+metadata:
+  purl: pkg:maven/org.graniteds/granite-generator
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.granite\.generator\.util|org\.granite\.generator\.java\.template|org\.granite\.generator\.as3|org\.granite\.generator\.gsp|org\.granite\.generator|org\.granite\.generator\.javafx\.template|org\.granite\.generator\.template|org\.granite\.generator\.as3\.reflect|org\.granite\.generator\.java|org\.granite\.generator\.exception|org\.granite\.generator\.ant|org\.granite\.generator\.gsp\.token|org\.granite\.generator\.javafx|org\.granite\.util)\.

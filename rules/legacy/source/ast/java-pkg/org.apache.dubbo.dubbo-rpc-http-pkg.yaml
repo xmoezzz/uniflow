@@ -1,0 +1,10 @@
+id: org.apache.dubbo.dubbo-rpc-http
+language: Java
+message: pkg:maven/org.apache.dubbo/dubbo-rpc-http
+metadata:
+  purl: pkg:maven/org.apache.dubbo/dubbo-rpc-http
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.dubbo\.rpc\.protocol\.http)\.

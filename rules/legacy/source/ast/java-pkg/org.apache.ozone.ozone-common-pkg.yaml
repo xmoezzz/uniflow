@@ -1,0 +1,10 @@
+id: org.apache.ozone.ozone-common
+language: Java
+message: pkg:maven/org.apache.ozone/ozone-common
+metadata:
+  purl: pkg:maven/org.apache.ozone/ozone-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hadoop\.ozone\.om\.multitenant|org\.apache\.hadoop\.ozone|org\.apache\.hadoop\.ozone\.om|org\.apache\.hadoop\.ozone\.om\.protocolPB\.grpc|org\.apache\.hadoop\.ozone\.protocolPB|org\.apache\.hadoop\.ozone\.om\.lock|org\.apache\.hadoop\.ozone\.security\.acl|org\.apache\.hadoop\.ozone\.snapshot|org\.apache\.hadoop\.ozone\.conf|org\.apache\.hadoop\.ozone\.web\.utils|org\.apache\.hadoop\.ozone\.client\.io|org\.apache\.hadoop\.ozone\.om\.protocol|org\.apache\.hadoop\.ozone\.util|org\.apache\.hadoop\.hdds\.protocol|org\.apache\.hadoop\.ozone\.client\.checksum|org\.apache\.hadoop\.ozone\.om\.ha|org\.apache\.hadoop\.ozone\.om\.protocolPB|org\.apache\.hadoop\.ozone\.om\.exceptions|org\.apache\.hadoop\.ozone\.om\.helpers|org\.apache\.hadoop\.ozone\.security|org\.apache\.hadoop\.ozone\.om\.multitenant\.impl)\.

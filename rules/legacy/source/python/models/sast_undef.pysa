@@ -1,0 +1,77 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                undef
+
+# DataflowSourceRule undef 7
+# [{'NamespaceName': '', 'ClassName': '', 'FunctionName': 'django_get_string_url_param', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'django_get_slug_url_param', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'django_get_path_url_param', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'django_get_int_url_param', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': 'file', 'FunctionName': 'read(line|lines)?|xreadlines', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'raw_input|input', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'dir|globals', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_undef_functions_sources",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("django_get_path_url_param$"),
+      name.matches("django_get_int_url_param$"),
+      name.matches("django_get_string_url_param$"),
+      name.matches("(raw_input|input)"),
+      name.matches("(dir|globals)"),
+      name.matches("django_get_slug_url_param$")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+
+ModelQuery(
+  name="get_undef_methods_sources",
+  find="methods",
+  where=[
+    name.matches(".*file\.(read(line|lines)?|xreadlines)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule undef 13
+# [{'NamespaceName': '', 'ClassName': '', 'FunctionName': 'pythonassert', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'pythonassert', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': 'dict', 'FunctionName': '__setitem__', 'RuleName': 'desc.dataflow.python.nosql_injection_mongodb', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'pythondict', 'RuleName': 'desc.dataflow.python.nosql_injection_mongodb', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'pythonprint', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': 'file', 'FunctionName': 'write|writelines', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'pythonprint', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': 'file', 'FunctionName': 'write|writelines', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'pythonexec|eval', 'RuleName': 'desc.dataflow.python.dynamic_code_evaluation_code_injection', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'execfile', 'RuleName': 'desc.dataflow.python.dynamic_code_evaluation_code_injection', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': 'open', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': 'file', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': '', 'ClassName': '', 'FunctionName': '__import__|reload', 'RuleName': 'desc.dataflow.python.unsafe_reflection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_undef_functions_sinks",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("execfile$"),
+      name.matches("(__import__|reload)"),
+      name.matches("pythondict$"),
+      name.matches("pythonprint$"),
+      name.matches("pythonassert$"),
+      name.matches("open$"),
+      name.matches("(pythonexec|eval)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_unsafe_reflection]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_undef_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches(".*dict\.__setitem__"),
+      name.matches(".*file\.__init__"),
+      name.matches(".*file\.(write|writelines)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_unsafe_reflection]
+    )
+  ]
+)

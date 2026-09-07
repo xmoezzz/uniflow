@@ -1,0 +1,13 @@
+id: non-void-fn-must-return
+message: '0601000010140072,0701000010130060'
+language: C
+rule:
+  all:
+    - pattern: '$TY $NAME($$$) { $$$ }'
+    - not:
+        pattern: 'void $NAME($$$) { $$$ }'
+    - not:
+        has:
+          kind: return_statement
+          stopBy:
+            kind: function_definition

@@ -1,0 +1,10 @@
+id: net.sf.openas2.openas2-server
+language: Java
+message: pkg:maven/net.sf.openas2/openas2-server
+metadata:
+  purl: pkg:maven/net.sf.openas2/openas2-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.openas2\.cert|org\.openas2\.processor\.sender|org\.openas2\.mail|org\.openas2\.app\.cert|org\.openas2\.app\.logging|org\.openas2\.cmd\.processor\.restapi|org\.openas2\.logging|org\.openas2\.app|org\.openas2\.test|org\.openas2\.app\.partner|org\.openas2\.message|org\.openas2\.partner|org\.openas2\.cmd|org\.openas2\.lib|org\.openas2\.processor\.resender|org\.openas2|org\.openas2\.lib\.message|org\.openas2\.pgp|org\.openas2\.processor|org\.openas2\.lib\.util|org\.openas2\.processor\.storage|org\.openas2\.processor\.receiver|org\.openas2\.lib\.helper|org\.openas2\.util|org\.openas2\.processor\.msgtracking|org\.openas2\.schedule|org\.openas2\.params|org\.openas2\.support|org\.openas2\.processor\.receiver\.api|org\.openas2\.cmd\.processor|org\.openas2\.lib\.xml|org\.openas2\.lib\.util\.javamail)\.

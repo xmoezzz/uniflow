@@ -1,0 +1,10 @@
+id: io.netty.netty-common
+language: Java
+message: pkg:maven/io.netty/netty-common
+metadata:
+  purl: pkg:maven/io.netty/netty-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.netty\.util|io\.netty\.util\.internal\.logging|io\.netty\.util\.internal|io\.netty\.util\.collection|io\.netty\.util\.internal\.chmv8|io\.netty\.util\.concurrent)\.

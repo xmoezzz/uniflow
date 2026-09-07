@@ -1,0 +1,10 @@
+id: org.directwebremoting.dwr
+language: Java
+message: pkg:maven/org.directwebremoting/dwr
+metadata:
+  purl: pkg:maven/org.directwebremoting/dwr
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.directwebremoting\.proxy\.scriptaculous|org\.directwebremoting\.webwork|org\.directwebremoting\.create|org\.directwebremoting\.impl|org\.directwebremoting\.server\.servlet2|org\.directwebremoting\.io|org\.directwebremoting\.jsonp|org\.directwebremoting\.annotations|org\.directwebremoting\.extend|org\.directwebremoting\.struts|org\.directwebremoting\.json\.serialize|org\.directwebremoting\.ui\.servlet|org\.directwebremoting\.jsonrpc|org\.directwebremoting\.proxy\.dwr|org\.directwebremoting\.beehive|org\.directwebremoting\.hibernate|org\.directwebremoting\.guice\.spring|org\.directwebremoting\.spring\.namespace|org\.directwebremoting\.datasync|org\.directwebremoting\.convert|org\.directwebremoting\.json\.parse\.impl|org\.directwebremoting\.ui\.browser|org\.directwebremoting\.json\.serialize\.local|org\.directwebremoting\.json|org\.directwebremoting\.spring|org\.directwebremoting\.event|org\.directwebremoting\.filter|org\.directwebremoting\.servlet|org\.directwebremoting\.json\.parse|org\.directwebremoting\.guice|org\.directwebremoting\.jsonrpc\.io|org\.directwebremoting\.json\.types|org\.directwebremoting\.dwrp|org\.directwebremoting\.ui|org\.directwebremoting\.server\.jetty|org\.directwebremoting\.ui\.dwr|org\.directwebremoting\.util|org\.directwebremoting\.jms|org\.directwebremoting\.guice\.util|org\.directwebremoting\.json\.parse\.javacc|org\.directwebremoting|org\.directwebremoting\.proxy|org\.directwebremoting\.server\.servlet3|org\.directwebremoting\.export|org\.directwebremoting\.jsp)\.

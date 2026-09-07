@@ -1,0 +1,10 @@
+id: org.jboss.jboss-ejb-client
+language: Java
+message: pkg:maven/org.jboss/jboss-ejb-client
+metadata:
+  purl: pkg:maven/org.jboss/jboss-ejb-client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jboss\.ejb\._private|org\.jboss\.ejb\.client\.naming\.ejb|org\.jboss\.ejb\.client|org\.jboss\.ejb\.protocol\.remote|org\.jboss\.ejb\.client\.annotation|org\.jboss\.ejb\.server|org\.jboss\.ejb\.client\.legacy)\.

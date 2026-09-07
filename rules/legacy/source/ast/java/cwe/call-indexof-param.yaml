@@ -1,0 +1,6 @@
+id: call-indexof-param
+message: '0202000010000023'
+language: Java
+rule:
+  kind: method_invocation
+  regex: '\.indexOf\("."\)'

@@ -1,0 +1,10 @@
+id: io.netty.netty-codec-http2
+language: Java
+message: pkg:maven/io.netty/netty-codec-http2
+metadata:
+  purl: pkg:maven/io.netty/netty-codec-http2
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.netty\.handler\.codec\.http2)\.

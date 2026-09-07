@@ -1,0 +1,10 @@
+id: org.apache.cxf.cxf-rt-rs-security-xml
+language: Java
+message: pkg:maven/org.apache.cxf/cxf-rt-rs-security-xml
+metadata:
+  purl: pkg:maven/org.apache.cxf/cxf-rt-rs-security-xml
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.rs\.security\.xml|org\.apache\.cxf\.rs\.security\.saml|org\.apache\.cxf\.rs\.security\.common|org\.apache\.cxf\.rs\.security\.saml\.assertion|org\.apache\.cxf\.rs\.security\.saml\.authorization)\.

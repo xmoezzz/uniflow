@@ -1,0 +1,10 @@
+id: org.opendaylight.aaa.aaa-idm-store-h2
+language: Java
+message: pkg:maven/org.opendaylight.aaa/aaa-idm-store-h2
+metadata:
+  purl: pkg:maven/org.opendaylight.aaa/aaa-idm-store-h2
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.opendaylight\.aaa\.datastore\.h2)\.

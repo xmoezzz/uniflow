@@ -1,0 +1,10 @@
+id: io.quarkus.quarkus-core
+language: Java
+message: pkg:maven/io.quarkus/quarkus-core
+metadata:
+  purl: pkg:maven/io.quarkus/quarkus-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.quarkus\.runtime\.dev\.io|io\.quarkus\.runtime|io\.quarkus|io\.quarkus\.runtime\.annotations|io\.quarkus\.runtime\.configuration|io\.quarkus\.runtime\.recording\.substitutions|io\.quarkus\.runtime\.init|io\.quarkus\.runtime\.rest|io\.quarkus\.runtime\.ssl|io\.quarkus\.runtime\.shutdown|io\.quarkus\.runtime\.test|io\.quarkus\.runtime\.logging|io\.quarkus\.logging|io\.quarkus\.runtime\.console|io\.quarkus\.runtime\.util|io\.quarkus\.runtime\.appcds|io\.quarkus\.runtime\.graal|io\.quarkus\.runtime\.metrics)\.

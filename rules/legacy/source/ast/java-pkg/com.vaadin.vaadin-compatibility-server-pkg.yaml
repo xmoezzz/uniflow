@@ -1,0 +1,10 @@
+id: com.vaadin.vaadin-compatibility-server
+language: Java
+message: pkg:maven/com.vaadin/vaadin-compatibility-server
+metadata:
+  purl: pkg:maven/com.vaadin/vaadin-compatibility-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.vaadin\.v7\.server\.communication\.data|com\.vaadin\.v7\.ui\.renderers|com\.vaadin\.v7\.data\.util\.converter|com\.vaadin\.v7\.data\.util\.sqlcontainer\.connection|com\.vaadin\.v7\.data\.validator|com\.vaadin\.v7\.ui\.components\.colorpicker|com\.vaadin\.v7\.data\.fieldgroup|com\.vaadin\.v7\.ui\.components\.calendar\.handler|com\.vaadin\.v7\.data\.util\.sqlcontainer\.query\.generator\.filter|com\.vaadin\.v7\.data\.sort|com\.vaadin\.v7\.util|com\.vaadin\.v7\.ui\.components\.calendar\.event|com\.vaadin\.v7\.ui|com\.vaadin\.v7\.data|com\.vaadin\.v7\.data\.util\.filter|com\.vaadin\.v7\.data\.util\.sqlcontainer|com\.vaadin\.v7\.ui\.themes|com\.vaadin\.v7\.data\.util\.sqlcontainer\.query\.generator|com\.vaadin\.v7\.event|com\.vaadin\.v7\.data\.util|com\.vaadin\.v7\.data\.util\.sqlcontainer\.query|com\.vaadin\.v7\.ui\.components\.calendar)\.

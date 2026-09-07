@@ -15,5 +15,7 @@ uniflow-hir = { path = "../hir" }
 uniflow-ir = { path = "../ir" }
 
 [dev-dependencies]
+uniflow-lang-java = { path = "../lang_java" }
+uniflow-lang-frontends = { path = "../lang_frontends" }
 uniflow-lang-python = { path = "../lang_python" }
 uniflow-parser-core = { path = "../parser_core" }

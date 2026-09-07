@@ -1,0 +1,10 @@
+id: net.sourceforge.htmlunit.neko-htmlunit
+language: Java
+message: pkg:maven/net.sourceforge.htmlunit/neko-htmlunit
+metadata:
+  purl: pkg:maven/net.sourceforge.htmlunit/neko-htmlunit
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(net\.sourceforge\.htmlunit\.xerces\.parsers|net\.sourceforge\.htmlunit\.xerces\.xni\.parser|net\.sourceforge\.htmlunit\.xerces\.dom|net\.sourceforge\.htmlunit\.xerces\.xni|net\.sourceforge\.htmlunit\.cyberneko|net\.sourceforge\.htmlunit\.cyberneko\.filters|net\.sourceforge\.htmlunit\.xerces\.impl\.msg|net\.sourceforge\.htmlunit\.xerces\.util|net\.sourceforge\.htmlunit\.cyberneko\.parsers|net\.sourceforge\.htmlunit\.xerces\.impl)\.

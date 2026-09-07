@@ -1,0 +1,10 @@
+id: org.apache.tomcat.coyote
+language: Java
+message: pkg:maven/org.apache.tomcat/coyote
+metadata:
+  purl: pkg:maven/org.apache.tomcat/coyote
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.tomcat\.util|org\.apache\.jk\.common|org\.apache\.jk\.server|org\.apache\.jk\.config|org\.apache\.tomcat\.util\.descriptor|org\.apache\.tomcat\.util\.threads|org\.apache\.tomcat\.jni|org\.apache\.tomcat\.util\.http\.mapper|org\.apache\.tomcat\.util\.compat|org\.apache\.tomcat\.util\.res|org\.apache\.tomcat\.util\.http|org\.apache\.tomcat\.util\.log|org\.apache\.coyote\.http11\.filters|org\.apache\.tomcat\.util\.http\.parser|org\.apache\.tomcat\.util\.modeler|org\.apache\.tomcat\.util\.security|org\.apache\.coyote\.memory|org\.apache\.jk\.core|org\.apache\.coyote\.http11|org\.apache\.tomcat\.util\.buf|org\.apache\.tomcat\.util\.http\.fileupload|org\.apache\.tomcat\.util\.modeler\.modules|org\.apache\.coyote\.ajp|org\.apache\.tomcat\.util\.digester|org\.apache\.tomcat\.util\.net|org\.apache\.tomcat\.util\.net\.jsse|org\.apache\.jk\.apr|org\.apache\.coyote|org\.apache\.tomcat\.util\.collections)\.

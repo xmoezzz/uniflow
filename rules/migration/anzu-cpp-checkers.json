@@ -1,0 +1,1895 @@
+{
+  "id": "legacy-anzu-cpp",
+  "source": "checker/CheckersCpp.td",
+  "expected_rule_count": 280,
+  "rules": [
+    {
+      "legacy_id": "scs.taint",
+      "state": "pending_source",
+      "execution_model": "unified_dataflow",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AssignmentInLogicalOpChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/AssignmentInLogicalOpChecker.cpp",
+        "checker/LocaleMsg.json"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::detects_assignment_used_as_direct_logical_operand",
+      "native_rule_ids": [
+        "ANZU-ASSIGNMENT-IN-LOGICAL-OP"
+      ],
+      "standards": [
+        "CWE-481"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.AssignmentSafetyChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AvoidParamNameInProtoChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.HardcodedCryptoKeyChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RandUsageChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/RandUsageChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_rand_checker_matches_intended_direct_prng_calls",
+      "native_rule_ids": [
+        "UF-C-RAND-WEAK"
+      ],
+      "standards": [
+        "CWE-338",
+        "CERT-C-MSC30-C"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.WeakCryptoChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ASCIIChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AbsolutePathChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AlignedAllocReallocChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AllocationDeallocationChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ArgumentCountChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ArgumentTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ArgumentValidationChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ArrayBoundChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ArrayIndexChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AssertChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FunctionNameAsIdentifierChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LabelNameChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MultiLabelChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ParameterTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CharSignChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.TypedefRedefinitionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CompleteStructDeclarationChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AvoidProceduresAsParametersChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LimitFunctionParametersChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CheckMainSignatureChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FunctionLengthChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CheckEmptyBranchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CheckEmptyElseBranchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SwitchDefaultChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CheckCaseBreakChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CheckCaseEmptyChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FunctionPointerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerComparisonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerArithmeticChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SignedShiftChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ShiftOverflowChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnsignedTypeAssignNegativeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BitFieldSizeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BitSizeTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AssignTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LogicalNotOnConstantChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.EnumUsageChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.OverflowChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BitwiseOnBoolChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BitwiseOnBooleanChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MixedTypeOperationChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MainFileNotUseFuncChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnusedStaticFunctionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MultipleRelatedFunctionCallsChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnusedParameterChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ReturnTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FloatingPointLoopVariableChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LocalLoopVariableChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ForcedPointerCastChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IntAssignmentPointerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnnecessaryCastChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.EnumInitializationChecker2",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UseUninitializedVariableChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FloatEqualityComparisonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LogicalExpressionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SwitchLogicalExpressionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ExplicitLogicalExpressionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.EnumNameChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.VariableShadowingChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ParameterShadowingChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RedefinitionInInnerBlockChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MacroParamParenChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LogicalExprParenChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FunctionVarArgsTypeCheckerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.KeywordRefinedChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MacroBodyParenChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MacroBodyKeywordsChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.WhileBodyParenChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BranchBodyParenChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IfElseIfElseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.EmptySwitchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SwitchOnlyDefaultChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DisableGotoChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/DisableGotoChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_goto_checker_ignores_comments_and_literals",
+      "native_rule_ids": [
+        "ANZU-DISABLE-GOTO"
+      ],
+      "standards": [
+        "CWE-483",
+        "0601000010140035"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.AssignmentInConditionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CommaExprChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConfusingNamingO01lChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AddOrSubAssignChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IncDecUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ContinueUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConditionExprUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NullStmtUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ReturnUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BreakUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.InfinityLoopChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LoopCondConstantChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MacroBodyHashChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/MacroBodyHashChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_macro_hash_checker_tokenizes_function_like_macros",
+      "native_rule_ids": [
+        "ANZU-MACRO-BODY-HASH"
+      ],
+      "standards": [
+        "0601000010140097"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.MacroBodyMultHashChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/MacroBodyMultHashChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_multiple_macro_hash_checker_counts_hashhash_as_one_token",
+      "native_rule_ids": [
+        "ANZU-MACRO-BODY-MULTIPLE-HASH"
+      ],
+      "standards": [
+        "0601000010140098"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.MacroRedefinedTypesChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PragmaUseChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/PragmaUseChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_pragma_checker_matches_only_real_directives",
+      "native_rule_ids": [
+        "ANZU-PRAGMA-USE"
+      ],
+      "standards": [
+        "0601000010140101"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.IncludeFilePathChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IncludeFileAbsPathChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RegisterUseChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/RegisterUseChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_register_checker_matches_only_code_tokens",
+      "native_rule_ids": [
+        "ANZU-REGISTER-USE"
+      ],
+      "standards": [
+        "0601000010140071"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.MultPointerTypeDefChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RedefinedMacroChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CharTypeOperatorChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FunctionPointerExplicitChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ParameterAssignmentChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SignedBitFieldWidthChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RefUndefOrAlreadyFreePinterChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerInitializationChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DynamicAllocPointerUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FilePointerLeakChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.EmptyBranchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BoolSwitchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.GotoChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FloatAssignToIntChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IntegerOverflowChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LogicalBitwiseOperationChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NegativeShiftChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConstValueNotLogicOpChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.EnumValueChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RefAlreadyFreePinterChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MallocFreeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.OverrideStdLibFunctionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnusedReturnValueChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RedundantVoidCastChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.WhileCtrlVarDeclChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IntegerAssignIntegerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DoubleAssignFloatChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NoOpConversionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LogicalComparisonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnsignedComparisonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnsignedSignedComparisonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.TypedefNameChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CaseSensitiveChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConfusingNamingChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NullAsIntChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.KeywordRefinedKeywordChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.TypedefKeywordChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AnonymousNameStructChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FunctionArgNameExistChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ExternVarInFunctionBodyChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ArrayVarBoundDefinedChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ExternVarHasInitChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FunctionVoidParamTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConditionExprParenChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NumZeroCastPointerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AssignInSizeofChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DisableForInfinityLoopChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerAssignmentPointerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnPointerAndPointerAssignChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DisableForBodyModifyCtrlVarChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerMustBeNullAfterFreeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CharArrayInitChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ValueDependSequencePointChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FloatingPointComparisonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IntegerAssignIntegerExChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BoolArithChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BitTypeWithCondChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerAlignChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.VirtualOverrideConstFunction",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BSTRUsageChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SuspiciousSemicolonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.StrongTypedefArgumentMismatchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.StrongTypedefReturnMismatchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.StrongTypedefMismatchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LongLongTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MemberInitializedListChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MisusedFunctionAddressChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnusedLabelChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerTypeCastChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BitFieldPointerUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BuildinLimitMacroUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UninitializedPointerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.EOFComparisonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SignedIntegerOverflowChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnsignedIntegerOverflowChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SensitiveDataPlacementChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerArithmeticExChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConfusingNamesChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.StaticAssertUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SingleDeclarationChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.OnlyNonPointerTypeTypedefChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ErrnoReturnTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LongNumStringlLChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/LongNumStringlLChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_long_literal_checker_distinguishes_lowercase_suffixes",
+      "native_rule_ids": [
+        "ANZU-LONG-LITERAL-LOWERCASE-L"
+      ],
+      "standards": [
+        "0101000010110441",
+        "0101000010110161"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.SwitchDeclInFirstCasePreChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ErrnoResultChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BitOpExprParenChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConstVarWriteOpChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UseSizeofCalLengthChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LogicalAndRelComparisonChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ShiftOnCharOrShortChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NotMatchTypePointerAccessChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SizeofChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FileHandleCopyChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FSetposArgChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IntAssignFloatTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.IntAssignCharTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.EnumElementRepValueChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ShortAssignLongTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PointerCastIntegerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnsecurityFunctionChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/UnsecurityFunctionChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_obsolescent_function_checker_requires_global_name",
+      "native_rule_ids": [
+        "ANZU-OBSOLESCENT-C-LIBRARY-FUNCTION"
+      ],
+      "standards": [
+        "CWE-676",
+        "0101000010110283",
+        "0201000010120081",
+        "0301000010120081"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.MutexTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ReadlinkChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.VforkExChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PutEnvChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/PutEnvChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_putenv_checker_requires_automatic_storage",
+      "native_rule_ids": [
+        "UF-C-ENV-PUTENV"
+      ],
+      "standards": [
+        "CWE-807",
+        "CERT-C-ENV",
+        "0101000010110294"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.MacroBodyMultStmtChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/MacroBodyMultStmtChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_multistatement_macro_checker_preserves_wrapper_exemptions",
+      "native_rule_ids": [
+        "ANZU-MACRO-UNWRAPPED-MULTISTATEMENT"
+      ],
+      "standards": [
+        "CWE-483",
+        "0101000010110302",
+        "0901000010110302"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.MacroBodySemiEndChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/MacroBodySemiEndChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_macro_semicolon_checker_handles_continuations_and_literals",
+      "native_rule_ids": [
+        "ANZU-MACRO-TRAILING-SEMICOLON"
+      ],
+      "standards": [
+        "CWE-483",
+        "0101000010110303"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.ConstStrAssignChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CharCondChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConstStrJoinChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CharArraySizeInitChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CharCastIntChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.VarArraySizeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ComplexTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PostfixOpChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ReentryChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NoReturnWithReturnChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DestructorNoexceptChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ThrowChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ConstructorDestructorTryCatchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CatchOrderChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CStyleCastChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AvoidReinterpretCastWithMultipleInheritanceChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CastPreferenceChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PreferPrefixOperatorChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DeleteArrayChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CvQualificationChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.VariadicChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DisableCallCStyleStreamChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/DisableCallCStyleStreamChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_c_style_stream_checker_preserves_cpp_extension_gate",
+      "native_rule_ids": [
+        "ANZU-CPP-NO-C-STYLE-STREAMS"
+      ],
+      "standards": [
+        "0101000010110360"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.EnumRangeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CMemFunctionsInCppChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.LoopInequalityChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PrivateStaticMemberChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DeprecatedFunctionChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/DeprecatedFunctionChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_deprecated_stdlib_checker_requires_std_namespace",
+      "native_rule_ids": [
+        "ANZU-CPP-DEPRECATED-STDLIB"
+      ],
+      "standards": [
+        "0101000010110374"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.StdNamespaceChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SignalHandlerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NullCharTraitsChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CopyWithoutResizeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PrivateMemberChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CppImplicitConversionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.HidingNonVirtualFuncChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.OverloadAllVirtualFuncChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DefaultArgInVirtualFuncChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DeleteThisChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RawPointerCopyChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MultipleInheritanceChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.NoPrivateDataReturnChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SingleParamConstructorChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.VirtualCallChecker2",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ObjectSlicingChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.VirtualDtorChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PreferVectorOverArrayChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.StdFindUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ExitHandlerChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SignedIntOddEvenChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.StringOpFuncReturnUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.TimeOpChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MagicNumbersChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.StructSizeofChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.AssertAndAtexitChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FileOpenChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/FileOpenChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_file_open_checker_validates_only_literal_mode_strings",
+      "native_rule_ids": [
+        "ANZU-FILE-OPEN-MODE",
+        "ANZU-FILE-OPEN-S-MODE"
+      ],
+      "standards": [
+        "CWE-686",
+        "0101000010110459",
+        "0101000010110221"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.UngetChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.INT05CPPChecker",
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/INT05CPPChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/structured_matchers.rs::migrated_int05_checker_preserves_legacy_format_constraints",
+      "native_rule_ids": [
+        "ANZU-INT05-INPUT-CONVERSION"
+      ],
+      "standards": [
+        "CWE-20",
+        "CERT-CPP-INT05-CPP",
+        "0101000010110464",
+        "0101000010110245"
+      ],
+      "translations_complete": true
+    },
+    {
+      "legacy_id": "anzu.MixedBitwiseAndArithmeticChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.MallocResultExplictCastChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CharTypeChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PrintFunctionArgCountChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FormatSpecifierTypeMismatchChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FormatStringChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PrintfStarChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.PrintfScanfFormatStringChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ScanfWidthLimitChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.UnicodeMappingChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.DisableFunctionChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.ResourceAllocAndReleaseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BooleanArithmeticChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.BCryptParamChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.TaintLoopVariableChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.CtypeFuncUseChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.FileStreamReadWriteChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.RestrictArgChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    },
+    {
+      "legacy_id": "anzu.SizeofParamArrayChecker",
+      "state": "pending_source",
+      "execution_model": "",
+      "testcase": null
+    }
+  ]
+}

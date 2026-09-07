@@ -1,0 +1,10 @@
+id: org.jolokia.jolokia-core
+language: Java
+message: pkg:maven/org.jolokia/jolokia-core
+metadata:
+  purl: pkg:maven/org.jolokia/jolokia-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jolokia\.backend\.plugin|org\.jolokia\.converter|org\.jolokia\.converter\.object|org\.jolokia\.backend|org\.jolokia|org\.jolokia\.history|org\.jolokia\.http|org\.jolokia\.converter\.json\.simplifier|org\.jolokia\.detector|org\.jolokia\.handler\.list|org\.jolokia\.restrictor|org\.jolokia\.restrictor\.policy|org\.jolokia\.util|org\.jolokia\.handler|org\.jolokia\.config|org\.jolokia\.request|org\.jolokia\.backend\.executor|org\.jolokia\.discovery|org\.jolokia\.converter\.json)\.

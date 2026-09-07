@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.asset.categories.admin.web
+language: Java
+message: pkg:maven/com.liferay/com.liferay.asset.categories.admin.web
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.asset.categories.admin.web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.liferay\.asset\.categories\.admin\.web\.internal\.exportimport\.data\.handler\.helper|com\.liferay\.asset\.categories\.admin\.web\.internal\.item\.selector\.criterion|com\.liferay\.asset\.categories\.admin\.web\.internal\.application\.list|com\.liferay\.asset\.categories\.admin\.web\.internal\.info\.item|com\.liferay\.asset\.categories\.admin\.web\.internal\.servlet\.taglib\.util|com\.liferay\.asset\.categories\.admin\.web\.internal\.info\.display\.contributor\.portlet|com\.liferay\.asset\.categories\.admin\.web\.internal\.display\.context|com\.liferay\.asset\.categories\.admin\.web\.internal\.info\.item\.provider|org\.apache\.jsp|org\.apache\.jsp\.category|com\.liferay\.asset\.categories\.admin\.web\.internal\.change\.tracking\.spi\.display|com\.liferay\.asset\.categories\.admin\.web\.internal\.configuration|com\.liferay\.asset\.categories\.admin\.web\.internal\.portlet|com\.liferay\.asset\.categories\.admin\.web\.internal\.item\.selector|com\.liferay\.asset\.categories\.admin\.web\.internal\.constants|org\.apache\.jsp\.info\.item\.renderer|com\.liferay\.asset\.categories\.admin\.web\.internal\.exportimport\.data\.handler|com\.liferay\.asset\.categories\.admin\.web\.internal\.portlet\.action|com\.liferay\.asset\.categories\.admin\.web\.internal\.util|com\.liferay\.asset\.categories\.admin\.web\.internal\.info\.display\.url\.provider|com\.liferay\.asset\.categories\.admin\.web\.internal\.portlet\.configuration\.icon|com\.liferay\.asset\.categories\.admin\.web\.internal\.exportimport\.staged\.model\.repository|com\.liferay\.asset\.categories\.admin\.web\.internal\.portlet\.route|com\.liferay\.asset\.categories\.admin\.web\.internal\.info\.item\.renderer|com\.liferay\.asset\.categories\.admin\.web\.internal\.info\.collection\.provider|com\.liferay\.asset\.categories\.admin\.web\.internal\.frontend\.taglib\.servlet\.taglib)\.

@@ -1,0 +1,65 @@
+rules:
+  - !sourceRule
+    id: 0674EA59-FE26-4A9B-8EE1-F810FB139D41
+    method:
+      className: !exactPattern
+        caseInsensitive: false
+        exact: File
+      extends: true
+      implements: true
+      methodName: !regexPattern
+        caseInsensitive: false
+        pattern: mkdir|open
+      nsName: !exactPattern
+        caseInsensitive: false
+        exact: java.io
+      overrides: true
+    outs:
+      - !valuePositionReturn {}
+    signs:
+      - !addSign
+        s: '@check_return_value'
+  - !sourceRule
+    id: 0674EA59-FE26-4A9B-8EE1-F810FB139D42
+    method:
+      className: !exactPattern
+        caseInsensitive: false
+        exact: FileInputStream
+      extends: true
+      implements: true
+      methodName: !regexPattern
+        caseInsensitive: false
+        pattern: read
+      nsName: !exactPattern
+        caseInsensitive: false
+        exact: java.io
+      overrides: true
+    outs:
+      - !valuePositionReturn {}
+    signs:
+      - !addSign
+        s: '@check_return_value'
+  - !sinkRule
+    defaultGrade: 3.0
+    effect: 3.0
+    id: '@check_return_value'
+    method:
+      className: !exactPattern
+        caseInsensitive: false
+        exact: '@check_return_value'
+      extends: true
+      implements: true
+      methodName: !exactPattern
+        caseInsensitive: false
+        exact: '@check_return_value'
+      nsName: !exactPattern
+        caseInsensitive: false
+        exact: '@check_return_value'
+      overrides: false
+    possibility: 4.0
+    rule: '@check_return_value'
+    sinkPoints:
+    - check: !checkSign
+        sign: '@check_return_value'
+    sourcePoints: []
+    veracity: 4.0

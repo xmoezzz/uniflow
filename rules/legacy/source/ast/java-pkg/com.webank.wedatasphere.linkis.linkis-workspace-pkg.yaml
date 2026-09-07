@@ -1,0 +1,10 @@
+id: com.webank.wedatasphere.linkis.linkis-workspace
+language: Java
+message: pkg:maven/com.webank.wedatasphere.linkis/linkis-workspace
+metadata:
+  purl: pkg:maven/com.webank.wedatasphere.linkis/linkis-workspace
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.webank\.wedatasphere\.linkis\.filesystem\.quartz|com\.webank\.wedatasphere\.linkis\.filesystem\.service|com\.webank\.wedatasphere\.linkis\.filesystem\.conf|com\.webank\.wedatasphere\.linkis\.filesystem\.validator|com\.webank\.wedatasphere\.linkis\.filesystem\.cache|com\.webank\.wedatasphere\.linkis\.filesystem\.exception|com\.webank\.wedatasphere\.linkis\.filesystem\.entity|com\.webank\.wedatasphere\.linkis\.filesystem\.bml|com\.webank\.wedatasphere\.linkis\.filesystem\.restful\.api|com\.webank\.wedatasphere\.linkis\.filesystem\.util|com\.webank\.wedatasphere\.linkis\.filesystem\.constant)\.

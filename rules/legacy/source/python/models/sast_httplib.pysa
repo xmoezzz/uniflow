@@ -1,0 +1,38 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                httplib
+
+# DataflowSourceRule httplib 2
+# [{'NamespaceName': 'httplib', 'ClassName': 'HTTPMessage', 'FunctionName': 'readheaders', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'httplib', 'ClassName': 'HTTPResponse', 'FunctionName': 'read|getheader|getheaders', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_httplib_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^httplib\.HTTPMessage\.readheaders$"),
+      name.matches("^httplib\.HTTPResponse\.(read|getheader|getheaders)")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule httplib 2
+# [{'NamespaceName': 'httplib', 'ClassName': 'HTTPConnection|HTTPSConnection', 'FunctionName': '__init__', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'httplib', 'ClassName': 'HTTPMessage', 'FunctionName': 'addheader', 'RuleName': 'desc.dataflow.python.header_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_httplib_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^httplib\.HTTPMessage\.addheader$"),
+      name.matches("^httplib\.(HTTPConnection|HTTPSConnection)\.__init__")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_header_manipulation]
+    )
+  ]
+)

@@ -1,0 +1,10 @@
+id: org.apache.pulsar.pulsar-functions-worker
+language: Java
+message: pkg:maven/org.apache.pulsar/pulsar-functions-worker
+metadata:
+  purl: pkg:maven/org.apache.pulsar/pulsar-functions-worker
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.pulsar\.functions\.worker\.service\.api|org\.apache\.pulsar\.functions\.worker\.scheduler|org\.apache\.pulsar\.functions\.worker|org\.apache\.pulsar\.functions\.worker\.rest\.api|org\.apache\.pulsar\.functions\.worker\.service|org\.apache\.pulsar\.functions\.worker\.dlog|org\.apache\.pulsar\.functions\.worker\.rest|org\.apache\.pulsar\.functions\.worker\.rest\.api\.v3|org\.apache\.pulsar\.functions\.worker\.rest\.api\.v2)\.

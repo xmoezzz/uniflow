@@ -1,0 +1,111 @@
+# YAML Rule is more powerful!
+# https://ast-grep.github.io/guide/rule-config.html#rule
+id: SCS0027
+message: '0503000010050007'
+language: cs
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - has:
+            kind: variable_declaration
+            stopBy: end
+            all:
+              - has:
+                  field: type
+                  regex: ^(.*\.)?string$
+              - has:
+                  kind: variable_declarator
+                  stopBy: end
+                  has: 
+                    kind: identifier
+                    pattern: $STR
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?string$
+            - has:
+                field: name
+                pattern: $STR
+
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?string$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              kind: variable_declarator
+              pattern: $STR
+              stopBy: end
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?string$
+            - has:
+                field: name
+                pattern: $STR
+
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: if_statement
+            has:
+              field: condition
+              has:
+                stopBy: end
+                kind: identifier
+                pattern: $STR
+        - not:
+            kind: compilation_unit
+        - not:
+            has:
+              kind: if_statement
+              precedes:
+                stopBy: end
+                has:
+                  stopBy: end
+                  any:
+                    - pattern: Response.Redirect($STR)
+                    - pattern: Response.Redirect($STR, $_)
+              has:
+                stopBy: end
+                kind: identifier
+                pattern: $STR
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  kind: invocation_expression
+  any:
+    - pattern: Response.Redirect($STR)
+    - pattern: Response.Redirect($STR, $_)
+constraints:
+  STR:
+    not:
+      has:
+       kind: string_literal
+    matches: recursion-find-object-decl

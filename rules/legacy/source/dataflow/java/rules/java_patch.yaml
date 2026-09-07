@@ -1,0 +1,24 @@
+rules:
+- !passthroughRule
+  id: C0E9A6ED-2F6B-46D6-A95F-71890C07BBDC
+  ins:
+  - !valuePositionSingle
+    position: 0
+  - !valuePositionSingle
+    position: 1
+  method:
+    className: !exactPattern
+      caseInsensitive: false
+      exact: Operator
+    extends: true
+    implements: true
+    methodName: !regexPattern
+      caseInsensitive: false
+      pattern: .*
+    nsName: !exactPattern
+      caseInsensitive: false
+      exact: java.lang
+    overrides: true
+  outs:
+  - !valuePositionReturn {}
+  signs: []

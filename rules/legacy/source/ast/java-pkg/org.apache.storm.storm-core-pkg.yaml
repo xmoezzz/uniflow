@@ -1,0 +1,10 @@
+id: org.apache.storm.storm-core
+language: Java
+message: pkg:maven/org.apache.storm/storm-core
+metadata:
+  purl: pkg:maven/org.apache.storm/storm-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.storm\.shade\.org\.apache\.zookeeper|org\.apache\.storm\.command|org\.apache\.storm\.testing|org\.apache\.storm\.planner|org\.apache\.storm\.testing\.staticmocking|org\.apache\.storm\.utils)\.

@@ -1,0 +1,10 @@
+id: org.apache.dolphinscheduler.dolphinscheduler-server
+language: Java
+message: pkg:maven/org.apache.dolphinscheduler/dolphinscheduler-server
+metadata:
+  purl: pkg:maven/org.apache.dolphinscheduler/dolphinscheduler-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.dolphinscheduler\.server\.log|org\.apache\.dolphinscheduler\.server\.utils)\.

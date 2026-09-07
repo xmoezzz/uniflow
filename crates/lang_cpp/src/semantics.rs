@@ -1,8 +1,8 @@
 use regex::Regex;
 use std::collections::HashMap;
 use uniflow_hir::{
-    CppConstructorInitializer, CppConstructorInitializerKind, CppMethodSemantics,
-    CppOwnershipKind, CppReferenceKind, CppSpecialMemberKind, CppValueSemantics,
+    CppConstructorInitializer, CppConstructorInitializerKind, CppMethodSemantics, CppOwnershipKind,
+    CppReferenceKind, CppSpecialMemberKind, CppValueSemantics,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -60,9 +60,9 @@ pub(crate) fn collect(source: &str) -> SemanticIndex {
         );
     }
 
-
     for (owner, header) in collect_inline_method_headers(source) {
-        let Some((name, params, mut semantics)) = parse_inline_method_header(&owner, &header) else {
+        let Some((name, params, mut semantics)) = parse_inline_method_header(&owner, &header)
+        else {
             continue;
         };
         semantics.owner = owner.clone();
@@ -81,7 +81,13 @@ pub(crate) fn collect(source: &str) -> SemanticIndex {
     for caps in constructor_re.captures_iter(source) {
         let owner = caps
             .get(1)
-            .map(|m| m.as_str().trim_end_matches("::").rsplit("::").next().unwrap_or(""))
+            .map(|m| {
+                m.as_str()
+                    .trim_end_matches("::")
+                    .rsplit("::")
+                    .next()
+                    .unwrap_or("")
+            })
             .unwrap_or("");
         let name = caps.get(2).map(|m| m.as_str()).unwrap_or("");
         if owner.is_empty() || name != owner {
@@ -90,9 +96,17 @@ pub(crate) fn collect(source: &str) -> SemanticIndex {
         let mut initializers = Vec::new();
         for initializer in split_cpp_top_level(caps.get(4).map(|m| m.as_str()).unwrap_or(""), ',') {
             let initializer = initializer.trim();
-            let Some(open) = initializer.find(|ch| ch == '(' || ch == '{') else { continue };
-            let close_ch = if initializer.as_bytes().get(open) == Some(&b'(') { ')' } else { '}' };
-            let Some(close) = initializer.rfind(close_ch) else { continue };
+            let Some(open) = initializer.find(|ch| ch == '(' || ch == '{') else {
+                continue;
+            };
+            let close_ch = if initializer.as_bytes().get(open) == Some(&b'(') {
+                ')'
+            } else {
+                '}'
+            };
+            let Some(close) = initializer.rfind(close_ch) else {
+                continue;
+            };
             let target = initializer[..open].trim();
             if target.is_empty() || close <= open {
                 continue;
@@ -107,7 +121,10 @@ pub(crate) fn collect(source: &str) -> SemanticIndex {
             let kind = if simple_target == owner {
                 CppConstructorInitializerKind::Delegating
             } else if target.contains("::")
-                || simple_target.chars().next().is_some_and(|ch| ch.is_ascii_uppercase())
+                || simple_target
+                    .chars()
+                    .next()
+                    .is_some_and(|ch| ch.is_ascii_uppercase())
             {
                 CppConstructorInitializerKind::Base
             } else {
@@ -161,25 +178,25 @@ fn collect_value_semantics(source: &str) -> HashMap<String, CppValueSemantics> {
         }
     }
 
-    let rvalue_ref_re = Regex::new(
-        r"(?m)\b([A-Za-z_][A-Za-z0-9_:<>]*)\s*&&\s*([A-Za-z_][A-Za-z0-9_]*)",
-    )
-    .expect("valid rvalue-reference regex");
+    let rvalue_ref_re =
+        Regex::new(r"(?m)\b([A-Za-z_][A-Za-z0-9_:<>]*)\s*&&\s*([A-Za-z_][A-Za-z0-9_]*)")
+            .expect("valid rvalue-reference regex");
     for caps in rvalue_ref_re.captures_iter(source) {
         let Some(name) = caps.get(2) else { continue };
         let entry = values.entry(name.as_str().to_string()).or_default();
         entry.reference_kind = CppReferenceKind::RValue;
         entry.pointee_type.get_or_insert_with(|| {
-            caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default()
+            caps.get(1)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default()
         });
         if entry.ownership == CppOwnershipKind::None {
             entry.ownership = CppOwnershipKind::Borrowed;
         }
     }
-    let lvalue_ref_re = Regex::new(
-        r"(?m)\b([A-Za-z_][A-Za-z0-9_:<>]*)\s*&\s*([A-Za-z_][A-Za-z0-9_]*)",
-    )
-    .expect("valid lvalue-reference regex");
+    let lvalue_ref_re =
+        Regex::new(r"(?m)\b([A-Za-z_][A-Za-z0-9_:<>]*)\s*&\s*([A-Za-z_][A-Za-z0-9_]*)")
+            .expect("valid lvalue-reference regex");
     for caps in lvalue_ref_re.captures_iter(source) {
         let Some(name) = caps.get(2) else { continue };
         let entry = values.entry(name.as_str().to_string()).or_default();
@@ -187,17 +204,18 @@ fn collect_value_semantics(source: &str) -> HashMap<String, CppValueSemantics> {
             entry.reference_kind = CppReferenceKind::LValue;
         }
         entry.pointee_type.get_or_insert_with(|| {
-            caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default()
+            caps.get(1)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default()
         });
         if entry.ownership == CppOwnershipKind::None {
             entry.ownership = CppOwnershipKind::Borrowed;
         }
     }
 
-    let raw_ptr_re = Regex::new(
-        r"(?m)\b([A-Za-z_][A-Za-z0-9_:<>]*)\s*\*+\s*([A-Za-z_][A-Za-z0-9_]*)",
-    )
-    .expect("valid raw-pointer regex");
+    let raw_ptr_re =
+        Regex::new(r"(?m)\b([A-Za-z_][A-Za-z0-9_:<>]*)\s*\*+\s*([A-Za-z_][A-Za-z0-9_]*)")
+            .expect("valid raw-pointer regex");
     for caps in raw_ptr_re.captures_iter(source) {
         let Some(name) = caps.get(2) else { continue };
         let entry = values.entry(name.as_str().to_string()).or_default();
@@ -205,7 +223,9 @@ fn collect_value_semantics(source: &str) -> HashMap<String, CppValueSemantics> {
             entry.ownership = CppOwnershipKind::Raw;
         }
         entry.pointee_type.get_or_insert_with(|| {
-            caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default()
+            caps.get(1)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default()
         });
     }
     values
@@ -255,14 +275,14 @@ fn collect_function_value_surfaces(source: &str) -> Vec<(String, usize, String)>
         None
     }
 
-    let head = Regex::new(
-        r"(?m)([A-Za-z_~][A-Za-z0-9_:~]*)\s*\(",
-    )
-    .expect("valid function surface regex");
+    let head =
+        Regex::new(r"(?m)([A-Za-z_~][A-Za-z0-9_:~]*)\s*\(").expect("valid function surface regex");
     let mut out = Vec::new();
     let mut cursor = 0usize;
     while cursor < source.len() {
-        let Some(caps) = head.captures(&source[cursor..]) else { break };
+        let Some(caps) = head.captures(&source[cursor..]) else {
+            break;
+        };
         let whole = caps.get(0).expect("whole match");
         let name = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
         let absolute_start = cursor + whole.start();
@@ -276,13 +296,21 @@ fn collect_function_value_surfaces(source: &str) -> Vec<(String, usize, String)>
             continue;
         };
         let mut body_open = close_paren + 1;
-        while source.as_bytes().get(body_open).is_some_and(|byte| byte.is_ascii_whitespace()) {
+        while source
+            .as_bytes()
+            .get(body_open)
+            .is_some_and(|byte| byte.is_ascii_whitespace())
+        {
             body_open += 1;
         }
         for qualifier in ["const", "noexcept", "override", "final"] {
             if source[body_open..].starts_with(qualifier) {
                 body_open += qualifier.len();
-                while source.as_bytes().get(body_open).is_some_and(|byte| byte.is_ascii_whitespace()) {
+                while source
+                    .as_bytes()
+                    .get(body_open)
+                    .is_some_and(|byte| byte.is_ascii_whitespace())
+                {
                     body_open += 1;
                 }
                 if qualifier == "noexcept" && source.as_bytes().get(body_open) == Some(&b'(') {
@@ -337,7 +365,9 @@ fn collect_function_value_surfaces(source: &str) -> Vec<(String, usize, String)>
             cursor = close_paren + 1;
             continue;
         }
-        let Some(body_close) = matching(source, body_open, b'{', b'}') else { break };
+        let Some(body_close) = matching(source, body_open, b'{', b'}') else {
+            break;
+        };
         let params = &source[open_paren + 1..close_paren];
         let arity = split_cpp_top_level(params, ',')
             .into_iter()
@@ -353,7 +383,6 @@ fn collect_function_value_surfaces(source: &str) -> Vec<(String, usize, String)>
     }
     out
 }
-
 
 fn merge_method_semantics(target: &mut CppMethodSemantics, incoming: &CppMethodSemantics) {
     target.is_virtual |= incoming.is_virtual;
@@ -381,7 +410,9 @@ fn cpp_matching_brace(source: &str, open: usize) -> Option<usize> {
     while index < bytes.len() {
         let byte = bytes[index];
         if line_comment {
-            if byte == b'\n' { line_comment = false; }
+            if byte == b'\n' {
+                line_comment = false;
+            }
             index += 1;
             continue;
         }
@@ -400,8 +431,11 @@ fn cpp_matching_brace(source: &str, open: usize) -> Option<usize> {
             continue;
         }
         if let Some(active) = quote {
-            if byte == b'\\' { escaped = true; }
-            else if byte == active { quote = None; }
+            if byte == b'\\' {
+                escaped = true;
+            } else if byte == active {
+                quote = None;
+            }
             index += 1;
             continue;
         }
@@ -421,7 +455,9 @@ fn cpp_matching_brace(source: &str, open: usize) -> Option<usize> {
             depth += 1;
         } else if byte == b'}' {
             depth = depth.saturating_sub(1);
-            if depth == 0 { return Some(index); }
+            if depth == 0 {
+                return Some(index);
+            }
         }
         index += 1;
     }
@@ -429,18 +465,25 @@ fn cpp_matching_brace(source: &str, open: usize) -> Option<usize> {
 }
 
 fn collect_inline_method_headers(source: &str) -> Vec<(String, String)> {
-    let class_re = Regex::new(
-        r"\b(?:class|struct)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*[^\{]+)?\s*\{",
-    )
-    .expect("valid class regex");
+    let class_re =
+        Regex::new(r"\b(?:class|struct)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*[^\{]+)?\s*\{")
+            .expect("valid class regex");
     let mut out = Vec::new();
     let mut search = 0usize;
     while search < source.len() {
-        let Some(caps) = class_re.captures(&source[search..]) else { break };
+        let Some(caps) = class_re.captures(&source[search..]) else {
+            break;
+        };
         let whole = caps.get(0).expect("class match");
-        let owner = caps.get(1).map(|m| m.as_str()).unwrap_or_default().to_string();
+        let owner = caps
+            .get(1)
+            .map(|m| m.as_str())
+            .unwrap_or_default()
+            .to_string();
         let open = search + whole.end() - 1;
-        let Some(close) = cpp_matching_brace(source, open) else { break };
+        let Some(close) = cpp_matching_brace(source, open) else {
+            break;
+        };
         let mut cursor = open + 1;
         let mut start = cursor;
         let mut paren = 0usize;
@@ -456,8 +499,11 @@ fn collect_inline_method_headers(source: &str) -> Vec<(String, String)> {
                 continue;
             }
             if let Some(active) = quote {
-                if byte == b'\\' { escaped = true; }
-                else if byte == active { quote = None; }
+                if byte == b'\\' {
+                    escaped = true;
+                } else if byte == active {
+                    quote = None;
+                }
                 cursor += 1;
                 continue;
             }
@@ -499,14 +545,18 @@ fn parse_inline_method_header(
     owner: &str,
     header: &str,
 ) -> Option<(String, String, CppMethodSemantics)> {
-    let access_re = Regex::new(r"(?m)\b(?:public|protected|private)\s*:\s*")
-        .expect("valid access regex");
+    let access_re =
+        Regex::new(r"(?m)\b(?:public|protected|private)\s*:\s*").expect("valid access regex");
     let cleaned = access_re.replace_all(header, "");
     let open = cleaned.find('(')?;
     let close = cleaned.rfind(')')?;
-    if close < open { return None; }
+    if close < open {
+        return None;
+    }
     let prefix = cleaned[..open].trim_end();
-    if prefix.contains("(*") { return None; }
+    if prefix.contains("(*") {
+        return None;
+    }
     let (name_start, name) = if let Some(operator) = prefix.rfind("operator") {
         (operator, prefix[operator..].replace(' ', ""))
     } else {
@@ -520,7 +570,9 @@ fn parse_inline_method_header(
                 break;
             }
         }
-        if start == bytes.len() { return None; }
+        if start == bytes.len() {
+            return None;
+        }
         (start, prefix[start..].to_string())
     };
     let return_surface = prefix[..name_start].trim();
@@ -548,7 +600,6 @@ fn parse_inline_method_header(
         },
     ))
 }
-
 
 fn split_cpp_top_level(input: &str, delimiter: char) -> Vec<&str> {
     let mut out = Vec::new();
@@ -595,11 +646,7 @@ fn split_cpp_top_level(input: &str, delimiter: char) -> Vec<&str> {
     out
 }
 
-fn classify_special_member(
-    owner: &str,
-    name: &str,
-    params: &str,
-) -> Option<CppSpecialMemberKind> {
+fn classify_special_member(owner: &str, name: &str, params: &str) -> Option<CppSpecialMemberKind> {
     if name == owner {
         if params.contains("&&") {
             Some(CppSpecialMemberKind::MoveConstructor)

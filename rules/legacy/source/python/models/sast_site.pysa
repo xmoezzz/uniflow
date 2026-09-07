@@ -1,0 +1,17 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                site
+
+# DataflowSourceRule site 1
+# [{'NamespaceName': 'site', 'ClassName': '', 'FunctionName': 'get(user)?sitepackages|getuserbase', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_site_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^site.*\.(get(user)?sitepackages|getuserbase)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

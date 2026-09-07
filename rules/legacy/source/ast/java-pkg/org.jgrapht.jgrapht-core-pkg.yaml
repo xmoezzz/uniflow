@@ -1,0 +1,10 @@
+id: org.jgrapht.jgrapht-core
+language: Java
+message: pkg:maven/org.jgrapht/jgrapht-core
+metadata:
+  purl: pkg:maven/org.jgrapht/jgrapht-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jgrapht|org\.jgrapht\.alg\.transform|org\.jgrapht\.alg\.matching\.blossom\.v5|org\.jgrapht\.alg\.similarity|org\.jgrapht\.alg\.independentset|org\.jgrapht\.alg\.cycle|org\.jgrapht\.alg\.spanning|org\.jgrapht\.alg\.decomposition|org\.jgrapht\.alg\.util\.extension|org\.jgrapht\.generate|org\.jgrapht\.alg\.planar|org\.jgrapht\.alg\.isomorphism|org\.jgrapht\.graph|org\.jgrapht\.alg\.clustering|org\.jgrapht\.alg\.linkprediction|org\.jgrapht\.alg\.shortestpath|org\.jgrapht\.alg\.flow|org\.jgrapht\.event|org\.jgrapht\.alg\.scoring|org\.jgrapht\.alg\.interfaces|org\.jgrapht\.alg\.clique|org\.jgrapht\.traverse|org\.jgrapht\.alg\.densesubgraph|org\.jgrapht\.alg\.drawing\.model|org\.jgrapht\.util|org\.jgrapht\.alg|org\.jgrapht\.alg\.connectivity|org\.jgrapht\.graph\.specifics|org\.jgrapht\.alg\.vertexcover\.util|org\.jgrapht\.generate\.netgen|org\.jgrapht\.alg\.partition|org\.jgrapht\.alg\.matching|org\.jgrapht\.alg\.drawing|org\.jgrapht\.alg\.lca|org\.jgrapht\.alg\.vertexcover|org\.jgrapht\.alg\.flow\.mincost|org\.jgrapht\.graph\.concurrent|org\.jgrapht\.graph\.builder|org\.jgrapht\.alg\.tour|org\.jgrapht\.alg\.util|org\.jgrapht\.alg\.color)\.

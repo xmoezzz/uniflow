@@ -1,0 +1,33 @@
+id: empty-block
+message: '0202000010130130'
+language: Java
+utils:
+  is_pre_all_comment_stmt:
+    all:
+      - kind: line_comment
+      - any:
+        - not:
+            follows:
+              pattern: $_
+        - follows:
+            matches: is_pre_all_comment_stmt
+  is_next_all_comment_stmt:
+    all:
+      - kind: line_comment
+      - any:
+        - not:
+            precedes:
+              pattern: $_
+        - precedes:
+            matches: is_next_all_comment_stmt
+rule:
+  kind: block
+  any:
+      - not:
+          has:
+            pattern: $_
+      - has:
+          kind: line_comment
+          all:
+            - matches: is_pre_all_comment_stmt
+            - matches: is_next_all_comment_stmt

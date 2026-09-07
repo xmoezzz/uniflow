@@ -1,0 +1,10 @@
+id: net.opentsdb.opentsdb
+language: Java
+message: pkg:maven/net.opentsdb/opentsdb
+metadata:
+  purl: pkg:maven/net.opentsdb/opentsdb
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(net\.opentsdb\.rollup|net\.opentsdb\.auth|net\.opentsdb\.query\.expression|net\.opentsdb\.tools|net\.opentsdb\.tree|net\.opentsdb\.uid|net\.opentsdb\.core|net\.opentsdb\.meta|net\.opentsdb\.examples|net\.opentsdb\.utils|net\.opentsdb\.query\.filter|net\.opentsdb\.graph|net\.opentsdb\.tsd|net\.opentsdb\.query\.expression\.parser|net\.opentsdb\.stats|net\.opentsdb\.query|net\.opentsdb\.search|net\.opentsdb\.query\.pojo)\.

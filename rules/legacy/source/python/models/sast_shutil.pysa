@@ -1,0 +1,36 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                shutil
+
+# DataflowSourceRule shutil 1
+# [{'NamespaceName': 'shutil', 'ClassName': '', 'FunctionName': 'disk_usage', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_shutil_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^shutil.*\.disk_usage$")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule shutil 4
+# [{'NamespaceName': 'shutil', 'ClassName': '', 'FunctionName': 'chown', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'shutil', 'ClassName': '', 'FunctionName': 'chown', 'RuleName': 'desc.dataflow.python.file_permission_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'shutil', 'ClassName': '', 'FunctionName': 'copyfile(obj)?|copymode|copystat|copy2|copytree|rmtree|move', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'shutil', 'ClassName': '', 'FunctionName': 'make_archive', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_shutil_functions_sinks",
+  find="functions",
+  where=[
+    AnyOf(
+      name.matches("^shutil.*\.chown$"),
+      name.matches("^shutil.*\.make_archive$"),
+      name.matches("^shutil.*\.(copyfile(obj)?|copymode|copystat|copy2|copytree|rmtree|move)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_path_manipulation]
+    )
+  ]
+)

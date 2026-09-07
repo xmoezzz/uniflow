@@ -1,0 +1,10 @@
+id: org.openrefine.database
+language: Java
+message: pkg:maven/org.openrefine/database
+metadata:
+  purl: pkg:maven/org.openrefine/database
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.google\.refine\.extension\.database\.mysql|com\.google\.refine\.extension\.database\.model|com\.google\.refine\.extension\.database\.pgsql|com\.google\.refine\.extension\.database\.cmd|com\.google\.refine\.extension\.database\.sqlite|com\.google\.refine\.extension\.database|com\.google\.refine\.extension\.database\.mariadb)\.

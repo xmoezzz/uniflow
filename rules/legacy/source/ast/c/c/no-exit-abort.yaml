@@ -1,0 +1,11 @@
+id: no-exit-abort
+message: '0601000010140063'
+language: C
+rule:
+  all:
+    - kind: call_expression
+    - has:
+        kind: identifier
+        regex: "^(exit|abort)$"
+        field: function
+

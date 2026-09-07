@@ -1,0 +1,10 @@
+id: org.eclipse.jetty.jetty-client
+language: Java
+message: pkg:maven/org.eclipse.jetty/jetty-client
+metadata:
+  purl: pkg:maven/org.eclipse.jetty/jetty-client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.jetty\.client\.jmx|org\.eclipse\.jetty\.client|org\.eclipse\.jetty\.client\.transport\.internal|org\.eclipse\.jetty\.client\.internal|org\.eclipse\.jetty\.client\.transport)\.

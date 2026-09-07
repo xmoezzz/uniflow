@@ -1,0 +1,10 @@
+id: org.apache.zeppelin.zeppelin-server
+language: Java
+message: pkg:maven/org.apache.zeppelin/zeppelin-server
+metadata:
+  purl: pkg:maven/org.apache.zeppelin/zeppelin-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.zeppelin\.socket|org\.apache\.zeppelin\.realm\.jwt|org\.apache\.zeppelin\.rest|org\.apache\.zeppelin\.realm|org\.apache\.zeppelin\.rest\.exception|org\.apache\.zeppelin\.types|org\.apache\.zeppelin\.rest\.message\.gson|org\.apache\.zeppelin\.metric|org\.apache\.zeppelin\.service|org\.apache\.zeppelin\.rest\.message|org\.apache\.zeppelin\.server|org\.apache\.zeppelin\.utils|org\.apache\.zeppelin\.realm\.kerberos)\.

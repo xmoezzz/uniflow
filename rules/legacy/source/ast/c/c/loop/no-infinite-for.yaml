@@ -1,0 +1,5 @@
+id: no-infinite-for
+message: '0701000010130072'
+language: C
+rule:
+  pattern: 'for (;;) $$$'

@@ -1,0 +1,10 @@
+id: org.apache.streampipes.streampipes-rest
+language: Java
+message: pkg:maven/org.apache.streampipes/streampipes-rest
+metadata:
+  purl: pkg:maven/org.apache.streampipes/streampipes-rest
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.streampipes\.rest|org\.apache\.streampipes\.rest\.impl\.connect|org\.apache\.streampipes\.rest\.impl\.admin|org\.apache\.streampipes\.rest\.security|org\.apache\.streampipes\.rest\.impl\.dashboard|org\.apache\.streampipes\.rest\.impl|org\.apache\.streampipes\.rest\.impl\.pe|org\.apache\.streampipes\.rest\.impl\.datalake|org\.apache\.streampipes\.rest\.utils)\.

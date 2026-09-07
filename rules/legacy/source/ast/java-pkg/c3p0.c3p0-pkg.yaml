@@ -1,0 +1,10 @@
+id: c3p0.c3p0
+language: Java
+message: pkg:maven/c3p0/c3p0
+metadata:
+  purl: pkg:maven/c3p0/c3p0
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.mchange\.v1\.util|com\.mchange\.v2\.c3p0\.mbean|com\.mchange\.v2\.c3p0\.subst|com\.mchange\.v2\.log\.jdk14logging|com\.mchange\.v2\.c3p0\.filter|com\.mchange\.v2\.resourcepool|com\.mchange\.v2\.c3p0\.impl|com\.mchange\.v2\.async|com\.mchange\.v2\.codegen\.bean|com\.mchange\.v2|com\.mchange\.v2\.c3p0|com\.mchange\.v2\.sql\.filter|com\.mchange\.v2\.log|com\.mchange\.v2\.c3p0\.util|com\.mchange\.v1\.identicator|com\.mchange\.v2\.beans|com\.mchange\.v2\.util|com\.mchange\.v2\.lang|com\.mchange\.v2\.holders|com\.mchange\.v2\.naming|com\.mchange\.v1\.db|com\.mchange\.lang|com\.mchange\.v2\.ser|com\.mchange\.v2\.codegen|com\.mchange\.v2\.codegen\.intfc|com\.mchange\.v1\.io|com\.mchange\.v2\.c3p0\.stmt|com\.mchange\.v1|com\.mchange\.v2\.coalesce|com\.mchange\.v2\.sql|com\.mchange|com\.mchange\.v2\.log\.log4j|com\.mchange\.v2\.cfg|com\.mchange\.v1\.db\.sql|com\.mchange\.util|com\.mchange\.v2\.debug)\.

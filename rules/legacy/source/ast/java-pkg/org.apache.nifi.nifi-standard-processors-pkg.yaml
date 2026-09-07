@@ -1,0 +1,10 @@
+id: org.apache.nifi.nifi-standard-processors
+language: Java
+message: pkg:maven/org.apache.nifi/nifi-standard-processors
+metadata:
+  purl: pkg:maven/org.apache.nifi/nifi-standard-processors
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.nifi\.processors\.standard\.util|org\.apache\.nifi\.processors\.standard\.relp\.frame|org\.apache\.nifi\.processors\.standard\.ftp\.filesystem|org\.apache\.nifi\.processors\.standard\.ftp|org\.apache\.nifi\.processors\.standard|org\.apache\.nifi\.processors\.standard\.encoding|org\.apache\.nifi\.processors\.standard\.db|org\.apache\.nifi\.processors\.standard\.relp\.event|org\.apache\.nifi\.processors\.standard\.exception|org\.apache\.nifi\.processors\.standard\.calcite|org\.apache\.nifi\.processors\.standard\.relp\.response|org\.apache\.nifi\.processors\.standard\.ssh|org\.apache\.nifi\.processors\.standard\.socket|org\.apache\.nifi\.processors\.standard\.http|org\.apache\.nifi\.processors\.standard\.xml|org\.apache\.nifi\.processors\.standard\.ftp\.commands|org\.apache\.nifi\.queryrecord|org\.apache\.nifi\.processors\.standard\.relp\.handler|org\.apache\.nifi\.processors\.standard\.db\.impl|org\.apache\.nifi\.processors\.standard\.servlets|org\.apache\.nifi\.processors\.standard\.sql|org\.apache\.nifi\.processors\.standard\.property|org\.apache\.nifi\.processors\.standard\.enrichment|org\.apache\.nifi\.processors\.standard\.hash|org\.apache\.nifi\.processors\.standard\.faker|org\.apache\.nifi\.processors\.standard\.merge)\.

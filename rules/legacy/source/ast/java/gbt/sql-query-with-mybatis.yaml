@@ -1,0 +1,16 @@
+id: sql-query-with-mybatis
+message: '0402000010020005,0402000010020016'
+language: Java
+rule:
+  kind: method_declaration
+  has:
+    kind: modifiers
+    has:
+      kind: annotation
+      all:
+      - has:
+          field: name
+          pattern: Select
+      - has:
+          field: arguments          
+          regex: \$\{.*\}

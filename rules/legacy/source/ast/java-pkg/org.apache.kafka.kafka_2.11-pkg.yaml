@@ -1,0 +1,10 @@
+id: org.apache.kafka.kafka_2.11
+language: Java
+message: pkg:maven/org.apache.kafka/kafka_2.11
+metadata:
+  purl: pkg:maven/org.apache.kafka/kafka_2.11
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(kafka\.consumer|kafka\.tools|kafka\.cluster|kafka\.common|kafka\.serializer|kafka\.log|kafka\.server|kafka\.coordinator\.group|kafka\.utils|kafka\.server\.epoch|kafka\.security\.authorizer|kafka\.metrics|kafka\.security\.auth|kafka\.admin|kafka\.zk|kafka\.coordinator\.transaction|kafka\.utils\.json|kafka\.network|kafka\.utils\.timer|kafka\.api|kafka\.security|kafka\.server\.checkpoints|kafka\.zookeeper|kafka\.message|kafka|kafka\.controller)\.

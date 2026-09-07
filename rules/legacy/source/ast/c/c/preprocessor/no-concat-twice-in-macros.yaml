@@ -1,0 +1,10 @@
+id: no-concat-twice-in-macros
+message: '0601000010140098'
+language: C
+rule:
+  all:
+    - kind: preproc_function_def
+    - has:
+        kind: preproc_arg
+        field: value
+        regex: '#[^#].*#'

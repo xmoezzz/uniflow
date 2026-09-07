@@ -1,0 +1,10 @@
+id: org.apache.poi.poi-ooxml
+language: Java
+message: pkg:maven/org.apache.poi/poi-ooxml
+metadata:
+  purl: pkg:maven/org.apache.poi/poi-ooxml
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.poi\.xssf\.util|org\.apache\.poi\.xssf\.usermodel\.extensions|org\.apache\.poi\.poifs\.crypt\.temp|org\.apache\.poi\.xddf\.usermodel|org\.apache\.poi\.xslf\.usermodel|org\.apache\.poi\.ooxml|org\.apache\.poi\.xdgf\.usermodel\.shape\.exceptions|org\.apache\.poi\.xdgf\.extractor|org\.apache\.poi\.openxml4j\.exceptions|org\.apache\.poi\.xdgf\.usermodel\.section\.geometry|org\.apache\.poi\.xssf|org\.apache\.poi\.ooxml\.util|org\.apache\.poi\.xslf\.extractor|org\.apache\.poi\.xssf\.streaming|org\.apache\.poi\.xwpf\.model|org\.apache\.poi\.xdgf\.usermodel\.section|org\.apache\.poi\.xddf\.usermodel\.chart|org\.apache\.poi\.xslf\.model|org\.apache\.poi\.xdgf\.xml|org\.apache\.poi\.xslf\.util|org\.apache\.poi\.openxml4j\.opc\.internal\.marshallers|org\.apache\.poi\.poifs\.crypt\.dsig\.services|org\.apache\.poi\.xdgf\.exceptions|org\.apache\.poi\.xslf\.draw|org\.apache\.poi\.openxml4j\.opc|org\.apache\.poi\.xwpf\.usermodel|org\.apache\.poi\.poifs\.crypt\.dsig|org\.apache\.poi\.xssf\.model|org\.apache\.poi\.openxml4j\.opc\.internal|org\.apache\.poi\.xdgf\.usermodel\.shape|org\.apache\.poi\.xssf\.extractor|org\.apache\.poi\.ooxml\.dev|org\.apache\.poi\.xddf\.usermodel\.text|org\.apache\.poi\.xssf\.usermodel|org\.apache\.poi\.openxml4j\.util|org\.apache\.poi\.xssf\.usermodel\.helpers|org\.apache\.poi\.xdgf\.util|org\.apache\.poi\.poifs\.crypt\.dsig\.facets|META-INF\.versions\.9|org\.apache\.poi\.xslf\.draw\.geom|org\.apache\.poi\.xwpf\.extractor|org\.apache\.poi\.openxml4j\.opc\.internal\.unmarshallers|org\.apache\.poi\.xdgf\.usermodel|org\.apache\.poi\.xssf\.eventusermodel|org\.apache\.poi\.xssf\.binary|org\.apache\.poi\.xdgf\.geom|org\.apache\.poi\.ooxml\.extractor)\.

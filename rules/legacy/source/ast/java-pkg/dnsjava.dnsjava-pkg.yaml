@@ -1,0 +1,10 @@
+id: dnsjava.dnsjava
+language: Java
+message: pkg:maven/dnsjava/dnsjava
+metadata:
+  purl: pkg:maven/dnsjava/dnsjava
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(META-INF\.versions\.18|org\.xbill\.DNS\.utils|META-INF\.versions\.18\.org\.xbill\.DNS\.spi|org\.xbill\.DNS\.dnssec|org\.xbill\.DNS\.io|org\.xbill\.DNS\.config|org\.xbill\.DNS|org\.xbill\.DNS\.hosts|org\.xbill\.DNS\.tools|META-INF\.versions\.11|org\.xbill\.DNS\.spi|org\.xbill\.DNS\.lookup)\.

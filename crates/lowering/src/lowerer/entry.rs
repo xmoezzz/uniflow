@@ -12,6 +12,267 @@ fn lambda_function_name(enclosing_function: &str, id: uniflow_hir::ExprId, line_
     format!("{enclosing_function}.__lambda_{}_{}", line_no, id.0)
 }
 
+/// Extract closures directly from HIR instead of requiring every language
+/// frontend to manufacture duplicate top-level function items. The lambda
+/// expression still remains in its enclosing body and represents construction
+/// of the closure environment; this synthetic function represents invocation.
+fn direct_lambda_functions(
+    func: &HirFunction,
+    symbol_names: &HashMap<SymbolId, String>,
+) -> Vec<HirFunction> {
+    let mut out = Vec::new();
+    collect_block_lambdas(&func.body, &func.name, symbol_names, &mut out);
+    out
+}
+
+fn assigned_lambda(expr: &Expr, name: &str) -> Option<HirFunction> {
+    let Expr::Lambda { params, captures, body, span, .. } = expr else {
+        return None;
+    };
+    Some(HirFunction {
+        id: uniflow_hir::FunctionId(0),
+        name: name.to_string(),
+        symbol: None,
+        params: params.clone(),
+        captures: captures
+            .iter()
+            .map(|capture| uniflow_hir::Param {
+                name: capture.name.clone(),
+                symbol: capture.symbol,
+                ty: capture.ty,
+                kind: uniflow_hir::ParamKind::Positional,
+                has_default: false,
+                keyword_only: false,
+                cpp: CppValueSemantics::default(),
+                span: capture.span,
+            })
+            .collect(),
+        receiver: None,
+        return_type: None,
+        cpp_initializers: Vec::new(),
+        body: body.clone(),
+        is_method: false,
+        span: *span,
+        cpp: None,
+    })
+}
+
+fn collect_block_lambdas(
+    block: &Block,
+    enclosing: &str,
+    symbol_names: &HashMap<SymbolId, String>,
+    out: &mut Vec<HirFunction>,
+) {
+    for stmt in &block.stmts {
+        match stmt {
+            Stmt::Let { symbol, init, .. } => {
+                if let Some(expr) = init {
+                    if let Some(name) = symbol_names.get(symbol) {
+                        if let Some(lambda) = assigned_lambda(expr, name) {
+                            out.push(lambda);
+                        } else {
+                            collect_expr_lambdas(expr, enclosing, out);
+                        }
+                    } else {
+                        collect_expr_lambdas(expr, enclosing, out);
+                    }
+                }
+            }
+            Stmt::Assign { lhs, rhs, .. } => {
+                collect_lvalue_lambdas(lhs, enclosing, out);
+                let assigned_name = match lhs {
+                    LValue::Field { base, field } => match &**base {
+                        Expr::VarRef { symbol, .. } => symbol_names
+                            .get(symbol)
+                            .map(|base| format!("{base}.{field}")),
+                        _ => None,
+                    },
+                    LValue::Var(symbol) => symbol_names.get(symbol).cloned(),
+                    LValue::Index { .. } => None,
+                };
+                if let Some(lambda) = assigned_name
+                    .as_deref()
+                    .and_then(|name| assigned_lambda(rhs, name))
+                {
+                    out.push(lambda);
+                } else {
+                    collect_expr_lambdas(rhs, enclosing, out);
+                }
+            }
+            Stmt::Expr { expr, .. } => collect_expr_lambdas(expr, enclosing, out),
+            Stmt::If {
+                cond,
+                then_block,
+                else_block,
+                ..
+            } => {
+                collect_expr_lambdas(cond, enclosing, out);
+                collect_block_lambdas(then_block, enclosing, symbol_names, out);
+                if let Some(block) = else_block {
+                    collect_block_lambdas(block, enclosing, symbol_names, out);
+                }
+            }
+            Stmt::While { cond, body, .. } | Stmt::DoWhile { cond, body, .. } => {
+                collect_expr_lambdas(cond, enclosing, out);
+                collect_block_lambdas(body, enclosing, symbol_names, out);
+            }
+            Stmt::ForEach { iterable, body, .. } => {
+                collect_expr_lambdas(iterable, enclosing, out);
+                collect_block_lambdas(body, enclosing, symbol_names, out);
+            }
+            Stmt::For { init, cond, update, body, .. } => {
+                collect_block_lambdas(init, enclosing, symbol_names, out);
+                if let Some(cond) = cond { collect_expr_lambdas(cond, enclosing, out); }
+                collect_block_lambdas(update, enclosing, symbol_names, out);
+                collect_block_lambdas(body, enclosing, symbol_names, out);
+            }
+            Stmt::Return { value, .. } | Stmt::Throw { value, .. } => {
+                if let Some(expr) = value {
+                    collect_expr_lambdas(expr, enclosing, out);
+                }
+            }
+            Stmt::Try {
+                try_block,
+                catches,
+                finally_block,
+                ..
+            } => {
+                collect_block_lambdas(try_block, enclosing, symbol_names, out);
+                for catch in catches {
+                    collect_block_lambdas(&catch.body, enclosing, symbol_names, out);
+                }
+                if let Some(block) = finally_block {
+                    collect_block_lambdas(block, enclosing, symbol_names, out);
+                }
+            }
+            Stmt::Switch {
+                scrutinee,
+                clauses,
+                default,
+                ..
+            } => {
+                collect_expr_lambdas(scrutinee, enclosing, out);
+                for clause in clauses {
+                    for value in &clause.values {
+                        collect_expr_lambdas(value, enclosing, out);
+                    }
+                    collect_block_lambdas(&clause.body, enclosing, symbol_names, out);
+                }
+                if let Some(block) = default {
+                    collect_block_lambdas(block, enclosing, symbol_names, out);
+                }
+            }
+            Stmt::Break { .. } | Stmt::Continue { .. } => {}
+        }
+    }
+}
+
+fn collect_lvalue_lambdas(lvalue: &LValue, enclosing: &str, out: &mut Vec<HirFunction>) {
+    match lvalue {
+        LValue::Var(_) => {}
+        LValue::Field { base, .. } => collect_expr_lambdas(base, enclosing, out),
+        LValue::Index { base, index } => {
+            collect_expr_lambdas(base, enclosing, out);
+            collect_expr_lambdas(index, enclosing, out);
+        }
+    }
+}
+
+fn collect_expr_lambdas(expr: &Expr, enclosing: &str, out: &mut Vec<HirFunction>) {
+    match expr {
+        Expr::Lambda {
+            id,
+            params,
+            captures,
+            body,
+            span,
+        } => {
+            out.push(HirFunction {
+                id: uniflow_hir::FunctionId(0),
+                name: lambda_function_name(enclosing, *id, span.start_line.max(1)),
+                symbol: None,
+                params: params.clone(),
+                captures: captures
+                    .iter()
+                    .map(|capture| uniflow_hir::Param {
+                        name: capture.name.clone(),
+                        symbol: capture.symbol,
+                        ty: capture.ty,
+                        kind: uniflow_hir::ParamKind::Positional,
+                        has_default: false,
+                        keyword_only: false,
+                        cpp: CppValueSemantics::default(),
+                        span: capture.span,
+                    })
+                    .collect(),
+                return_type: None,
+                body: body.clone(),
+                is_method: false,
+                receiver: None,
+                cpp: None,
+                cpp_initializers: Vec::new(),
+                span: *span,
+            });
+        }
+        Expr::Unary { expr, .. } | Expr::Cast { expr, .. } => {
+            collect_expr_lambdas(expr, enclosing, out)
+        }
+        Expr::Binary { lhs, rhs, .. } => {
+            collect_expr_lambdas(lhs, enclosing, out);
+            collect_expr_lambdas(rhs, enclosing, out);
+        }
+        Expr::FieldRead { base, .. } => collect_expr_lambdas(base, enclosing, out),
+        Expr::IndexRead { base, index, .. } => {
+            collect_expr_lambdas(base, enclosing, out);
+            collect_expr_lambdas(index, enclosing, out);
+        }
+        Expr::Call(call) => {
+            if let CallTarget::Dynamic(callee) = &call.target {
+                collect_expr_lambdas(callee, enclosing, out);
+            }
+            if let Some(receiver) = &call.receiver {
+                collect_expr_lambdas(receiver, enclosing, out);
+            }
+            for arg in &call.args {
+                collect_expr_lambdas(arg, enclosing, out);
+            }
+        }
+        Expr::New { args, .. } => {
+            for arg in args {
+                collect_expr_lambdas(arg, enclosing, out);
+            }
+        }
+        Expr::Conditional {
+            cond,
+            then_expr,
+            else_expr,
+            ..
+        } => {
+            collect_expr_lambdas(cond, enclosing, out);
+            collect_expr_lambdas(then_expr, enclosing, out);
+            collect_expr_lambdas(else_expr, enclosing, out);
+        }
+        Expr::Assign { lhs, rhs, .. } => {
+            collect_lvalue_lambdas(lhs, enclosing, out);
+            collect_expr_lambdas(rhs, enclosing, out);
+        }
+        Expr::Interp { parts, .. }
+        | Expr::Collection {
+            elements: parts, ..
+        } => {
+            for part in parts {
+                collect_expr_lambdas(part, enclosing, out);
+            }
+        }
+        Expr::Range { low, high, .. } => {
+            collect_expr_lambdas(low, enclosing, out);
+            collect_expr_lambdas(high, enclosing, out);
+        }
+        Expr::VarRef { .. } | Expr::Literal { .. } | Expr::Opaque { .. } | Expr::Unknown { .. } => {
+        }
+    }
+}
+
 fn remap_ir_span(source_maps: &[SourceMap], span: uniflow_hir::Span) -> uniflow_hir::Span {
     source_maps
         .iter()
@@ -30,7 +291,9 @@ struct Lowerer {
     next_value_id: u32,
     hir_type_names: HashMap<TypeId, String>,
     hir_symbol_names: HashMap<SymbolId, String>,
+    current_import_aliases: HashMap<String, String>,
     program_symbols: HashMap<SymbolId, uniflow_hir::Symbol>,
+    lambda_captures: HashMap<String, Vec<String>>,
     type_hierarchy: IndexMap<String, Vec<String>>,
     source_maps: Vec<SourceMap>,
 }
@@ -47,6 +310,39 @@ impl Lowerer {
             .iter()
             .map(|symbol| (symbol.id, symbol.name.clone()))
             .collect::<HashMap<_, _>>();
+
+        let mut lambda_captures = HashMap::new();
+        for module in &program.modules {
+            for item in &module.items {
+                match item {
+                    Item::Function(function) if !function.captures.is_empty() => {
+                        lambda_captures.insert(
+                            function.name.clone(),
+                            function
+                                .captures
+                                .iter()
+                                .map(|capture| capture.name.clone())
+                                .collect(),
+                        );
+                    }
+                    Item::Class(class) => {
+                        for function in &class.methods {
+                            if !function.captures.is_empty() {
+                                lambda_captures.insert(
+                                    function.name.clone(),
+                                    function
+                                        .captures
+                                        .iter()
+                                        .map(|capture| capture.name.clone())
+                                        .collect(),
+                                );
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
 
         let mut type_hierarchy = IndexMap::new();
         for module in &program.modules {
@@ -75,12 +371,13 @@ impl Lowerer {
             next_value_id: 0,
             hir_type_names,
             hir_symbol_names,
+            current_import_aliases: HashMap::new(),
             program_symbols: program.symbols.iter().cloned().map(|s| (s.id, s)).collect(),
+            lambda_captures,
             type_hierarchy,
             source_maps: program.source_maps.clone(),
         }
     }
-
 
     fn propagate_internal_call_return_types(&mut self) {
         let mut return_types = HashMap::new();
@@ -111,7 +408,10 @@ impl Lowerer {
                     }
                     let inferred = match &call.callee {
                         Callee::Static(name) => return_types.get(name).cloned().or_else(|| {
-                            if let Some(receiver) = call.receiver.and_then(|value| known_types.get(&value).cloned()) {
+                            if let Some(receiver) = call
+                                .receiver
+                                .and_then(|value| known_types.get(&value).cloned())
+                            {
                                 if let Some(method) = name.rsplit('.').next() {
                                     owner_method.get(&(receiver, method.to_string())).cloned()
                                 } else {
@@ -130,7 +430,6 @@ impl Lowerer {
             }
         }
     }
-
 
     fn propagate_cpp_value_semantics(&mut self) {
         for func in &mut self.functions {
@@ -175,14 +474,16 @@ impl Lowerer {
                                     "lock" => call.receiver.and_then(|receiver| {
                                         func.value_cpp.get(&receiver).cloned().map(|mut cpp| {
                                             cpp.ownership = uniflow_hir::CppOwnershipKind::Shared;
-                                            cpp.reference_kind = uniflow_hir::CppReferenceKind::None;
+                                            cpp.reference_kind =
+                                                uniflow_hir::CppReferenceKind::None;
                                             cpp
                                         })
                                     }),
                                     "get" => call.receiver.and_then(|receiver| {
                                         func.value_cpp.get(&receiver).cloned().map(|mut cpp| {
                                             cpp.ownership = uniflow_hir::CppOwnershipKind::Borrowed;
-                                            cpp.reference_kind = uniflow_hir::CppReferenceKind::LValue;
+                                            cpp.reference_kind =
+                                                uniflow_hir::CppReferenceKind::LValue;
                                             cpp
                                         })
                                     }),
@@ -225,15 +526,47 @@ impl Lowerer {
     }
 
     fn lower_module(&mut self, module: &Module) {
+        self.current_import_aliases.clear();
+        for import in &module.imports {
+            if let Some(alias) = import.alias.as_ref().filter(|alias| !alias.trim().is_empty()) {
+                self.current_import_aliases
+                    .insert(alias.clone(), import.path.clone());
+            } else if let Some(name) = import
+                .path
+                .rsplit(['.', '/', ':'])
+                .find(|name| !name.is_empty())
+            {
+                self.current_import_aliases
+                    .insert(name.to_string(), import.path.clone());
+            }
+        }
+        let mut queue = std::collections::VecDeque::<(HirFunction, Option<String>)>::new();
+        let mut declared = HashSet::new();
         for item in &module.items {
             match item {
-                Item::Function(func) => self.lower_function(func, None),
+                Item::Function(func) => {
+                    declared.insert(func.name.clone());
+                    queue.push_back((func.clone(), None));
+                }
                 Item::Class(class) => {
                     for method in &class.methods {
-                        self.lower_function(method, Some(class.name.as_str()));
+                        declared.insert(method.name.clone());
+                        queue.push_back((method.clone(), Some(class.name.clone())));
                     }
                 }
                 Item::GlobalVar(_) => {}
+            }
+        }
+        let mut lowered = HashSet::new();
+        while let Some((func, owner)) = queue.pop_front() {
+            if !lowered.insert(func.name.clone()) {
+                continue;
+            }
+            self.lower_function(&func, owner.as_deref());
+            for lambda in direct_lambda_functions(&func, &self.hir_symbol_names) {
+                if !declared.contains(&lambda.name) && !lowered.contains(&lambda.name) {
+                    queue.push_back((lambda, None));
+                }
             }
         }
     }
@@ -259,7 +592,7 @@ impl Lowerer {
             .and_then(|receiver| self.type_name_for(receiver.ty));
         let return_type_name = self.type_name_for(func.return_type);
 
-        let mut ctx = FunctionLoweringContext::new(self, function_id, func.name.clone());
+        let mut ctx = FunctionLoweringContext::new(self, func.name.clone());
         let mut params = Vec::new();
         let mut locals = Vec::new();
         let mut value_map = HashMap::new();
@@ -295,7 +628,8 @@ impl Lowerer {
                 value_cpp.insert(value, param.cpp.clone());
             }
         }
-        for (capture, capture_type_name) in func.captures.iter().zip(capture_type_names.into_iter()) {
+        for (capture, capture_type_name) in func.captures.iter().zip(capture_type_names.into_iter())
+        {
             let value = ctx.alloc_value();
             params.push(value);
             value_map.insert(capture.symbol, value);
@@ -347,7 +681,7 @@ impl Lowerer {
         if let Some(symbol_id) = func.symbol {
             if let Some(symbol) = self.program_symbols.get(&symbol_id) {
                 for (key, value) in &symbol.attributes {
-                    if key.starts_with("cpp.") {
+                    if key.starts_with("cpp.") || key.starts_with("python.") {
                         attrs.insert(key.clone(), value.clone());
                     }
                 }
@@ -449,4 +783,3 @@ impl Lowerer {
         ty.and_then(|id| self.hir_type_names.get(&id).cloned())
     }
 }
-

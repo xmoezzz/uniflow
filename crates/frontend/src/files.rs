@@ -37,11 +37,46 @@ pub fn supports_path(language: &Language, path: &Path) -> bool {
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or_default();
-    match language {
-        Language::C => matches!(ext, "c" | "h"),
-        Language::Cpp => matches!(ext, "cpp" | "cc" | "cxx" | "hpp" | "hh" | "hxx"),
-        Language::Java => ext == "java",
-        Language::Python => ext == "py",
-        Language::Unknown => false,
+    language
+        .extensions()
+        .iter()
+        .any(|supported| *supported == ext)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recognizes_every_product_language_extension() {
+        let cases = [
+            (Language::C, "a.c"),
+            (Language::Cpp, "a.cpp"),
+            (Language::CSharp, "a.cs"),
+            (Language::ObjC, "a.m"),
+            (Language::ObjCpp, "a.mm"),
+            (Language::Java, "a.java"),
+            (Language::Kotlin, "a.kt"),
+            (Language::Swift, "a.swift"),
+            (Language::Python, "a.py"),
+            (Language::Go, "a.go"),
+            (Language::JavaScript, "a.js"),
+            (Language::JavaScript, "a.ejs"),
+            (Language::JavaScript, "a.mustache"),
+            (Language::JavaScript, "a.hbs"),
+            (Language::JavaScript, "a.html"),
+            (Language::JavaScript, "a.pug"),
+            (Language::Jsp, "a.jsp"),
+            (Language::Sql, "a.sql"),
+            (Language::Php, "a.php"),
+            (Language::Ruby, "a.rb"),
+            (Language::Rust, "a.rs"),
+            (Language::Shell, "a.sh"),
+        ];
+        for (language, path) in cases {
+            assert!(supports_path(&language, Path::new(path)), "{path}");
+        }
+        assert!(supports_path(&Language::ObjC, Path::new("bridge.h")));
+        assert!(supports_path(&Language::ObjCpp, Path::new("bridge.hpp")));
     }
 }

@@ -1,0 +1,11 @@
+id: no-unnamed-struct
+message: '0701000010130006,0701000010130007'
+language: C
+rule:
+  all:
+    - any:
+        - kind: field_declaration_list
+        - kind: enumerator_list
+    - not:
+        follows:
+          kind: type_identifier

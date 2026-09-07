@@ -1,0 +1,10 @@
+id: org.jbehave.jbehave-core
+language: Java
+message: pkg:maven/org.jbehave/jbehave-core
+metadata:
+  purl: pkg:maven/org.jbehave/jbehave-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.jbehave\.core\.embedder\.executors|org\.jbehave\.core\.expressions|org\.jbehave\.core\.annotations|org\.jbehave\.core\.context|org\.jbehave\.core\.junit|org\.jbehave\.core\.steps\.context|org\.jbehave\.core\.i18n|org\.jbehave\.core\.reporters|org\.jbehave\.core\.failures|org\.jbehave\.core\.parsers|org\.jbehave\.core\.configuration|org\.jbehave\.core\.embedder|org\.jbehave\.core\.io|org\.jbehave\.core\.condition|org\.jbehave\.core\.steps|org\.jbehave\.core\.model|org\.jbehave\.core)\.

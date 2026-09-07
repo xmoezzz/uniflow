@@ -1,0 +1,10 @@
+id: org.apache.inlong.manager-common
+language: Java
+message: pkg:maven/org.apache.inlong/manager-common
+metadata:
+  purl: pkg:maven/org.apache.inlong/manager-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.inlong\.manager\.common\.auth|org\.apache\.inlong\.manager\.common\.tool\.excel|org\.apache\.inlong\.manager\.common\.tenant|org\.apache\.inlong\.manager\.common\.validation|org\.apache\.inlong\.manager\.common\.fieldtype|org\.apache\.inlong\.manager\.common\.tool\.excel\.validator|org\.apache\.inlong\.manager\.common\.threadPool|org\.apache\.inlong\.manager\.common\.tool\.excel\.tuple|org\.apache\.inlong\.manager\.common\.util|org\.apache\.inlong\.manager\.common\.exceptions|org\.apache\.inlong\.manager\.common\.tool\.excel\.annotation|org\.apache\.inlong\.manager\.common\.fieldtype\.strategy|org\.apache\.inlong\.manager\.common\.conversion|org\.apache\.inlong\.manager\.common\.plugin|org\.apache\.inlong\.manager\.common\.consts|org\.apache\.inlong\.manager\.common\.enums)\.

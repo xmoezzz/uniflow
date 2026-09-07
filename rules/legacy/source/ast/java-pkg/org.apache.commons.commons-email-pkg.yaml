@@ -1,0 +1,10 @@
+id: org.apache.commons.commons-email
+language: Java
+message: pkg:maven/org.apache.commons/commons-email
+metadata:
+  purl: pkg:maven/org.apache.commons/commons-email
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.commons\.mail|org\.apache\.commons\.mail\.resolver|org\.apache\.commons\.mail\.util|META-INF\.versions\.9|org\.apache\.commons\.mail\.activation)\.

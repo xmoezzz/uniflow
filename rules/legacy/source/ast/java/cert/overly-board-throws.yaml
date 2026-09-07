@@ -1,0 +1,6 @@
+id: overly-board-throws
+message: '0102000010120002'
+language: Java
+rule:
+  kind: throws
+  regex: ^throws\s+Throwable$

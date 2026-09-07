@@ -1,0 +1,10 @@
+id: org.apache.tomcat.jasper
+language: Java
+message: pkg:maven/org.apache.tomcat/jasper
+metadata:
+  purl: pkg:maven/org.apache.tomcat/jasper
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.jasper\.servlet|org\.apache\.jasper\.xmlparser|org\.apache\.jasper\.compiler|org\.apache\.jasper\.el|org\.apache\.jasper\.util|org\.apache\.jasper\.compiler\.tagplugin|org\.apache\.jasper\.tagplugins\.jstl|org\.apache|org\.apache\.jasper|org\.apache\.jasper\.tagplugins\.jstl\.core|org\.apache\.jasper\.security|org\.apache\.jasper\.runtime)\.

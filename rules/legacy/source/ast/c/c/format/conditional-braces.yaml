@@ -1,0 +1,8 @@
+id: conditional-braces
+message: '0701000010130017'
+language: C
+rule:
+  all:
+    - kind: binary_expression
+    - inside:
+        kind: conditional_expression

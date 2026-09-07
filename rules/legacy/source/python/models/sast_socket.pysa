@@ -1,0 +1,60 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                socket
+
+# DataflowSourceRule socket 5
+# [{'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'recvmsg', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'recvmsg_into', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_fileobject', 'FunctionName': 'read|readline|readlines', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'recv|recvfrom', 'RuleName': 'reserve', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'recv_into|recvfrom_into', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_socket_methods_sources",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^socket\._socketobject\.(recv_into|recvfrom_into)"),
+      name.matches("^socket\._socketobject\.recvmsg_into$"),
+      name.matches("^socket\._socketobject\.(recv|recvfrom)"),
+      name.matches("^socket\._socketobject\.recvmsg$"),
+      name.matches("^socket\._fileobject\.(read|readline|readlines)")
+    )
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)
+
+# DataflowSinkRule socket 12
+# [{'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'sethostname', 'RuleName': 'desc.dataflow.python.setting_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'sendfile', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'sendfile', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'sendmsg', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'sendmsg', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '', 'FunctionName': 'create_connection', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'connect', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'sendto', 'RuleName': 'desc.dataflow.python.server_side_request_forgery', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'send|sendall|sendto', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_socketobject', 'FunctionName': 'send|sendall|sendto', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_fileobject', 'FunctionName': 'write|writelines', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'socket', 'ClassName': '_fileobject', 'FunctionName': 'write|writelines', 'RuleName': 'desc.dataflow.python.system_information_leak_external', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_socket_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^socket.*\.create_connection$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_system_information_leak_external]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_socket_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^socket\._fileobject\.(write|writelines)"),
+      name.matches("^socket\._socketobject\.sendto$"),
+      name.matches("^socket\._socketobject\.sethostname$"),
+      name.matches("^socket\._socketobject\.(send|sendall|sendto)"),
+      name.matches("^socket\._socketobject\.sendmsg$"),
+      name.matches("^socket\._socketobject\.sendfile$"),
+      name.matches("^socket\._socketobject\.connect$")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_system_information_leak_external]
+    )
+  ]
+)

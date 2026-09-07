@@ -1,0 +1,11 @@
+id: no-overload-comma
+message: "Do not overload the comma operator"
+language: Cpp
+rule:
+  all:
+    - kind: operator_name
+      regex: "^operator,$"
+    - inside:
+        kind: function_declarator
+metadata:
+  "cert": "EXP04-A"

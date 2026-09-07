@@ -1,0 +1,10 @@
+id: org.apache.cocoon.cocoon-core
+language: Java
+message: pkg:maven/org.apache.cocoon/cocoon-core
+metadata:
+  purl: pkg:maven/org.apache.cocoon/cocoon-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cocoon\.generation|org\.apache\.cocoon|org\.apache\.cocoon\.matching|org\.apache\.cocoon\.components\.fam|org\.apache\.cocoon\.sitemap|org\.apache\.cocoon\.transformation\.helpers|org\.apache\.cocoon\.components\.source|org\.apache\.cocoon\.servlet\.multipart|org\.apache\.cocoon\.components\.source\.impl\.validity|org\.apache\.cocoon\.environment|org\.apache\.cocoon\.xml|org\.apache\.cocoon\.components\.crawler|org\.apache\.cocoon\.xml\.dom|org\.apache\.cocoon\.i18n|org\.apache\.cocoon\.components\.source\.impl|org\.apache\.cocoon\.components\.persistence|org\.apache\.cocoon\.environment\.background|org\.apache\.cocoon\.transformation|org\.apache\.cocoon\.acting|org\.apache\.cocoon\.servlet|org\.apache\.cocoon\.components\.source\.helpers)\.

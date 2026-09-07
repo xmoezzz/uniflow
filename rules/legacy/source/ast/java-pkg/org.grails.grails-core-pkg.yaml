@@ -1,0 +1,10 @@
+id: org.grails.grails-core
+language: Java
+message: pkg:maven/org.grails/grails-core
+metadata:
+  purl: pkg:maven/org.grails/grails-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(grails\.beans\.util|org\.grails\.plugins\.core|org\.grails\.core\.support|org\.grails\.core\.io|grails\.compiler\.traits|grails\.core\.events|org\.grails\.config|org\.grails\.validation|org\.grails\.spring\.context\.support|org\.grails\.core\.util|org\.grails\.plugins|org\.grails\.dev\.support|grails\.transaction|grails\.persistence\.support|org\.grails\.core\.metaclass|org\.grails\.spring\.context|org\.grails\.core\.support\.internal\.tools|grails\.core|grails\.config|org\.grails\.config\.yaml|grails\.compiler|org\.grails\.beans\.support|grails\.web|grails\.plugins|org\.grails\.compiler|org\.grails\.spring|org\.grails\.plugins\.support|org\.grails\.core\.io\.watch|grails\.core\.support\.proxy|org\.grails\.validation\.discovery|org\.grails\.spring\.context\.annotation|grails\.persistence|grails\.boot|grails\.boot\.config\.tools|org\.grails\.core\.exceptions|org\.grails\.core|org\.grails\.core\.lifecycle|org\.grails\.compiler\.injection|grails\.dev\.commands|grails\.artefact|org\.grails\.transaction|org\.grails\.spring\.beans|org\.grails\.boot\.internal|grails\.dev|org\.grails\.spring\.aop\.autoproxy|grails\.util|grails\.dev\.commands\.template|org\.grails\.core\.cfg|grails\.validation|org\.grails\.core\.artefact|org\.grails\.core\.io\.support|grails\.boot\.config|grails\.dev\.commands\.io|org\.grails\.asm|grails\.compiler\.ast|org\.grails\.spring\.beans\.factory|grails\.core\.support)\.

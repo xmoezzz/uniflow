@@ -1,0 +1,22 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                tarfile
+
+# DataflowSinkRule tarfile 2
+# [{'NamespaceName': 'tarfile', 'ClassName': 'TarFile', 'FunctionName': '__init__|open', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}, {'NamespaceName': 'tarfile', 'ClassName': 'TarFile', 'FunctionName': 'extract', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_tarfile_methods_sinks",
+  find="methods",
+  where=[
+    AnyOf(
+      name.matches("^tarfile\.TarFile\.extract$"),
+      name.matches("^tarfile\.TarFile\.(__init__|open)")
+    )
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_path_manipulation]
+    )
+  ]
+)

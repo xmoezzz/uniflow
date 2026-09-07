@@ -1,0 +1,10 @@
+id: org.apache.storm.storm-server
+language: Java
+message: pkg:maven/org.apache.storm/storm-server
+metadata:
+  purl: pkg:maven/org.apache.storm/storm-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.storm\.scheduler\.resource\.strategies\.scheduling\.sorter|org\.apache\.storm\.metric\.timed|org\.apache\.storm\.logging|org\.apache\.storm\.metric|org\.apache\.storm\.zookeeper|org\.apache\.storm\.daemon\.metrics\.reporters|org\.apache\.storm|org\.apache\.storm\.scheduler\.utils|org\.apache\.storm\.security\.auth\.workertoken|org\.apache\.storm\.metric\.api|org\.apache\.storm\.metricstore|org\.apache\.storm\.container\.oci|org\.apache\.storm\.pacemaker\.codec|org\.apache\.storm\.daemon\.drpc|org\.apache\.storm\.scheduler\.multitenant|org\.apache\.storm\.container\.cgroup|org\.apache\.storm\.metricstore\.rocksdb|org\.apache\.storm\.event|org\.apache\.storm\.testing|org\.apache\.storm\.localizer|org\.apache\.storm\.daemon\.supervisor|org\.apache\.storm\.security\.auth|org\.apache\.storm\.scheduler\.blacklist\.reporters|org\.apache\.storm\.scheduler\.resource|org\.apache\.storm\.stats|org\.apache\.storm\.blobstore|org\.apache\.storm\.daemon\.metrics|org\.apache\.storm\.scheduler|org\.apache\.storm\.nimbus|org\.apache\.storm\.utils|org\.apache\.storm\.daemon\.supervisor\.timer|org\.apache\.storm\.scheduler\.blacklist\.strategies|org\.apache\.storm\.daemon\.nimbus|org\.apache\.storm\.logging\.filters|org\.apache\.storm\.scheduler\.blacklist|org\.apache\.storm\.scheduler\.resource\.strategies\.scheduling|org\.apache\.storm\.scheduler\.resource\.strategies\.priority|org\.apache\.storm\.scheduler\.resource\.normalization|org\.apache\.storm\.healthcheck|org\.apache\.storm\.pacemaker|org\.apache\.storm\.container\.docker|org\.apache\.storm\.container)\.

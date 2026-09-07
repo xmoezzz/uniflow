@@ -473,6 +473,7 @@ fn infer_project_expr_type(
             if let Some(ret) = index.top_level_return(&canonical, arg_count) {
                 return Some(ret);
             }
+            if index.function_path_exists(&canonical) { return None; }
             if let Some(ty) = index.module_value_type_by_path(&canonical) {
                 return Some(ty);
             }
@@ -482,6 +483,7 @@ fn infer_project_expr_type(
             if let Some(ret) = index.top_level_return(&prefixed, arg_count) {
                 return Some(ret);
             }
+            if index.function_path_exists(&prefixed) { return None; }
             if let Some(ty) = index.module_value_type_by_path(&prefixed) {
                 return Some(ty);
             }
@@ -492,6 +494,7 @@ fn infer_project_expr_type(
             if let Some(ret) = index.top_level_return(&canonical, arg_count) {
                 return Some(ret);
             }
+            if index.function_path_exists(&canonical) { return None; }
             if let Some(ty) = index.module_value_type_by_path(&canonical) {
                 return Some(ty);
             }
@@ -504,7 +507,7 @@ fn infer_project_expr_type(
             if let Some(ret) = index.top_level_return(&unique_fn, arg_count) {
                 return Some(ret);
             }
-            return Some(canonicalize_project_path(index, &unique_fn));
+            return None;
         }
         if let Some((prefix, method)) = split_last_top_level_dot(&callee_text) {
             if let Some(base_ty) = infer_project_expr_type(&prefix, module_name, imports, index, current_fields, current_class) {
@@ -514,6 +517,7 @@ fn infer_project_expr_type(
                         if let Some(ret) = index.top_level_return(&canonical, arg_count) {
                             return Some(ret);
                         }
+                        if index.function_path_exists(&canonical) { return None; }
                         if let Some(ty) = index.module_value_type_by_path(&canonical) {
                             return Some(ty);
                         }
@@ -1392,4 +1396,3 @@ fn infer_project_module_bindings(
 
     (values, aliases, module_member_values, class_field_patches)
 }
-

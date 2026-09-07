@@ -1,0 +1,10 @@
+id: com.github.junrar.junrar
+language: Java
+message: pkg:maven/com.github.junrar/junrar
+metadata:
+  purl: pkg:maven/com.github.junrar/junrar
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.github\.junrar\.exception|com\.github\.junrar\.rarfile|com\.github\.junrar\.unpack|com\.github\.junrar\.io|com\.github\.junrar\.unpack\.decode|com\.github\.junrar\.unpack\.vm|com\.github\.junrar|com\.github\.junrar\.crypt|com\.github\.junrar\.crc|com\.github\.junrar\.unpack\.ppm|com\.github\.junrar\.volume|com\.github\.junrar\.unsigned)\.

@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.portal.settings.authentication.ldap.web
+language: Java
+message: pkg:maven/com.liferay/com.liferay.portal.settings.authentication.ldap.web
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.portal.settings.authentication.ldap.web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.jsp\.dynamic_005finclude\.com_liferay_portal_settings_web\.ldap|org\.apache\.jsp\.com_liferay_portal_settings_web|com\.liferay\.portal\.settings\.authentication\.ldap\.web\.internal\.portlet\.action|com\.liferay\.portal\.settings\.authentication\.ldap\.web\.internal\.configuration\.admin\.display|com\.liferay\.portal\.settings\.authentication\.ldap\.web\.internal\.util|com\.liferay\.portal\.settings\.authentication\.ldap\.web\.internal\.portlet\.util|com\.liferay\.portal\.settings\.authentication\.ldap\.web\.internal\.portlet\.constants|org\.apache\.jsp\.dynamic_005finclude)\.

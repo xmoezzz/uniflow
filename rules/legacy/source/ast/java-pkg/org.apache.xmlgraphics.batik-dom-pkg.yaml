@@ -1,0 +1,10 @@
+id: org.apache.xmlgraphics.batik-dom
+language: Java
+message: pkg:maven/org.apache.xmlgraphics/batik-dom
+metadata:
+  purl: pkg:maven/org.apache.xmlgraphics/batik-dom
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.batik\.dom\.util|org\.apache\.batik\.dom|org\.apache\.batik\.dom\.events|org\.apache\.batik\.dom\.traversal|org\.apache\.batik\.dom\.xbl)\.

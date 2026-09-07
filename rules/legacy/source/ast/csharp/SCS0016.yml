@@ -1,0 +1,15 @@
+id: SCS0016
+message: '0503000010030004'
+language: cs
+rule:
+  kind: method_declaration
+  pattern: $METHOD
+  has:
+    kind: attribute
+    regex: ^HttpPost$
+    stopBy: end
+  not:
+    has:
+      kind: attribute
+      regex: ^ValidateAntiForgeryToken$
+      stopBy: end

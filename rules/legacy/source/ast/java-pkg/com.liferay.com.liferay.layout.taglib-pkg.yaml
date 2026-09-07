@@ -1,0 +1,10 @@
+id: com.liferay.com.liferay.layout.taglib
+language: Java
+message: pkg:maven/com.liferay/com.liferay.layout.taglib
+metadata:
+  purl: pkg:maven/com.liferay/com.liferay.layout.taglib
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.jsp\.layout_005fclassed_005fmodel_005fusages_005fadmin|com\.liferay\.layout\.taglib\.servlet\.taglib\.react|org\.apache\.jsp\.render_005fstate_005fmax_005flayout_005fstructure|com\.liferay\.layout\.taglib\.internal\.servlet|org\.apache\.jsp|org\.apache\.jsp\.select_005flayout|com\.liferay\.layout\.taglib\.internal\.frontend\.js\.loader\.modules\.extender\.npm|com\.liferay\.layout\.taglib\.internal\.struts|com\.liferay\.layout\.taglib\.servlet\.taglib|org\.apache\.jsp\.layout_005ftemplates_005flist|org\.apache\.jsp\.render_005flayout_005futility_005fpage_005fentry|org\.apache\.jsp\.render_005ffragment_005flayout|com\.liferay\.layout\.taglib\.internal\.display\.context|org\.apache\.jsp\.layout_005fclassed_005fmodel_005fusages_005fview|com\.liferay\.layout\.taglib\.internal\.helper|com\.liferay\.layout\.taglib\.internal\.util|com\.liferay\.layout\.taglib\.servlet\.taglib\.renderer|com\.liferay\.layout\.taglib\.internal\.servlet\.taglib)\.

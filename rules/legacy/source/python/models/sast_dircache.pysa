@@ -1,0 +1,19 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                dircache
+
+# DataflowSinkRule dircache 1
+# [{'NamespaceName': 'dircache', 'ClassName': '', 'FunctionName': 'listdir|opendir', 'RuleName': 'desc.dataflow.python.path_manipulation', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_dircache_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^dircache.*\.(listdir|opendir)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_path_manipulation]
+    )
+  ]
+)

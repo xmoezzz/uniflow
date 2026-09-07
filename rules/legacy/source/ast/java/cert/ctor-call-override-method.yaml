@@ -1,0 +1,36 @@
+id: ctor-call-override-method
+message: '0102000010110058'
+language: Java
+rule:
+  kind: method_invocation
+  all:
+  - any:
+      - not:
+          has:
+            field: object
+            kind: identifier
+      - has:
+          field: object
+          kind: this
+  - has:
+      field: name
+      pattern: $FUNC_NAME 
+  - inside:
+      stopBy: 
+        any:
+          - kind: constructor_declaration
+          - kind: method_declaration
+          - kind: class_declaration
+      kind: constructor_declaration
+      inside:
+        kind: class_body
+        has:
+          kind: method_declaration
+          all:
+          - has:
+              field: name
+              pattern: $FUNC_NAME
+          - not:
+              has:
+                kind: modifiers
+                regex: final

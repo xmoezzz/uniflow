@@ -1,0 +1,10 @@
+id: org.opencastproject.opencast-ingest-service-impl
+language: Java
+message: pkg:maven/org.opencastproject/opencast-ingest-service-impl
+metadata:
+  purl: pkg:maven/org.opencastproject/opencast-ingest-service-impl
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.opencastproject\.ingest\.endpoint|de\.schlichtherle\.io|de\.schlichtherle\.swing\.event|de\.schlichtherle\.crypto\.io|de\.schlichtherle\.io\.archive\.spi|de\.schlichtherle\.key|de\.schlichtherle\.nio\.charset|de\.schlichtherle\.io\.archive|de\.schlichtherle\.io\.archive\.tar|de\.schlichtherle\.io\.archive\.zip\.raes|de\.schlichtherle\.crypto\.modes|de\.schlichtherle\.io\.samples|de\.schlichtherle\.io\.swing|de\.schlichtherle\.util\.zip|de\.schlichtherle\.crypto\.io\.raes|de\.schlichtherle\.io\.swing\.tree|de\.schlichtherle\.io\.archive\.zip|org\.opencastproject\.ingest\.scanner|de\.schlichtherle\.awt|de\.schlichtherle\.util|org\.opencastproject\.ingest\.impl|de\.schlichtherle\.crypto\.generators|de\.schlichtherle\.io\.util|de\.schlichtherle\.key\.passwd\.swing|de\.schlichtherle\.key\.passwd\.console|de\.schlichtherle\.swing|de\.schlichtherle\.crypto|org\.opencastproject\.ingest\.impl\.jmx|de\.schlichtherle\.nio\.charset\.spi|de\.schlichtherle\.io\.rof|de\.schlichtherle\.util\.regex)\.

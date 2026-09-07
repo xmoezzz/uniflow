@@ -1,0 +1,10 @@
+id: org.apache.activemq.activemq-client
+language: Java
+message: pkg:maven/org.apache.activemq/activemq-client
+metadata:
+  purl: pkg:maven/org.apache.activemq/activemq-client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.activemq\.transport\.discovery|org\.apache\.activemq\.filter\.function|org\.apache\.activemq\.management|org\.apache\.activemq\.transport\.multicast|org\.apache\.activemq\.transport\.tcp|org\.apache\.activemq\.broker\.region\.policy|org\.apache\.activemq\.broker\.scheduler|org\.apache\.activemq\.jndi|org\.apache\.activemq\.transport\.discovery\.zeroconf|org\.apache\.activemq\.transport\.discovery\.masterslave|org\.apache\.activemq\.openwire\.v12|org\.apache\.activemq\.util|org\.apache\.activemq\.state|org\.apache\.activemq\.broker|org\.apache\.activemq\.transport\.udp|org\.apache\.activemq\.usage|org\.apache\.activemq\.transport\.discovery\.multicast|org\.apache\.activemq\.transport\.mock|org\.apache\.activemq\.openwire\.v9|org\.apache\.activemq\.selector|org\.apache\.activemq\.transport\.discovery\.simple|org\.apache\.activemq\.advisory|org\.apache\.activemq\.transport\.fanout|org\.apache\.activemq\.transaction|org\.apache\.activemq\.transport\.reliable|org\.apache\.activemq\.transport\.ws|org\.apache\.activemq\.transport\.nio|org\.apache\.activemq\.openwire|org\.apache\.activemq\.openwire\.v10|org\.apache\.activemq\.blob|org\.apache\.activemq\.wireformat|org\.apache\.activemq\.openwire\.v1|org\.apache\.activemq\.thread|org\.apache\.activemq\.transport|org\.apache\.activemq\.transport\.failover|org\.apache\.activemq|org\.apache\.activemq\.filter|org\.apache\.activemq\.command|org\.apache\.activemq\.broker\.region|org\.apache\.activemq\.openwire\.v11)\.

@@ -1,0 +1,16 @@
+id: string-clone-null
+message: '0202000010150436'
+language: Java
+rule:
+  pattern: return null;
+  inside:
+    stopBy: 
+      kind: method_declaration
+    kind: method_declaration
+    any:
+    - has:
+        field: type
+        regex: ^(.*\.)?String$
+    - has:
+        field: name
+        regex: ^clone$

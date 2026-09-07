@@ -1,0 +1,10 @@
+id: org.eclipse.californium.scandium
+language: Java
+message: pkg:maven/org.eclipse.californium/scandium
+metadata:
+  purl: pkg:maven/org.eclipse.californium/scandium
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.eclipse\.californium\.scandium\.dtls\.cipher|org\.eclipse\.californium\.scandium|org\.eclipse\.californium\.scandium\.auth|org\.eclipse\.californium\.scandium\.dtls\.x509|org\.eclipse\.californium\.scandium\.config|org\.eclipse\.californium\.scandium\.util|org\.eclipse\.californium\.scandium\.dtls|org\.eclipse\.californium\.scandium\.dtls\.resumption|org\.eclipse\.californium\.scandium\.dtls\.pskstore)\.

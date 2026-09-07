@@ -1,0 +1,10 @@
+id: com.google.oauth-client.google-oauth-client
+language: Java
+message: pkg:maven/com.google.oauth-client/google-oauth-client
+metadata:
+  purl: pkg:maven/com.google.oauth-client/google-oauth-client
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.google\.api\.client\.auth\.oauth2|com\.google\.api\.client\.auth\.openidconnect|com\.google\.api\.client\.auth\.oauth)\.

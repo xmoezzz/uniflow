@@ -1,0 +1,10 @@
+id: io.swagger.swagger-codegen
+language: Java
+message: pkg:maven/io.swagger/swagger-codegen
+metadata:
+  purl: pkg:maven/io.swagger/swagger-codegen
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.swagger\.codegen|io\.swagger\.codegen\.config|io\.swagger\.codegen\.languages|io\.swagger\.codegen\.examples|config|io\.swagger\.codegen\.ignore\.rules|io\.swagger\.codegen\.languages\.features|io\.swagger\.codegen\.auth|io\.swagger\.codegen\.languages\.helpers|io\.swagger\.codegen\.ignore|io\.swagger\.codegen\.utils)\.

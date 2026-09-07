@@ -1,0 +1,17 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                sysconfig
+
+# DataflowSourceRule sysconfig 1
+# [{'NamespaceName': 'sysconfig', 'ClassName': '', 'FunctionName': 'parse_config_h|get_platform|get_path(s)?|get_python_version|get_config_h_filename', 'RuleName': 'reserve', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_sysconfig_functions_sources",
+  find="functions",
+  where=[
+    name.matches("^sysconfig.*\.(parse_config_h|get_platform|get_path(s)?|get_python_version|get_config_h_filename)")
+  ],
+  model=[
+    Returns(TaintSource[CustomUserControlled]),
+  ]
+)

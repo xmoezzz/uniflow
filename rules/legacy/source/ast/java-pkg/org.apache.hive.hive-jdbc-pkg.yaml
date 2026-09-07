@@ -1,0 +1,10 @@
+id: org.apache.hive.hive-jdbc
+language: Java
+message: pkg:maven/org.apache.hive/hive-jdbc
+metadata:
+  purl: pkg:maven/org.apache.hive/hive-jdbc
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hive\.jdbc|org\.apache\.hive\.jdbc\.jwt|org\.apache\.hive\.jdbc\.saml|org\.apache\.hive\.jdbc\.logs)\.

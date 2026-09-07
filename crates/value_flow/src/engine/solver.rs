@@ -184,42 +184,37 @@ fn materialize_object_graph_adjacency(fg: &mut FlowGraph) {
     }
 }
 
-fn collect_object_shape_paths(
+fn object_shape_suffixes(
     fg: &FlowGraph,
     node: NodeIndex,
-    prefix: String,
     depth: usize,
-    seen_edges: &mut HashSet<(usize, usize)>,
-    out: &mut BTreeSet<String>,
-) {
-    if depth == 0 {
-        return;
-    }
+    cache: &mut HashMap<(usize, usize), BTreeSet<String>>,
+) -> BTreeSet<String> {
+    if depth == 0 { return BTreeSet::new(); }
+    if let Some(paths) = cache.get(&(node.index(), depth)) { return paths.clone(); }
+    let mut out = BTreeSet::new();
     for succ in fg.object_graph_successors_of(node) {
         let Some(label) = fg.object_graph_edge_label(node, succ) else {
             continue;
         };
-        if !seen_edges.insert((node.index(), succ.index())) {
-            continue;
+        out.insert(label.to_string());
+        for suffix in object_shape_suffixes(fg, succ, depth - 1, cache) {
+            out.insert(format!("{label}.{suffix}"));
         }
-        let next = if prefix.is_empty() {
-            label.to_string()
-        } else {
-            format!("{}.{}", prefix, label)
-        };
-        out.insert(next.clone());
-        collect_object_shape_paths(fg, succ, next, depth.saturating_sub(1), seen_edges, out);
-        seen_edges.remove(&(node.index(), succ.index()));
     }
+    cache.insert((node.index(), depth), out.clone());
+    out
 }
 
 fn materialize_object_shape_paths(fg: &mut FlowGraph) {
     fg.object_shape_paths.clear();
     let value_nodes = fg.values.values().copied().collect::<Vec<_>>();
+    // Memoize bounded suffix languages, not every graph-edge trail. Alias
+    // diamonds often spell the same path many times; recursive fields may
+    // legitimately repeat an edge and are bounded by the remaining depth.
+    let mut cache = HashMap::new();
     for node in value_nodes {
-        let mut out = BTreeSet::new();
-        let mut seen_edges = HashSet::new();
-        collect_object_shape_paths(fg, node, String::new(), 4, &mut seen_edges, &mut out);
+        let out = object_shape_suffixes(fg, node, 4, &mut cache);
         if !out.is_empty() {
             fg.object_shape_paths.insert(node.index(), out.into_iter().collect());
         }
@@ -238,6 +233,37 @@ fn shape_propagation_neighbors(fg: &FlowGraph, node: NodeIndex) -> Vec<NodeIndex
     out
 }
 
+/// Both shape and region overlays intentionally propagate labels in both
+/// directions. Their least fixed point is exactly the seed union of each
+/// connected component; do not repeatedly clone/re-union every neighbor set.
+fn propagate_symmetric_labels<T: Ord + Clone>(
+    nodes: impl Iterator<Item = NodeIndex>,
+    seeds: HashMap<usize, BTreeSet<T>>,
+    neighbors: impl Fn(NodeIndex) -> Vec<NodeIndex>,
+) -> HashMap<usize, BTreeSet<T>> {
+    let mut seen = HashSet::new();
+    let mut out = HashMap::new();
+    for node in nodes {
+        if !seen.insert(node.index()) { continue; }
+        let mut component = Vec::new();
+        let mut pending = vec![node];
+        let mut labels = BTreeSet::new();
+        while let Some(current) = pending.pop() {
+            component.push(current.index());
+            if let Some(values) = seeds.get(&current.index()) {
+                labels.extend(values.iter().cloned());
+            }
+            for next in neighbors(current) {
+                if seen.insert(next.index()) { pending.push(next); }
+            }
+        }
+        if !labels.is_empty() {
+            for index in component { out.insert(index, labels.clone()); }
+        }
+    }
+    out
+}
+
 fn materialize_object_shape_fixpoint(fg: &mut FlowGraph) {
     let mut propagated = HashMap::<usize, BTreeSet<String>>::new();
     for (&node_idx, labels) in &fg.object_shape_paths {
@@ -246,33 +272,8 @@ fn materialize_object_shape_fixpoint(fg: &mut FlowGraph) {
             .or_default()
             .extend(labels.iter().cloned());
     }
-    let mut changed = true;
-    while changed {
-        changed = false;
-        let nodes = fg.graph.node_indices().collect::<Vec<_>>();
-        for node in nodes {
-            let mut merged = propagated.get(&node.index()).cloned().unwrap_or_default();
-            for neighbor in shape_propagation_neighbors(fg, node) {
-                if let Some(values) = propagated.get(&neighbor.index()) {
-                    let before = merged.len();
-                    merged.extend(values.iter().cloned());
-                    if merged.len() > before {
-                        changed = true;
-                    }
-                }
-            }
-            if !merged.is_empty() {
-                let replace = propagated
-                    .get(&node.index())
-                    .map(|prev| prev != &merged)
-                    .unwrap_or(true);
-                if replace {
-                    propagated.insert(node.index(), merged);
-                    changed = true;
-                }
-            }
-        }
-    }
+    let propagated = propagate_symmetric_labels(fg.graph.node_indices(), propagated,
+        |node| shape_propagation_neighbors(fg, node));
     fg.object_shape_paths = propagated
         .into_iter()
         .map(|(node_idx, values)| (node_idx, values.into_iter().collect()))
@@ -338,30 +339,8 @@ fn materialize_memory_regions(fg: &mut FlowGraph) {
             regions.insert(node.index(), seeded);
         }
     }
-    let mut changed = true;
-    while changed {
-        changed = false;
-        let nodes = fg.graph.node_indices().collect::<Vec<_>>();
-        for node in nodes {
-            let mut merged = regions.get(&node.index()).cloned().unwrap_or_default();
-            for neighbor in memory_region_propagation_neighbors(fg, node) {
-                if let Some(values) = regions.get(&neighbor.index()) {
-                    let before = merged.len();
-                    merged.extend(values.iter().cloned());
-                    if merged.len() > before {
-                        changed = true;
-                    }
-                }
-            }
-            if !merged.is_empty() {
-                let replace = regions.get(&node.index()).map(|prev| prev != &merged).unwrap_or(true);
-                if replace {
-                    regions.insert(node.index(), merged);
-                    changed = true;
-                }
-            }
-        }
-    }
+    let regions = propagate_symmetric_labels(fg.graph.node_indices(), regions,
+        |node| memory_region_propagation_neighbors(fg, node));
     for (node_idx, values) in &regions {
         fg.node_memory_regions.insert(*node_idx, values.iter().cloned().collect());
     }
@@ -385,20 +364,6 @@ fn materialize_memory_regions(fg: &mut FlowGraph) {
     }
 }
 
-fn add_region_graph_edge(fg: &mut FlowGraph, src: usize, dst: usize) {
-    if src == dst {
-        return;
-    }
-    let succs = fg.region_graph_successors.entry(src).or_default();
-    if !succs.iter().any(|existing| *existing == dst) {
-        succs.push(dst);
-    }
-    let preds = fg.region_graph_predecessors.entry(dst).or_default();
-    if !preds.iter().any(|existing| *existing == src) {
-        preds.push(src);
-    }
-}
-
 fn materialize_region_graph_adjacency(fg: &mut FlowGraph) {
     fg.region_graph_successors.clear();
     fg.region_graph_predecessors.clear();
@@ -411,45 +376,41 @@ fn materialize_region_graph_adjacency(fg: &mut FlowGraph) {
     }
 
     let regions = region_to_nodes.keys().cloned().collect::<Vec<_>>();
-    for (left_idx, left_region) in regions.iter().enumerate() {
-        for right_region in regions.iter().skip(left_idx) {
-            if !memory_region_related(left_region, right_region) {
-                continue;
-            }
-            let Some(left_nodes) = region_to_nodes.get(left_region) else {
-                continue;
-            };
-            let Some(right_nodes) = region_to_nodes.get(right_region) else {
-                continue;
-            };
-            for left_node in left_nodes {
-                for right_node in right_nodes {
-                    if left_node == right_node {
-                        continue;
-                    }
-                    add_region_graph_edge(fg, *left_node, *right_node);
-                    add_region_graph_edge(fg, *right_node, *left_node);
-                }
+    let mut neighbors = BTreeMap::<usize, BTreeSet<usize>>::new();
+    for left_region in &regions {
+        // Many rule ports share the same region sets. Union related nodes
+        // once per region, instead of reinserting every node pair for every
+        // overlapping region and linearly scanning a growing adjacency list.
+        let mut related = BTreeSet::new();
+        for right_region in &regions {
+            if memory_region_related(left_region, right_region) {
+                related.extend(region_to_nodes[right_region].iter().copied());
             }
         }
+        for node in &region_to_nodes[left_region] {
+            neighbors.entry(*node).or_default().extend(related.iter().copied());
+        }
     }
-
-    for values in fg.region_graph_successors.values_mut() {
-        values.sort_unstable();
-        values.dedup();
-    }
-    for values in fg.region_graph_predecessors.values_mut() {
-        values.sort_unstable();
-        values.dedup();
+    for (node, mut adjacent) in neighbors {
+        adjacent.remove(&node);
+        if !adjacent.is_empty() {
+            let adjacent = adjacent.into_iter().collect::<Vec<_>>();
+            // Region relatedness is symmetric; both indexes have equal sets.
+            fg.region_graph_predecessors.insert(node, adjacent.clone());
+            fg.region_graph_successors.insert(node, adjacent);
+        }
     }
 }
 
 fn materialize_cell_live_state(fg: &mut FlowGraph) {
     fg.cell_live_values.clear();
     fg.cell_live_regions.clear();
+    let records = all_transitive_cell_store_records(fg);
+    let mut strong = HashMap::new();
     for cell in all_cell_nodes(fg) {
-        let live = visible_direct_cell_store_records_before_edge(fg, cell, None);
-        if !live.is_empty() {
+        let live = visible_cell_store_records(fg, cell, None,
+            records.get(&cell.index()).map(|r| r.iter().copied().collect()).unwrap_or_default(), &mut strong);
+        {
             let mut values = live
                 .iter()
                 .map(|(_edge_idx, func, value)| (func.0, value.0))
@@ -758,47 +719,16 @@ fn compute_points_to_targets_fixpoint_for_allowed_nodes(
         .collect::<Vec<_>>();
     let allowed_lookup = nodes.iter().map(|node| node.index()).collect::<HashSet<_>>();
     let mut targets = HashMap::<usize, BTreeSet<String>>::new();
-    let mut reverse = HashMap::<usize, BTreeSet<usize>>::new();
     for node in &nodes {
         let seeded = initial_node_points_to_targets(fg, *node);
         if !seeded.is_empty() {
             targets.insert(node.index(), seeded);
         }
     }
-    for node in &nodes {
-        for neighbor in points_to_propagation_neighbors(fg, *node) {
-            if !allowed_lookup.contains(&neighbor.index()) {
-                continue;
-            }
-            reverse.entry(neighbor.index()).or_default().insert(node.index());
-        }
-    }
-    let mut queue = nodes.iter().map(|node| node.index()).collect::<VecDeque<_>>();
-    let mut queued = queue.iter().copied().collect::<HashSet<_>>();
-    while let Some(node_idx) = queue.pop_front() {
-        queued.remove(&node_idx);
-        let node = NodeIndex::new(node_idx);
-        let mut merged = targets.get(&node_idx).cloned().unwrap_or_default();
-        let before = merged.len();
-        for neighbor in points_to_propagation_neighbors(fg, node) {
-            if !allowed_lookup.contains(&neighbor.index()) {
-                continue;
-            }
-            if let Some(values) = targets.get(&neighbor.index()) {
-                merged.extend(values.iter().cloned());
-            }
-        }
-        if merged.len() != before || !targets.contains_key(&node_idx) {
-            targets.insert(node_idx, merged);
-            if let Some(preds) = reverse.get(&node_idx) {
-                for pred in preds {
-                    if queued.insert(*pred) {
-                        queue.push_back(*pred);
-                    }
-                }
-            }
-        }
-    }
+    let mut targets = propagate_symmetric_labels(nodes.iter().copied(), targets, |node|
+        points_to_propagation_neighbors(fg, node).into_iter()
+            .filter(|neighbor| allowed_lookup.contains(&neighbor.index())).collect());
+    for node in nodes { targets.entry(node.index()).or_default(); }
     targets
         .into_iter()
         .map(|(node_idx, values)| (node_idx, values.into_iter().collect::<Vec<_>>()))
@@ -840,7 +770,6 @@ fn compute_points_to_object_ids_fixpoint_for_allowed_nodes(
         .collect::<Vec<_>>();
     let allowed_lookup = nodes.iter().map(|node| node.index()).collect::<HashSet<_>>();
     let mut object_ids = HashMap::<usize, BTreeSet<u32>>::new();
-    let mut reverse = HashMap::<usize, BTreeSet<usize>>::new();
     for node in &nodes {
         if let Some(ids) = fg.abstract_object_seed_nodes.get(&node.index()) {
             let seeded = ids.iter().copied().collect::<BTreeSet<_>>();
@@ -849,50 +778,13 @@ fn compute_points_to_object_ids_fixpoint_for_allowed_nodes(
             }
         }
     }
-    for node in &nodes {
-        let mut neighbors = points_to_propagation_neighbors(fg, *node);
-        neighbors.extend(fg.object_successors_of(*node));
-        neighbors.extend(fg.object_predecessors_of(*node));
-        neighbors.sort_unstable_by_key(|idx| idx.index());
-        neighbors.dedup_by_key(|idx| idx.index());
-        for neighbor in neighbors {
-            if !allowed_lookup.contains(&neighbor.index()) {
-                continue;
-            }
-            reverse.entry(neighbor.index()).or_default().insert(node.index());
-        }
-    }
-    let mut queue = nodes.iter().map(|node| node.index()).collect::<VecDeque<_>>();
-    let mut queued = queue.iter().copied().collect::<HashSet<_>>();
-    while let Some(node_idx) = queue.pop_front() {
-        queued.remove(&node_idx);
-        let node = NodeIndex::new(node_idx);
-        let mut merged = object_ids.get(&node_idx).cloned().unwrap_or_default();
-        let before = merged.len();
+    let mut object_ids = propagate_symmetric_labels(nodes.iter().copied(), object_ids, |node| {
         let mut neighbors = points_to_propagation_neighbors(fg, node);
         neighbors.extend(fg.object_successors_of(node));
         neighbors.extend(fg.object_predecessors_of(node));
-        neighbors.sort_unstable_by_key(|idx| idx.index());
-        neighbors.dedup_by_key(|idx| idx.index());
-        for neighbor in neighbors {
-            if !allowed_lookup.contains(&neighbor.index()) {
-                continue;
-            }
-            if let Some(values) = object_ids.get(&neighbor.index()) {
-                merged.extend(values.iter().copied());
-            }
-        }
-        if merged.len() != before || !object_ids.contains_key(&node_idx) {
-            object_ids.insert(node_idx, merged);
-            if let Some(preds) = reverse.get(&node_idx) {
-                for pred in preds {
-                    if queued.insert(*pred) {
-                        queue.push_back(*pred);
-                    }
-                }
-            }
-        }
-    }
+        neighbors.into_iter().filter(|neighbor| allowed_lookup.contains(&neighbor.index())).collect()
+    });
+    for node in nodes { object_ids.entry(node.index()).or_default(); }
     object_ids
         .into_iter()
         .map(|(node_idx, values)| (node_idx, values.into_iter().collect::<Vec<_>>()))
@@ -973,6 +865,13 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                 let Some(base_context) = fg.call_context_key(func.id, inst.id) else {
                     continue;
                 };
+                // External model calls have no internal function summary. They
+                // are covered by the fallback points-to partition below. Do
+                // not traverse their entire source/sink graph once for every
+                // sensitivity only to discard it when the callee is absent.
+                if base_context.callee_funcs.is_empty() {
+                    continue;
+                }
                 for sensitivity in all_context_sensitivities() {
                     let context = fg.refine_call_context_for_sensitivity(base_context.clone(), *sensitivity);
                     let Some(summary) = fg.contextual_call_summary(
@@ -1253,12 +1152,43 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
     fg.sparse_successors.clear();
     fg.sparse_predecessors.clear();
     fg.clear_sparse_caches();
+    // An analyzed empty adjacency is distinct from an unmaterialized node;
+    // query fallbacks must not restore raw, overwritten store edges.
+    for node in fg.graph.node_indices() {
+        fg.sparse_successors.insert(node.index(), Vec::new());
+        fg.sparse_predecessors.insert(node.index(), Vec::new());
+    }
     for edge in fg.graph.edge_references() {
         if !is_sparse_data_edge(&edge.weight().kind) {
             continue;
         }
         let src = edge.source().index();
         let dst = edge.target().index();
+        match &edge.weight().kind {
+            EdgeKind::StoreField { .. } | EdgeKind::StoreIndex
+                if cell_allows_strong_update(fg, edge.target()) =>
+            {
+                // The cell denotes its current contents. Earlier reads are
+                // linked to their reaching store separately below.
+                let visible = visible_direct_cell_store_records_before_edge(fg, edge.target(), None);
+                if !visible.iter().any(|record| record.0 == edge.id().index()) { continue; }
+            }
+            EdgeKind::LoadField { .. } | EdgeKind::LoadIndex
+                if cell_allows_strong_update(fg, edge.source()) =>
+            {
+                let visible = visible_direct_cell_store_records_before_edge(fg, edge.source(), Some(edge.id().index()));
+                if !visible.is_empty() {
+                    for (_, func, value) in visible {
+                        if let Some(source) = fg.values.get(&(func, value)) {
+                            fg.sparse_successors.entry(source.index()).or_default().push(dst);
+                            fg.sparse_predecessors.entry(dst).or_default().push(source.index());
+                        }
+                    }
+                    continue;
+                }
+            }
+            _ => {}
+        }
         fg.sparse_successors.entry(src).or_default().push(dst);
         fg.sparse_predecessors.entry(dst).or_default().push(src);
     }
@@ -1270,6 +1200,9 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
         values.sort_unstable();
         values.dedup();
     }
+    // New bridge cells also need a cached empty result. Otherwise each heap
+    // overlay rebuild repeats the same transitive store scan for empty cells.
+    materialize_cell_live_state(fg);
     materialize_heap_value_adjacency(fg);
     materialize_heap_object_adjacency(fg);
     materialize_object_graph_adjacency(fg);
@@ -1310,6 +1243,25 @@ fn add_unique_summary_edge(fg: &mut FlowGraph, src: NodeIndex, dst: NodeIndex, r
     true
 }
 
+fn cell_is_rooted_at_other_formal(
+    fg: &FlowGraph,
+    func: FunctionId,
+    selected_index: usize,
+    cell: NodeIndex,
+) -> bool {
+    let base = match fg.graph[cell] {
+        FlowNode::FieldCell { func: owner, base, .. }
+        | FlowNode::IndexCell { func: owner, base, .. }
+            if owner == func => base,
+        _ => return false,
+    };
+    fg.function_params.iter().any(|((owner, index), node)| {
+        *owner == func
+            && *index != selected_index
+            && matches!(fg.graph[*node], FlowNode::Param { value, .. } if value == base)
+    })
+}
+
 fn connect_materialized_function_transfer_summaries(fg: &mut FlowGraph, program: &Program) -> usize {
     let mut pending_edges = Vec::<(NodeIndex, NodeIndex, String)>::new();
     for func in &program.functions {
@@ -1324,14 +1276,12 @@ fn connect_materialized_function_transfer_summaries(fg: &mut FlowGraph, program:
                 pending_edges.push((param_node, ret_node, "internal:function-return".to_string()));
             }
         }
-        for (from_index, to_index) in &summary.param_to_param {
-            if let (Some(&src), Some(&dst)) = (
-                fg.function_params.get(&(func.id, *from_index)),
-                fg.function_params.get(&(func.id, *to_index)),
-            ) {
-                pending_edges.push((src, dst, "internal:function-param".to_string()));
-            }
-        }
+        // Do not materialize may-alias parameter relationships as direct value
+        // transfer. Unknown reference parameters can share a heap object, but
+        // that does not mean the value of parameter A flows into parameter B.
+        // Heap mutations and returned projections are represented by their
+        // dedicated summaries below; a direct edge here cross-taints unrelated
+        // arguments and duplicates findings.
     }
     let mut added = 0usize;
     for (src, dst, rule_id) in pending_edges {
@@ -1380,13 +1330,16 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                         continue;
                     }
                     if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(candidate_cells_for_relative_path_from_value(fg, func.id, *value, path));
+                        candidates.extend(existing_cells_for_relative_path_from_value(fg, func.id, *value, path));
                     }
                 }
                 candidates.sort_unstable_by_key(|node| node.index());
                 candidates.dedup_by_key(|node| node.index());
                 for cell in candidates {
                     if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
+                        continue;
+                    }
+                    if cell_is_rooted_at_other_formal(fg, func.id, *index, cell) {
                         continue;
                     }
                     pending_edges.push((param_node, cell, "internal:function-heap-read".to_string()));
@@ -1422,13 +1375,16 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                         continue;
                     }
                     if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(candidate_cells_for_relative_path_from_value(fg, func.id, *value, path));
+                        candidates.extend(existing_cells_for_relative_path_from_value(fg, func.id, *value, path));
                     }
                 }
                 candidates.sort_unstable_by_key(|node| node.index());
                 candidates.dedup_by_key(|node| node.index());
                 for cell in candidates {
                     if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
+                        continue;
+                    }
+                    if cell_is_rooted_at_other_formal(fg, func.id, *index, cell) {
                         continue;
                     }
                     pending_edges.push((param_node, cell, "internal:function-heap-write".to_string()));
@@ -1464,7 +1420,7 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                         continue;
                     }
                     if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(candidate_cells_for_relative_path_from_value(fg, func.id, *value, path));
+                        candidates.extend(existing_cells_for_relative_path_from_value(fg, func.id, *value, path));
                     }
                 }
                 candidates.sort_unstable_by_key(|node| node.index());
@@ -1497,22 +1453,36 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                     .map(|(_, _, object_id)| *object_id)
                     .collect::<Vec<_>>();
                 candidates.extend(cell_candidates_for_object_ids(fg, &object_ids));
-                candidates.extend(region_candidate_cells(fg, region));
                 for (path_func, path_value, path) in &summary.return_value_paths {
                     if path_func != ret_func || path_value != ret_value {
                         continue;
                     }
-                    candidates.extend(candidate_cells_for_relative_path_from_value(
+                    candidates.extend(existing_cells_for_relative_path_from_value(
                         fg,
                         FunctionId(*ret_func),
                         ValueId(*ret_value),
                         path,
                     ));
                 }
+                if candidates.is_empty() {
+                    candidates.extend(region_candidate_cells(fg, region));
+                }
                 candidates.sort_unstable_by_key(|node| node.index());
                 candidates.dedup_by_key(|node| node.index());
+                let formal_index = (FunctionId(*ret_func) == func.id)
+                    .then(|| {
+                        func.params
+                            .iter()
+                            .position(|parameter| parameter.0 == *ret_value)
+                    })
+                    .flatten();
                 for cell in candidates {
                     if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
+                        continue;
+                    }
+                    if formal_index.is_some_and(|index| {
+                        cell_is_rooted_at_other_formal(fg, func.id, index, cell)
+                    }) {
                         continue;
                     }
                     pending_edges.push((ret_value_node, cell, "internal:function-return-value-region".to_string()));
@@ -1575,6 +1545,15 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         port_nodes.insert(format!("{:?}", port), *node);
                     }
                 }
+                // Edges are committed after all summaries have been collected.
+                // Resolve each (port, path) once in this immutable snapshot;
+                // many region/object facts refer to the very same path.
+                let mut path_cache = HashMap::<(NodeIndex, String), Vec<NodeIndex>>::new();
+                let mut path_cells = |port: NodeIndex, path: &str| {
+                    path_cache.entry((port, path.to_string()))
+                        .or_insert_with(|| relative_path_candidate_cells_for_port(fg, port, path))
+                        .clone()
+                };
                 for port_name in &summary.port_to_return {
                     if let Some(src) = port_nodes.get(port_name) {
                         pending_edges.push((*src, ret_port, "internal:return".to_string()));
@@ -1639,7 +1618,7 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         if let Some(src) = port_nodes.get(src_name) {
                             for (path_src, path_func, path_value, path) in &summary.port_to_return_value_paths {
                                 if path_src == src_name && path_func == ret_func && path_value == ret_value {
-                                    candidates.extend(relative_path_candidate_cells_for_port(fg, *src, path));
+                                    candidates.extend(path_cells(*src, path));
                                 }
                             }
                         }
@@ -1662,7 +1641,7 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         candidates.extend(region_candidate_cells(fg, region));
                         for (path_func, path_value, path) in &summary.return_value_paths {
                             if path_func == ret_func && path_value == ret_value {
-                                candidates.extend(candidate_cells_for_relative_path_from_value(
+                                candidates.extend(existing_cells_for_relative_path_from_value(
                                     fg,
                                     FunctionId(*ret_func),
                                     ValueId(*ret_value),
@@ -1700,7 +1679,7 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         candidates.extend(region_candidate_cells(fg, region));
                         for (path_src, path) in &summary.port_to_read_paths {
                             if path_src == src_name {
-                                candidates.extend(relative_path_candidate_cells_for_port(fg, *src, path));
+                                candidates.extend(path_cells(*src, path));
                             }
                         }
                         candidates.sort_unstable_by_key(|node| node.index());
@@ -1733,7 +1712,7 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         candidates.extend(region_candidate_cells(fg, region));
                         for (path_src, path) in &summary.port_to_write_paths {
                             if path_src == src_name {
-                                candidates.extend(relative_path_candidate_cells_for_port(fg, *src, path));
+                                candidates.extend(path_cells(*src, path));
                             }
                         }
                         candidates.sort_unstable_by_key(|node| node.index());
@@ -1768,7 +1747,7 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         candidates.extend(region_candidate_cells(fg, region));
                         for (path_src, path) in &summary.port_to_return_paths {
                             if path_src == src_name {
-                                candidates.extend(relative_path_candidate_cells_for_port(fg, *src, path));
+                                candidates.extend(path_cells(*src, path));
                             }
                         }
                         candidates.sort_unstable_by_key(|node| node.index());
@@ -1798,67 +1777,49 @@ fn solver_iteration_cap(fg: &FlowGraph) -> usize {
 }
 
 fn materialize_unified_analysis_state(fg: &mut FlowGraph) {
-    let mut previous_signature = None;
+    let mut previous_signature = analysis_state_signature(fg);
     let mut iterations = 0usize;
     loop {
         iterations += 1;
+        // The sparse refresh already rebuilds shape, region, live-cell and
+        // object indexes. Repeating each rebuild here adds no transfer rule.
         materialize_sparse_data_adjacency(fg);
-        materialize_object_shape_paths(fg);
-        materialize_object_shape_fixpoint(fg);
-        materialize_cell_write_generations(fg);
-        materialize_memory_regions(fg);
-        materialize_region_graph_adjacency(fg);
-        materialize_cell_live_state(fg);
-        materialize_region_live_state(fg);
-        materialize_object_graph_adjacency(fg);
         let signature = analysis_state_signature(fg);
-        if previous_signature.as_ref() == Some(&signature) {
+        if previous_signature == signature {
             break;
         }
         assert!(iterations <= solver_iteration_cap(fg), "unified analysis failed to converge");
-        previous_signature = Some(signature);
+        previous_signature = signature;
     }
 }
 
 fn materialize_interprocedural_solver_closure(fg: &mut FlowGraph, program: &Program) {
-    let mut previous_signature = None;
+    materialize_unified_analysis_state(fg);
+    materialize_partitioned_points_to_state(fg, program);
+    let mut previous_signature = analysis_state_signature(fg);
     let mut iterations = 0usize;
     loop {
         iterations += 1;
-        materialize_unified_analysis_state(fg);
-        materialize_partitioned_points_to_state(fg, program);
         let added_function_edges = connect_materialized_function_transfer_summaries(fg, program);
         let added_heap_edges = connect_materialized_function_heap_effect_summaries(fg, program);
         let added_call_edges = connect_materialized_interprocedural_summaries(fg, program);
         materialize_unified_analysis_state(fg);
         materialize_partitioned_points_to_state(fg, program);
         let signature = analysis_state_signature(fg);
-        if added_function_edges == 0 && added_heap_edges == 0 && added_call_edges == 0 && previous_signature.as_ref() == Some(&signature) {
+        if added_function_edges == 0 && added_heap_edges == 0 && added_call_edges == 0 && previous_signature == signature {
             break;
         }
         assert!(iterations <= solver_iteration_cap(fg), "interprocedural solver failed to converge");
-        previous_signature = Some(signature);
+        previous_signature = signature;
     }
     fg.solver_closure_iterations = iterations;
 }
 
 fn materialize_global_solver_closure(fg: &mut FlowGraph, program: &Program) {
-    let mut previous_signature = None;
-    let mut iterations = 0usize;
-    loop {
-        iterations += 1;
-        materialize_unified_analysis_state(fg);
-        materialize_partitioned_points_to_state(fg, program);
-        materialize_interprocedural_solver_closure(fg, program);
-        materialize_unified_analysis_state(fg);
-        materialize_partitioned_points_to_state(fg, program);
-        let signature = analysis_state_signature(fg);
-        if previous_signature.as_ref() == Some(&signature) {
-            break;
-        }
-        assert!(iterations <= solver_iteration_cap(fg), "global solver failed to converge");
-        previous_signature = Some(signature);
-    }
-    fg.global_solver_iterations = iterations;
+    // This closure already iterates unified state, contextual partitions and
+    // every transfer/heap/call summary until both edges and state stabilize.
+    // Wrapping the same closure in another fixed-point loop only recomputes
+    // the identical state and repeatedly discards valid query caches.
+    materialize_interprocedural_solver_closure(fg, program);
+    fg.global_solver_iterations = fg.solver_closure_iterations;
 }
-

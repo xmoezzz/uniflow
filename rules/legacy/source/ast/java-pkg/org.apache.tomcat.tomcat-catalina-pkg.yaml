@@ -1,0 +1,10 @@
+id: org.apache.tomcat.tomcat-catalina
+language: Java
+message: pkg:maven/org.apache.tomcat/tomcat-catalina
+metadata:
+  purl: pkg:maven/org.apache.tomcat/tomcat-catalina
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.catalina\.mbeans|org\.apache\.catalina\.authenticator\.jaspic|org\.apache\.catalina\.manager\.host|org\.apache\.catalina\.security|org\.apache\.catalina\.core|org\.apache\.catalina\.startup|org\.apache\.catalina\.users|org\.apache\.naming\.factory|org\.apache\.catalina\.authenticator|org\.apache\.catalina\.servlets|org\.apache\.catalina\.webresources\.war|org\.apache\.catalina\.session|org\.apache\.catalina\.filters|org\.apache\.catalina\.util|org\.apache\.naming\.java|org\.apache\.catalina\.valves|org\.apache\.catalina\.mapper|org\.apache\.catalina\.loader|org\.apache\.naming|org\.apache\.catalina\.realm|org\.apache\.catalina|org\.apache\.catalina\.manager\.util|org\.apache\.catalina\.deploy|org\.apache\.catalina\.valves\.rewrite|org\.apache\.catalina\.webresources|org\.apache\.catalina\.manager|org\.apache\.catalina\.connector)\.

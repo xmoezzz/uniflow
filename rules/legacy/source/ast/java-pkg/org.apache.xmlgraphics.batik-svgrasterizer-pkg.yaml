@@ -1,0 +1,10 @@
+id: org.apache.xmlgraphics.batik-svgrasterizer
+language: Java
+message: pkg:maven/org.apache.xmlgraphics/batik-svgrasterizer
+metadata:
+  purl: pkg:maven/org.apache.xmlgraphics/batik-svgrasterizer
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.batik\.apps\.rasterizer)\.

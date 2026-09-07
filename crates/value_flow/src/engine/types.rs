@@ -12,6 +12,10 @@ pub struct FlowGraph {
     pub inst_spans: HashMap<(FunctionId, InstId), Span>,
     pub value_spans: HashMap<(FunctionId, ValueId), Span>,
     pub value_types: HashMap<(FunctionId, ValueId), String>,
+    #[serde(default)]
+    pub value_names: HashMap<(FunctionId, ValueId), String>,
+    #[serde(default)]
+    pub value_constants: HashMap<(FunctionId, ValueId), String>,
     pub value_alias_roots: HashMap<(FunctionId, ValueId), ValueId>,
     pub heap_alias_roots: HashMap<(FunctionId, ValueId), ValueId>,
     pub object_identity_roots: HashMap<(FunctionId, ValueId), ValueId>,
@@ -70,31 +74,112 @@ pub struct FlowGraph {
     pub solver_closure_iterations: usize,
     pub global_solver_iterations: usize,
     #[serde(skip)]
-    pub demand_summary_cache: RefCell<HashMap<(usize, SparseDirection, usize, usize), SparseValueSummary>>,
+    pub demand_summary_cache:
+        RefCell<HashMap<(usize, SparseDirection, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
-    pub demand_seed_summary_cache: RefCell<HashMap<(Vec<usize>, SparseDirection, usize, usize), SparseValueSummary>>,
+    pub demand_seed_summary_cache:
+        RefCell<HashMap<(Vec<usize>, SparseDirection, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
-    pub demand_call_summary_cache: RefCell<HashMap<((u32, u32), SparseDirection, usize, usize), SparseValueSummary>>,
+    pub demand_call_summary_cache:
+        RefCell<HashMap<((u32, u32), SparseDirection, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
-    pub demand_fixpoint_summary_cache: RefCell<HashMap<(Vec<usize>, SparseDirection, usize, usize), SparseValueSummary>>,
+    pub demand_fixpoint_summary_cache:
+        RefCell<HashMap<(Vec<usize>, SparseDirection, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
-    pub demand_query_summary_cache: RefCell<HashMap<(DemandQuery, usize, usize), SparseValueSummary>>,
+    pub demand_query_summary_cache:
+        RefCell<HashMap<(DemandQuery, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
-    pub contextual_call_summary_cache: RefCell<HashMap<(CallContextKey, SparseDirection, usize, usize, DemandEngine, bool), SparseValueSummary>>,
+    pub contextual_call_summary_cache: RefCell<
+        HashMap<
+            (
+                CallContextKey,
+                SparseDirection,
+                usize,
+                usize,
+                DemandEngine,
+                bool,
+            ),
+            SparseValueSummary,
+        >,
+    >,
     #[serde(skip)]
-    pub function_summary_cache: RefCell<HashMap<(u32, String, SparseDirection, usize, usize, DemandEngine, bool), SparseValueSummary>>,
+    pub function_summary_cache: RefCell<
+        HashMap<
+            (
+                u32,
+                String,
+                SparseDirection,
+                usize,
+                usize,
+                DemandEngine,
+                bool,
+            ),
+            SparseValueSummary,
+        >,
+    >,
     #[serde(skip)]
-    pub contextual_demand_query_cache: RefCell<HashMap<(DemandQuery, ContextSensitivity, Vec<CallContextKey>, usize, usize), SparseValueSummary>>,
+    pub contextual_demand_query_cache: RefCell<
+        HashMap<
+            (
+                DemandQuery,
+                ContextSensitivity,
+                Vec<CallContextKey>,
+                usize,
+                usize,
+            ),
+            SparseValueSummary,
+        >,
+    >,
     #[serde(skip)]
-    pub interprocedural_call_summary_cache: RefCell<HashMap<(CallContextKey, ContextSensitivity, usize, usize, DemandEngine, bool), InterproceduralCallSummary>>,
+    pub interprocedural_call_summary_cache: RefCell<
+        HashMap<
+            (
+                CallContextKey,
+                ContextSensitivity,
+                usize,
+                usize,
+                DemandEngine,
+                bool,
+            ),
+            InterproceduralCallSummary,
+        >,
+    >,
     #[serde(skip)]
-    pub function_transfer_summary_cache: RefCell<HashMap<(u32, usize, usize, DemandEngine, bool), FunctionTransferSummary>>,
+    pub function_transfer_summary_cache:
+        RefCell<HashMap<(u32, usize, usize, DemandEngine, bool), FunctionTransferSummary>>,
     #[serde(skip)]
-    pub contextual_function_transfer_summary_cache: RefCell<HashMap<(u32, CallContextKey, ContextSensitivity, usize, usize, DemandEngine, bool), FunctionTransferSummary>>,
+    pub contextual_function_transfer_summary_cache: RefCell<
+        HashMap<
+            (
+                u32,
+                CallContextKey,
+                ContextSensitivity,
+                usize,
+                usize,
+                DemandEngine,
+                bool,
+            ),
+            FunctionTransferSummary,
+        >,
+    >,
     #[serde(skip)]
-    pub function_heap_effect_summary_cache: RefCell<HashMap<(u32, usize, usize, DemandEngine, bool), FunctionHeapEffectSummary>>,
+    pub function_heap_effect_summary_cache:
+        RefCell<HashMap<(u32, usize, usize, DemandEngine, bool), FunctionHeapEffectSummary>>,
     #[serde(skip)]
-    pub contextual_function_heap_effect_summary_cache: RefCell<HashMap<(u32, CallContextKey, ContextSensitivity, usize, usize, DemandEngine, bool), FunctionHeapEffectSummary>>,
+    pub contextual_function_heap_effect_summary_cache: RefCell<
+        HashMap<
+            (
+                u32,
+                CallContextKey,
+                ContextSensitivity,
+                usize,
+                usize,
+                DemandEngine,
+                bool,
+            ),
+            FunctionHeapEffectSummary,
+        >,
+    >,
     pub type_hierarchy: HashMap<String, Vec<String>>,
     pub call_meta: HashMap<(FunctionId, InstId), CallMeta>,
     pub resolved_internal_targets: HashMap<(FunctionId, InstId), Vec<String>>,
@@ -103,15 +188,24 @@ pub struct FlowGraph {
 }
 impl FlowGraph {
     pub fn lifetime_state_of(&self, func: FunctionId, value: ValueId) -> LifetimeState {
-        self.lifetime_states.get(&(func, value)).copied().unwrap_or(LifetimeState::Unknown)
+        self.lifetime_states
+            .get(&(func, value))
+            .copied()
+            .unwrap_or(LifetimeState::Unknown)
     }
 
     pub fn is_definitely_dead(&self, func: FunctionId, value: ValueId) -> bool {
-        matches!(self.lifetime_state_of(func, value), LifetimeState::Destroyed)
+        matches!(
+            self.lifetime_state_of(func, value),
+            LifetimeState::Destroyed
+        )
     }
 
     pub fn is_moved_from(&self, func: FunctionId, value: ValueId) -> bool {
-        matches!(self.lifetime_state_of(func, value), LifetimeState::MovedFrom | LifetimeState::MaybeMovedFrom)
+        matches!(
+            self.lifetime_state_of(func, value),
+            LifetimeState::MovedFrom | LifetimeState::MaybeMovedFrom
+        )
     }
 }
 
@@ -130,6 +224,8 @@ impl Default for FlowGraph {
             inst_spans: HashMap::new(),
             value_spans: HashMap::new(),
             value_types: HashMap::new(),
+            value_names: HashMap::new(),
+            value_constants: HashMap::new(),
             value_alias_roots: HashMap::new(),
             heap_alias_roots: HashMap::new(),
             object_identity_roots: HashMap::new(),
@@ -209,7 +305,6 @@ impl Default for FlowGraph {
     }
 }
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LifetimeState {
     Uninitialized,
@@ -233,16 +328,30 @@ pub struct CallMeta {
     pub callee_name: Option<String>,
     pub receiver_type: Option<String>,
     pub receiver_type_candidates: Vec<String>,
+    #[serde(default)]
+    pub receiver_parameter: Option<usize>,
     pub method_name: Option<String>,
     pub arg_count: usize,
     pub arg_types: Vec<Option<String>>,
     pub arg_type_candidates: Vec<Vec<String>>,
+    #[serde(default)]
+    pub receiver_constant: Option<String>,
+    /// Name of an unresolved global/module receiver such as `JSON` or
+    /// `Object`. It is symbolic provenance, never a literal constant.
+    #[serde(default)]
+    pub receiver_symbol: Option<String>,
+    #[serde(default)]
+    pub arg_constants: Vec<Option<String>>,
+    /// Whether another SSA instruction or terminator consumes this call's
+    /// return value. A call without a destination is necessarily unused.
+    #[serde(default)]
+    pub return_is_used: bool,
     pub span: Span,
 }
 
 impl CallMeta {
     pub fn as_call_info(&self) -> Option<CallInfo> {
-        Some(CallInfo::new(
+        let mut call = CallInfo::new(
             self.callee_name.clone()?,
             self.receiver_type.clone(),
             self.receiver_type_candidates.clone(),
@@ -250,7 +359,12 @@ impl CallMeta {
             Some(self.arg_count),
             self.arg_types.clone(),
             self.arg_type_candidates.clone(),
-        ))
+        );
+        call.containing_function = Some(self.function_name.clone());
+        call.receiver_constant = self.receiver_constant.clone();
+        call.receiver_parameter = self.receiver_parameter;
+        call.arg_constants = self.arg_constants.clone();
+        Some(call)
     }
 }
 
@@ -588,4 +702,3 @@ pub enum EdgeKind {
     Source { rule_id: String },
     Sink { rule_id: String },
 }
-

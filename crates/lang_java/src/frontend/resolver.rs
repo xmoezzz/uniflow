@@ -30,6 +30,9 @@ impl JavaResolver {
     }
 
     fn qualify_type_name(&self, name: &str) -> String {
+        if let Some(element) = name.trim().strip_suffix("[]") {
+            return format!("{}[]", self.qualify_type_name(element.trim()));
+        }
         let trimmed = normalize_java_type_name(name.trim());
         if trimmed.is_empty() {
             return name.trim().to_string();
@@ -53,6 +56,10 @@ impl JavaResolver {
             if let Some(found) = index.resolve_unique_simple(trimmed) {
                 return found;
             }
+        }
+        let implicit = default_java_qualifier(trimmed);
+        if implicit.starts_with("java.lang.") {
+            return implicit;
         }
         if self.wildcard_imports.len() == 1 {
             return format!("{}.{}", self.wildcard_imports[0], trimmed);
@@ -80,14 +87,20 @@ impl JavaResolver {
         arg_count: Option<usize>,
         arg_types: Option<&[Option<String>]>,
     ) -> Option<String> {
-        self.project_index.as_ref().and_then(|index| {
-            index.method_return_type(
-                &self.qualify_type_name(owner_type),
+        let owner = self.qualify_type_name(owner_type);
+        if let Some(index) = &self.project_index {
+            let found = index.method_return_type(
+                &owner,
                 method_name,
                 arg_count,
                 arg_types,
-            )
-        })
+            );
+            let simple = owner.rsplit('.').next().unwrap_or(&owner);
+            if found.is_some() || index.fqns_by_simple.get(simple).is_some_and(|names| names.contains(&owner)) {
+                return found;
+            }
+        }
+        uniflow_hir::java_api::java_api_return_type(&owner, method_name, arg_count?).map(str::to_string)
     }
 
     fn resolve_static_member_call(&self, member_name: &str) -> Option<String> {

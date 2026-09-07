@@ -1,0 +1,10 @@
+id: org.dom4j.dom4j
+language: Java
+message: pkg:maven/org.dom4j/dom4j
+metadata:
+  purl: pkg:maven/org.dom4j/dom4j
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.dom4j|org\.dom4j\.jaxb|org\.dom4j\.dtd|org\.dom4j\.swing|org\.dom4j\.rule\.pattern|org\.dom4j\.tree|org\.dom4j\.xpp|org\.dom4j\.rule|org\.dom4j\.dom|org\.dom4j\.bean|org\.dom4j\.io|org\.dom4j\.xpath|org\.dom4j\.datatype|org\.dom4j\.util)\.

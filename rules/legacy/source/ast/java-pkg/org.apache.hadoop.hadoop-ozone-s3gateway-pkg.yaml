@@ -1,0 +1,10 @@
+id: org.apache.hadoop.hadoop-ozone-s3gateway
+language: Java
+message: pkg:maven/org.apache.hadoop/hadoop-ozone-s3gateway
+metadata:
+  purl: pkg:maven/org.apache.hadoop/hadoop-ozone-s3gateway
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.hadoop\.ozone\.s3\.util|org\.apache\.hadoop\.ozone\.s3\.endpoint|org\.apache\.hadoop\.ozone\.s3\.io|org\.apache\.hadoop\.ozone\.s3|org\.apache\.hadoop\.ozone\.s3\.exception|org\.apache\.hadoop\.ozone\.s3\.header|org\.apache\.hadoop\.ozone\.s3\.commontypes)\.

@@ -346,7 +346,20 @@ fn memory_region_seed_for_value(fg: &FlowGraph, func: FunctionId, value: ValueId
 }
 
 fn memory_regions_overlap(left: &[String], right: &[String]) -> bool {
-    left.iter().any(|value| right.iter().any(|other| other == value))
+    sets_overlap(left, right)
+}
+
+fn sets_overlap<T: Eq + Hash>(left: &[T], right: &[T]) -> bool {
+    let (Some(first_left), Some(first_right)) = (left.first(), right.first()) else { return false; };
+    // Propagated component sets frequently share their first element. Avoid
+    // allocating a hash table for this overwhelmingly common positive case.
+    if first_left == first_right { return true; }
+    if left.len().saturating_mul(right.len()) <= 64 {
+        return left.iter().any(|value| right.contains(value));
+    }
+    let (small, large) = if left.len() <= right.len() { (left, right) } else { (right, left) };
+    let members = small.iter().collect::<HashSet<_>>();
+    large.iter().any(|value| members.contains(value))
 }
 
 fn memory_region_has_boundary_prefix(parent: &str, child: &str) -> bool {
@@ -430,6 +443,11 @@ fn analysis_state_signature(fg: &FlowGraph) -> Vec<u64> {
         stable_hash_map_contents(&fg.contextual_points_to_targets),
         stable_hash_map_contents(&fg.contextual_points_to_object_ids),
         stable_hash_map_contents(&fg.abstract_objects) ^ stable_hash_map_contents(&fg.object_seed_ids),
+        stable_hash_map_contents(&fg.cell_live_values),
+        stable_hash_map_contents(&fg.cell_live_regions),
+        stable_hash_map_contents(&fg.region_live_values),
+        stable_hash_map_contents(&fg.region_live_cells),
+        stable_hash_map_contents(&fg.region_graph_successors),
     ]
 }
 
@@ -456,11 +474,11 @@ fn inferred_points_to_classes_for_value(fg: &FlowGraph, func: FunctionId, value:
 }
 
 fn points_to_classes_overlap(left: &[String], right: &[String]) -> bool {
-    left.iter().any(|value| right.iter().any(|other| other == value))
+    sets_overlap(left, right)
 }
 
 fn points_to_targets_overlap(left: &[String], right: &[String]) -> bool {
-    left.iter().any(|value| right.iter().any(|other| other == value))
+    sets_overlap(left, right)
 }
 
 fn is_precise_points_to_target(target: &str) -> bool {
@@ -468,7 +486,7 @@ fn is_precise_points_to_target(target: &str) -> bool {
 }
 
 fn points_to_object_ids_overlap(left: &[u32], right: &[u32]) -> bool {
-    left.iter().any(|value| right.iter().any(|other| other == value))
+    sets_overlap(left, right)
 }
 
 fn object_id_sets_definitely_disjoint(left: &[u32], right: &[u32]) -> bool {
@@ -748,50 +766,138 @@ fn heap_projection_values_compatible(
     object_types_compatible(left_ty, right_ty)
 }
 
-fn compute_literal_index_keys(func: &Function) -> HashMap<ValueId, String> {
-    let mut literals = HashMap::new();
+fn compute_literal_index_keys(func: &Function, language: &Language) -> HashMap<ValueId, String> {
+    // A monotone lattice is essential here: a loop phi may initially see only
+    // its literal entry value, then acquire a different backedge value. Keeping
+    // the first literal would turn an unknown index into an exact heap cell.
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    enum LiteralState { Pending, Known(String), Varying }
+    fn join(left: LiteralState, right: LiteralState) -> LiteralState {
+        match (left, right) {
+            (LiteralState::Pending, state) | (state, LiteralState::Pending) => state,
+            (LiteralState::Known(a), LiteralState::Known(b)) if a == b => LiteralState::Known(a),
+            _ => LiteralState::Varying,
+        }
+    }
+    let mut literals = func.params.iter().map(|v| (*v, LiteralState::Varying)).collect::<HashMap<_, _>>();
     let mut changed = true;
     while changed {
         changed = false;
         for block in &func.blocks {
             for inst in &block.insts {
-                match &inst.kind {
-                    InstKind::ConstInt { dst, value } => {
-                        let key = value.to_string();
-                        if literals.get(dst) != Some(&key) {
-                            literals.insert(*dst, key);
-                            changed = true;
-                        }
+                let state = |v: &ValueId| literals.get(v).cloned().unwrap_or(LiteralState::Pending);
+                let (dst, next) = match &inst.kind {
+                    InstKind::ConstInt { dst, value } => (*dst, LiteralState::Known(value.to_string())),
+                    InstKind::ConstString { dst, value } => (*dst, LiteralState::Known(value.clone())),
+                    InstKind::Copy { dst, src } | InstKind::Move { dst, src } | InstKind::Cast { dst, src, .. } => (*dst, state(src)),
+                    InstKind::NumericStep { dst, src, increment } => {
+                        let next = match state(src) {
+                            LiteralState::Known(value) => value.parse::<i64>().ok()
+                                .and_then(|value| numeric_step_literal(value, *increment,
+                                    func.value_types.get(dst).map(String::as_str)))
+                                .map(|v| LiteralState::Known(v.to_string())).unwrap_or(LiteralState::Varying),
+                            other => other,
+                        };
+                        (*dst, next)
                     }
-                    InstKind::ConstString { dst, value } => {
-                        if literals.get(dst) != Some(value) {
-                            literals.insert(*dst, value.clone());
-                            changed = true;
-                        }
+                    InstKind::Phi { dst, inputs } => (*dst,
+                        inputs.iter().map(state).fold(LiteralState::Pending, join)),
+                    InstKind::LoadField { dst, base, field } => {
+                        let next = match state(base) {
+                            LiteralState::Known(value) => external_symbol_name(&value)
+                                .map(|symbol| LiteralState::Known(format!("<external-symbol:{symbol}.{field}>")))
+                                .unwrap_or(LiteralState::Varying),
+                            other => other,
+                        };
+                        (*dst, next)
                     }
-                    InstKind::Copy { dst, src } | InstKind::Move { dst, src } | InstKind::Cast { dst, src, .. } => {
-                        if let Some(key) = literals.get(src).cloned() {
-                            if literals.get(dst) != Some(&key) {
-                                literals.insert(*dst, key);
-                                changed = true;
+                    InstKind::LoadIndex { dst, base, index } => {
+                        let next = match (state(base), state(index)) {
+                            (LiteralState::Known(base), LiteralState::Known(index)) => {
+                                external_symbol_name(&base)
+                                    .map(|symbol| LiteralState::Known(format!("<external-symbol:{symbol}.{index}>")))
+                                    .unwrap_or(LiteralState::Varying)
                             }
-                        }
+                            (LiteralState::Pending, _) | (_, LiteralState::Pending) => LiteralState::Pending,
+                            _ => LiteralState::Varying,
+                        };
+                        (*dst, next)
                     }
-                    InstKind::Phi { dst, inputs } => {
-                        let mut iter = inputs.iter().filter_map(|input| literals.get(input));
-                        if let Some(first) = iter.next().cloned() {
-                            if iter.all(|key| key == &first) && literals.get(dst) != Some(&first) {
-                                literals.insert(*dst, first);
-                                changed = true;
-                            }
+                    InstKind::Call(call) => match call.dst {
+                        Some(dst) if *language == Language::JavaScript => {
+                            let next = match &call.callee {
+                                Callee::Static(name) if name == "require" && !call.args.is_empty() => {
+                                    match state(&call.args[0]) {
+                                        LiteralState::Known(module) => LiteralState::Known(
+                                            format!("<external-symbol:{module}>")
+                                        ),
+                                        other => other,
+                                    }
+                                }
+                                Callee::Static(name)
+                                    if (name == "__uniflow.compose.string"
+                                        || name == "__uniflow.compose.map")
+                                        && call.args.len() >= 2 =>
+                                {
+                                    state(&call.args[1])
+                                }
+                                Callee::Static(name) => {
+                                    let receiver_symbol = call.receiver.and_then(|receiver| {
+                                        match state(&receiver) {
+                                            LiteralState::Known(value) => {
+                                                external_symbol_name(&value).map(str::to_string)
+                                            }
+                                            _ => None,
+                                        }
+                                    });
+                                    if let Some(receiver_symbol) = receiver_symbol {
+                                        let prefix = format!("{receiver_symbol}.");
+                                        let qualified = if name.starts_with(&prefix) {
+                                            name.clone()
+                                        } else {
+                                            format!("{receiver_symbol}.{name}")
+                                        };
+                                        LiteralState::Known(format!("<external-symbol:{qualified}>"))
+                                    } else if name.contains('.') || name.contains("::") {
+                                        LiteralState::Known(format!("<external-symbol:{name}>"))
+                                    } else {
+                                        LiteralState::Varying
+                                    }
+                                }
+                                Callee::Dynamic(_) | Callee::Unknown => LiteralState::Varying,
+                            };
+                            (dst, next)
                         }
-                    }
-                    _ => {}
+                        Some(dst) => (dst, LiteralState::Varying),
+                        None => continue,
+                    },
+                    InstKind::StoreField { .. } | InstKind::StoreIndex { .. } | InstKind::Lifetime { .. } => continue,
+                };
+                let previous = state(&dst);
+                let next = join(previous.clone(), next);
+                if next != previous {
+                    literals.insert(dst, next);
+                    changed = true;
                 }
             }
         }
     }
-    literals
+    literals.into_iter().filter_map(|(v, state)| match state {
+        LiteralState::Known(text) => Some((v, text)), _ => None,
+    }).collect()
+}
+
+fn numeric_step_literal(value: i64, increment: bool, ty: Option<&str>) -> Option<i64> {
+    let next = if increment { value.wrapping_add(1) } else { value.wrapping_sub(1) };
+    Some(match ty? {
+        "byte" | "Byte" | "java.lang.Byte" => next as i8 as i64,
+        "short" | "Short" | "java.lang.Short" => next as i16 as i64,
+        "char" | "Character" | "java.lang.Character" => next as u16 as i64,
+        "int" | "Integer" | "java.lang.Integer" => next as i32 as i64,
+        "long" | "Long" | "java.lang.Long" => next,
+        // Do not guess floating-point rounding or the width of an unknown type.
+        _ => return None,
+    })
 }
 
 fn abstract_index_key(literal_keys: &HashMap<ValueId, String>, index: ValueId) -> String {

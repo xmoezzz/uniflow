@@ -22,7 +22,9 @@ mod tests {
             }
         "#;
 
-        let program = JavaParser::default().parse_file("UserService.java", src).unwrap();
+        let program = JavaParser::default()
+            .parse_file("UserService.java", src)
+            .unwrap();
         let class = match &program.modules[0].items[0] {
             Item::Class(class) => class,
             _ => panic!("expected class"),
@@ -85,7 +87,9 @@ mod tests {
             }
         "#;
 
-        let program = JavaParser::default().parse_file("Controller.java", src).unwrap();
+        let program = JavaParser::default()
+            .parse_file("Controller.java", src)
+            .unwrap();
         let class = match &program.modules[0].items[0] {
             Item::Class(class) => class,
             _ => panic!("expected class"),
@@ -301,10 +305,194 @@ mod tests {
                 void setEnabled(boolean value) {}
             }
         "#;
-        let program = JavaParser::default().parse_file("Security.java", src).unwrap();
+        let program = JavaParser::default()
+            .parse_file("Security.java", src)
+            .unwrap();
         let rendered = format!("{:?}", program.modules);
         assert!(rendered.contains("Bool(false)"));
         assert!(rendered.contains("Bool(true)"));
     }
 
+    #[test]
+    fn parses_java_lambda_captures_and_functional_invocation() {
+        let src = r#"
+            package demo;
+            public class Worker {
+                public void run(String prefix) {
+                    java.util.function.Function<String, String> cb = x -> prefix + x;
+                    sink(cb.apply("safe"));
+                }
+            }
+        "#;
+        let program = JavaParser::default()
+            .parse_file("Worker.java", src)
+            .expect("Java lambda should parse");
+        let class = match &program.modules[0].items[0] {
+            Item::Class(class) => class,
+            _ => panic!("expected class"),
+        };
+        let function = class
+            .methods
+            .iter()
+            .find(|function| function.name.ends_with(".run"))
+            .expect("run method");
+        let lambda = function.body.stmts.iter().find_map(|stmt| match stmt {
+            Stmt::Let {
+                init: Some(expr @ Expr::Lambda { .. }),
+                ..
+            } => Some(expr),
+            _ => None,
+        });
+        let Some(Expr::Lambda {
+            params, captures, ..
+        }) = lambda
+        else {
+            panic!("expected lambda HIR: {function:#?}");
+        };
+        assert_eq!(params.len(), 1);
+        assert_eq!(captures.len(), 1);
+        assert_eq!(captures[0].name, "prefix");
+        let nested_call = function.body.stmts.iter().find_map(|stmt| match stmt {
+            Stmt::Expr {
+                expr: Expr::Call(sink),
+                ..
+            } => sink.args.first(),
+            _ => None,
+        });
+        assert!(matches!(
+            nested_call,
+            Some(Expr::Call(CallExpr {
+                target: CallTarget::Dynamic(_),
+                ..
+            }))
+        ));
+    }
+
+    #[test]
+    fn parses_java_method_references_as_arity_aware_closures() {
+        let src = r#"
+            package demo;
+            public class Worker {
+                public void run(String prefix) {
+                    java.util.function.Function<String, String> append = prefix::concat;
+                    java.util.function.Supplier<StringBuilder> factory = StringBuilder::new;
+                    sink(append.apply("safe"));
+                }
+            }
+        "#;
+        let program = JavaParser::default()
+            .parse_file("Worker.java", src)
+            .expect("Java method references should parse");
+        let class = match &program.modules[0].items[0] {
+            Item::Class(class) => class,
+            _ => panic!("expected class"),
+        };
+        let function = class
+            .methods
+            .iter()
+            .find(|function| function.name.ends_with(".run"))
+            .expect("run method");
+        let closures = function
+            .body
+            .stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Let {
+                    init:
+                        Some(Expr::Lambda {
+                            params, captures, ..
+                        }),
+                    ..
+                } => Some((params, captures)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(closures.len(), 2);
+        assert_eq!(closures[0].0.len(), 1);
+        assert_eq!(closures[0].1.len(), 1);
+        assert_eq!(closures[0].1[0].name, "prefix");
+        assert!(closures[1].0.is_empty());
+        assert!(closures[1].1.is_empty());
+        assert!(matches!(
+            &function.body.stmts[2],
+            Stmt::Expr {
+                expr: Expr::Call(CallExpr { args, .. }),
+                ..
+            } if matches!(args.first(), Some(Expr::Call(CallExpr {
+                target: CallTarget::Dynamic(_),
+                ..
+            })))
+        ));
+    }
+
+    #[test]
+    fn preserves_while_body_and_following_statements() {
+        let src = r#"
+            class Worker {
+                void run(Object lock, int[] values) {
+                    while (ready) { lock.wait(); }
+                    values.hashCode();
+                }
+            }
+        "#;
+        let program = JavaParser::default()
+            .parse_file("Worker.java", src)
+            .expect("Java while statement should parse");
+        let class = match &program.modules[0].items[0] {
+            Item::Class(class) => class,
+            _ => panic!("expected class"),
+        };
+        let function = class
+            .methods
+            .iter()
+            .find(|function| function.name.ends_with(".run"))
+            .expect("run method");
+        assert_eq!(function.body.stmts.len(), 2, "{function:#?}");
+        assert!(matches!(
+            &function.body.stmts[0],
+            Stmt::While { body, .. }
+                if matches!(body.stmts.first(), Some(Stmt::Expr { expr: Expr::Call(_), .. }))
+        ));
+        assert!(matches!(
+            &function.body.stmts[1],
+            Stmt::Expr { expr: Expr::Call(_), .. }
+        ));
+    }
+
+    #[test]
+    fn parses_try_catch_finally_and_following_statement() {
+        let src = r#"
+            class Worker {
+                int run() {
+                    try { work(); }
+                    catch (RuntimeException error) { recover(error); }
+                    finally { return 7; }
+                    after();
+                }
+            }
+        "#;
+        let program = JavaParser::default()
+            .parse_file("Worker.java", src)
+            .expect("Java try statement should parse");
+        let class = match &program.modules[0].items[0] {
+            Item::Class(class) => class,
+            _ => panic!("expected class"),
+        };
+        let function = class.methods.first().expect("run method");
+        assert_eq!(function.body.stmts.len(), 2, "{function:#?}");
+        let Stmt::Try {
+            try_block,
+            catches,
+            finally_block: Some(finally_block),
+            ..
+        } = &function.body.stmts[0]
+        else {
+            panic!("expected try/catch/finally HIR: {function:#?}");
+        };
+        assert_eq!(try_block.stmts.len(), 1);
+        assert_eq!(catches.len(), 1);
+        assert_eq!(catches[0].body.stmts.len(), 1);
+        assert!(matches!(finally_block.stmts.first(), Some(Stmt::Return { .. })));
+        assert!(matches!(function.body.stmts[1], Stmt::Expr { .. }));
+    }
 }

@@ -1,0 +1,10 @@
+id: org.springframework.integration.spring-integration-zip
+language: Java
+message: pkg:maven/org.springframework.integration/spring-integration-zip
+metadata:
+  purl: pkg:maven/org.springframework.integration/spring-integration-zip
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.integration\.zip\.splitter|org\.springframework\.integration\.zip\.config\.xml|org\.springframework\.integration\.zip\.transformer|org\.springframework\.integration\.zip)\.

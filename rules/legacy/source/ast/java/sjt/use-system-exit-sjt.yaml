@@ -1,0 +1,7 @@
+id: use-system-exit-sjt
+message: '0802000010110002'
+language: Java
+rule:
+  any:
+  - pattern: System.exit($$$)
+  - pattern: Runtime.exit($$$)

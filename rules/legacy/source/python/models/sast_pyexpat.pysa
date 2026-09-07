@@ -1,0 +1,19 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                pyexpat
+
+# DataflowSinkRule pyexpat 1
+# [{'NamespaceName': 'pyexpat', 'ClassName': 'xmlparser', 'FunctionName': 'Parse(File)?', 'RuleName': 'desc.dataflow.python.xee_injection', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pyexpat_methods_sinks",
+  find="methods",
+  where=[
+    name.matches("^pyexpat\.xmlparser\.Parse(File)?")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_xee_injection]
+    )
+  ]
+)

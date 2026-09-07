@@ -1,0 +1,104 @@
+id: compare-base-object
+message: '0202000010110051'
+language: Java
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^(.*\.)?Boolean$|^(.*\.)?Character$|^(.*\.)?Byte$|^(.*\.)?Short$|^(.*\.)?Integer$|^(.*\.)?Long$|^(.*\.)?Float$|^(.*\.)?Double$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?Boolean$|^(.*\.)?Character$|^(.*\.)?Byte$|^(.*\.)?Short$|^(.*\.)?Integer$|^(.*\.)?Long$|^(.*\.)?Float$|^(.*\.)?Double$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?Boolean$|^(.*\.)?Character$|^(.*\.)?Byte$|^(.*\.)?Short$|^(.*\.)?Integer$|^(.*\.)?Long$|^(.*\.)?Float$|^(.*\.)?Double$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?Boolean$|^(.*\.)?Character$|^(.*\.)?Byte$|^(.*\.)?Short$|^(.*\.)?Integer$|^(.*\.)?Long$|^(.*\.)?Float$|^(.*\.)?Double$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+          
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  kind: binary_expression
+  all:
+    - any:
+      - pattern: $LEFT == $RIGHT
+      - pattern: $LEFT != $RIGHT
+    - all:
+      - has: 
+          field: left
+          kind: identifier      
+      - has: 
+          field: right
+          kind: identifier
+    - any:
+      - has:
+          field: left
+          kind: identifier
+          pattern: $VAR
+          inside:
+            matches: recursion-find-object-decl
+      - has:
+          field: right
+          kind: identifier
+          pattern: $VAR
+          inside:
+            matches: recursion-find-object-decl

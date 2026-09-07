@@ -1,0 +1,12 @@
+id: no-side-effect-in-sizeof
+message: '0601000010140053,0701000010130051'
+language: C
+rule:
+  all:
+    - any:
+      - kind: call_expression
+      - kind: assignment_expression
+      - kind: update_expression
+    - inside:
+        kind: sizeof_expression
+        stopBy: end

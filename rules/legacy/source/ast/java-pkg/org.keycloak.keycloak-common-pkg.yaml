@@ -1,0 +1,10 @@
+id: org.keycloak.keycloak-common
+language: Java
+message: pkg:maven/org.keycloak/keycloak-common
+metadata:
+  purl: pkg:maven/org.keycloak/keycloak-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.keycloak\.common|org\.keycloak\.common\.crypto|org\.keycloak\.common\.constants|org\.keycloak\.common\.util|org\.keycloak\.common\.enums|org\.keycloak\.common\.profile|org\.keycloak\.common\.util\.reflections)\.

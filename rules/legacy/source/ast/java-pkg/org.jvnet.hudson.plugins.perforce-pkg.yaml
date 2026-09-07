@@ -1,0 +1,10 @@
+id: org.jvnet.hudson.plugins.perforce
+language: Java
+message: pkg:maven/org.jvnet.hudson.plugins/perforce
+metadata:
+  purl: pkg:maven/org.jvnet.hudson.plugins/perforce
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.tek42\.perforce\.parse|hudson\.plugins\.perforce\.browsers|com\.perforce\.api|hudson\.plugins\.perforce|com\.tek42\.perforce\.model|com\.tek42\.perforce\.process|com\.tek42\.perforce)\.

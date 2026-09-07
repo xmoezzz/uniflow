@@ -1,0 +1,10 @@
+id: com.adobe.blazeds.blazeds-common
+language: Java
+message: pkg:maven/com.adobe.blazeds/blazeds-common
+metadata:
+  purl: pkg:maven/com.adobe.blazeds/blazeds-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(flex\.messaging|flex\.messaging\.config|flex\.messaging\.log|flex\.graphics|flex\.messaging\.util)\.

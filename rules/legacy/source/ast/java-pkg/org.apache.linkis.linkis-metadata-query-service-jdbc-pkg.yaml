@@ -1,0 +1,10 @@
+id: org.apache.linkis.linkis-metadata-query-service-jdbc
+language: Java
+message: pkg:maven/org.apache.linkis/linkis-metadata-query-service-jdbc
+metadata:
+  purl: pkg:maven/org.apache.linkis/linkis-metadata-query-service-jdbc
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.linkis\.metadata\.query\.service\.db2|org\.apache\.linkis\.metadata\.query\.service|org\.apache\.linkis\.metadata\.query\.service\.mysql|org\.apache\.linkis\.metadata\.query\.service\.kingbase|org\.apache\.linkis\.metadata\.query\.service\.clickhouse|org\.apache\.linkis\.metadata\.query\.service\.greenplum|org\.apache\.linkis\.metadata\.query\.service\.conf|org\.apache\.linkis\.metadata\.query\.service\.dm|org\.apache\.linkis\.metadata\.query\.service\.oracle|org\.apache\.linkis\.metadata\.query\.service\.postgres|org\.apache\.linkis\.metadata\.query\.service\.sqlserver)\.

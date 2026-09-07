@@ -1,0 +1,13 @@
+id: no-overload-logical-and-or
+message: "Do not overload the logical AND and OR operators"
+language: Cpp
+rule:
+  all:
+    - kind: operator_name
+    - any:
+        - regex: "^operator&&$"
+        - regex: "^operator\\|\\|$"
+    - inside:
+        kind: function_declarator
+metadata:
+  "cert": "EXP02-A"

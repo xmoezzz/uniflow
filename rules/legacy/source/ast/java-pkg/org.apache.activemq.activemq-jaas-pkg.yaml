@@ -1,0 +1,10 @@
+id: org.apache.activemq.activemq-jaas
+language: Java
+message: pkg:maven/org.apache.activemq/activemq-jaas
+metadata:
+  purl: pkg:maven/org.apache.activemq/activemq-jaas
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.activemq\.jaas)\.

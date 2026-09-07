@@ -1,0 +1,1602 @@
+Filters: []
+Name: OC语言数据流包
+Note: xxxx
+Passthroughs:
+- Ids:
+  - 'MyTagAdder:addTagTo:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - 'MyTagAdder:addTagToCFURLRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - 'MyTagAdder:addTagToCFStringRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - 'MyTagAdder:addTagToChar:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - 'MyTagAdder:addPrivateTagToCFDataRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'MyTagAdder:addPrivateTagToCFStringRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'MyTagAdder:addPrivateTagToUInt8:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'MyTagAdder:addPrivateTagToCFURLRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'MyTagAdder:addInputOutsideTagToSecKeychainItemRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - 'MyTagAdder:addPrivateTagToNSStringEncoding:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'MyTagAdder:addPrivateTagToABAddressBookRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'MyTagAdder:addPrivateTagToABRecordRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'MyTagAdder:addPrivateTagToABMultiValueRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'MyTagAdder:addPrivateTagToCFArrayRef:check:'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Arguments:
+    SignCheck:
+      Type: Value
+      argument: '0'
+      kind: POST
+  Ids:
+  - 'NSMutableURLRequest::setHTTPMethod:'
+  Ins:
+  - '-2'
+  Outs:
+  - '-2'
+  Signs:
+    Minus:
+    - httpGet
+    Plus:
+    - httpPost
+- Ids:
+  - 'NSFileManager::createFileAtPath:contents:attributes:'
+  - '[!NULL]::CFArrayInsertValueAtIndex'
+  Ins:
+  - '2'
+  Outs:
+  - '0'
+- Ids:
+  - 'NSMutableString::appendString:'
+  - 'NSMutableString::insertString:atIndex:'
+  - 'NSMutableString::setString:'
+  Ins:
+  - '0'
+  Outs:
+  - '-2'
+- Ids:
+  - '[!NULL]::CFStringCreateWithFormatAndArguments'
+  - '[!NULL]::AEBuildDesc'
+  Ins:
+  - 3...
+  Outs:
+  - '-1'
+- Ids:
+  - 'NSString::stringByReplacingOccurrencesOfString:withString:'
+  - 'NSString::stringByReplacingOccurrencesOfString:withString:options:range:'
+  - 'NSString::stringByReplacingCharactersInRange:withString:'
+  - 'NSString::stringByPaddingToLength:withString:startingAtIndex:'
+  - 'NSPredicate::predicateWithFormat:argumentArray:'
+  - 'NSPredicate::predicateWithFormat:arguments:'
+  - '[!NULL]::CFArrayCreateCopy'
+  - '[!NULL]::CFArrayCreate'
+  - '[!NULL]::CFStringCreateWithBytes'
+  - '[!NULL]::CFURLCreateWithString'
+  Ins:
+  - '1'
+  Outs:
+  - '-1'
+- Ids:
+  - 'NSMutableString::replaceOccurrencesOfString:withString:options:range:'
+  Ins:
+  - '1'
+  Outs:
+  - '-2'
+- Ids:
+  - 'NSString::initWithFormat:arguments:'
+  - 'NSString::initWithFormat:locale:'
+  - 'NSString::initWithFormat:locale:arguments:'
+  Ins:
+  - 1...
+  Outs:
+  - '-1'
+- Ids:
+  - 'NSURL::initWithScheme:host:path:'
+  Ins:
+  - 0...
+  Outs:
+  - '-1'
+- Ids:
+  - 'NSAlert::alertWithMessageText:defaultButton:alternateButton:otherButton:informativeTextWithFormat:'
+  Ins:
+  - '4'
+  Outs:
+  - '-1'
+- Ids:
+  - 'NSString::getCharacters:range:'
+  - 'NSString::getCString:maxLength:encoding:'
+  - 'NSString::getCString:maxLength:'
+  - 'NSString::getCString:maxLength:range:remainingRange:'
+  - 'NSString::getBytes:maxLength:usedLength:encoding:options:range:remainingRange:'
+  - 'NSArray::getObjects:'
+  - 'NSArray::getObjects:range:'
+  - 'NSData::getBytes:length:'
+  - 'NSData::getBytes:range:'
+  Ins:
+  - '-2'
+  Outs:
+  - '0'
+- Ids:
+  - '[!NULL]::objc_retainAutoreleasedReturnValue'
+  - 'NSURL::URLByAppendingPathComponent:'
+  - 'NSURL::URLByAppendingPathComponent:isDirectory:'
+  - 'NSURL::URLByAppendingPathExtension:'
+  - 'NSURL::URLWithString:relativeToURL:'
+  - 'NSURL::initWithString:relativeToURL:'
+  - 'NSURL::fileURLWithPath:isDirectory:'
+  - 'NSURL::initFileURLWithPath:isDirectory:'
+  - 'NSURL::fileURLWithPathComponents:'
+  - 'NSString::initWithBytes:length:encoding:'
+  - 'NSString::initWithBytesNoCopy:length:encoding:freeWhenDone:'
+  - 'NSString::initWithCharacters:length:'
+  - 'NSString::initWithCharactersNoCopy:length:freeWhenDone:'
+  - 'NSString::initWithString:'
+  - 'NSString::initWithCString:encoding:'
+  - 'NSString::initWithUTF8String:'
+  - 'NSString::initWithData:encoding:'
+  - 'NSString::initWithContentsOfFile:encoding:error:'
+  - 'NSString::initWithContentsOfFile:usedEncoding:error:'
+  - 'NSString::initWithContentsOfURL:encoding:error:'
+  - 'NSString::initWithContentsOfURL:usedEncoding:error:'
+  - 'NSString::initWithCString:'
+  - 'NSString::initWithCString:length:'
+  - 'NSString::initWithCStringNoCopy:length:freeWhenDone:'
+  - 'NSString::initWithContentsOfFile:'
+  - 'NSString::initWithContentsOfURL:'
+  - 'NSString::stringWithCharacters:length:'
+  - 'NSString::stringWithString:'
+  - 'NSString::stringWithCString:encoding:'
+  - 'NSString::stringWithUTF8String:'
+  - 'NSString::stringWithContentsOfFile:encoding:error:'
+  - 'NSString::stringWithContentsOfFile:usedEncoding:error:'
+  - 'NSString::stringWithContentsOfURL:encoding:error:'
+  - 'NSString::stringWithContentsOfURL:usedEncoding:error:'
+  - 'NSString::stringWithCString:'
+  - 'NSString::stringWithCString:length:'
+  - 'NSString::stringWithContentsOfFile:'
+  - 'NSString::stringWithContentsOfURL:'
+  - 'NSString::getCharacters:range:'
+  - 'NSString::getBytes:maxLength:usedLength:encoding:options:range:remainingRange:'
+  - 'NSString::stringByAppendingString:'
+  - 'NSString::stringByAppendingPathComponent:'
+  - 'NSString::stringByAppendingPathExtension:'
+  - 'NSArray::initWithArray:'
+  - 'NSArray::initWithArray:copyItems:'
+  - 'NSArray::initWithContentsOfFile:'
+  - 'NSArray::initWithContentsOfURL:'
+  - 'NSArray::initWithObjects:'
+  - 'NSArray::initWithObjects:count:'
+  - 'NSArray::arrayWithArray:'
+  - 'NSArray::arrayWithObject:'
+  - 'NSArray::arrayWithObjects:'
+  - 'NSArray::arrayWithObjects:count:'
+  - 'NSArray::initWithArray:'
+  - 'NSArray::initWithArray:copyItems:'
+  - 'NSArray::initWithObjects:'
+  - 'NSArray::initWithObjects:count:'
+  - 'NSData::dataWithBytes:length:'
+  - 'NSData::dataWithBytesNoCopy:length:'
+  - 'NSData::dataWithBytesNoCopy:length:freeWhenDone:'
+  - 'NSData::dataWithData:'
+  - 'NSData::initWithBase64EncodedData:options:'
+  - 'NSData::initWithBase64EncodedString:options:'
+  - 'NSData::initWithBase64Encoding:'
+  - 'NSData::initWithBytes:length:'
+  - 'NSData::initWithBytesNoCopy:length:'
+  - 'NSData::initWithBytesNoCopy:length:deallocator:'
+  - 'NSData::initWithBytesNoCopy:length:freeWhenDone:'
+  - 'NSData::initWithData:'
+  - 'NSString::stringByReplacingPercentEscapesUsingEncoding:'
+  - '[!NULL]::ABRecordCopyValue'
+  - '[!NULL]::CFArrayGetValueAtIndex'
+  - 'NSDictionary::dictionaryWithContentsOfURL:'
+  - 'NSManagedObject::mutableSetValueForKey:'
+  - 'NSDictionary::initWithDictionary:'
+  - 'NSManagedObject::valueForKey:'
+  - 'NSDictionary::dictionaryWithDictionary:'
+  - 'SBJsonWriter::stringWithObject:'
+  - 'NSDictionary::dictionaryWithContentsOfFile:'
+  - 'NSDictionary::initWithObjectsAndKeys:'
+  - 'NSManagedObject::primitiveValueForKey:'
+  - '[!NULL]::NSSelectorFromString'
+  - '[!NULL]::ABAddressBookCopyArrayOfAllPeople'
+  - 'NSDictionary::dictionaryWithObjects:forKeys:count:'
+  - 'NSDictionary::dictionaryWithObjectsAndKeys:'
+  - 'NSDictionary::initWithObjects:forKeys:'
+  - 'NSDictionary::initWithDictionary:copyItems:'
+  - 'NSDictionary::dictionaryWithObject:forKey:'
+  - '[!NULL]::ABMultiValueCopyArrayOfAllValues'
+  - 'NSDictionary::dictionaryWithObjects:forKeys:'
+  - 'NSDictionary::initWithObjects:forKeys:count:'
+  - 'NSDictionary::initWithContentsOfFile:'
+  - 'NSDictionary::initWithContentsOfURL:'
+  - 'NSString::stringWithFormat:'
+  Ins:
+  - '0'
+  Outs:
+  - '-1'
+- Ids:
+  - 'NSString::cStringUsingEncoding:'
+  - 'NSString::getCString:maxLength:encoding:'
+  - NSString::UTF8String
+  - NSURL::absoluteString
+  - NSURL::absoluteURL
+  - NSURL::baseURL
+  - NSURL::fragment
+  - NSURL::lastPathComponent
+  - NSURL::parameterString
+  - NSURL::path
+  - NSURL::pathComponents
+  - NSURL::pathExtension
+  - NSURL::query
+  - NSURL::relativePath
+  - NSURL::relativeString
+  - NSURL::filePathURL
+  - NSURL::fileReferenceURL
+  - NSURL::URLByDeletingLastPathComponent
+  - NSURL::URLByDeletingPathExtension
+  - NSURL::URLByResolvingSymlinksInPath
+  - NSURL::URLByStandardizingPath
+  - NSURL::filePathURL
+  - NSURL::fileReferenceURL
+  - 'NSURL::URLByAppendingPathComponent:'
+  - 'NSURL::URLByAppendingPathComponent:isDirectory:'
+  - 'NSURL::URLByAppendingPathExtension:'
+  - NSURL::URLByDeletingLastPathComponent
+  - NSURL::URLByDeletingPathExtension
+  - NSURL::URLByResolvingSymlinksInPath
+  - NSURL::URLByStandardizingPath
+  - NSArray::objectEnumerator
+  - NSArray::reverseObjectEnumerator
+  - 'NSArray::indexOfObject:inRange:'
+  - 'NSArray::indexOfObjectIdenticalTo:'
+  - 'NSArray::indexOfObjectIdenticalTo:inRange:'
+  - 'NSArray::indexOfObjectPassingTest:'
+  - 'NSArray::indexOfObjectWithOptions:passingTest:'
+  - 'NSArray::indexOfObjectAtIndexes:options:passingTest:'
+  - 'NSArray::indexOfObject:inSortedRange:options:usingComparator:'
+  - 'NSArray::indexesOfObjectsPassingTest:'
+  - 'NSArray::indexesOfObjectsWithOptions:passingTest:'
+  - 'NSArray::indexesOfObjectsAtIndexes:options:passingTest:'
+  - 'NSArray::firstObjectCommonWithArray:'
+  - 'NSArray::arrayByAddingObjectsFromArray:'
+  - 'NSArray::filteredArrayUsingPredicate:'
+  - 'NSArray::subarrayWithRange:'
+  - 'NSArray::sortedArrayUsingFunction:context:'
+  - 'NSArray::sortedArrayUsingFunction:context:hint:'
+  - 'NSArray::sortedArrayUsingDescriptors:'
+  - 'NSArray::sortedArrayUsingSelector:'
+  - 'NSArray::sortedArrayUsingComparator:'
+  - 'NSArray::componentsJoinedByString:'
+  - 'NSArray::objectsAtIndexes:'
+  - NSData::bytes
+  - 'NSData::subdataWithRange:'
+  - NSPredicate::predicateFormat
+  - NSURL::resourceSpecifier
+  - NSURL::standardizedURL
+  - CLLocation::description
+  - CLLocation::speed
+  - CLRegion::center
+  - CLLocation::course
+  - CLLocation::altitude
+  - 'CLLocation::distanceFromLocation:'
+  - CLLocation::coordinate
+  - 'NSDictionary::objectForKey:'
+  - 'NSDictionary::valueForKey:'
+  Ins:
+  - '-2'
+  Outs:
+  - '-1'
+- Ids:
+  - 'NSFileManager::setAttributes:ofItemAtPath:error:'
+  Ins:
+  - '0'
+  Outs:
+  - '1'
+- Ids:
+  - '[!NULL]::CFArrayAppendValue'
+  - '[!NULL]::CFArrayAppendArray'
+  Ins:
+  - '1'
+  Outs:
+  - '0'
+- Ids:
+  - '[!NULL]::SecKeychainItemCopyContent'
+  Ins:
+  - '0'
+  Outs:
+  - '4'
+- Ids:
+  - '[!NULL]::CFArrayCreateMutableCopy'
+  Ins:
+  - '2'
+  Outs:
+  - '-1'
+- Ids:
+  - '[!NULL]::CFArrayGetValues'
+  Ins:
+  - '0'
+  Outs:
+  - '2'
+- Ids:
+  - 'NSString::stringWithFormat:'
+  Ins:
+  - 1...
+  Outs:
+  - '-1'
+- Ids:
+  - 'WKUserScript::initWithSource:injectionTime:forMainFrameOnly:'
+  Ins:
+  - '0'
+  Outs:
+  - '-2'
+  - '-1'
+- Ids:
+  - 'NSString::length:'
+  Ins:
+  - '-2'
+  Outs:
+  - '-1'
+- Ids:
+  - 'NSMutableArray::addObject:'
+  - 'NSMutableArray::addObjectsFromArray:'
+  - 'NSMutableArray::insertObject:atIndex:'
+  - 'NSMutableArray::insertObjects:atIndexes:'
+  Ins:
+  - '0'
+  Outs:
+  - '-2'
+- Ids:
+  - 'NSMutableArray::removeAllObjects:'
+  - 'NSMutableArray::removeLastObject:'
+  - 'NSMutableArray::removeObject:'
+  - 'NSMutableArray::removeObject:inRange:'
+  - 'NSMutableArray::removeObjectAtIndex:'
+  - 'NSMutableArray::removeObjectsAtIndexes:'
+  - 'NSMutableArray::removeObjectIdenticalTo:'
+  - 'NSMutableArray::removeObjectIdenticalTo:inRange:'
+  - 'NSMutableArray::removeObjectsInArray:'
+  - 'NSMutableArray::removeObjectsInRange:'
+  - 'NSMutableArray::filterUsingPredicate:'
+  Ins:
+  - '-2'
+  Outs:
+  - '-2'
+  Signs:
+    Minus:
+    - userInput
+Sinks:
+- Format: while calling function '%0' with %1 argument '%2' is sink test.
+  Format_zh_CN: 当用参数“%1”调用函数“%0”时，“%2”是sink测试
+  Ids:
+  - 'MySinker:sink:'
+  - 'MySinker:sinkForFloat:'
+  - 'MySinker:sinkForInt:'
+  - 'MySinker:sinkForBOOL:'
+  - 'MySinker:sinkForDouble:'
+  - 'MySinker:sinkForCLLocationCoordinate2D:'
+  Key: Security.Dataflow.ObjcTest
+  SinkPoint:
+    Check:
+      Or:
+      - SignCheck:
+          argument: '0'
+          kind: web
+      - SignCheck:
+          argument: '0'
+          kind: createInside
+      - SignCheck:
+          argument: '0'
+          kind: inputOutside
+      - SignCheck:
+          argument: '0'
+          kind: private
+      - SignCheck:
+          argument: '0'
+          kind: fileSystem
+      - SignCheck:
+          argument: '0'
+          kind: database
+      - SignCheck:
+          argument: '0'
+          kind: gui
+      - SignCheck:
+          argument: '0'
+          kind: http
+      - SignCheck:
+          argument: '0'
+          kind: httpGet
+      - SignCheck:
+          argument: '0'
+          kind: httpPost
+      - SignCheck:
+          argument: '0'
+          kind: fileProtect
+      - SignCheck:
+          argument: '0'
+          kind: lackingFileProtect
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSException::raise:format:'
+  - 'NSException::raise:format:arguments:'
+  Key: Security.Dataflow.ObjcFormatString
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '1'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is private data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是私有数据
+  Ids:
+  - 'NSURL::URLWithString:'
+  - 'NSURL::initWithString:'
+  - 'NSURL::initFileURLWithPath:relativeToURL:'
+  - 'NSURL::initFileURLWithPath:isDirectory:relativeToURL:'
+  - 'NSURL::initFileURLWithPath:'
+  - 'NSURL::fileURLWithPath:relativeToURL:'
+  - 'NSURL::fileURLWithPath:isDirectory:relativeToURL:'
+  - 'NSURL::fileURLWithPath:'
+  - 'MFMessageComposeViewController::setBody:'
+  - 'NSString::writeToURL:atomically:'
+  - 'NSData::writeToURL:options:error:'
+  - 'NSArray::writeToURL:atomically:'
+  - 'NSURLRequest::initWithURL:cachePolicy:timeoutInterval:'
+  - 'NSURLRequest::requestWithURL:cachePolicy:timeoutInterval:'
+  - 'NSMutableURLRequest::addValue:forHTTPHeaderField:'
+  - 'NSMutableURLRequest::setValue:forHTTPHeaderField:'
+  - 'NSURL::URLByAppendingPathComponent:'
+  - 'NSURL::URLByAppendingPathComponent:isDirectory:'
+  - 'NSURL::URLByAppendingPathExtension:'
+  - 'NSURL::URLWithString:relativeToURL:'
+  - 'NSURL::initWithString:relativeToURL:'
+  - 'NSURL::fileURLWithPath:isDirectory:'
+  - 'NSURL::initFileURLWithPath:isDirectory:'
+  - 'NSURL::fileURLWithPathComponents:'
+  - 'NSURLConnection::sendSynchronousRequest:returningResponse:error:'
+  - 'NSURLConnection::connectionWithRequest:delegate:'
+  - 'NSURLConnection::initWithRequest:delegate:startImmediately:'
+  - 'NSURLConnection::sendAsynchronousRequest:queue:completionHandler:'
+  - 'UITextField::setText:'
+  - 'UITextView::setText:'
+  - 'UIPasteboard::setString:'
+  - 'UIPasteboard::setStrings:'
+  - 'UIPasteboard::setURL:'
+  - 'UIPasteboard::setURLs:'
+  - 'UIPasteboard::setData:forPasteboardType:'
+  - 'UIPasteboard::setValue:forPasteboardType:'
+  - 'UIPasteboard::addItems:'
+  - 'UIPasteboard::setItems:'
+  - 'NSFileManager::contentsOfDirectoryAtURL:includingPropertiesForKeys:options:error:'
+  - 'NSFileManager::contentsOfDirectoryAtPath:error:'
+  - 'NSFileManager::enumeratorAtURL:includingPropertiesForKeys:options:errorHandler:'
+  - 'NSFileManager::enumeratorAtPath:'
+  - 'NSFileManager::createDirectoryAtURL:withIntermediateDirectories:attributes:error:'
+  - 'NSFileManager::createDirectoryAtPath:withIntermediateDirectories:attributes:error:'
+  - 'NSFileManager::createFileAtPath:contents:attributes:'
+  - 'NSFileManager::removeItemAtURL:error:'
+  - 'NSFileManager::removeItemAtPath:error:'
+  - 'NSFileManager::contentsAtPath:'
+  - 'UIApplication::openURL:'
+  Key: Security.Dataflow.ObjcPrivacyViolation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: private
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - '[!NULL]::sqlite3_prepare16'
+  - '[!NULL]::sqlite3_prepare16_v2'
+  - '[!NULL]::sqlite3_prepare'
+  - '[!NULL]::sqlite3_prepare_v2'
+  - '[!NULL]::sqlite3_exec'
+  Key: Security.Dataflow.ObjcSqlInjection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '1'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - '[!NULL]::xmlParseMemory'
+  - 'NSXMLParser::initWithData:'
+  Key: Security.Dataflow.ObjcXmlInjection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSURL::initFileURLWithPath:relativeToURL:'
+  - 'NSURL::initFileURLWithPath:isDirectory:relativeToURL:'
+  - 'NSURL::initFileURLWithPath:isDirectory:'
+  - 'NSURL::initFileURLWithPath:'
+  - 'NSURL::fileURLWithPathComponents:'
+  - 'NSURL::fileURLWithPath:isDirectory:relativeToURL:'
+  - 'NSURL::fileURLWithPath:relativeToURL:'
+  - 'NSURL::fileURLWithPath:isDirectory:'
+  - 'NSURL::fileURLWithPath:'
+  - 'NSString::writeToFile:atomically:encoding:error:'
+  - 'NSString::writeToURL:atomically:encoding:error:'
+  - 'NSString::writeToFile:atomically:'
+  - 'NSString::writeToURL:atomically:'
+  - 'NSString::initWithContentsOfFile:'
+  - 'NSData::writeToFile:atomically:'
+  - 'NSData::writeToFile:options:error:'
+  - 'NSData::writeToURL:atomically:'
+  - 'NSData::writeToURL:options:error:'
+  - 'NSData::dataWithContentsOfFile:'
+  - 'NSData::dataWithContentsOfFile:options:error:'
+  - 'NSData::initWithContentsOfFile:'
+  - 'NSData::initWithContentsOfFile:options:error:'
+  - 'NSData::dataWithContentsOfMappedFile:'
+  - 'NSData::initWithContentsOfMappedFile:'
+  - 'NSArray::writeToFile:atomically:'
+  - 'NSArray::writeToURL:atomically:'
+  - 'NSArray::initWithContentsOfFile:'
+  - 'NSDictionary::writeToFile:atomically:'
+  - 'NSDictionary::writeToURL:atomically:'
+  - 'NSDictionary::initWithContentsOfFile:'
+  - 'NSFileHandle::fileHandleForReadingAtPath:'
+  - 'NSFileHandle::fileHandleForWritingAtPath:'
+  - 'NSFileHandle::fileHandleForUpdatingAtPath:'
+  - 'NSFileManager::contentsOfDirectoryAtURL:includingPropertiesForKeys:options:error:'
+  - 'NSFileManager::contentsOfDirectoryAtPath:error:'
+  - 'NSFileManager::enumeratorAtURL:includingPropertiesForKeys:options:errorHandler:'
+  - 'NSFileManager::createDirectoryAtURL:withIntermediateDirectories:attributes:error:'
+  - 'NSFileManager::createDirectoryAtPath:withIntermediateDirectories:attributes:error:'
+  - 'NSFileManager::createDirectoryAtPath:attributes:'
+  - 'NSFileManager::createFileAtPath:contents:attributes:'
+  - 'NSFileManager::removeItemAtURL:error:'
+  - 'NSFileManager::removeItemAtPath:error:'
+  - 'NSFileManager::contentsAtPath:'
+  - 'NSInputStream::inputStreamWithFileAtPath:'
+  - 'NSInputStream::initWithFileAtPath:'
+  - 'NSOutputStream::outputStreamToFileAtPath:append:'
+  - 'NSOutputStream::initToFileAtPath:append:'
+  Key: Security.Dataflow.ObjcPathManipulation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - '[!NULL]::CFStringCreateWithFormat'
+  - '[!NULL]::CFStringCreateWithFormatAndArguments'
+  - '[!NULL]::CFStringAppendFormat'
+  - '[!NULL]::AEBuildDesc'
+  Key: Security.Dataflow.ObjcFormatString
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '2'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is private data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是私有数据
+  Ids:
+  - '[!NULL]::CFURLCreateWithString'
+  - '[!NULL]::CFHTTPMessageSetBody'
+  - '[!NULL]::CFWriteStreamWrite'
+  - '[!NULL]::CFSocketSendData'
+  Key: Security.Dataflow.ObjcPrivacyViolation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '1'
+        kind: private
+- Format: while calling function '%0' with %1 argument '%2', %3 argument '%4' use
+    uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”，“%3”参数“%4”调用函数“%0”时，使用了不可控的数据
+  Ids:
+  - 'NSFileManager::replaceItemAtURL:withItemAtURL:backupItemName:options:resultingItemURL:error:'
+  - 'NSFileManager::copyItemAtURL:toURL:error:'
+  - 'NSFileManager::copyItemAtPath:toPath:error:'
+  - 'NSFileManager::moveItemAtURL:toURL:error:'
+  - 'NSFileManager::moveItemAtPath:toPath:error:'
+  - 'NSFileManager::createSymbolicLinkAtURL:withDestinationURL:error:'
+  - 'NSFileManager::createSymbolicLinkAtPath:withDestinationPath:error:'
+  - 'NSFileManager::linkItemAtURL:toURL:error:'
+  - 'NSFileManager::linkItemAtPath:toPath:error:'
+  Key: Security.Dataflow.ObjcPathManipulation
+  SinkPoint:
+    Check:
+      Or:
+      - SignCheck:
+          argument: '0'
+          kind: inputOutside
+      - SignCheck:
+          argument: '1'
+          kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'SBJsonWriter::stringWithObject:error:'
+  Key: Security.Dataflow.ObjcJsonInjection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'UIWebView::loadHTMLString:baseURL:'
+  - 'UIWebView::loadData:MIMEType:textEncodingName:baseURL:'
+  - 'UIWebView::stringByEvaluatingJavaScriptFromString:'
+  Key: Security.Dataflow.ObjcCrossSiteScriptingPersistent
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: web
+- Format: while calling function '%0' with %1 argument '%2', %3 argument '%4' use
+    uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”，“%3”参数“%4”调用函数“%0”时，使用了不可控的数据
+  Ids:
+  - 'NSFileManager::createFileAtPath:contents:attributes:'
+  Key: Security.Dataflow.ObjcResourceInjection
+  SinkPoint:
+    Check:
+      Or:
+      - SignCheck:
+          argument: '0'
+          kind: inputOutside
+      - SignCheck:
+          argument: '1'
+          kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - '[!NULL]::PerformXPathQuery'
+  - '[!NULL]::PerformHTMLXPathQuery'
+  Key: Security.Dataflow.ObjcXpathInjection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: 0...
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - '[!NULL]::CFReadStreamCreateWithFile'
+  Key: Security.Dataflow.ObjcPathManipulation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '1'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSData::dataWithContentsOfURL:'
+  - 'NSData::dataWithContentsOfURL:options:error:'
+  - 'NSData::initWithContentsOfURL:'
+  - 'NSData::initWithContentsOfURL:options:error:'
+  - 'NSInputStream::initWithData:'
+  - 'NSInputStream::initWithFileAtPath:'
+  - 'NSInputStream::initWithURL:'
+  - 'NSInputStream::inputStreamWithData:'
+  - 'NSInputStream::inputStreamWithFileAtPath:'
+  - 'NSInputStream::inputStreamWithURL:'
+  - 'NSOutputStream::initWithURL:append:'
+  - 'NSOutputStream::outputStreamToBuffer:capacity:'
+  - 'NSOutputStream::outputStreamToFileAtPath:append:'
+  - 'NSOutputStream::outputStreamWithURL:append:'
+  - 'NSOutputStream::initToBuffer:capacity:'
+  - 'NSOutputStream::initToFileAtPath:append:'
+  - 'NSHost::hostWithAddress:'
+  - 'NSHost::hostWithName:'
+  - 'NSXMLParser::initWithContentsOfURL:'
+  - 'NSXMLParser::initWithData:'
+  - 'NSXMLParser::initWithStream:'
+  - 'NSXMLDocument::initWithContentsOfURL:options:error:'
+  - 'NSXMLDocument::initWithData:options:error:'
+  - 'NSXMLDocument::initWithXMLString:options:error:'
+  Key: Security.Dataflow.ObjcResourceInjection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is insecure transmission.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不安全的传输
+  Ids:
+  - 'NSURL::initWithString:relativeToURL:'
+  - 'NSURL::URLWithString:relativeToURL:'
+  - 'NSURLRequest::initWithURL:cachePolicy:timeoutInterval:'
+  - 'NSURLRequest::requestWithURL:cachePolicy:timeoutInterval:'
+  - 'NSString::writeToURL:atomically:encoding:error:'
+  - 'NSString::writeToURL:atomically:'
+  - 'NSString::initWithContentsOfURL:'
+  - 'NSString::stringWithContentsOfURL:encoding:error:'
+  - 'NSString::initWithContentsOfURL:encoding:error:'
+  - 'NSString::stringWithContentsOfURL:usedEncoding:error:'
+  - 'NSString::initWithContentsOfURL:usedEncoding:error:'
+  - 'NSData::writeToURL:atomically:'
+  - 'NSData::writeToURL:options:error:'
+  - 'NSData::initWithContentsOfURL:'
+  - 'NSData::initWithContentsOfURL:options:error:'
+  - 'NSData::dataWithContentsOfURL:options:error:'
+  - 'NSData::dataWithContentsOfURL:'
+  - 'NSArray::writeToURL:atomically:'
+  - 'NSArray::arrayWithContentsOfURL:'
+  - 'NSArray::initWithContentsOfURL:'
+  - 'NSDictionary::writeToURL:atomically:'
+  - 'NSDictionary::initWithContentsOfURL:'
+  - 'NSXMLParser::initWithContentsOfURL:'
+  - 'NSURL::URLWithString:'
+  Key: Security.Dataflow.ObjcInsecureTransmissionHttp
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: http
+- Format: while calling function '%0' with %1 argument '%2' is insecure transmission.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不安全的传输
+  Ids:
+  - 'NSURLConnection::sendSynchronousRequest:returningResponse:error:'
+  Key: Security.Dataflow.ObjcInsecureTransmissionHttp
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: httpGet
+- Format: while calling function '%0' with %1 argument '%2' is private data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是私有数据
+  Ids:
+  - '[!NULL]::NSLog'
+  Key: Security.Dataflow.ObjcPrivacyViolation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: 0...
+        kind: private
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSManagedObject::setValue:forKey:'
+  - 'NSManagedObject::setPrimitiveValue:forKey:'
+  - 'NSManagedObjectContext::insertObject:'
+  - 'NSManagedObjectContext::deleteObject:'
+  Key: Security.Dataflow.ObjcAccessControlDataBase
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is lacking data protection.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，缺乏数据保护
+  Ids:
+  - 'NSFileManager::createFileAtPath:contents:attributes:'
+  Key: Security.Dataflow.ObjcEncapsulationInsecureStorageLackingDataProtection
+  SinkPoint:
+    Check:
+      And:
+        SignCheck:
+          argument: '2'
+          kind: lackingFileProtect
+- Format: while calling function '%0' with %1 argument '%2' is lacking data protection.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，缺乏数据保护
+  Ids:
+  - 'NSKeyedArchiver::archiveRootObject:toFile:'
+  - 'NSArchiver::archiveRootObject:toFile:'
+  Key: Security.Dataflow.ObjcEncapsulationInsecureStorageLackingDataProtection
+  SinkPoint:
+    Check:
+      And:
+        SignCheck:
+          argument: '1'
+          kind: lackingFileProtect
+- Format: while calling function '%0' with %1 argument '%2' is lacking data protection.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，缺乏数据保护
+  Ids:
+  - 'NSFileManager::createFileAtPath:contents:attributes:'
+  Key: Security.Dataflow.ObjcEncapsulationInsecureStorageInsufficientDataProtection
+  SinkPoint:
+    Check:
+      And:
+        SignCheck:
+          argument: '2'
+          kind: lackingFileProtect
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSAlert::alertWithMessageText:defaultButton:alternateButton:otherButton:informativeTextWithFormat:'
+  Key: Security.Dataflow.ObjcFormatString
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '4'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSObject::performSelector:withObject:afterDelay:'
+  - 'NSObject::performSelector:withObject:afterDelay:inModes:'
+  - 'NSObject::performSelectorOnMainThread:withObject:waitUntilDone:'
+  - 'NSObject::performSelectorOnMainThread:withObject:waitUntilDone:modes:'
+  - 'NSObject::performSelector:onThread:withObject:waitUntilDone:'
+  - 'NSObject::performSelector:onThread:withObject:waitUntilDone:modes:'
+  - 'NSObject::performSelectorInBackground:withObject:'
+  Key: Security.Dataflow.ObjcUnsafeReflection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is private data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是私有数据
+  Ids:
+  - '[!NULL]::CFHTTPMessageSetHeaderFieldValue'
+  Key: Security.Dataflow.ObjcPrivacyViolation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: 1...
+        kind: private
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - '[!NULL]::CFSocketCreate'
+  - '[!NULL]::CFSocketCreateConnectedToSocketSignature'
+  - '[!NULL]::CFSocketCreateRunLoopSource'
+  - '[!NULL]::CFSocketCreateWithNative'
+  - '[!NULL]::CFSocketCreateWithSocketSignature'
+  - 'NSURL::URLWithString:relativeToURL:'
+  - 'NSURL::initWithString:'
+  - 'NSURL::initWithString:relativeToURL:'
+  - '[!NULL]::SecKeychainItemModifyContent'
+  - 'NSSocketPort::initWithTCPPort:'
+  - 'NSSocketPort::initWithProtocolFamily:socketType:protocol:address:'
+  - 'NSSocketPort::initWithProtocolFamily:socketType:protocol:socket:'
+  - 'NSSocketPort::initRemoteWithTCPPort:host:'
+  - 'NSSocketPort::initRemoteWithProtocolFamily:socketType:protocol:address:'
+  Key: Security.Dataflow.ObjcResourceInjection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: 0...
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is private data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是私有数据
+  Ids:
+  - '[!NULL]::CFHTTPMessageCreateRequest'
+  Key: Security.Dataflow.ObjcPrivacyViolation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '2'
+        kind: private
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'UIWebView::loadHTMLString:baseURL:'
+  - 'UIWebView::loadData:MIMEType:textEncodingName:baseURL:'
+  - 'UIWebView::stringByEvaluatingJavaScriptFromString:'
+  Key: Security.Dataflow.ObjcCrossSiteScriptingReflected
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: web
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSString::initWithFormat:arguments:'
+  - 'NSString::initWithFormat:locale:'
+  - 'NSString::initWithFormat:locale:arguments:'
+  - 'NSString::stringByAppendingFormat:'
+  - 'NSMutableString::appendFormat:'
+  - '[!NULL]::NSLog'
+  - '[!NULL]::NSLogv'
+  - 'NSAlert::alertWithMessageText:defaultButton:alternateButton:otherButton:informativeTextWithFormat:'
+  - 'NSString::stringWithFormat:'
+  Key: Security.Dataflow.ObjcFormatString
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is private data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是私有数据
+  Ids:
+  - '[!NULL]::NSLog'
+  Key: Security.Dataflow.ObjcLogForging
+  SinkPoint:
+    Check:
+      And:
+        Not:
+          SignCheck:
+            argument: '0'
+            kind: private
+        SignCheck:
+          argument: '0'
+          kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is lacking data protection.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，缺乏数据保护
+  Ids:
+  - 'NSString::writeToURL:atomically:encoding:error:'
+  - 'CIFilterGenerator::writeToURL:atomically:'
+  - 'NSString::writeToURL:atomically:'
+  - 'NSData::writeToURL:atomically:'
+  - 'NSDictionary::writeToURL:atomically:'
+  - 'NSFileWrapper::writeToFile:atomically:'
+  - 'NSFileManager::setAttributes:ofItemAtPath:error:'
+  - 'NSString::writeToFile:atomically:encoding:error:'
+  - 'NSString::writeToFile:atomically:'
+  - 'NSData::writeToFile:atomically:'
+  - 'NSData::writeToFile:options:error:'
+  - 'NSArray::writeToFile:atomically:'
+  - 'NSArray::writeToURL:atomically:'
+  - 'NSDictionary::writeToFile:atomically:'
+  - 'NSData::writeToFile:atomically:'
+  Key: Security.Dataflow.ObjcEncapsulationInsecureStorageLackingDataProtection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: lackingFileProtect
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'UIWebView::loadHTMLString:baseURL:'
+  - 'UIWebView::loadData:MIMEType:textEncodingName:baseURL:'
+  - 'UIWebView::stringByEvaluatingJavaScriptFromString:'
+  Key: Security.Dataflow.ObjcCrossSiteScriptingPoorValidation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: web
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - '[!NULL]::xmlXPathEvalExpression'
+  Key: Security.Dataflow.ObjcXpathInjection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSManagedObject::setValue:forKey:'
+  - 'NSManagedObject::setPrimitiveValue:forKey:'
+  Key: Security.Dataflow.ObjcAccessControlDataBase
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '1'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is uncontrollable data.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是不可控制的数据
+  Ids:
+  - 'NSPredicate::predicateWithFormat:'
+  - 'NSPredicate::evaluateWithObject:'
+  Key: Security.Dataflow.ObjcDenialOfServiceRegexEvaluation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: inputOutside
+- Format: while calling function '%0' with %1 argument '%2' is code injection.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，是代码注入
+  Ids:
+  - 'WKWebView::evaluateJavaScript:'
+  - 'WKWebView::evaluateJavaScript:completionHandler:'
+  - 'WKUserContentController::addUserScript:'
+  Key: Security.Dataflow.CodeInjection
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: userInput
+- Format: while calling function '%0' with %1 argument '%2', violation of health information
+    privacy.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，侵犯了健康信息隐私
+  Ids:
+  - '[!NULL]::NSLog'
+  - '[!NULL]::NSLogv'
+  - 'NSUserDefaults::setObject:forKey:'
+  - 'NSUserDefaults::setFloat:forKey:'
+  - 'NSUserDefaults::setDouble:forKey:'
+  - 'NSUserDefaults::setInteger:forKey:'
+  - 'NSUserDefaults::setURL:forKey:'
+  - 'NSOutputStream::write:maxLength:'
+  Key: Security.Dataflow.HealthInformation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: 0...
+        kind: health
+- Format: while calling function '%0' with %1 argument '%2', key size is controlled
+    by user.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，键长度被用户控制
+  Ids:
+  - '[!NULL]::CCCrypt'
+  - '[!NULL]::CCCryptorCreate'
+  - '[!NULL]::CCCryptorCreateFromData'
+  - '[!NULL]::CCCalibratePBKDF'
+  Key: Security.Dataflow.UserControlledKeySize
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '4'
+        kind: userInput
+- Format: while calling function '%0' with %1 argument '%2', key size is controlled
+    by user.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，键长度被用户控制
+  Ids:
+  - '[!NULL]::CCCryptorCreateWithMode'
+  Key: Security.Dataflow.UserControlledKeySize
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '6'
+        kind: userInput
+- Format: while calling function '%0' with %1 argument '%2', key size is controlled
+    by user.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，键长度被用户控制
+  Ids:
+  - '[!NULL]::CCKeyDerivationPBKDF'
+  Key: Security.Dataflow.UserControlledKeySize
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '8'
+        kind: userInput
+- Format: while calling function '%0' with %1 argument '%2', violate trust boundary.
+  Format_zh_CN: 当用“%1”参数“%2”调用函数“%0”时，违背信任边界
+  Ids:
+  - 'NSExtensionContext::completeRequestReturningItems:completionHandler:'
+  Key: Security.Dataflow.TrustBoundaryViolation
+  SinkPoint:
+    Check:
+      SignCheck:
+        argument: '0'
+        kind: userInput
+Sources:
+- Ids:
+  - MyTagMaker:getInputOutsideTagWithNSString
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - MyTagMaker:getPrivateTagWithNSString
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateAndInputOutsideTagWithNSString
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+    - inputOutside
+- Ids:
+  - MyTagMaker:getInputOutsideTagWithNSData
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - MyTagMaker:getPrivateTagWithNSData
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateAndInputOutsideTagWithNSData
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+    - inputOutside
+- Ids:
+  - MyTagMaker:getInputOutsideTagWithNSURL
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - MyTagMaker:getPrivateTagWithNSURL
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateAndInputOutsideTagWithNSURL
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+    - inputOutside
+- Ids:
+  - MyTagMaker:getInputOutsideTagWithUint8
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - MyTagMaker:getPrivateTagWithUint8
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateAndInputOutsideTagWithUint8
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+    - inputOutside
+- Ids:
+  - MyTagMaker:getInputOutsideTagWithSEL
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - MyTagMaker:getPrivateTagWithSEL
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateAndInputOutsideTagWithSEL
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+    - inputOutside
+- Ids:
+  - MyTagMaker:getInputOutsideTagWithNSDictionary
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - MyTagMaker:getPrivateTagWithNSDictionary
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateAndInputOutsideTagWithNSDictionary
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+    - inputOutside
+- Ids:
+  - MyTagMaker:getWebTagWithNSString
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - web
+- Ids:
+  - MyTagMaker:getWebTagWithNSData
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - web
+- Ids:
+  - MyTagMaker:getHttpTagWithNSString
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - http
+- Ids:
+  - MyTagMaker:getHttpTagWithNSURL
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - http
+- Ids:
+  - MyTagMaker:getInputOutsideTagWithNSInputStream
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - MyTagMaker:getPrivateTagWithNSArray
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getInputOutsideTagWithNSManagedObject
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+- Ids:
+  - MyTagMaker:getPrivateTagWithVoid
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateTagWithNSMutableString
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateTagWithVaList
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateTagWithCLLocation
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateTagWithUIPasteboard
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateTagWithCLRegion
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateTagWithUITextField
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - MyTagMaker:getPrivateTagWithUITextView
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'NSMutableURLRequest::requestWithURL:'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - httpGet
+- Arguments:
+    SignCheck:
+      Type: Str
+      argument: '0'
+      kind: NSFileProtectionComplete
+  Ids:
+  - 'NSDictionary::dictionaryWithObject:forKey:'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - fileProtect
+- Arguments:
+    SignCheck:
+      Type: Str
+      argument: '0'
+      kind: NSFileProtectionNone
+  Ids:
+  - 'NSDictionary::dictionaryWithObject:forKey:'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - lackingFileProtect
+- Ids:
+  - '[!NULL]::SecItemCopyMatching'
+  Outs:
+  - '1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - '[!NULL]::SecKeychainFindInternetPassword'
+  Outs:
+  - '14'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - NSURL::password
+  - NSURL::user
+  - '[!NULL]::ABAddressBookCreate'
+  - UIDevice::name
+  - UIDevice::systemName
+  - UIDevice::systemVersion
+  - UIDevice::model
+  - UIDevice::localizedModel
+  - UIDevice::userInterfaceIdiom
+  - UIDevice::orientation
+  - UIDevice::batteryLevel
+  - UIDevice::isBatteryMonitoringEnabled
+  - UIDevice::batteryState
+  - UIDevice::isProximityMonitoringEnabled
+  - UIDevice::proximityState
+  - 'NSManagedObjectContext::executeFetchRequest:error:'
+  - 'NSManagedObjectContext::existingObjectWithID:error:'
+  - 'SFHFKeychainUtils::getPasswordForUsername:andServiceName:error:'
+  - UIPasteboard::generalPasteboard
+  - 'UIPasteboard::pasteboardWithName:create:'
+  - UIPasteboard::pasteboardWithUniqueName
+  - 'UIPasteboard::dataForPasteboardType:inItemSet:'
+  - 'UIPasteboard::valuesForPasteboardType:inItemSet:'
+  - UIPasteboard::string
+  - UIPasteboard::strings
+  - 'UIPasteboard::dataForPasteboardType:'
+  - 'UIPasteboard::valueForPasteboardType:'
+  - 'UIPasteboard::itemSetWithPasteboardTypes:'
+  - UIPasteboard::image
+  - UIPasteboard::images
+  - UIPasteboard::URL
+  - UIPasteboard::URLs
+  - UIPasteboard::color
+  - UIPasteboard::colors
+  - UIDevice::uniqueIdentifier
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - 'NSURL::initWithString:'
+  - 'NSArray::arrayWithContentsOfFile:'
+  - 'NSArray::initWithContentsOfFile:'
+  - 'NSString::stringWithContentsOfFile:encoding:error:'
+  - 'NSString::initWithContentsOfFile:encoding:error:'
+  - 'NSString::stringWithContentsOfFile:usedEncoding:error:'
+  - 'NSString::initWithContentsOfFile:usedEncoding:error:'
+  - 'NSString::initWithContentsOfFile:'
+  - 'NSData::initWithContentsOfFile:options:error:'
+  - 'NSData::initWithContentsOfFile:'
+  - 'NSData::dataWithContentsOfFile:'
+  - 'NSData::dataWithContentsOfFile:options:error:'
+  - 'NSData::initWithContentsOfFile:'
+  - 'NSData::initWithContentsOfFile:options:error:'
+  - '[!NULL]::CFReadStreamCreateWithFile'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+    - fileSystem
+- Ids:
+  - '[!NULL]::CFReadStreamRead'
+  Outs:
+  - '1'
+  Signs:
+    Plus:
+    - inputOutside
+    - fileSystem
+- Ids:
+  - '[!NULL]::SecKeychainFindGenericPassword'
+  Outs:
+  - '6'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - '[!NULL]::SecKeychainItemExport'
+  Outs:
+  - '4'
+  Signs:
+    Plus:
+    - private
+- Ids:
+  - UITextField::text
+  - UITextView::text
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - inputOutside
+    - gui
+    - userInput
+- Ids:
+  - 'NSEntityDescription::insertNewObjectForEntityForName:inManagedObjectContext:'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - database
+- Ids:
+  - '*::initWithURL:*'
+  - 'NSArray::arrayWithContentsOfURL:'
+  - 'NSArray::initWithContentsOfURL:'
+  - 'NSString::stringWithContentsOfURL:encoding:error:'
+  - 'NSString::initWithContentsOfURL:encoding:error:'
+  - 'NSString::stringWithContentsOfURL:usedEncoding:error:'
+  - 'NSString::initWithContentsOfURL:usedEncoding:error:'
+  - 'NSString::initWithContentsOfURL:'
+  - 'NSData::initWithContentsOfURL:options:error:'
+  - 'NSData::initWithContentsOfURL:'
+  - 'NSData::dataWithContentsOfURL:'
+  - 'NSData::dataWithContentsOfURL:options:error:'
+  - 'NSData::initWithContentsOfURL:'
+  - 'NSData::initWithContentsOfURL:options:error:'
+  - NSURLRequest::URL
+  - 'NSURLRequest::requestWithURL:cachePolicy:timeoutInterval:'
+  - 'NSURL::initWithString:'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - web
+    - inputOutside
+- Arguments:
+    SignCheck:
+      Type: Value
+      argument: '0'
+      kind: 'http:'
+  Ids:
+  - 'NSURL::initWithString:'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - http
+- Ids:
+  - 'HKBiologicalSexObject::biologicalSex:'
+  - 'HKBloodTypeObject::bloodType:'
+  - 'HKFitzpatrickSkinTypeObject::skinType:'
+  - 'HKWheelchairUseObject::wheelchairUse:'
+  Outs:
+  - '-1'
+  Signs:
+    Plus:
+    - health
+Version: 1.1.3

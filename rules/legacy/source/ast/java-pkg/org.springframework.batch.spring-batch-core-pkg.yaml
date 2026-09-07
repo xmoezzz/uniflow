@@ -1,0 +1,10 @@
+id: org.springframework.batch.spring-batch-core
+language: Java
+message: pkg:maven/org.springframework.batch/spring-batch-core
+metadata:
+  purl: pkg:maven/org.springframework.batch/spring-batch-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.batch\.core\.configuration\.support|org\.springframework\.batch\.core\.aot|org\.springframework\.batch\.core\.step\.item|org\.springframework\.batch\.core\.launch\.support|org\.springframework\.batch\.core\.observability|org\.springframework\.batch\.core\.step\.builder|org\.springframework\.batch\.core\.listener|org\.springframework\.batch\.core\.step|org\.springframework\.batch\.core\.repository\.support|org\.springframework\.batch\.core\.scope|org\.springframework\.batch\.core\.explore|org\.springframework\.batch\.core\.repository|org\.springframework\.batch\.core\.job\.flow|org\.springframework\.batch\.core\.converter|org\.springframework\.batch\.core\.configuration\.annotation|org\.springframework\.batch\.core|org\.springframework\.batch\.core\.job\.flow\.support|org\.springframework\.batch\.core\.partition|org\.springframework\.batch\.core\.scope\.context|org\.springframework\.batch\.core\.partition\.support|org\.springframework\.batch\.core\.explore\.support|org\.springframework\.batch\.core\.job|org\.springframework\.batch\.core\.job\.builder|org\.springframework\.batch\.core\.step\.job|org\.springframework\.batch\.core\.repository\.dao|org\.springframework\.batch\.core\.annotation|org\.springframework\.batch\.core\.launch|org\.springframework\.batch\.core\.step\.factory|org\.springframework\.batch\.core\.step\.skip|org\.springframework\.batch\.core\.configuration|org\.springframework\.batch\.core\.configuration\.xml|org\.springframework\.batch\.core\.job\.flow\.support\.state|org\.springframework\.batch\.core\.resource|org\.springframework\.batch\.core\.step\.tasklet)\.

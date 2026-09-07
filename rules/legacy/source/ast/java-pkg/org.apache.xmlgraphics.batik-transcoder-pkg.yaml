@@ -1,0 +1,10 @@
+id: org.apache.xmlgraphics.batik-transcoder
+language: Java
+message: pkg:maven/org.apache.xmlgraphics/batik-transcoder
+metadata:
+  purl: pkg:maven/org.apache.xmlgraphics/batik-transcoder
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.batik\.transcoder\.wmf\.tosvg|org\.apache\.batik\.transcoder\.wmf|org\.apache\.batik\.transcoder\.keys|org\.apache\.batik\.transcoder\.image\.resources|org\.apache\.batik\.transcoder\.print|org\.apache\.batik\.transcoder|org\.apache\.batik\.transcoder\.svg2svg|org\.apache\.batik\.transcoder\.image)\.

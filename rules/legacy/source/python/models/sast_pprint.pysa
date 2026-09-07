@@ -1,0 +1,33 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                pprint
+
+# DataflowSinkRule pprint 4
+# [{'NamespaceName': 'pprint', 'ClassName': '', 'FunctionName': 'pprint', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'pprint', 'ClassName': 'PrettyPrinter', 'FunctionName': 'pprint', 'RuleName': 'desc.dataflow.python.privacy_violation', 'Origin': 'Fortify'}, {'NamespaceName': 'pprint', 'ClassName': '', 'FunctionName': 'pprint', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}, {'NamespaceName': 'pprint', 'ClassName': 'PrettyPrinter', 'FunctionName': 'pprint', 'RuleName': 'desc.dataflow.python.system_information_leak_internal', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_pprint_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^pprint.*\.pprint$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_system_information_leak_internal]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_pprint_methods_sinks",
+  find="methods",
+  where=[
+    name.matches("^pprint\.PrettyPrinter\.pprint$")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_system_information_leak_internal]
+    )
+  ]
+)

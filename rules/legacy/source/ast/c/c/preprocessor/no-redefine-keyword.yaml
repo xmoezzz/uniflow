@@ -1,0 +1,10 @@
+id: no-redefine-keyword
+message: '0701000010130000,0701000010130005,0601000010140006'
+language: C
+rule:
+  pattern: '#define $A $B'
+constraints:
+  A:
+    regex: "^(bool|char|short|int|long|void|for|if|while|switch)$"
+
+

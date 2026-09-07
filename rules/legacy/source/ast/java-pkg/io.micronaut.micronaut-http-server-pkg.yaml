@@ -1,0 +1,10 @@
+id: io.micronaut.micronaut-http-server
+language: Java
+message: pkg:maven/io.micronaut/micronaut-http-server
+metadata:
+  purl: pkg:maven/io.micronaut/micronaut-http-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(io\.micronaut\.http\.server\.codec|io\.micronaut\.http\.server\.exceptions\.response|io\.micronaut\.http\.server\.exceptions|io\.micronaut\.http\.server\.binding|io\.micronaut\.http\.server\.util\.locale|io\.micronaut\.http\.server\.types\.files|io\.micronaut\.http\.server\.websocket|io\.micronaut\.http\.server\.multipart|io\.micronaut\.http\.server\.util|io\.micronaut\.http\.server|io\.micronaut\.http\.server\.types|io\.micronaut\.http\.server\.cors)\.

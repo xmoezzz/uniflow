@@ -1,0 +1,15 @@
+id: call-wait-await-method
+message: '0102000010090008'
+language: Java
+rule:
+  any:
+    - pattern: $_.wait()
+    - pattern: $_.await()
+  not:
+    inside:
+      any:
+        - kind: for_statement
+        - kind: while_statement
+        - kind: do_statement
+        - kind: enhanced_for_statement
+      stopBy: end

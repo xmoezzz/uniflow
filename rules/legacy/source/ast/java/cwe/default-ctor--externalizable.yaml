@@ -1,0 +1,20 @@
+id: default-ctor--externalizable
+message: '0202000010150449'
+language: Java
+rule:
+  kind: class_declaration
+  all:
+  - has:
+      field: interfaces
+      has:
+        stopBy: end
+        kind: type_identifier
+        regex: Externalizable
+  - has:
+      field: body
+      not:
+        has:
+          kind: constructor_declaration
+          has:
+            field: parameters
+            pattern: ()

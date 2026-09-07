@@ -1,0 +1,10 @@
+id: org.yaml.snakeyaml
+language: Java
+message: pkg:maven/org.yaml/snakeyaml
+metadata:
+  purl: pkg:maven/org.yaml/snakeyaml
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.yaml\.snakeyaml\.reader|org\.yaml\.snakeyaml\.emitter|org\.yaml\.snakeyaml\.constructor|org\.yaml\.snakeyaml\.nodes|org\.yaml\.snakeyaml\.representer|org\.yaml\.snakeyaml\.parser|META-INF\.versions\.9|org\.yaml\.snakeyaml\.composer|org\.yaml\.snakeyaml\.resolver|org\.yaml\.snakeyaml\.external\.com\.google\.gdata\.util\.common\.base|org\.yaml\.snakeyaml\.util|org\.yaml\.snakeyaml\.events|org\.yaml\.snakeyaml\.scanner|META-INF\.versions\.9\.org\.yaml\.snakeyaml\.internal|org\.yaml\.snakeyaml\.error|org\.yaml\.snakeyaml\.env|org\.yaml\.snakeyaml\.extensions\.compactnotation|org\.yaml\.snakeyaml\.inspector|org\.yaml\.snakeyaml\.comments|org\.yaml\.snakeyaml\.internal|org\.yaml\.snakeyaml\.external\.biz\.base64Coder|org\.yaml\.snakeyaml|org\.yaml\.snakeyaml\.serializer|org\.yaml\.snakeyaml\.introspector|org\.yaml\.snakeyaml\.tokens)\.

@@ -1,0 +1,121 @@
+id: sql-query-with-hibernate
+message: '0402000010020019,0402000010020020'
+language: Java
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            regex: ^(.*\.)?String$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+        - has:
+            field: declarator
+            has:
+              field: value
+              regex: (\'\%|\%\')
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?String$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?String$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?String$
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-type-object-assign:
+    has:
+      kind: assignment_expression
+      stopBy: end
+      all:
+      - has:
+          field: left
+          pattern: $VAR
+      - has:
+          field: right
+          regex: (\'\%|\%\')          
+  is-object-assign:
+    has:
+      kind: assignment_expression
+      stopBy: end
+      has:
+        field: left
+        pattern: $VAR
+  recursion-find-object-decl:
+    any:
+    - follows:
+        pattern: $_
+        all:
+        - not:
+            kind: program
+        - any:
+          - matches: is-type-object-decl              
+          - matches: is-type-object-assign
+          - all:
+            - not:
+                matches: is-object-decl                  
+            - not:
+                matches: is-object-assign
+            - matches: recursion-find-object-decl
+    - all:
+      - not:
+          follows:
+            pattern: $_
+      - inside:
+          matches: recursion-find-object-decl
+rule:
+  kind: method_invocation
+  all:
+    - has:
+        field: name
+        regex: (^createQuery$|^executeQuery$)
+    - has:
+        field: arguments
+        has:
+          kind: identifier
+          pattern: $VAR
+          matches: recursion-find-object-decl

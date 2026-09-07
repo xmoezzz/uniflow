@@ -1,0 +1,10 @@
+id: org.apache.dolphinscheduler.dolphinscheduler-common
+language: Java
+message: pkg:maven/org.apache.dolphinscheduler/dolphinscheduler-common
+metadata:
+  purl: pkg:maven/org.apache.dolphinscheduler/dolphinscheduler-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.dolphinscheduler\.common|org\.apache\.dolphinscheduler\.common\.config|org\.apache\.dolphinscheduler\.common\.utils\.placeholder|org\.apache\.dolphinscheduler\.common\.sql|org\.apache\.dolphinscheduler\.common\.factory|org\.apache\.dolphinscheduler\.common\.utils|org\.apache\.dolphinscheduler\.common\.lifecycle|org\.apache\.dolphinscheduler\.common\.thread|org\.apache\.dolphinscheduler\.common\.model|org\.apache\.dolphinscheduler\.common\.log|org\.apache\.dolphinscheduler\.common\.exception|org\.apache\.dolphinscheduler\.common\.graph|org\.apache\.dolphinscheduler\.common\.log\.remote|org\.apache\.dolphinscheduler\.common\.enums|org\.apache\.dolphinscheduler\.common\.shell|org\.apache\.dolphinscheduler\.common\.process|org\.apache\.dolphinscheduler\.common\.constants)\.

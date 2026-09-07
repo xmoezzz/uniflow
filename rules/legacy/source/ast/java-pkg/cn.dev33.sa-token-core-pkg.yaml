@@ -1,0 +1,10 @@
+id: cn.dev33.sa-token-core
+language: Java
+message: pkg:maven/cn.dev33/sa-token-core
+metadata:
+  purl: pkg:maven/cn.dev33/sa-token-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(cn\.dev33\.satoken\.json|cn\.dev33\.satoken\.httpauth\.basic|cn\.dev33\.satoken\.annotation|cn\.dev33\.satoken\.httpauth\.digest|cn\.dev33\.satoken\.dao|cn\.dev33\.satoken\.stp|cn\.dev33\.satoken\.error|cn\.dev33\.satoken\.config|cn\.dev33\.satoken\.same|cn\.dev33\.satoken\.listener|cn\.dev33\.satoken\.context\.second|cn\.dev33\.satoken\.filter|cn\.dev33\.satoken\.temp|cn\.dev33\.satoken\.sign|cn\.dev33\.satoken\.secure|cn\.dev33\.satoken\.util|cn\.dev33\.satoken\.context\.model|cn\.dev33\.satoken\.application|cn\.dev33\.satoken\.session|cn\.dev33\.satoken\.exception|cn\.dev33\.satoken\.basic|cn\.dev33\.satoken\.router|cn\.dev33\.satoken|cn\.dev33\.satoken\.context|cn\.dev33\.satoken\.fun\.strategy|cn\.dev33\.satoken\.strategy|cn\.dev33\.satoken\.fun|cn\.dev33\.satoken\.log)\.

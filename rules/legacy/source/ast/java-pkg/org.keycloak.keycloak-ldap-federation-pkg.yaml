@@ -1,0 +1,10 @@
+id: org.keycloak.keycloak-ldap-federation
+language: Java
+message: pkg:maven/org.keycloak/keycloak-ldap-federation
+metadata:
+  purl: pkg:maven/org.keycloak/keycloak-ldap-federation
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.keycloak\.storage\.ldap\.idm\.model|org\.keycloak\.storage\.ldap\.kerberos|org\.keycloak\.storage\.ldap\.mappers\.membership\.role|org\.keycloak\.storage\.ldap\.idm\.store\.ldap|org\.keycloak\.services\.resources\.admin|org\.keycloak\.storage\.ldap\.mappers|org\.keycloak\.storage\.ldap\.idm\.store\.ldap\.extended|org\.keycloak\.storage\.ldap\.mappers\.membership|org\.keycloak\.storage\.ldap\.mappers\.msadlds|org\.keycloak\.services\.managers|org\.keycloak\.storage\.ldap|org\.keycloak\.storage\.ldap\.mappers\.msad|org\.keycloak\.storage\.ldap\.idm\.store|org\.keycloak\.storage\.ldap\.mappers\.membership\.group|org\.keycloak\.storage\.ldap\.idm\.query\.internal|org\.keycloak\.storage\.ldap\.idm\.query)\.

@@ -1,0 +1,10 @@
+id: org.springframework.cloud.spring-cloud-config-server
+language: Java
+message: pkg:maven/org.springframework.cloud/spring-cloud-config-server
+metadata:
+  purl: pkg:maven/org.springframework.cloud/spring-cloud-config-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.springframework\.cloud\.config\.server\.environment\.vault\.authentication|org\.springframework\.cloud\.config\.server\.encryption|org\.springframework\.cloud\.config\.server\.aot|org\.springframework\.cloud\.config\.server\.composite|org\.springframework\.cloud\.config\.server\.resource|org\.springframework\.cloud\.config\.server\.environment\.secretmanager|org\.springframework\.cloud\.config\.server\.ssh|org\.springframework\.cloud\.config\.server\.environment|org\.springframework\.cloud\.config\.server\.support|org\.springframework\.cloud\.config\.server\.proxy|org\.springframework\.cloud\.config\.server|org\.springframework\.cloud\.config\.server\.config|org\.springframework\.cloud\.config\.server\.environment\.vault|org\.springframework\.cloud\.config\.server\.diagnostics|org\.springframework\.cloud\.config\.server\.bootstrap|org\.springframework\.cloud\.config\.server\.encryption\.vault)\.

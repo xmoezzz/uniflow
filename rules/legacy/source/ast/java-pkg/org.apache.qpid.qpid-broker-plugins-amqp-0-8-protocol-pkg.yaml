@@ -1,0 +1,10 @@
+id: org.apache.qpid.qpid-broker-plugins-amqp-0-8-protocol
+language: Java
+message: pkg:maven/org.apache.qpid/qpid-broker-plugins-amqp-0-8-protocol
+metadata:
+  purl: pkg:maven/org.apache.qpid/qpid-broker-plugins-amqp-0-8-protocol
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.qpid\.server\.url|org\.apache\.qpid\.server\.protocol|org\.apache\.qpid\.server\.protocol\.v0_8\.transport|org\.apache\.qpid\.server\.protocol\.v0_8|org\.apache\.qpid\.server)\.

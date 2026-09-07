@@ -1,0 +1,10 @@
+id: org.apache.cxf.cxf-rt-core
+language: Java
+message: pkg:maven/org.apache.cxf/cxf-rt-core
+metadata:
+  purl: pkg:maven/org.apache.cxf/cxf-rt-core
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.databinding\.stax|org\.apache\.cxf\.bus\.blueprint|org\.apache\.cxf\.bus\.osgi|org\.apache\.cxf\.wsdl11|org\.apache\.cxf\.transports\.http\.internal|org\.apache\.cxf\.service\.factory|org\.apache\.cxf\.databinding\.source\.mime|org\.apache\.cxf\.bus|org\.apache\.cxf\.interceptor\.security|org\.apache\.cxf\.databinding\.source|org\.apache\.cxf\.feature\.transform|org\.apache\.cxf\.transport\.common\.gzip|org\.apache\.cxf\.bus\.resource|org\.apache\.cxf\.bus\.managers|org\.apache\.cxf\.bus\.extension|org\.apache\.cxf\.bus\.spring|org\.apache\.cxf\.catalog|org\.apache\.cxf\.test|org\.apache\.cxf\.configuration\.blueprint)\.

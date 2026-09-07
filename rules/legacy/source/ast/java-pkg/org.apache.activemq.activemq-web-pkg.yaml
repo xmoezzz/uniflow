@@ -1,0 +1,10 @@
+id: org.apache.activemq.activemq-web
+language: Java
+message: pkg:maven/org.apache.activemq/activemq-web
+metadata:
+  purl: pkg:maven/org.apache.activemq/activemq-web
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.activemq\.web\.async|org\.apache\.activemq\.web\.util|org\.apache\.activemq\.web\.view|org\.apache\.activemq\.web|org\.apache\.activemq\.web\.config)\.

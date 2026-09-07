@@ -1,0 +1,33 @@
+#
+#        Pyre Model DSL generated automatically  2022-12-22 17:18:41
+#            rules form fortify
+#                random
+
+# DataflowSinkRule random 2
+# [{'NamespaceName': 'random', 'ClassName': '', 'FunctionName': 'seed|whseed', 'RuleName': 'desc.dataflow.python.insecure_randomness_user_controlled_seed', 'Origin': 'Fortify'}, {'NamespaceName': 'random', 'ClassName': 'Random', 'FunctionName': '__init__|seed|whseed', 'RuleName': 'desc.dataflow.python.insecure_randomness_user_controlled_seed', 'Origin': 'Fortify'}]
+ModelQuery(
+  name="get_random_functions_sinks",
+  find="functions",
+  where=[
+    name.matches("^random.*\.(seed|whseed)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_insecure_randomness_user_controlled_seed]
+    )
+  ]
+)
+
+
+ModelQuery(
+  name="get_random_methods_sinks",
+  find="methods",
+  where=[
+    name.matches("^random\.Random\.(__init__|seed|whseed)")
+  ],
+  model=[
+    Parameters(
+      TaintSink[sast_insecure_randomness_user_controlled_seed]
+    )
+  ]
+)

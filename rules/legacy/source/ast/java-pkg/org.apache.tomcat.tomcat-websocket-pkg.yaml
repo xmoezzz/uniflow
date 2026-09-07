@@ -1,0 +1,10 @@
+id: org.apache.tomcat.tomcat-websocket
+language: Java
+message: pkg:maven/org.apache.tomcat/tomcat-websocket
+metadata:
+  purl: pkg:maven/org.apache.tomcat/tomcat-websocket
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.tomcat\.websocket\.server|org\.apache\.tomcat\.websocket\.pojo|org\.apache\.tomcat\.websocket)\.

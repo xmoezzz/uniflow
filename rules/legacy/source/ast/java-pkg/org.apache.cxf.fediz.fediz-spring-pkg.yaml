@@ -1,0 +1,10 @@
+id: org.apache.cxf.fediz.fediz-spring
+language: Java
+message: pkg:maven/org.apache.cxf.fediz/fediz-spring
+metadata:
+  purl: pkg:maven/org.apache.cxf.fediz/fediz-spring
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.cxf\.fediz\.spring\.authentication|org\.apache\.cxf\.fediz\.spring|org\.apache\.cxf\.fediz\.spring\.preauth|org\.apache\.cxf\.fediz\.spring\.web)\.

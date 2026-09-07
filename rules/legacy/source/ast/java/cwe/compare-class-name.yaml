@@ -1,0 +1,5 @@
+id: compare-class-name
+message: '0202000010130001'
+language: Java
+rule:
+  pattern: $_.getClass().getName().equals($_)

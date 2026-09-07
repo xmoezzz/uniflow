@@ -1,0 +1,16 @@
+id: no-unnamed-argument
+message: '0701000010130008'
+language: C
+rule:
+  all:
+    - kind: parameter_declaration
+    - not:
+        has:
+          stopBy: end
+          kind: identifier
+          field: declarator
+    - not:
+        regex: ^void$
+    - inside:
+        kind: function_declarator
+        stopBy: end

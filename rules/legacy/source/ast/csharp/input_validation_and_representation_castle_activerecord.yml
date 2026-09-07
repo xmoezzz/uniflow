@@ -1,0 +1,93 @@
+# YAML Rule is more powerful!
+# https://ast-grep.github.io/guide/rule-config.html#rule
+id: input_validation_and_representation_castle_activerecord
+message: '0503000010020006'
+language: cs
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+            - kind: using_statement
+        - has:
+            kind: variable_declaration
+            stopBy: end
+            all:
+              - has:
+                  field: type
+                  regex: ^(.*\.)?string$
+              - has:
+                  kind: variable_declarator
+                  stopBy: end
+                  has: 
+                    kind: identifier
+                    pattern: $VAR
+
+
+                    
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - has:
+                field: type
+                regex: ^(.*\.)?string$
+            - has:
+                field: name
+                pattern: $VAR
+
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_declaration_statement
+        - not:
+            has:
+              field: type
+              regex: ^(.*\.)?string$
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              kind: variable_declarator
+              pattern: $VAR
+              stopBy: end
+      - kind: parameter_list
+        has:
+          kind: parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  regex: ^(.*\.)?string$
+            - has:
+                field: name
+                pattern: $VAR
+
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: compilation_unit
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  kind: object_creation_expression
+  any:
+    - pattern: new SimpleQuery<$TYPE>($ARG)
+constraints:
+  ARG:
+    has:
+      stopBy: end
+      kind: identifier
+      pattern: $VAR
+      matches: recursion-find-object-decl

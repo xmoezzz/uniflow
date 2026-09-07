@@ -1,0 +1,10 @@
+id: org.opencastproject.opencast-oaipmh-api
+language: Java
+message: pkg:maven/org.opencastproject/opencast-oaipmh-api
+metadata:
+  purl: pkg:maven/org.opencastproject/opencast-oaipmh-api
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.opencastproject\.oaipmh\.server)\.

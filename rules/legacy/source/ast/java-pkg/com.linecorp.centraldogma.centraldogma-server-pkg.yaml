@@ -1,0 +1,10 @@
+id: com.linecorp.centraldogma.centraldogma-server
+language: Java
+message: pkg:maven/com.linecorp.centraldogma/centraldogma-server
+metadata:
+  purl: pkg:maven/com.linecorp.centraldogma/centraldogma-server
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.linecorp\.centraldogma\.server\.storage|com\.linecorp\.centraldogma\.server\.metadata|com\.linecorp\.centraldogma\.server\.internal\.storage|com\.linecorp\.centraldogma\.server\.management|com\.linecorp\.centraldogma\.server\.internal\.replication|com\.linecorp\.centraldogma\.server\.storage\.repository|com\.linecorp\.centraldogma\.server\.internal\.api\.auth|com\.linecorp\.centraldogma\.server\.plugin|com\.linecorp\.centraldogma\.server\.internal\.admin\.service|com\.linecorp\.centraldogma\.server\.internal\.storage\.repository\.cache|com\.linecorp\.centraldogma\.server\.command|com\.linecorp\.centraldogma\.server\.internal|com\.linecorp\.centraldogma\.server\.internal\.thrift|com\.linecorp\.centraldogma\.server\.internal\.storage\.project|com\.linecorp\.centraldogma\.server\.internal\.storage\.repository|com\.linecorp\.centraldogma\.server\.auth|com\.linecorp\.centraldogma\.server|com\.linecorp\.centraldogma\.server\.internal\.api|com\.linecorp\.centraldogma\.server\.internal\.admin\.auth|com\.linecorp\.centraldogma\.server\.internal\.admin\.dto|com\.linecorp\.centraldogma\.server\.internal\.admin\.util|com\.linecorp\.centraldogma\.server\.internal\.mirror|com\.linecorp\.centraldogma\.server\.storage\.project|com\.linecorp\.centraldogma\.server\.internal\.mirror\.credential|com\.linecorp\.centraldogma\.server\.internal\.api\.converter|com\.linecorp\.centraldogma\.server\.mirror|com\.linecorp\.centraldogma\.server\.internal\.storage\.repository\.git)\.

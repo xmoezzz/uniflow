@@ -1,0 +1,10 @@
+id: com.itextpdf.io
+language: Java
+message: pkg:maven/com.itextpdf/io
+metadata:
+  purl: pkg:maven/com.itextpdf/io
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.itextpdf\.io\.font\.otf|com\.itextpdf\.io\.font\.otf\.lookuptype7|com\.itextpdf\.io\.font\.constants|com\.itextpdf\.io\.font\.cmap|com\.itextpdf\.io\.font\.woff2|com\.itextpdf\.io\.source|com\.itextpdf\.io\.font\.otf\.lookuptype8|com\.itextpdf\.io\.codec|com\.itextpdf\.io\.image|com\.itextpdf\.io\.codec\.brotli\.dec|com\.itextpdf\.io\.logs|com\.itextpdf\.io\.util|com\.itextpdf\.io\.exceptions|com\.itextpdf\.io\.font|com\.itextpdf\.io\.font\.otf\.lookuptype6|com\.itextpdf\.io\.font\.otf\.lookuptype5|com\.itextpdf\.io\.colors)\.

@@ -1,0 +1,58 @@
+# Exact owner, method, supported arities, invariant return type (tab-separated).
+# Only signatures whose overloads at these arities share a return type belong here.
+# This is a bounded library signature catalog, not a replacement for project indexing.
+java.lang.Runtime	getRuntime	0	java.lang.Runtime
+javax.servlet.ServletResponse	getWriter	0	java.io.PrintWriter
+javax.servlet.http.HttpServletResponse	getWriter	0	java.io.PrintWriter
+jakarta.servlet.ServletResponse	getWriter	0	java.io.PrintWriter
+jakarta.servlet.http.HttpServletResponse	getWriter	0	java.io.PrintWriter
+javax.servlet.http.HttpServletRequest	getQueryString	0	java.lang.String
+jakarta.servlet.http.HttpServletRequest	getQueryString	0	java.lang.String
+javax.sql.DataSource	getConnection	0,2	java.sql.Connection
+java.sql.DriverManager	getConnection	1,2,3	java.sql.Connection
+java.sql.Connection	createStatement	0,2,3	java.sql.Statement
+java.sql.Connection	prepareStatement	1,2,3,4	java.sql.PreparedStatement
+java.sql.Connection	prepareCall	1,3,4	java.sql.CallableStatement
+java.sql.Statement	executeQuery	1	java.sql.ResultSet
+java.sql.PreparedStatement	executeQuery	0	java.sql.ResultSet
+java.sql.CallableStatement	executeQuery	0	java.sql.ResultSet
+java.net.URL	openConnection	0,1	java.net.URLConnection
+java.net.URL	openStream	0	java.io.InputStream
+java.net.URLConnection	getInputStream	0	java.io.InputStream
+java.net.URLConnection	getOutputStream	0	java.io.OutputStream
+java.lang.ProcessBuilder	start	0	java.lang.Process
+java.lang.Process	getInputStream	0	java.io.InputStream
+java.lang.Process	getErrorStream	0	java.io.InputStream
+java.lang.Process	getOutputStream	0	java.io.OutputStream
+javax.servlet.ServletRequest	getRequestDispatcher	1	javax.servlet.RequestDispatcher
+javax.servlet.http.HttpServletRequest	getRequestDispatcher	1	javax.servlet.RequestDispatcher
+jakarta.servlet.ServletRequest	getRequestDispatcher	1	jakarta.servlet.RequestDispatcher
+jakarta.servlet.http.HttpServletRequest	getRequestDispatcher	1	jakarta.servlet.RequestDispatcher
+javax.servlet.ServletContext	getRequestDispatcher	1	javax.servlet.RequestDispatcher
+javax.servlet.ServletContext	getNamedDispatcher	1	javax.servlet.RequestDispatcher
+jakarta.servlet.ServletContext	getRequestDispatcher	1	jakarta.servlet.RequestDispatcher
+jakarta.servlet.ServletContext	getNamedDispatcher	1	jakarta.servlet.RequestDispatcher
+# Java SE 21 API references for these invariant return signatures:
+# https://docs.oracle.com/en/java/javase/21/docs/api/java.scripting/javax/script/ScriptEngineManager.html
+# https://docs.oracle.com/en/java/javase/21/docs/api/java.scripting/javax/script/ScriptEngineFactory.html
+# https://docs.oracle.com/en/java/javase/21/docs/api/java.xml/javax/xml/xpath/XPathFactory.html
+# https://docs.oracle.com/en/java/javase/21/docs/api/java.xml/javax/xml/xpath/XPath.html
+# https://docs.oracle.com/en/java/javase/21/docs/api/java.xml/javax/xml/parsers/DocumentBuilderFactory.html
+# https://docs.oracle.com/en/java/javase/21/docs/api/java.xml/javax/xml/parsers/DocumentBuilder.html
+javax.script.ScriptEngineManager	getEngineByName	1	javax.script.ScriptEngine
+javax.script.ScriptEngineManager	getEngineByExtension	1	javax.script.ScriptEngine
+javax.script.ScriptEngineManager	getEngineByMimeType	1	javax.script.ScriptEngine
+javax.script.ScriptEngineFactory	getScriptEngine	0	javax.script.ScriptEngine
+javax.xml.xpath.XPathFactory	newInstance	0,1,3	javax.xml.xpath.XPathFactory
+javax.xml.xpath.XPathFactory	newDefaultInstance	0	javax.xml.xpath.XPathFactory
+javax.xml.xpath.XPathFactory	newXPath	0	javax.xml.xpath.XPath
+javax.xml.xpath.XPath	compile	1	javax.xml.xpath.XPathExpression
+javax.xml.parsers.DocumentBuilderFactory	newInstance	0,2	javax.xml.parsers.DocumentBuilderFactory
+javax.xml.parsers.DocumentBuilderFactory	newDefaultInstance	0	javax.xml.parsers.DocumentBuilderFactory
+javax.xml.parsers.DocumentBuilderFactory	newDocumentBuilder	0	javax.xml.parsers.DocumentBuilder
+javax.xml.parsers.DocumentBuilder	parse	1,2	org.w3c.dom.Document
+javax.xml.parsers.DocumentBuilder	newDocument	0	org.w3c.dom.Document
+# https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Paths.html
+# https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html
+java.nio.file.Paths	get	1,2	java.nio.file.Path
+java.nio.file.Path	getFileName	0	java.nio.file.Path

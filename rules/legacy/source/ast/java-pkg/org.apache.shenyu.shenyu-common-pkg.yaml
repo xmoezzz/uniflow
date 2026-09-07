@@ -1,0 +1,10 @@
+id: org.apache.shenyu.shenyu-common
+language: Java
+message: pkg:maven/org.apache.shenyu/shenyu-common
+metadata:
+  purl: pkg:maven/org.apache.shenyu/shenyu-common
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.shenyu\.common\.config\.ssl|org\.apache\.shenyu\.common\.dto\.convert\.plugin|org\.apache\.shenyu\.common\.constant|org\.apache\.shenyu\.common\.cache|org\.apache\.shenyu\.common\.concurrent|org\.apache\.shenyu\.common\.enums|org\.apache\.shenyu\.common\.dto|org\.apache\.shenyu\.common\.dto\.convert\.selector|org\.apache\.shenyu\.common\.exception|org\.apache\.shenyu\.common\.utils|org\.apache\.shenyu\.common\.config|org\.apache\.shenyu\.common\.dto\.convert\.rule|org\.apache\.shenyu\.common\.timer|org\.apache\.shenyu\.common\.dto\.convert\.rule\.impl)\.

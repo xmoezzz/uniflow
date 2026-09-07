@@ -1,0 +1,194 @@
+id: readobject-call-final-method
+message: '0202000010110087'
+language: Java
+utils:
+  recursion-call-check-3:
+    has:
+      kind: block
+      has:
+        stopBy: end
+        kind: method_invocation
+        any:
+          - all:
+            - any:
+                - has:
+                    field: object
+                    regex: this
+                - not:
+                    has:
+                      field: object
+                      kind: this
+            - has:
+                field: name
+                pattern: $FUNC_NAME_CHECK_4
+            - inside:
+                stopBy: end
+                kind: class_declaration
+                all:
+                  - has:
+                      field: name
+                      pattern: $CLASS
+                  - not:
+                      has:
+                        kind: modifiers
+                        regex: final
+                  - has:
+                      field: body
+                      has:
+                        kind: method_declaration
+                        all:
+                          - has:
+                              field: name
+                              pattern: $FUNC_NAME_CHECK_4
+                          - any:
+                            - not:
+                                has:
+                                  kind: modifiers
+                                  regex: final
+                          
+  recursion-call-check-2:
+    has:
+      kind: block
+      has:
+        stopBy: end
+        kind: method_invocation
+        any:
+          - all:
+            - any:
+                - has:
+                    field: object
+                    regex: this
+                - not:
+                    has:
+                      field: object
+                      kind: this
+            - has:
+                field: name
+                pattern: $FUNC_NAME_CHECK_3
+            - inside:
+                stopBy: end
+                kind: class_declaration
+                all:
+                  - has:
+                      field: name
+                      pattern: $CLASS
+                  - not:
+                      has:
+                        kind: modifiers
+                        regex: final
+                  - has:
+                      field: body
+                      has:
+                        kind: method_declaration
+                        all:
+                          - has:
+                              field: name
+                              pattern: $FUNC_NAME_CHECK_3
+                          - any:
+                            - not:
+                                has:
+                                  kind: modifiers
+                                  regex: final
+                            - matches: recursion-call-check-3
+  recursion-call-check-1:
+    has:
+      kind: block
+      has:
+        stopBy: end
+        kind: method_invocation
+        any:
+          - all:
+            - any:
+                - has:
+                    field: object
+                    regex: this
+                - not:
+                    has:
+                      field: object
+                      kind: this
+            - has:
+                field: name
+                pattern: $FUNC_NAME_CHECK_2
+            - inside:
+                stopBy: end
+                kind: class_declaration
+                all:
+                  - has:
+                      field: name
+                      pattern: $CLASS
+                  - not:
+                      has:
+                        kind: modifiers
+                        regex: final
+                  - has:
+                      field: body
+                      has:
+                        kind: method_declaration
+                        all:
+                          - has:
+                              field: name
+                              pattern: $FUNC_NAME_CHECK_2
+                          - any:
+                            - not:
+                                has:
+                                  kind: modifiers
+                                  regex: final
+                            - matches: recursion-call-check-2
+  recursion-call-check:
+    has:
+      kind: block
+      has:
+        stopBy: end
+        kind: method_invocation
+        any:
+          - all:
+            - any:
+                - has:
+                    field: object
+                    regex: this
+                - not:
+                    has:
+                      field: object
+                      kind: this
+            - has:
+                field: name
+                pattern: $FUNC_NAME_CHECK_1
+            - inside:
+                stopBy: end
+                kind: class_declaration
+                all:
+                  - has:
+                      field: name
+                      pattern: $CLASS
+                  - not:
+                      has:
+                        kind: modifiers
+                        regex: final
+                  - has:
+                      field: body
+                      has:
+                        kind: method_declaration
+                        all:
+                          - has:
+                              field: name
+                              pattern: $FUNC_NAME_CHECK_1
+                          - any:
+                            - not:
+                                has:
+                                  kind: modifiers
+                                  regex: final
+                            - matches: recursion-call-check-1
+rule:
+  kind: method_declaration
+  all:
+    - has:
+        field: name
+        pattern: readObject
+    - has:
+        field: parameters
+        has:
+          kind: formal_parameter   
+          has:         
+            field: type
+            regex: ^(.*\.)?ObjectInputStream$
+    - matches: recursion-call-check

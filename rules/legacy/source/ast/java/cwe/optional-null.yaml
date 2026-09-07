@@ -1,0 +1,115 @@
+id: optional-null
+message: '0202000010150431'
+language: Java
+utils:
+  is-type-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - has:
+            field: type
+            any:
+            - pattern: Optional<$$$>
+            - pattern: $_.Optional<$$$>
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - has:
+                field: type
+                any:
+                - pattern: Optional<$$$>
+                - pattern: $_.Optional<$$$>
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+  is-object-decl:
+    any:
+      - all:
+        - any:
+            - kind: field_declaration
+            - kind: local_variable_declaration
+        - not:
+            has:
+              field: type
+              any:
+              - pattern: Optional<$$$>
+              - pattern: $_.Optional<$$$>
+        - has:
+            kind: variable_declarator
+            stopBy: end
+            has:
+              field: name
+              pattern:
+                selector: identifier
+                context: '$VAR'
+      - kind: formal_parameters
+        has:
+          kind: formal_parameter
+          all:
+            - not:
+                has:
+                  field: type
+                  any:
+                  - pattern: Optional<$$$>
+                  - pattern: $_.Optional<$$$>
+            - has:
+                field: name
+                pattern:
+                  selector: identifier
+                  context: '$VAR'
+          
+  recursion-find-object-decl:
+    inside:
+      all:
+        - not:
+            kind: program
+        - any:
+          - has:
+              matches: is-type-object-decl
+          - all:
+            - not:
+                has:
+                  matches: is-object-decl
+            - matches: recursion-find-object-decl
+rule:
+  any:
+  - pattern: return null;
+    inside:
+      stopBy: 
+        kind: method_declaration
+      kind: method_declaration
+      has:
+        field: type
+        any:
+        - pattern: Optional<$$$>
+        - pattern: $_.Optional<$$$>
+  - all:
+    - any:
+      - pattern: $_ == null
+      - pattern: $_ != null
+      - pattern: null == $_
+      - pattern: null != $_
+    - any:
+      - has:
+          field: left
+          kind: identifier
+          pattern: $VAR
+          matches: recursion-find-object-decl        
+      - has:
+          field: right
+          kind: identifier
+          pattern: $VAR
+          matches: recursion-find-object-decl

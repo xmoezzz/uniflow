@@ -1,0 +1,10 @@
+id: com.google.protobuf.protobuf-java
+language: Java
+message: pkg:maven/com.google.protobuf/protobuf-java
+metadata:
+  purl: pkg:maven/com.google.protobuf/protobuf-java
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(com\.google\.protobuf\.compiler|com\.google\.protobuf)\.

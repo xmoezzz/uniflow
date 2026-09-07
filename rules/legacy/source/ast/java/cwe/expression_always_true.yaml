@@ -1,0 +1,47 @@
+id: expression_always_true
+message: '0202000010130005'
+language: Java
+
+rule:
+  any:
+  - all:
+    - kind: binary_expression
+    - pattern: $VALUE == $VALUE
+    - kind: binary_expression
+  - all:
+    - kind: binary_expression
+    - pattern: $LEFT != $RIGHT
+    - any:
+      - not:
+          has:
+            field: left
+            pattern: $RIGHT
+    - any:
+      - all:
+        - has:
+            field: left
+            regex: ^\d+$
+        - has:
+            field: right
+            regex: ^\d+$
+      - all:
+        - has:
+            field: left
+            regex: ^\".*\"$
+        - has:
+            field: right
+            regex: ^\".*\"$
+      - all:
+        - has:
+            field: left
+            regex: ^(true|false)$
+        - has:
+            field: right
+            regex: ^(true|false)$
+      - all:
+        - has:
+            field: left
+            regex: ^null$
+        - has:
+            field: right
+            regex: ^null$

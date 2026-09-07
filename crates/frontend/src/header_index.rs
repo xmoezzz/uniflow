@@ -16,7 +16,7 @@ struct PendingHeader {
     include_paths: Vec<PathBuf>,
 }
 
-/// Recursively discover project headers referenced by C/C++ translation units.
+/// Recursively discover project headers referenced by C-family translation units.
 ///
 /// The index deliberately avoids unrestricted system-header traversal: only quoted includes and
 /// headers resolvable through explicitly configured `-I`, `-isystem`, or `/I` paths are followed.
@@ -27,7 +27,10 @@ pub fn collect_project_headers(
     options: &FrontendOptions,
     database: Option<&CompileCommandDatabase>,
 ) -> Result<Vec<PathBuf>> {
-    if !matches!(language, Language::C | Language::Cpp) {
+    if !matches!(
+        language,
+        Language::C | Language::Cpp | Language::ObjC | Language::ObjCpp
+    ) {
         return Ok(Vec::new());
     }
 
@@ -64,7 +67,12 @@ pub fn collect_project_headers(
         let parent = canonical.parent().unwrap_or_else(|| Path::new("."));
 
         for include in parse_includes(&source) {
-            let resolved = resolve_include(parent, &pending.include_paths, &include.path, include.quoted);
+            let resolved = resolve_include(
+                parent,
+                &pending.include_paths,
+                &include.path,
+                include.quoted,
+            );
             let Some(path) = resolved else { continue };
             if !is_header_path(&path) {
                 continue;
@@ -135,7 +143,10 @@ fn resolve_include(
 
 fn is_header_path(path: &Path) -> bool {
     matches!(
-        path.extension().and_then(|ext| ext.to_str()).map(str::to_ascii_lowercase).as_deref(),
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(str::to_ascii_lowercase)
+            .as_deref(),
         Some("h" | "hh" | "hpp" | "hxx" | "inc" | "inl" | "ipp" | "tpp")
     )
 }
@@ -170,23 +181,46 @@ mod tests {
         let root = std::env::temp_dir().join(format!("uniflow-header-index-{unique}"));
         let include = root.join("include");
         fs::create_dir_all(&include).expect("mkdir");
-        fs::write(root.join("main.cpp"), "#include \"local.hpp\"\n#include <sdk.hpp>\n")
-            .expect("main");
+        fs::write(
+            root.join("main.cpp"),
+            "#include \"local.hpp\"\n#include <sdk.hpp>\n",
+        )
+        .expect("main");
         fs::write(root.join("local.hpp"), "#include <sdk.hpp>\n").expect("local");
         fs::write(include.join("sdk.hpp"), "#include \"sdk.hpp\"\n").expect("sdk");
 
         let mut options = FrontendOptions::default();
         options.include_paths.push(include.clone());
-        let headers = collect_project_headers(
-            Language::Cpp,
-            &[root.join("main.cpp")],
-            &options,
-            None,
-        )
-        .expect("headers");
+        let headers =
+            collect_project_headers(Language::Cpp, &[root.join("main.cpp")], &options, None)
+                .expect("headers");
         assert_eq!(headers.len(), 2);
         assert!(headers.iter().any(|path| path.ends_with("local.hpp")));
         assert!(headers.iter().any(|path| path.ends_with("sdk.hpp")));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn objective_c_follows_quoted_headers() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("uniflow-objc-header-index-{unique}"));
+        fs::create_dir_all(&root).expect("mkdir");
+        fs::write(root.join("main.m"), "#include \"request.h\"\n").expect("main");
+        fs::write(root.join("request.h"), "id read_value(id request);\n").expect("header");
+
+        let headers = collect_project_headers(
+            Language::ObjC,
+            &[root.join("main.m")],
+            &FrontendOptions::default(),
+            None,
+        )
+        .expect("headers");
+        assert_eq!(headers.len(), 1);
+        assert!(headers[0].ends_with("request.h"));
 
         let _ = fs::remove_dir_all(root);
     }

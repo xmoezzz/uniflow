@@ -1,0 +1,6 @@
+id: http-servlet-use-db
+message: '0202000010110063'
+language: Java
+rule:
+  kind: method_invocation
+  pattern: DriverManager.getConnection($$$)

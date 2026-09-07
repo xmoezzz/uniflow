@@ -1,0 +1,10 @@
+id: org.apache.struts.struts2-rest-plugin
+language: Java
+message: pkg:maven/org.apache.struts/struts2-rest-plugin
+metadata:
+  purl: pkg:maven/org.apache.struts/struts2-rest-plugin
+rule:
+  inside:
+    kind: import_declaration
+  kind: scoped_identifier
+  regex: ^(org\.apache\.struts2\.rest|org\.apache\.struts2\.rest\.handler\.xstream|org\.apache\.struts2\.rest\.handler|org\.apache\.struts2\.rest\.config\.entities)\.
