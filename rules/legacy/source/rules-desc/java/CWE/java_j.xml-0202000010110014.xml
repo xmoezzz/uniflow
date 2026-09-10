@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110014" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts2：没有验证函数的Action</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中Action没有验证函数。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Struts2中的Action应利用校验框架对请求参数做验证，防止未经验证的外部输入引起系统漏洞。   
+验证逻辑的维护至关重要，验证逻辑必须与应用程序的其余部分保持同步。外部输入检查是例如SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。虽然JAVA EE应用程序通常情况下不容易受到内存损坏的影响，但是如果JAVA EE应用程序连接到未执行数组边界检查的本地代码，攻击者就可能会利用JAVA EE应用程序中一个输入校验错误发起缓冲区溢出攻击。
+]]></Description>
+			<Advice><![CDATA[在应用程序接受外部输入之前，使用Struts2校验框架来检验输入是否合规。
+]]></Advice>
+			<References>
+				<Reference type="CWE">101:Struts Validation Problems</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

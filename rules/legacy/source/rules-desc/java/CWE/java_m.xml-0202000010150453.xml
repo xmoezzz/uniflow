@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150453" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要在Map和Set中保存URL</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当Map和Set中保存URL时，会默认调用URL的`equals`和`hashCode`方法。而URL的`equals`和`hashCode`方法都是阻塞操作，URL的`equals`和`hashCode`方法都会执行域名解析，会导致很大的性能损失。  
+  
+**例如**：下列代码中，在Set中存放URL。 
+```java
+Set<URL> set= new HashSet<>();  
+map.add(url);
+``` 
+]]></Description>  
+      <Advice><![CDATA[使用URI替换URL进行处理。  
+  
+**例如**：下列代码中,在Set中存放URI。  
+```java
+Set<URI> map = new HashSet<>();  
+map.add(uri);
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>performance,bad_practice</Tag> 
+    </BugInfo>  
+    

@@ -1,0 +1,146 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010050021" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">XML实体扩展注入</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[攻击者主要试图通过消耗目标程序的服务器环境来进行DOS攻击的。这种攻击基于XML实体扩展实现，通过在XML的DOCTYPE中创建自定义实体的定义实现，比如，这种定义可以在内存中生成一个比XML的原始允许大小大出很多的XML结构，来使这种攻击得以耗尽网络服务器正常有效运行的必需内存资源。  
+  
+**例如**：下面代码片段尝试对外界输入的流进行解析  
+```java
+class XMLEntityExpansion {  
+    private static void receiveXMLStream(InputStream inStream,DefaultHandler defaultHandler)  
+            throws ParserConfigurationException, SAXException, IOException {  
+        SAXParserFactory factory = SAXParserFactory.newInstance();  
+        SAXParser saxParser = factory.newSAXParser();  
+        saxParser.parse(inStream, defaultHandler);  
+    }  
+    public static void main(String[] args)  
+            throws ParserConfigurationException, SAXException, IOException {  
+        receiveXMLStream(new FileInputStream("evil.xml"),  
+        new DefaultHandler());  
+    }  
+}
+```   
+通过扩展XML自定义实体以达到耗尽服务器资源的目标的方法有以下几种。    
+1.通用实体扩展攻击：  
+通用实体扩展攻击同样被称为`Quadratic Blowup Attack`，使用这种方式时，自定义实体被定义为一个极长的字符串。当文件中大量使用这个实体时，该实体在每次调用时都会进行扩展，生成一个大幅超出原XML所需内存大小的XML结构。  
+```xml
+<?xml version=""1.0""?>  
+<!DOCTYPE results [<!ENTITY long "SOME_SUPER_LONG_STRING">]>  
+<results>  
+    <result>Now include &long; lots of times to expand  
+    the in-memory size of this XML structure</result>  
+    <result>&long;&long;&long;&long;&long;&long;&long;  
+    &long;&long;&long;&long;&long;&long;&long;&long;  
+    &long;&long;&long;&long;&long;&long;&long;&long;  
+    &long;&long;&long;&long;&long;&long;&long;&long;  
+    Keep it going...  
+    &long;&long;&long;&long;&long;&long;&long;...</result>  
+</results> 
+```
+通过平衡自定义实体字符串大小和文档主体内使用实体数量，可以创建一个扩展至占用服务器可预测内存空间大小的XML文档或字符串。通过这样重复请求来占用服务器内存，就可以发动一次成功的拒绝服务攻击。该方式的缺陷是，由于产生内存消耗效果是基于简单数乘的，因此初始XML文档或字符串本身需要足够大。  
+2.递归实体扩展攻击：  
+通用实体扩展攻击需要足够大的XML输入数据量，而递归实体扩展攻击的平均输入字节能产生更强力的攻击效果。这种攻击方式依赖于XML解析器来解析，从而完成小实体集的指数级增长。通过这种指数爆炸性增长方式，一个比通用实体扩展攻击使用小得多的输入数据量实际可增长得极大。因此这种方式被称为`XML Bomb`或是`Billion Laughs Attack`也是十分恰切的。       
+```xml
+<?xml version=""1.0""?>  
+    <!DOCTYPE results [  
+    <!ENTITY x0 ""BOOM!"">  
+    <!ENTITY x1 ""&x0;&x0;"">  
+    <!ENTITY x2 ""&x1;&x1;"">  
+    <!ENTITY x3 ""&x2;&x2;"">  
+    <!-- Add the remaining sequence from x4...x100 (or boom) -->  
+    <!ENTITY x99 ""&x98;&x98;"">  
+    <!ENTITY boom ""&x99;&x99;"">  
+]>  
+<results>  
+    <result>Explode in 3...2...1...&boom;</result>  
+</results>
+```
+XML Bomb攻击并不需要可能会被程序限制的大量XML数据输入。实体集像这样指数倍增长，最终形成的扩展后文本大小是初始&x0实体值的2的100次方倍。  
+3.远程实体扩展攻击:  
+常规和递归实体扩展攻击都依赖于XML文档类型定义中定义在本地的实体，但是攻击者同样可以进行外部实体定义。这很显然需要XML解析器能够像我们之前在描述XML外部实体注入式攻击（XXE）时遇到的那样，发起远程HTTP请求。而拒绝这种请求对你的XML解析器而言是一种基础的安保措施。因此，防御XXE攻击的措施同样适用于此类XML实体扩展攻击。  
+虽说可以通过上述方式进行防御，远程实体扩展通过使XML解析器发出远程HTTP请求来获得被引用实体的扩展值来进行攻击。返回结果将自行定义其他XML解析器必须另行HTTP请求的外部实体。如此一来，一些看似并无攻击性的请求会迅速脱离控制，并给服务器的可用资源带来负担。这种情况下，如果请求自包括一个递归扩展攻击，那最终结果会更加糟糕。
+]]></Description>
+			<Advice><![CDATA[对于使用Java原生DOM和SAX以及DOM4J有以下两种修复方法（这里以SAXParserFactory为例）：  
+1.禁用DTD（doctypes），这样可以阻止几乎所有的XML实体攻击  
+```java
+//仅限Xerces 2  -  http://xerces.apache.org/xerces2-j/features.html#disallow-doctype-decl  
+saxParserFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true); 
+```
+2.如果无法完全禁用DTD，可以采用以下操作一起使用  
+(1)限制XML处理  
+```java
+saxParserFactory.setFeature("http://javax.xml.XMLConstants/feature/secure-processing", true);  
+```
+(2)禁用外部DTD  
+```java
+saxParserFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd",false); 
+```
+(3)设置 XInclude 处理的状态为false,禁止实体扩展引用  
+```java
+saxParserFactory.setXIncludeAware(false);  
+saxParserFactory.setExpandEntityReferences(false);
+```   
+上述设置功能的方法`setFeature`也可以换成`setAttribute`，`setAttribute`方法用于用户在底层设置特定属性，使用方法和效果是一样的。  
+上述防御需要Java 7 Update 67，Java 8 Update 20或更高版本，因为`DocumentBuilderFactory`和`SAXParserFactory`的上述对策在早期Java版本中被破坏。  
+也可以从其他类上着手防范xxe漏洞：  
+如`XMLInputFactory、TransformerFactory、Validator、SchemaFactory、SAXTransformerFactory`。但这些类都是调用了`XMLConstants`中的属性，故需要支持JAXP1.5.使用STAX解析xml文件时，可使用下面方法进行防范(这里仅用`XMLInputFactory`类做为例子：其他类的防护手段类似)：  
+```java
+//这将完全禁用该工厂的DTD   
+xmlInputFactory.setProperty(XMLInputFactory.SUPPORT_DTD,false);   
+//禁用替换内部实体引用 
+xmlInputFactory.setProperty("javax.xml.stream.isReplacingEntityReferences",false);
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">776:Improper Restriction of Recursive Entity References in DTDs ('XML Entity Expansion')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发XML实体扩展注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在XML实体扩展注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在XML实体扩展注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发XML实体扩展注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

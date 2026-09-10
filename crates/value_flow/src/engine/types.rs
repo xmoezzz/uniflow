@@ -10,6 +10,10 @@ pub struct FlowGraph {
     pub function_spans: HashMap<FunctionId, Span>,
     pub file_paths: HashMap<u32, String>,
     pub inst_spans: HashMap<(FunctionId, InstId), Span>,
+    /// Stable control-flow position for each instruction: (basic block, index in block).
+    pub inst_control_positions: HashMap<(FunctionId, InstId), (BlockId, usize)>,
+    /// Normal and exceptional CFG successors used to reject temporally impossible flows.
+    pub block_successors: HashMap<(FunctionId, BlockId), Vec<BlockId>>,
     pub value_spans: HashMap<(FunctionId, ValueId), Span>,
     pub value_types: HashMap<(FunctionId, ValueId), String>,
     #[serde(default)]
@@ -40,8 +44,17 @@ pub struct FlowGraph {
     pub node_memory_regions: HashMap<usize, Vec<String>>,
     pub value_memory_regions: HashMap<(FunctionId, ValueId), Vec<String>>,
     pub cell_memory_regions: HashMap<usize, Vec<String>>,
+    /// Sparse connectivity backbone for the symmetric memory-region graph.
+    ///
+    /// The logical graph contains an edge between every pair of nodes carrying
+    /// equal or boundary-prefix-related regions. Materializing that graph is
+    /// quadratic for common regions, so these maps intentionally store only a
+    /// connectivity-preserving subgraph. Exact one-hop neighbors are exposed
+    /// through `region_graph_successors_of` / `region_graph_predecessors_of`.
     pub region_graph_successors: HashMap<usize, Vec<usize>>,
     pub region_graph_predecessors: HashMap<usize, Vec<usize>>,
+    #[serde(skip)]
+    pub region_graph_direct_neighbors_cache: RefCell<HashMap<usize, Vec<usize>>>,
     pub cell_live_values: HashMap<usize, Vec<(u32, u32)>>,
     pub cell_live_regions: HashMap<usize, Vec<String>>,
     pub region_live_values: HashMap<String, Vec<(u32, u32)>>,
@@ -222,6 +235,8 @@ impl Default for FlowGraph {
             function_spans: HashMap::new(),
             file_paths: HashMap::new(),
             inst_spans: HashMap::new(),
+            inst_control_positions: HashMap::new(),
+            block_successors: HashMap::new(),
             value_spans: HashMap::new(),
             value_types: HashMap::new(),
             value_names: HashMap::new(),
@@ -252,6 +267,7 @@ impl Default for FlowGraph {
             cell_memory_regions: HashMap::new(),
             region_graph_successors: HashMap::new(),
             region_graph_predecessors: HashMap::new(),
+            region_graph_direct_neighbors_cache: RefCell::new(HashMap::new()),
             cell_live_values: HashMap::new(),
             cell_live_regions: HashMap::new(),
             region_live_values: HashMap::new(),

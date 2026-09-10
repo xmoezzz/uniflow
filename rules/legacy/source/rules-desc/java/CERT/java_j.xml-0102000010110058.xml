@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110058" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">构造方法中调用可覆写的方法</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法为构造方法且调用了可覆写的方法。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法为构造方法且调用了可覆写的方法。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在创建对象时调用可覆写的方法可能造成未初始化的数据，进而导致执行异常或产生预期外的结果。在构造函数中调用可覆写的方法也会在对象创建完成前泄露this引用，其它线程可能会访问到未初始化或不一致的数据。（可参考Cert Java:TSM01-1）。  
+  
+**例如**：下面代码示例中：方法`doLogic()`使用了未初始化的数据。  
+```java
+class SuperClass {  
+    public SuperClass() {  
+        doLogic();  
+    }  
+    public void doLogic() {  
+        System.out.println("This is superclass!");  
+    }  
+}  
+class SubClass extends SuperClass {  
+    private String color = null;  
+    public SubClass() {  
+        super();  
+        color = "Red";  
+    }  
+    public void doLogic() {  
+        System.out.println("This is subclass! The color is :" + color);  
+        // ...  
+    }  
+}     
+public class Overridable {  
+    public static void main(String[] args) {  
+        SuperClass bc = new SuperClass();  
+        // Prints "This is superclass!"  
+        SuperClass sc = new SubClass();  
+        // Prints "This is subclass! The color is :null"  
+    }  
+}
+```  
+方法`doLogic()`是在基类的构造函数中调用的。当直接创建基类的实例时：将调用基类的方法`doLogic()`，从而正确的执行。然而，当子类发起基类的创建时，却调用了子类的`doLogic()`方法，这种情况下，因为子类的构造函数还没有完成执行，所有`color`的数值还是null。
+]]></Description>
+			<Advice><![CDATA[构造函数只能调用final或private的方法。  
+  
+**例如**：下面代码示例中：将`doLogic()`声明为final的，从而确保了`doLogic()`方法不会被重写。  
+```java
+class SuperClass {  
+    public SuperClass () {  
+        doLogic();  
+    }  
+    public final void  doLogic() {  
+        System.out.println("This is superclass!");  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CERT">MET05-J:Ensure that constructors do not call overridable methods</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

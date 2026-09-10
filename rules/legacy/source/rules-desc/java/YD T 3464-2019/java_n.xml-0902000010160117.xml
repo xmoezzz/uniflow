@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160117" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">7.5 文件系统</Category>  
+        <Category type="DetailClassChin">C.13.12 不要将原始的二进制数据作为字符数据读入</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+在 Java 中，通常用字节数组来传输原始的二进制数据和字符编码数据，不要将原始的二进制数据作为字符数据读入。   
+2) 原理   
+以字符编码数据的形式读入原始二进制数据的操作通常会失败，因为一些字节会落入默认或者指定的编码规范之外，而不能表示成合法的字符。例如，将一个包含不可表示字节的加密密钥转换为字符编码数据进行传输，就会产生错误。   
+3) 示例   
+    这个不符合规则的代码示例想要将一个 Biglnteger 的字节数组转换为一个孛符串。因为一些字节不能表示成合法字符，所以字符串会损失信息。将字符串转换为 Biglnteger 会产生另一个不同的值。   
+    ```java
+    BigInteger x = new BigInteger("530500452766");
+    // convert x to a String
+    byte[] byteArray = x.toByteArray();
+    String s = new String(byteArray);
+    // convert s back to a BigInteger
+    byteArray = s.getBytes();
+    x = new BigInteger(byteArray);
+    ```   
+    当这个程序在Linux平台上运行并且其默认的编码格式是US-ASCII的时候，这个字符串s会得到{?J??的值，因为一些字符是不可以输出的。当将其转换回一个Biglnteger时，x的值是`149830058370101340468658109`。   
+    对应的符合规则的解决方案是：首先将一个 Biglnteger 对象表示成 String 对象，然后将 String 对象转 换为一个字节数组。这个过程会对输入做相反的操作，因为在 String 对象中，其文本表示是由   
+    Biglnteger 类来生成的，所以它包含了合法的字符。   
+    ```java
+    Biglnteger x = new Biglnteger("530500452766");   
+    String s = x.toString(); // valid character data   
+    try {   
+        byte[] byteArray = s.getBytes("UTF8");   
+        // ns prints as n530500452766u   
+        String ns = new String(byteArray, "UTF8");   
+        // construct the original Biglnteger    
+        Biglnteger xl = new Biglnteger(ns);   
+    } catch (UnsupportedEncodingException ex) {   
+        // handle error   
+    }
+    ```   
+    不要将一个字符串对象转换为一个字节数组来获得初始的 Biglnteger。字符编码的数据会产生一个字节数组，在转换为一个 Biglnteger 的时候这个字节数据会生成一个完全不同的数值。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.13 输入输出</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170028" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.1 面向对象程序安全</Category>  
+        <Category type="DetailClassChin">A.3.1.2 比较类而不是类名</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：在JVM中，如果两个类可以被同一个类装载器装载，并且拥有相同的全名，那么这两个类被认为是相同的类（并且具有相同的类型）。  
+如果一个受保护的资源的访问是需要授权的，而该授权是基于类名的比较，如果攻击者提供一个完全与目标类全名相同的恶意类，那么攻击者就能访问到受保护的资源。仅仅使用类的名称来比较类，会允许恶意类绕过安全检查并且获得受保护的资源。  
+对于比较类而不是类名的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+if (auth.getClass().getName().equals("com.application.auth.DefaultAuthenticationHandler")) {  
+  // . . .访问受保护资源的代码  
+}  
+```
+比较两个类是否相同的时候，应该比较两个类对象。  
+**示例2**：  
+```java
+// Determine whether object auth has required/expected class name  
+if(auth.getClass()==this.getClass().getClassLoader().loadClass("com.application.auth. DefaultAuthenticationHandler")) {  
+   // . . .访问受保护资源的代码  
+} 
+```
+上述示例中，使用`class`来比较两个类是否相同。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">486:Comparison of Classes by Name</Reference>  
+        <Reference type="CERT">OBJ09-J:Compare classes and not class names</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.1 面向对象程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

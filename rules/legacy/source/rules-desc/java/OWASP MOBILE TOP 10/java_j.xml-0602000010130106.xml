@@ -1,0 +1,111 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010130106" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">侵犯隐私</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序对敏感信息（如用户密码或身份证号等个人信息）处理不当可能导致用户的个人信息泄露，这是一种非法行为。  
+  
+**例如**：以下代码可读取存储在Android WebView上的给定站点的用户名和密码，并广播给所有注册的接收者。  
+```java
+webView.setWebViewClient(new WebViewClient(){  
+    public void onReceivedHttpAuthRequest(WebView view, HttpAuthHandler httphandler, String url, String field) {  
+        ...  
+        Intent intent = new Intent();  
+        String[] credentials= view.getHttpAuthUsernamePassword(url, field);  
+        String name = credentials[0];  
+        String password = credentials[1];  
+        intent.putExtra("username", name);      
+        intent.putExtra("password", password);  
+        intent.setAction("SEND_CREDENTIALS");  
+        ...  
+        view.getContext().sendBroadcast(intent);  
+    }  
+});
+```
+]]></Description>
+			<Advice><![CDATA[当安全和隐私的需要发生矛盾时，通常应优先考虑隐私的需要。为满足这一要求，同时又保证信息安全的需要，应在退出程序前清除所有私人信息。  
+保护私人数据的最好做法就是最大程度地减少私人数据的暴露。不应允许应用程序、流程处理以及员工访问任何私人数据，除非是出于职责以内的工作需要。正如最小授权原则一样，不应该授予访问者超出其需求的权限，对私人数据的访问权限应严格限制在尽可能小的范围内。  
+对于移动应用程序，请确保它们从不与在设备上运行的其他应用程序进行任何敏感数据通信。存储私人数据时，通常都应加密。对于Android以及其他任何使用SQLite数据库的平台来说，SQLCipher是一个好选择——对SQLite数据库的扩展为数据库文件提供了透明的256位AES加密。因此，凭证可以存储在加密的数据库中。   
+**例1**：以下代码演示了在将所需的二进制码和存储凭证下载到数据库文件后，将SQLCipher集成到Android应用程序中的方法。   
+```java
+import net.sqlcipher.database.SQLiteDatabase;  
+...  
+SQLiteDatabase.loadLibs(this);     
+File dbFile = getDatabasePath("credentials.db");     
+dbFile.mkdirs();     
+dbFile.delete();     
+SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase(dbFile, "credentials", null);     
+db.execSQL("create table credentials(u, p)");  
+db.execSQL("insert into credentials(u, p) values(?, ?)", new Object[]{username, password});  
+...
+```  
+请注意，对`android.database.sqlite.SQLiteDatabase`的引用可以使用`net.sqlcipher.database.SQLiteDatabase`代替。  
+要在WebView存储上启用加密，需要使用sqlcipher.so库重新编译WebKit。  
+**例2**：以下代码从Android WebView存储读取给定站点的用户名和密码，而不是将其广播到所有注册的接收器，它仅在内部广播，以便广播只能由同一应用程序的其他部分看到。  
+```java
+webview.setWebViewClient(new WebViewClient() {  
+    public void onReceivedHttpAuthRequest(WebView view,  
+            HttpAuthHandler handler, String host, String realm) {  
+        String[] credentials = view.getHttpAuthUsernamePassword(host, realm);  
+        String username = credentials[0];  
+        String password = credentials[1];  
+        Intent i = new Intent();  
+        i.setAction("SEND_CREDENTIALS");  
+        i.putExtra("username", username);  
+        i.putExtra("password", password);  
+        LocalBroadcastManager.getInstance(view.getContext()).sendBroadcast(i);  
+    }  
+});
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">359:Exposure of Private Information ('Privacy Violation')</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M2 Insecure Data Storage</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发侵犯隐私漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在侵犯隐私漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在侵犯隐私漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发侵犯隐私漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

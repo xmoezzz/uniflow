@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110085" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">比较Locale相关的数据未指定适当的Locale</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行比较Locale相关的数据未指定适当的Locale。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行比较Locale相关的数据未指定适当的Locale。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在比较数据时，如果可能与Locale设置相关，则应指定相应的Locale。  
+  
+**例1**：下面代码示例中：使用了Locale相关的`String.toUpperCase()`将字符转换为大写字符。在英文Locale中，会将`title`转换为`TITLE`；在土耳其Locale中，会将`title`转换为`T?TLE`,其中的`?`是拉丁字母的`I`。  
+```java
+"title".toUpperCase();  
+"TITLE".toLowerCase();
+```
+]]></Description>
+			<Advice><![CDATA[在比较数据时，如果可能与Locale设置相关，则应指定相应的Locale。  
+  
+**例1**：下面代码示例将Locale设置为英文，从而避免产生意外的问题。  
+```java
+"title".toUpperCase(Locale.ENGLISH);  
+"TITLE".toLowerCase(Locale.ENGLISH);
+```  
+**例2**：可以在对字符串处理前，将默认的Locale设置为English。  
+```java
+Locale.setDefault(Locale.ENGLISH);  
+"title".toUpperCase();  
+"TITLE".toLowerCase();
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">474:Use of Function with Inconsistent Implementations</Reference>
+				<Reference type="CERT">STR02-J:Specify an appropriate locale when comparing locale-dependent data</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>internationalization,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

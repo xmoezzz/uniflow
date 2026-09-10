@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170069" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">7.5 网络传输</Category>  
+        <Category type="DetailClassChin">A.4.5.2 避免Session失效时间设置过长</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：Session持续时间越长，攻击者危害用户帐户的机会就越大。  
+对于避免Session失效时间设置过长的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：   
+```xml
+<session-config>  
+    <session-timeout>-1</session-timeout>  
+</session-config> 
+```
+上述代码片段中，将Session设置为永不会过期。  
+**示例2**：  
+```xml
+<session-config>  
+    <session-timeout>30</session-timeout>  
+</session-config> 
+```
+上述代码片段中，将Session失效时间设置为30分钟。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">613:Insufficient Session Expiration</Reference>  
+        <Reference type="OWASP TOP 10">2017:A2 Broken Authentication</Reference>  
+        <Reference type="OWASP TOP 10">2013:A2 Broken Authentication and Session Management</Reference>  
+        <Reference type="OWASP TOP 10">2010:A3 Broken Authentication and Session Management</Reference>  
+        <Reference type="OWASP TOP 10">2007:A7 Broken Authentication and Session Management</Reference>  
+        <Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>  
+        <Reference type="GB/T 34944-2017 Java">时间和状态:会话永不过期</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.4.5 网络传输</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130126" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">不正确的块划分</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行所在块划分不正确。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行行所在块划分不正确。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[代码没有显式地分隔一个块，该块的目的是包含两个或多个语句，从而产生一个逻辑错误。  
+  
+**例1**：下面代码片段中，程序员错误的认为x=1；y=1会在当x==0的时候赋值（缩进代表了其意图）。而y=1在x无论何值都会执行。  
+```java
+...  
+if(x == 0)  
+    x = 1;  
+    y = 1;   
+...
+```  
+**例2**：下面代码片段中，程序员错误的认为x=1和y=1会在当x==0的时候赋值（同行代表了其意图）。而y=1在x无论何值都会执行。  
+```java
+...  
+if(x == 0)x = 1;y = 1;  
+...
+```  
+**例3**：下面代码片段中，程序员错误的认为x=1和y=1会在当x==0的时候赋值。而x=1和y=1在x无论何值都会执行。  
+```java
+...  
+if(x == 0);{  
+    x = 1;  
+    y = 1;  
+}   
+...
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，正确划分代码块，防止出现逻辑错误。  
+  
+**例如**：下面代码片段中，程序正确的进行了块的划分。  
+```java
+...  
+if(x == 0){  
+    x = 1;  
+    y = 1;   
+}  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">483:Incorrect Block Delimitation</Reference>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

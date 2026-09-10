@@ -1,0 +1,239 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010140200" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 00. 输入验证和数据处理 (IDS)</Category>  
+        <Category type="DetailClassChin">IDS00-J：净化不可信的数据</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[许多程序会接收来自未经验证的用户数据、网络连接，以及其他来自非受信区域的不可信数据，然后它们会将这些数据传递给另外的受信区域中。通常这些数据是以字符串的形式出现的，并且它们会具有既定的内部数据结构，这种数据结构能够被子系统解析。程序必须对这些数据进行净化，因为子系统可能不具备处理恶意输入信息的能力，这些未经过净化的数据输入很有可能会引起注入攻击。  
+许多解析器（PrepareStatement、SAX）提供了自己的数据净化和数据验证的方法。当存在这样的方法时，应该优先考虑使用它们，相对而言，自定义的净化方法可能会忽略一些特殊情况，或者忽略解析器中所隐含着的那些复杂性。  
+1）SQL注入  
+当初始化的SQL查询被修改成另外一个完全不同形式的查询的时候，就会出现SQL注入漏洞。执行这个被修改过的查询，可能导致信息泄露或者数据被修改。防止SQL注入的主要方法是：净化并验证非受信输入，并采用参数化查询。  
+假设一个数据库的表db_user中存储了用户名和密码，它们用于对系统用户进行认证。用户名使用长度为8的字符串表示，密码使用长度为20的字符串表示。  
+一个用来验证用户的SQL命令如下：`SELECT * FROM db_user WHERE username='<USERNAME>' AND password='<PASSWORD>'`  
+如果它可以返回记录，那么意味着用户名和密码是合法的。  
+然而，如果攻击者能够替换`<USERNAME>`和`<PASSWORD>`中的任意字符串，它们就可以使用下面关于`<USERNAME>`的字符串进行SQL注入攻击：`validuser' OR '1'='1`  
+当其提交SQL查询时，命令就变成：`SELECT * FROM db_user WHERE username='validuser' OR '1'='1' AND password='<PASSWORD>'`  
+如果validuser确实是一个存在的用户名，那么这条语句就会返回表中存储的validuser用户的记录。这个操作就成功的跳过了密码验证。  
+同样，如果攻击者为`<PASSWORD>`提交字符串：`' OR '1'='1 ` 
+这样就会产生以下命令：`SELECT * FROM db_user WHERE username='' AND password='' OR '1'='1'`  
+这一次'1'='1'是永远成立的，它使得用户名和密码验证都是无效的，攻击者可以不需要用户名和密码就通过了用户认证。  
+**不规范的代码样例1**：  
+```java
+public static void main(String[] args) throws IOException {
+    String pwd = hashPassword(password);  
+    String sqlString = "SELECT * FROM db_user WHERE username = '" + username + "' AND password = '" + pwd + "'";  
+    Statement stmt = connection.createStatement();  
+    ResultSet rs = stmt.executeQuery(sqlString);  
+    if (!rs.next()) {  
+      throw new SecurityException("User name or password incorrect");  
+    }
+}
+```  
+代码使用JDBC代码来认证用户，提交`stmt.executeQuery(sqlString)`查询的SQL为`sqlString`，它是通过一个拼接字符串组合而来，并且sqlString未经过净化或验证，`Statement.executeQuery(String)`方法不能防止SQL注入，该代码将会引发SQL注入漏洞攻击。  
+2）XML注入  
+如果用户有能力使用结构化XML文档做为输入，那么他能够通过在数据字段中插入XML标签来重写这个XML文档的内容。当XML解析器会将这些标签按照正常标签进行解析。下面是一段在线商店的XML代码，主要用于查询后台数据库。  
+```xml
+<item>
+	<description>Widget</description>
+	<price>500.0</price>
+	<quantity>1</quantity>
+</item> 
+```
+恶意用户可以在<quantity>元素中输入以下字符串：`1</quantity><price>1.0</price><quantity>1`  
+会生成以下的XML文档：  
+```xml
+<item>
+	<description>Widget</description>
+	<price>500.0</price>
+	<quantity>1</quantity><price>1.0</price><quantity>1</quantity>
+</item> 
+```
+通过使用简单的API解析器（`org.xml.sax and javax.xml.parsers.SAXParser`）可以解析该XML文件，如果解析XML的代码获取的是最后一个元素`<price>`的值，那么商品价格就被设置为1.0。  
+**不规范的代码样例2**：  
+下面的代码样例中：一个方法使用了简单的字符串拼接来创建一个XML查询，然后将其发送到服务器。在这时就有可能出现XML注入问题，因为这个方法没有进行任何输入验证。  
+```java
+private void createXMLStream(BufferedOutputStream outStream, String quantity) throws IOException {
+    String xmlString = "<item>\n<description>Widget</description>\n" + "<price>500.0</price>\n" + "<quantity>"
+            + quantity + "</quantity></item>";
+    outStream.write(xmlString.getBytes());
+    outStream.flush();
+}
+```
+3）XML外部实体攻击（XXE）  
+一个XML文档可以从一个很小的逻辑块（实体）开始动态构建。实体可以是内部的、外部的或者基于参数的。外部实体运行将外部文件中的XML包含进来。  
+根据XML W3C 4.4.3节的建议：  
+>当一个XML处理器找到一个已经解析过的实例的引用的时候，为了验证这个文档，处理器必须包含它的替代字段。如果该实体是外部的，而且处理器不打算验证这个XML文档，那么处理器可以（但不必）包含该实体的替代字段。  
+
+攻击者可以通过操作实例的URI，使其指向特定的在当前文件系统中保存的文件，从而造成拒绝服务或程序崩溃，比如：指定`/dev/random`或者`/dev/tty`作为输入的URI，这可能造成永久阻塞程序或者程序崩溃。  
+**不规范的代码样例3**：  
+下面的代码尝试对`evil.xml`进行解析，并且报告相关错误，然后退出。然而，SAX或者DOM解析器会尝试访问在SYSTEM属性中标识的URL，这意味着它将读取一个本地的`/dev/try`文件的内容。在POSIX系统中，读取这个文件会导致程序阻塞，直到可以通过计算机控制台得到输入数据为止。攻击者可以使用这一类的恶意XML文件来导致系统挂起。  
+```java
+class XXE {
+    private static void receiveXMLStream(InputStream inStream, DefaultHandler defaultHandler)
+            throws ParserConfigurationException, SAXException, IOException {
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+        SAXParser saxParser = factory.newSAXParser();
+        saxParser.parse(inStream, defaultHandler);
+    }
+
+    public static void main(String[] args) throws ParserConfigurationException, SAXException, IOException {
+        receiveXMLStream(new FileInputStream("evil.xml"), new DefaultHandler());
+    }
+}
+```  
+如果evil.xml文件中包含以下文本，程序会受到远程XXE攻击。  
+```xml
+<?xml version="1.0"?>  
+<!DOCTYPE foo SYSTEM "file:/dev/tty">  
+<foo>bar</foo>
+```
+]]></Description>  
+      <Advice><![CDATA[净化或验证非受信的数据。推荐采用解析器提供的自己的数据净化和数据验证的方法。  
+1）SQL注入  
+采用`java.sql.PreparedStatement`来执行参数化查询，正确的使用该类可以避免含有注入代码的SQL语句提交执行。  
+**规范的代码样例1**：  
+```java
+String sqlString = "select * from db_user where username=? and password=?";
+PreparedStatement stmt = connection.prepareStatement(sqlString);
+stmt.setString(1, username);
+stmt.setString(2, pwd);
+ResultSet rs = stmt.executeQuery();
+if (!rs.next()) {
+    throw new SecurityException("User name or password incorrect");
+}
+```  
+代码使用参数化查询来防止SQL注入。  
+2）XML注入  
+**规范的代码样例2-1**：白名单验证  
+代码使用白名单来验证输入的字符的合法性，处理方法要求输入的数字必须是0~9。  
+```java
+private void createXMLStream(BufferedOutputStream outStream, String quantity) throws IOException {
+    // Write XML string if quantity contains numbers only.
+    // Blacklisting of invalid characters can be performed
+    // in conjunction.
+    if (!Pattern.matches("[0-9]+", quantity)) {
+        // Format violation
+    }
+    String xmlString = "<item>\n<description>Widget</description>\n" + "<price>500</price>\n" + "<quantity>"
+            + quantity + "</quantity></item>";
+    outStream.write(xmlString.getBytes());
+    outStream.flush();
+} 
+```
+**规范的代码样例2-2**：XML模板  
+更为通用的验证XML，防止注入的方法是：使用DTD或者schema来验证。schema必须严格定义，从而防止通过注入的方式将一个合法的XML文档变成错误的文档。  
+以下是用来对样例2进行验证的schema模板：  
+```xml
+<xs:schema xmlns:xs=" http://www.w3.org/2001/XMLSchema">
+	<xs:element name="item">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="description" type="xs:string" />
+				<xs:element name="price" type="xs:decimal" />
+				<xs:element name="quantity" type="xs:integer" />
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
+```
+Java代码在解析XML文档时，引入对schema的校验检查。  
+```java
+private void createXMLStream(BufferedOutputStream outStream, String quantity) throws IOException {
+    String xmlString = "<item>\n<description>Widget</description>\n" + "<price>500.0</price>\n" + "<quantity>"
+            + quantity + "</quantity></item>";
+    InputSource xmlStream = new InputSource(new StringReader(xmlString));
+    // Build a validating SAX parser using our schema
+    SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+    DefaultHandler defHandler = new DefaultHandler() {
+        public void warning(SAXParseException s) throws SAXParseException {
+            throw s;
+        }
+
+        public void error(SAXParseException s) throws SAXParseException {
+            throw s;
+        }
+
+        public void fatalError(SAXParseException s) throws SAXParseException {
+            throw s;
+        }
+    };
+    StreamSource ss = new StreamSource(new File("schema.xsd"));
+    try {
+        Schema schema = sf.newSchema(ss);
+        SAXParserFactory spf = SAXParserFactory.newInstance();
+        spf.setSchema(schema);
+        SAXParser saxParser = spf.newSAXParser();
+        // To set the custom entity resolver,
+        // an XML reader needs to be created
+        XMLReader reader = saxParser.getXMLReader();
+        reader.setEntityResolver(new CustomResolver());
+        saxParser.parse(xmlStream, defHandler);
+    } catch (ParserConfigurationException x) {
+        throw new IOException("Unable to validate XML", x);
+    } catch (SAXException x) {
+        throw new IOException("Invalid quantity", x);
+    }
+    // Our XML is valid, proceed
+    outStream.write(xmlString.getBytes());
+    outStream.flush();
+}
+```
+3）XML外部实体注入  
+使用EntityResolver方案来防止XML外部实体注入。  
+**规范的代码样例3**：  
+针对不规范的代码样例3的解决方案是，定义一个`CustomResolver`类，这个类实现了`org.xml.sax.EntityResolver`接口。它可以让SAX应用定制对外部实体的处理。`setEntityResolver()`方法可以将对应的SAX驱动实例注册进来。这个定制的处理器使用的是一个为外部实体定义的简单的白名单。当输入不是任何指定的、安全地实体源路径时，`resolverEntity()`方法会返回一个空的InputSource对象。结果是，当解析恶意输入时，这个由自定义的解析器返回的空的InputStream对象会抛出`java.net.MalformedURLException`异常。需要注意的是，必须创建一个XMLReader对象，以便通过这个对象来设置自定义的实体解析器。  
+  
+```java
+class CustomResolver implements EntityResolver {
+    public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
+        // check for known good entities
+        String entityPath = "/home/username/java/xxe/file";
+        if (systemId.equals(entityPath)) {
+            System.out.println("Resolving entity: " + publicId + " " + systemId);
+            return new InputSource(entityPath);
+        } else {
+            return new InputSource(); // Disallow unknown entities
+            // by returning a blank path
+        }
+    }
+}
+
+class XXE {
+    private static void receiveXMLStream(InputStream inStream, DefaultHandler defaultHandler)
+            throws ParserConfigurationException, SAXException, IOException {
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+        SAXParser saxParser = factory.newSAXParser();
+        // To set the Entity Resolver, an XML reader needs to be created
+        XMLReader reader = saxParser.getXMLReader();
+        reader.setEntityResolver(new CustomResolver());
+        reader.setErrorHandler(defaultHandler);
+        InputSource is = new InputSource(inStream);
+        reader.parse(is);
+    }
+
+    public static void main(String[] args) throws ParserConfigurationException, SAXException, IOException {
+        receiveXMLStream(new FileInputStream("evil.xml"), new DefaultHandler());
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 611</Reference>  
+        <Reference type="CWE">611:Improper Restriction of XML External Entity Reference ('XXE')</Reference>  
+        <Reference type="CWE">116:Improper Encoding or Escaping of Output</Reference>  
+        <Reference type="CWE">112:Missing XML Validation</Reference>  
+        <Reference type="CWE">89:Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

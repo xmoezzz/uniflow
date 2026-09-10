@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110026" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：未验证的表单字段</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的表单字段未被验证。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序员由于某种原因对类进行修改后并没有对相应的验证逻辑做修改导致Action表单和Validation表单之间不是一一对应关系。输入检查是SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。如果输入检查处出现纰漏，可能会让程序易于受攻击。  
+  
+**例如**：下面代码片段action表单包含两个字段，而Validation表单中是三个字段，这说明程序没有对第三个字段：`email`进行较验。  
+```java
+public class UserRegisterForm extends ValidatorForm {   
+    String userName, password;  
+    public void setUserName(String userName) {  
+        this.userName= userName;  
+    }  
+    public void setPassword(String password) {  
+        this.password= password;  
+    }  
+}  
+```
+```xml
+<form name="UserRegisterForm">  
+    <field property="userName" depends="String" depends="required">  
+        <arg0 key="UserRegisterForm.userName"/>  
+    </field>  
+    <field property="password" depends="String" depends="required">  
+        <arg0 key="UserRegisterForm.password"/>  
+    </field>  
+    <field property="email" depends="String" depends="required,email">  
+        <arg0 key="UserRegisterForm.email"/>  
+    </field>  
+</form>
+```
+]]></Description>
+			<Advice><![CDATA[验证逻辑的维护至关重要，验证逻辑必须与应用程序的其余部分保持同步。
+]]></Advice>
+			<References>
+				<Reference type="CWE">110:Struts: Validator Without Form Field</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

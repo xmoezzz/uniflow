@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170027" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">5.4 日志安全</Category>  
+        <Category type="DetailClassChin">A.2.4.2 不要将未经验证的用户输入记录日志</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：当日志条目包含未经净化的用户输入时会引发记录注入漏洞。恶意用户会插入伪造的日志数据，从而让系统管理员以为是系统行为 [OWASP 2008]。例如，用户在将冗长的日志记录拆分成两份时，日志中使用的回车和换行符可能会被误解。记录注入攻击可以通过对任何非受信的发送到日志的输入进行净化和验证来阻止。  
+对于不要将未经验证的用户输入记录日志的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+if (loginSuccessful) {    
+    logger.severe("User login succeeded for: " + username);    
+} else {    
+    logger.severe("User login failed for: " + username);    
+}
+```   
+这个不符合规则的代码示例中，在接收到非法请求的时候，会记录用户的用户名。这时没有执行任何输入净化。  
+如果没有净化，那么可能会出现日志注入攻击。当出现`username`是david时，标准的日志信息如下所示：  
+```
+May 15, 2011 2:19:10 PM java.util.logging.LogManager$RootLogger log    
+SEVERE: User login failed for: david   
+```
+如果日志信息中使用的`username`不是david而是多行字符串，如下所示：  
+```
+david    
+May 15, 2011 2:25:52 PM java.util.logging.LogManager$RootLogger log    
+SEVERE: User login succeeded for: administrator  
+``` 
+那么日志中包含了以下可能引起误导的信息：  
+```
+May 15, 2011 2:19:10 PM java.util.logging.LogManager$RootLogger log    
+SEVERE: User login failed for: david    
+May 15, 2011 2:25:52 PM java.util.logging.LogManager$RootLogger log    
+SEVERE: User login succeeded for: administrator
+ ``` 
+**示例2**：  
+```java
+if (!Pattern.matches("[A-Za-z0-9_]+", username)) {    
+    // Unsanitized username    
+    logger.severe("User login failed for unauthorized user");    
+} else if (loginSuccessful) {    
+    logger.severe("User login succeeded for: " + username);    
+} else {    
+    logger.severe("User login failed for: " + username);    
+}
+```   
+这个符合规范的代码在登录之前会净化用户名输入，从而防止注入攻击。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">117:Improper Output Neutralization for Logs</Reference>  
+        <Reference type="CERT">IDS03-J:Do not log unsanitized user input</Reference>  
+        <Reference type="OWASP TOP 10">2017:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.4 日志安全</BigClassChin>  
+       
+    </BugInfo>  
+    

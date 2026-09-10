@@ -1,0 +1,99 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010160008" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">5.2 数据净化</Category>  
+        <Category type="DetailClassChin">C.1.8 不要向Runtime.exec()方法传递非受信、未净化的数据</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+   通过只向 `Runtime.exec()`方法输入受信的字符串来防止命令注入。   
+2) 原理   
+每一个 Java 应用都有一个唯一的 Runtime类的实例，通过它可以提供一个应用和应用运行环境的接口。当前的 Runtime 对象可以通过 `Runtime.getRuntime()`方法获得。`Runtime.getRuntime()`的语义定义并不严格，所以最好仅仅使用它的那些必要的行为，然而，在通常情况下，它应当被命令直接调用，而不应通过 shell来调用。如果需要使用 shell来调用它，可以在 POSIX 中使用`/bin/sh`或者在 Windows平台中使用 cmd.exe 的方式。作为 `exec()`的另一种形式，它会使用 StringTokenizer 来分隔从命令行读入的字符串。在 Windows 平台中，在处理这些符号时，它们会被连接成一个单一的参数字符串。   
+因而，除非显式地调用命令行解释器，否则是不会产生命令行注入攻击的。然而，当参数中包含那些以空格、双引号或者其他以- / 开头的用来表示分支的字符时，就可能发生参数注入攻击。   
+3) 示例   
+    该不符合规则的代码示例使用 dir 命令列出目录列表。这是通过 `Runtime.exec()` 方法调用 Windows的 dir命令来实现的。   
+    ```java
+    class DirList {
+        public static void main(String[] args) throws Exception {
+            String dir = System.getProperty("dir");
+            Runtime rt = Runtime.getRuntime();
+            Process proc = rt.exec("cmd.exe /C dir " + dir);
+            int result = proc.waitFor();
+            if (result != 0) {
+                System.out.println("process error: " + result);
+            }
+            InputStream in = (result == 0) ? proc.getInputStream() : proc.getErrorStream();
+            int c;
+            while ((c = in.read()) != -1) {
+                System.out.print((char) c);
+            }
+        }
+    }
+    ```  
+    因为 `Runtime.exec()` 方法接受源于运行环境的未经净化的数据，所以这些代码会引起命令注入攻击。   
+    攻击者可以通过以下命令利用该程序： 
+    ```java
+    java -Ddir='dummy & echo bad' Java 
+    ```  
+    该命令实际上执行的是两条命令： 
+    ```java
+    cmd.exe /C dir dummy & echo bad   
+    ```  
+    第一条命令会列出并不存在的 dummy 文件夹，并且在控制台上输出 bad。   
+    对应的符合规定的方案会对非受信的用户输入进行净化，这种净化只允许一小组列入白名单的字符出现在参数中，并传给 `Runtime.exec()`方法，其他所有的字符都会被排除掉。   
+    ```java
+    // ...   
+    if (!Pattern.matches("[0-9A-Za-z@.]+", dir)) {   
+        // Handle error   
+    }   
+    // ...
+    ```   
+    另一个符合规定的方案通过只向 `Runtime.exec()`方法输入那些受信的字符串来防止命令注入。当用户可以控制使用哪一个字符串时，用户就可以不向 `Runtime.exec()`方法直接提供字符串数据。   
+    ```java
+    // ...   
+    String dir = null;
+    // only allow integer choices
+    int number = Integer.parseInt(System.getproperty("dir"));
+    switch (number) {
+    case 1:
+        dir = "data1";
+        break; // Option 1
+    case 2:
+        dir = "data2";
+        break; // Option 2
+    default: // invalid
+        break;
+    }
+    if (dir == null) {
+        // handle error
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">78:Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')</Reference>  
+        <Reference type="CWE">77:Improper Neutralization of Special Elements used in a Command ('Command Injection')</Reference>  
+        <Reference type="CERT">IDS07-J:Sanitize untrusted data passed to the Runtime.exec() method</Reference>  
+        <Reference type="OWASP TOP 10">2017:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 78</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 78</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 78</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:命令注入</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.1 输入验证与数据净化</BigClassChin>  
+       
+    </BugInfo>  
+    

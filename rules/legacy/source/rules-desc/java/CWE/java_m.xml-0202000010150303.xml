@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150303" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">并发规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用静态数据库连接</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[存储在静态字段中的数据库连接会被不同的线程共享，因此存储在静态字段中的数据库连接可能会导致线程间数据泄露。  
+  
+**例如**：下面代码片段中Connection被设为静态。  
+```java
+public class DBUtils{  
+    public static Connection connection;  
+    ...  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[与事务相关联的资源对象（比如数据库连接）不要存储在静态字段中。  
+  
+**例如**：下面代码片段中Connection为局部变量。  
+```java
+public class DBUtils{  
+    ...  
+    public void doSomthing() {  
+        Connection conn = DriverManager.getConnection(url,"root",null);  
+        ...  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">567:Unsynchronized Access to Shared Data in a Multithreaded Context</Reference>  
+        <Reference type="CWE">362:Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 362</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 362</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:New Vulnerabilities Concurrent Data Access [CGX]</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Time and State</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>concurrency,bad_practice</Tag> 
+    </BugInfo>  
+    

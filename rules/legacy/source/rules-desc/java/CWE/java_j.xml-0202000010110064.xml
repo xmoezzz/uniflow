@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110064" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">硬编码文件分隔符</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用了硬编码文件分隔符。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用了硬编码文件分隔符。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[路径分割符号问题，不同的操作系统不同。在程序中不要硬性编码与平台相关的任何常量，比如行分隔符，文件分隔符，路径分隔符等等。例如文件分隔符，Windows系统使用"\"或"/"，而UNIX系统则使用"/"。应用程序需要在不同的平台上运行时，使用硬编码文件分隔符会导致应用程序逻辑执行错误，并有可能导致拒绝服务。  
+  
+**例如**：以下代码使用硬编码文件分隔符来打开文件：  
+```java
+File file = new File(dirName + "\\" + fileName);
+```
+]]></Description>
+			<Advice><![CDATA[不应使用硬编码文件分隔符，而应使用语言库提供的独立于平台的API，如`java.io.File.separator`，也可以通过使用`java.lang.System.getProperty("file.separator")`来获取。  
+  
+**例如**：针对示例代码的修改方法是：  
+```java
+File file = new File(dirName + File.separator + fileName);
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">474:Use of Function with Inconsistent Implementations</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>portability,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发硬编码文件分隔符漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在硬编码文件分隔符漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在硬编码文件分隔符漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发硬编码文件分隔符漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

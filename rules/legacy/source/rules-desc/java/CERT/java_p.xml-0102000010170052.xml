@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170052" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.3 函数调用安全</Category>  
+        <Category type="DetailClassChin">A.3.3.2 从格式化字符串中排除用户输入</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：java.io包中的PrintStream类包含两个等效的格式化方法：`format()`和`printf()`。System.out和System.err作为PrintStream对象，允许在标准输出和错误流上调用PrintStream方法。当任何转换参数无法匹配相应的格式符时，标准类库的实现将抛出一个相应的异常。虽然抛出异常能降低被恶意利用的可能，但如果将不受信任的数据包含到格式字符串中，则可能会造成信息泄露或拒绝服务。因此，不能在格式字符串中使用非受信来源的字符串。  
+对于从格式化字符串中排除用户输入的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+class Format {
+    static Calendar c = new GregorianCalendar(1995, GregorianCalendar.MAY, 23);
+
+    public static void main(String[] args) {
+        // args[0] should contain the credit card expiration date
+        // but might contain %1$tm, %1$te or %1$tY format specifiers
+        System.out.format(args[0] + " did not match! HINT: It was issued on %1$terd of some month", c);
+    }
+}
+```  
+以上代码在格式字符串中包含不受信任的数据，可能会出现信息泄露问题。  
+在没有适当的输入验证的情况下，攻击者可以通过提供包含`%1$tm`, `%1$te`,或者`%1$tY`格式符的输入字符串来确定输入被验证的日期。在此例中，这些格式符分别打印05（5月），23（日）和1995（年）。  
+**示例2**：      
+```java
+class Format {
+    static Calendar c = new GregorianCalendar(1995, GregorianCalendar.MAY, 23);
+
+    public static void main(String[] args) {
+        // args[0] is the credit card expiration date
+        // Perform comparison with c,
+        // if it doesn't match, print the following line
+        System.out.format("%s did not match! HINT: It was issued on %terd of some month", args[0], c);
+    }
+}
+```  
+以上示例能保证用户产生的输入会被排除在格式化字符串之外。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>  
+        <Reference type="CWE">134:Use of Externally-Controlled Format String</Reference>  
+        <Reference type="CERT">IDS06-J:Exclude unsanitized user input from format strings</Reference>  
+        <Reference type="OWASP TOP 10">2017:A9 Using Components with Known Vulnerabilities</Reference>  
+        <Reference type="OWASP TOP 10">2013:A9 Using Components with Known Vulnerabilities</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.3.3 函数调用安全</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110007" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">可以被重写的安全检查方法</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法定义了可以被重写的安全检查方法。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法定义了可以被重写的安全检查方法。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[类中一些方法调用了执行安全检测的方法，如果没有用final声明，可能会被子类用重写的该方法的方式以绕过安全检测。  
+  
+**例如**：在下列代码中，`doSecurityCheck()`执行了安全检查，并且它可被其子类覆盖。  
+```java
+public class SecurityCheck {  
+    private String username;  
+    public SecurityCheck(String username) {  
+        doSecurityCheck();
+        this.username = username;  
+    }  
+    protected void doSecurityCheck() {  
+        SecurityManager smanager = System.getSecurityManager();  
+        if (smanager != null) {  
+            smanager.checkPermission(new SomePermission("Something"));  
+        }  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[建议所有执行安全操作的方法都已在final类中声明，或者这些方法本身已声明为final类型。
+]]></Advice>
+			<References>
+				<Reference type="CWE">358:Improperly Implemented Security Check for Standard</Reference>
+				<Reference type="CERT">MET03-J:Methods that perform a security check must be declared private or final</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

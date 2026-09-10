@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010060109" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">禁用设备</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行程序将会请求禁用手机设备。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行程序将会请求禁用手机设备。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序请求禁用手机设备，没有任何理由请求或授予禁用该设备的权限。  
+  
+**例如**：程序禁止调用此权限，在任何情况下都不允许。  
+```xml
+<uses-permission android:name="android.permission.BRICK"/>
+```
+]]></Description>
+			<Advice><![CDATA[程序禁止调用此权限，任何情况下都不允许。
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

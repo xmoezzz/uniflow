@@ -27,6 +27,41 @@ impl BaselinePack {
         source_by_path: &HashMap<String, String>,
         options: &BaselineScanOptions,
     ) -> Vec<BaselineFinding> {
+        let mut known_class_types = HashSet::new();
+        let mut serializable_types = HashSet::new();
+        let mut classes_with_equals = HashSet::new();
+        if program.language == Language::Java {
+            for source in source_by_path.values() {
+                let syntax = uniflow_parser_core::java_syntax::JavaSyntax::parse(source);
+                for declaration in syntax.declarations.iter().filter(|declaration| {
+                    declaration.kind
+                        == uniflow_parser_core::java_syntax::JavaDeclarationKind::Class
+                }) {
+                    known_class_types.insert(declaration.name.clone());
+                    if declaration
+                        .interfaces
+                        .iter()
+                        .any(|base| base.rsplit('.').next() == Some("Serializable"))
+                    {
+                        serializable_types.insert(declaration.name.clone());
+                    }
+                    let declaration_id = syntax
+                        .declarations
+                        .iter()
+                        .position(|candidate| std::ptr::eq(candidate, declaration));
+                    if declaration_id.is_some_and(|owner| {
+                        syntax.declarations.iter().any(|member| {
+                            member.owner == Some(owner)
+                                && member.kind
+                                    == uniflow_parser_core::java_syntax::JavaDeclarationKind::Method
+                                && member.name == "equals"
+                        })
+                    }) {
+                        classes_with_equals.insert(declaration.name.clone());
+                    }
+                }
+            }
+        }
         let mut scanner = HirScanner {
             pack: self,
             language: &program.language,
@@ -62,14 +97,42 @@ impl BaselinePack {
             declaration_member_roots: HashMap::new(),
             checked_symbols: HashSet::new(),
             true_properties: HashSet::new(),
+            present_optionals: HashSet::new(),
             catch_depth: 0,
             catch_symbols: HashSet::new(),
             string_constants: HashMap::new(),
+            known_class_types,
+            serializable_types,
+            classes_with_equals,
+            receiver_calls: HashSet::new(),
             findings: Vec::new(),
         };
         for module in &program.modules {
             for item in &module.items {
                 scanner.visit_item(item);
+            }
+        }
+        if program.language == Language::Java {
+            for rule in &self.rules {
+                let Some(check) = rule.matcher.java_project else {
+                    continue;
+                };
+                if !rule.languages.is_empty() && !rule.languages.contains(&Language::Java) {
+                    continue;
+                }
+                for (path, offset) in check.offsets(source_by_path) {
+                    if !rule_path_matches(rule, &path) {
+                        continue;
+                    }
+                    if let Some(source) = source_by_path.get(&path) {
+                        scanner.findings.push(crate::finding_at_offset(
+                            rule,
+                            Path::new(&path),
+                            source,
+                            offset,
+                        ));
+                    }
+                }
             }
         }
         for (path, source) in source_by_path {
@@ -114,9 +177,14 @@ struct HirScanner<'a> {
     declaration_member_roots: HashMap<SymbolId, Vec<(String, bool)>>,
     checked_symbols: HashSet<SymbolId>,
     true_properties: HashSet<(SymbolId, String)>,
+    present_optionals: HashSet<SymbolId>,
     catch_depth: usize,
     catch_symbols: HashSet<SymbolId>,
     string_constants: HashMap<SymbolId, String>,
+    known_class_types: HashSet<String>,
+    serializable_types: HashSet<String>,
+    classes_with_equals: HashSet<String>,
+    receiver_calls: HashSet<(SymbolId, String)>,
     findings: Vec<BaselineFinding>,
 }
 
@@ -164,6 +232,7 @@ impl HirScanner<'_> {
     fn visit_function(&mut self, function: &Function) {
         let previous_checked = std::mem::take(&mut self.checked_symbols);
         let previous_properties = std::mem::take(&mut self.true_properties);
+        let previous_present_optionals = std::mem::take(&mut self.present_optionals);
         let previous_catch = std::mem::replace(&mut self.catch_depth, 0);
         collect_true_properties(&function.body, &mut self.true_properties);
         let previous_name = self.current_function_name.replace(function.name.clone());
@@ -182,6 +251,7 @@ impl HirScanner<'_> {
         let previous_sql_symbols = self.sql_wildcard_symbols.clone();
         let previous_loop_symbols = self.symbol_loop_depth.clone();
         let previous_string_constants = std::mem::take(&mut self.string_constants);
+        let previous_receiver_calls = std::mem::take(&mut self.receiver_calls);
         for param in &function.params {
             let is_string = param
                 .ty
@@ -193,7 +263,11 @@ impl HirScanner<'_> {
         if let Some(receiver) = &function.receiver {
             self.types.bind(receiver.symbol, receiver.ty);
         }
+        self.match_missing_contract_null_check(function);
         self.match_unreleased_resources(function);
+        self.match_null_safety(function);
+        self.match_external_process_buffers(function);
+        self.match_conflicting_expression_side_effects(function);
         self.visit_block(&function.body);
         self.current_function_name = previous_name;
         self.current_return_type = previous_return;
@@ -201,8 +275,10 @@ impl HirScanner<'_> {
         self.sql_wildcard_symbols = previous_sql_symbols;
         self.symbol_loop_depth = previous_loop_symbols;
         self.string_constants = previous_string_constants;
+        self.receiver_calls = previous_receiver_calls;
         self.checked_symbols = previous_checked;
         self.true_properties = previous_properties;
+        self.present_optionals = previous_present_optionals;
         self.catch_depth = previous_catch;
     }
 
@@ -312,6 +388,250 @@ impl HirScanner<'_> {
         self.checked_symbols = previous_checked;
     }
 
+    fn match_missing_contract_null_check(&mut self, function: &Function) {
+        let method_name = function.name.rsplit('.').next().unwrap_or(&function.name);
+        let expected_arity = match method_name {
+            "equals" | "compareTo" => 1,
+            "compare" => 2,
+            _ => return,
+        };
+        if function.params.len() != expected_arity {
+            return;
+        }
+        let parameters = function
+            .params
+            .iter()
+            .map(|parameter| parameter.symbol)
+            .collect::<HashSet<_>>();
+        let mut checked = HashSet::new();
+        visit_block_expressions(&function.body, &mut |expr| {
+            let Expr::Binary { op, lhs, rhs, .. } = expr else {
+                return;
+            };
+            if !matches!(op, BinaryOp::Eq | BinaryOp::Ne) {
+                return;
+            }
+            match (&**lhs, &**rhs) {
+                (Expr::VarRef { symbol, .. }, value)
+                    if parameters.contains(symbol) && is_null_literal(value) =>
+                {
+                    checked.insert(*symbol);
+                }
+                (value, Expr::VarRef { symbol, .. })
+                    if parameters.contains(symbol) && is_null_literal(value) =>
+                {
+                    checked.insert(*symbol);
+                }
+                _ => {}
+            }
+        });
+        if checked.len() == parameters.len() {
+            return;
+        }
+        let rules = self
+            .pack
+            .rules
+            .iter()
+            .filter(|rule| {
+                rule.matcher.missing_contract_null_check
+                    && (rule.languages.is_empty() || rule.languages.contains(self.language))
+                    && self.rule_matches_span_path(rule, function.span)
+            })
+            .collect::<Vec<_>>();
+        for rule in rules {
+            self.push_finding(rule, "missing null contract check", function.span);
+        }
+    }
+
+    fn match_external_process_buffers(&mut self, function: &Function) {
+        if !self
+            .pack
+            .rules
+            .iter()
+            .any(|rule| rule.matcher.external_process_wait_without_io_drain)
+        {
+            return;
+        }
+
+        let mut processes = self
+            .types
+            .symbols
+            .iter()
+            .filter_map(|(symbol, ty)| {
+                (ty.rsplit('.').next() == Some("Process"))
+                    .then_some((*symbol, ProcessIoStatus::default()))
+            })
+            .collect::<HashMap<_, _>>();
+        let mut builders = self
+            .types
+            .symbols
+            .iter()
+            .filter_map(|(symbol, ty)| {
+                (ty.rsplit('.').next() == Some("ProcessBuilder"))
+                    .then_some((*symbol, ProcessBuilderIo::default()))
+            })
+            .collect::<HashMap<_, _>>();
+        let mut streams = HashMap::new();
+        let mut events = Vec::new();
+        visit_block_statements(&function.body, &mut |statement| match statement {
+            Stmt::Let {
+                symbol,
+                init: Some(rhs),
+                span,
+                ..
+            } => events.push(ProcessRawEvent::Assign {
+                symbol: *symbol,
+                rhs: rhs.clone(),
+                offset: span.start_byte,
+            }),
+            Stmt::Assign {
+                lhs: LValue::Var(symbol),
+                rhs,
+                span,
+                ..
+            } => events.push(ProcessRawEvent::Assign {
+                symbol: *symbol,
+                rhs: rhs.clone(),
+                offset: span.start_byte,
+            }),
+            _ => {}
+        });
+        visit_block_expressions(&function.body, &mut |expression| {
+            visit_expression_nodes(expression, &mut |node| {
+                if let Expr::Call(call) = node {
+                    events.push(ProcessRawEvent::Call(call.clone()));
+                }
+            })
+        });
+        events.sort_by_key(|event| event.sort_key());
+
+        for event in events {
+            match event {
+                ProcessRawEvent::Assign { symbol, rhs, .. } => {
+                    if let Some(status) = process_creation_status(&rhs, &builders) {
+                        processes.insert(symbol, status);
+                    }
+                    if let Some(stream) = process_stream_source(&rhs, &processes, &streams) {
+                        streams.insert(symbol, stream);
+                    }
+                }
+                ProcessRawEvent::Call(call) => {
+                    let name = call_target_name(&call)
+                        .and_then(|name| name.rsplit('.').next())
+                        .unwrap_or_default();
+                    let receiver = call.receiver.as_deref().and_then(referenced_symbol);
+                    if let Some(builder) = receiver.and_then(|symbol| builders.get_mut(&symbol)) {
+                        match name {
+                            "redirectErrorStream"
+                                if call.args.first().is_some_and(|argument| {
+                                    matches!(
+                                        argument,
+                                        Expr::Literal {
+                                            kind: LiteralKind::Bool(true),
+                                            ..
+                                        }
+                                    )
+                                }) =>
+                            {
+                                builder.merge_error = true;
+                            }
+                            "redirectOutput" => builder.output_redirected = true,
+                            "redirectError" => builder.error_redirected = true,
+                            "inheritIO" => {
+                                builder.output_redirected = true;
+                                builder.error_redirected = true;
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if matches!(
+                        name,
+                        "read" | "readAllBytes" | "transferTo" | "lines" | "copyTo"
+                    ) {
+                        if let Some((process, stream)) = call
+                            .receiver
+                            .as_deref()
+                            .and_then(|receiver| {
+                                process_stream_source(receiver, &processes, &streams)
+                            })
+                        {
+                            if let Some(status) = processes.get_mut(&process) {
+                                match stream {
+                                    ProcessStream::Output => status.output_drained = true,
+                                    ProcessStream::Error => status.error_drained = true,
+                                }
+                            }
+                        }
+                    }
+
+                    if name == "waitFor" {
+                        let Some(process) = receiver else {
+                            continue;
+                        };
+                        let Some(status) = processes.get(&process) else {
+                            continue;
+                        };
+                        let output_safe = status.output_redirected || status.output_drained;
+                        let error_safe = status.error_redirected
+                            || status.error_drained
+                            || status.merge_error && output_safe;
+                        if output_safe && error_safe {
+                            continue;
+                        }
+                        let rules = self
+                            .pack
+                            .rules
+                            .iter()
+                            .filter(|rule| {
+                                rule.matcher.external_process_wait_without_io_drain
+                                    && (rule.languages.is_empty()
+                                        || rule.languages.contains(self.language))
+                                    && self.rule_matches_span_path(rule, call.span)
+                            })
+                            .collect::<Vec<_>>();
+                        for rule in rules {
+                            self.push_finding(rule, "process buffers not drained", call.span);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn match_conflicting_expression_side_effects(&mut self, function: &Function) {
+        if !self
+            .pack
+            .rules
+            .iter()
+            .any(|rule| rule.matcher.conflicting_side_effects_in_expression)
+        {
+            return;
+        }
+        let mut matches = Vec::new();
+        visit_block_expressions(&function.body, &mut |expression| {
+            let mut written = HashSet::new();
+            if expression_has_access_after_write(expression, &mut written) {
+                matches.push(argument_span(expression));
+            }
+        });
+        for span in matches {
+            let rules = self
+                .pack
+                .rules
+                .iter()
+                .filter(|rule| {
+                    rule.matcher.conflicting_side_effects_in_expression
+                        && (rule.languages.is_empty() || rule.languages.contains(self.language))
+                        && self.rule_matches_span_path(rule, span)
+                })
+                .collect::<Vec<_>>();
+            for rule in rules {
+                self.push_finding(rule, "access after write in expression", span);
+            }
+        }
+    }
+
     fn match_unreleased_resources(&mut self, function: &Function) {
         let mut events = ResourceEvents::default();
         collect_resource_block(&function.body, 0, 0, &mut events);
@@ -353,6 +673,190 @@ impl HirScanner<'_> {
                 {
                     self.push_finding(rule, "resource close outside finally", *span);
                 }
+            }
+        }
+        let use_after_release_rules = self
+            .pack
+            .rules
+            .iter()
+            .filter_map(|rule| {
+                if rule
+                    .matcher
+                    .resource_use_after_release_type_pattern
+                    .is_empty()
+                    || (!rule.languages.is_empty() && !rule.languages.contains(self.language))
+                {
+                    return None;
+                }
+                Regex::new(&rule.matcher.resource_use_after_release_type_pattern)
+                    .ok()
+                    .map(|regex| (rule, regex))
+            })
+            .collect::<Vec<_>>();
+        for (rule, type_regex) in use_after_release_rules {
+            let mut released = HashSet::new();
+            for event in &events.lifecycle {
+                let (symbol, span) = match event {
+                    ResourceLifecycleEvent::Acquire(symbol) => {
+                        released.remove(symbol);
+                        continue;
+                    }
+                    ResourceLifecycleEvent::Release(symbol) => {
+                        released.insert(*symbol);
+                        continue;
+                    }
+                    ResourceLifecycleEvent::Use(symbol, span) => (*symbol, *span),
+                };
+                if released.contains(&symbol)
+                    && self
+                        .types
+                        .symbols
+                        .get(&symbol)
+                        .is_some_and(|ty| type_regex.is_match(ty))
+                    && self.rule_matches_span_path(rule, span)
+                {
+                    self.push_finding(rule, "resource used after release", span);
+                }
+            }
+        }
+        let lock_rules = self.pack.rules.clone();
+        for rule in &lock_rules {
+            if !rule.languages.is_empty() && !rule.languages.contains(self.language) {
+                continue;
+            }
+            let acquired = Regex::new(&rule.matcher.lock_acquired_twice_type_pattern).ok();
+            let released = Regex::new(&rule.matcher.lock_released_twice_type_pattern).ok();
+            let unreleased = Regex::new(&rule.matcher.unreleased_lock_type_pattern).ok();
+            if acquired.is_none()
+                && released.is_none()
+                && unreleased.is_none()
+                && !rule.matcher.sleep_while_lock_held
+            {
+                continue;
+            }
+            let mut depths = HashMap::<SymbolId, (usize, Span)>::new();
+            for event in &events.lock_lifecycle {
+                let (symbol, span, is_acquire) = match event {
+                    LockLifecycleEvent::Sleep(span) => {
+                        if rule.matcher.sleep_while_lock_held
+                            && depths.values().any(|(depth, _)| *depth > 0)
+                            && self.rule_matches_span_path(rule, *span)
+                        {
+                            self.push_finding(rule, "sleep while holding lock", *span);
+                        }
+                        continue;
+                    }
+                    LockLifecycleEvent::Acquire(symbol, span) => (*symbol, *span, true),
+                    LockLifecycleEvent::Release(symbol, span) => (*symbol, *span, false),
+                };
+                let Some(ty) = self.types.symbols.get(&symbol) else {
+                    continue;
+                };
+                let entry = depths.entry(symbol).or_insert((0, span));
+                if is_acquire {
+                    if entry.0 > 0
+                        && acquired.as_ref().is_some_and(|regex| regex.is_match(ty))
+                        && self.rule_matches_span_path(rule, span)
+                    {
+                        self.push_finding(rule, "lock acquired repeatedly", span);
+                    }
+                    if entry.0 == 0 {
+                        entry.1 = span;
+                    }
+                    entry.0 += 1;
+                } else if entry.0 == 0 {
+                    if released.as_ref().is_some_and(|regex| regex.is_match(ty))
+                        && self.rule_matches_span_path(rule, span)
+                    {
+                        self.push_finding(rule, "lock released repeatedly", span);
+                    }
+                } else {
+                    entry.0 -= 1;
+                }
+            }
+            if let Some(regex) = unreleased {
+                for (symbol, (depth, span)) in &depths {
+                    if *depth > 0
+                        && self
+                            .types
+                            .symbols
+                            .get(symbol)
+                            .is_some_and(|ty| regex.is_match(ty))
+                        && self.rule_matches_span_path(rule, *span)
+                    {
+                        self.push_finding(rule, "unreleased synchronization lock", *span);
+                    }
+                }
+            }
+        }
+        for rule in &self.pack.rules {
+            if (!rule.matcher.temporary_file_not_deleted
+                && !rule.matcher.temp_file_directory_conversion)
+                || (!rule.languages.is_empty() && !rule.languages.contains(self.language))
+            {
+                continue;
+            }
+            let mut created = HashMap::<SymbolId, Span>::new();
+            let mut deleted = HashSet::<SymbolId>::new();
+            for event in &events.temp_files {
+                match event {
+                    TempFileEvent::Create(symbol, span) => {
+                        created.insert(*symbol, *span);
+                        deleted.remove(symbol);
+                    }
+                    TempFileEvent::Delete(symbol) => {
+                        deleted.insert(*symbol);
+                    }
+                    TempFileEvent::Mkdir(symbol, span) => {
+                        if rule.matcher.temp_file_directory_conversion
+                            && created.contains_key(symbol)
+                            && deleted.contains(symbol)
+                            && self.rule_matches_span_path(rule, *span)
+                        {
+                            self.push_finding(rule, "temporary file converted to directory", *span);
+                        }
+                    }
+                }
+            }
+            if rule.matcher.temporary_file_not_deleted {
+                for (symbol, span) in created {
+                    if !deleted.contains(&symbol) && self.rule_matches_span_path(rule, span) {
+                        self.push_finding(rule, "temporary file not deleted", span);
+                    }
+                }
+            }
+        }
+    }
+
+    fn match_null_safety(&mut self, function: &Function) {
+        let mut events = Vec::new();
+        analyze_null_block(&function.body, &mut HashMap::new(), &mut events);
+        for (kind, span) in events {
+            let rules = self
+                .pack
+                .rules
+                .iter()
+                .filter(|rule| {
+                    (rule.languages.is_empty() || rule.languages.contains(self.language))
+                        && self.rule_matches_span_path(rule, span)
+                        && match kind {
+                            NullSafetyEvent::DefiniteDereference => {
+                                rule.matcher.definite_null_dereference
+                            }
+                            NullSafetyEvent::NullableDereference => {
+                                rule.matcher.nullable_return_dereference
+                            }
+                            NullSafetyEvent::RedundantCheck => rule.matcher.redundant_null_check,
+                        }
+                })
+                .collect::<Vec<_>>();
+            for rule in rules {
+                let message = match kind {
+                    NullSafetyEvent::DefiniteDereference => "definite null dereference",
+                    NullSafetyEvent::NullableDereference => "unchecked nullable API result",
+                    NullSafetyEvent::RedundantCheck => "redundant null check",
+                };
+                self.push_finding(rule, message, span);
             }
         }
     }
@@ -495,8 +999,15 @@ impl HirScanner<'_> {
                 self.visit_expr(cond, ValueUse::Used);
                 self.if_condition_depth -= 1;
                 let checked = self.checked_symbols.clone();
+                let guarded_optional = optional_present_symbol(cond);
                 collect_checked_symbols(cond, &mut self.checked_symbols);
+                if let Some(symbol) = guarded_optional {
+                    self.present_optionals.insert(symbol);
+                }
                 self.visit_block(then_block);
+                if let Some(symbol) = guarded_optional {
+                    self.present_optionals.remove(&symbol);
+                }
                 if let Some(block) = else_block {
                     self.visit_block(block);
                 }
@@ -539,8 +1050,30 @@ impl HirScanner<'_> {
                 }
             }
             Stmt::Break { .. } | Stmt::Continue { .. } => {}
-            Stmt::ForEach { iterable, body, .. } => {
+            Stmt::ForEach {
+                item_symbol,
+                iterable,
+                body,
+                span,
+                ..
+            } => {
                 self.loop_depth += 1;
+                if block_assigns_symbol(body, *item_symbol) {
+                    let rules = self
+                        .pack
+                        .rules
+                        .iter()
+                        .filter(|rule| {
+                            rule.matcher.foreach_item_reassigned
+                                && (rule.languages.is_empty()
+                                    || rule.languages.contains(self.language))
+                                && self.rule_matches_span_path(rule, *span)
+                        })
+                        .collect::<Vec<_>>();
+                    for rule in rules {
+                        self.push_finding(rule, "enhanced-for item reassigned", *span);
+                    }
+                }
                 self.visit_expr(iterable, ValueUse::Used);
                 self.visit_block(body);
                 self.loop_depth -= 1;
@@ -590,7 +1123,27 @@ impl HirScanner<'_> {
             } => {
                 self.visit_block(try_block);
                 for catch in catches {
-                    if let Some(ty) = catch.ty.and_then(|id| self.types.names.get(&id)) {
+                    if catch.body.stmts.is_empty() {
+                        let rules = self
+                            .pack
+                            .rules
+                            .iter()
+                            .filter(|rule| {
+                                rule.matcher.empty_catch
+                                    && (rule.languages.is_empty()
+                                        || rule.languages.contains(self.language))
+                                    && self.rule_matches_span_path(rule, catch.span)
+                            })
+                            .collect::<Vec<_>>();
+                        for rule in rules {
+                            self.push_finding(rule, "empty catch clause", catch.span);
+                        }
+                    }
+                    if let Some(ty) = catch
+                        .ty
+                        .and_then(|id| self.types.names.get(&id))
+                        .cloned()
+                    {
                         let rules = self
                             .pack
                             .rules
@@ -601,11 +1154,86 @@ impl HirScanner<'_> {
                                     && (rule.languages.is_empty()
                                         || rule.languages.contains(self.language))
                                     && self.rule_matches_span_path(rule, catch.span)
-                                    && Regex::new(pattern).is_ok_and(|regex| regex.is_match(ty))
+                                    && Regex::new(pattern).is_ok_and(|regex| regex.is_match(&ty))
+                                    && (!rule.matcher.catch_must_rethrow
+                                        || catch.symbol.is_none_or(|symbol| {
+                                            !block_throws_symbol(&catch.body, symbol)
+                                        }))
+                                    && (!rule.matcher.catch_must_handle
+                                        || catch.body.stmts.is_empty())
                             })
                             .collect::<Vec<_>>();
                         for rule in rules {
                             self.push_finding(rule, "catch clause", catch.span);
+                        }
+                        if matches!(
+                            ty.rsplit('.').next(),
+                            Some("SecurityException" | "AccessControlException")
+                        ) {
+                            let mut unsafe_calls = Vec::new();
+                            visit_block_expressions(&catch.body, &mut |expression| {
+                                visit_expression_nodes(expression, &mut |node| {
+                                    let Expr::Call(call) = node else {
+                                        return;
+                                    };
+                                    let name = call_target_name(call)
+                                        .and_then(|name| name.rsplit('.').next())
+                                        .unwrap_or_default();
+                                    let receiver_path = call
+                                        .receiver
+                                        .as_deref()
+                                        .and_then(|receiver| {
+                                            expression_path(receiver, &self.symbol_names)
+                                        })
+                                        .unwrap_or_default();
+                                    let prints_caught_exception = catch.symbol.is_some_and(|symbol| {
+                                        call.args.iter().any(|argument| {
+                                            expr_references_symbol(argument, symbol)
+                                        })
+                                    });
+                                    let direct_stack_trace = name == "printStackTrace"
+                                        && catch.symbol.is_some_and(|symbol| {
+                                            call.receiver
+                                                .as_deref()
+                                                .and_then(referenced_symbol)
+                                                == Some(symbol)
+                                        });
+                                    let unsafe_console = matches!(
+                                        name,
+                                        "print" | "println" | "printf" | "format"
+                                    ) && prints_caught_exception
+                                        && (receiver_path.ends_with("System.err")
+                                            || receiver_path.ends_with("System.out")
+                                            || call.receiver.as_deref().is_some_and(|receiver| {
+                                                self.types.resolve(receiver).is_some_and(|ty| {
+                                                    ty.rsplit('.').next() == Some("Console")
+                                                })
+                                            }));
+                                    if direct_stack_trace || unsafe_console {
+                                        unsafe_calls.push(call.span);
+                                    }
+                                })
+                            });
+                            for span in unsafe_calls {
+                                let rules = self
+                                    .pack
+                                    .rules
+                                    .iter()
+                                    .filter(|rule| {
+                                        rule.matcher.unsafe_security_exception_logging
+                                            && (rule.languages.is_empty()
+                                                || rule.languages.contains(self.language))
+                                            && self.rule_matches_span_path(rule, span)
+                                    })
+                                    .collect::<Vec<_>>();
+                                for rule in rules {
+                                    self.push_finding(
+                                        rule,
+                                        "unsafe security exception logging",
+                                        span,
+                                    );
+                                }
+                            }
                         }
                     }
                     if let Some(symbol) = catch.symbol {
@@ -639,11 +1267,33 @@ impl HirScanner<'_> {
     fn visit_expr(&mut self, expr: &Expr, usage: ValueUse) {
         match expr {
             Expr::VarRef { .. } | Expr::Literal { .. } | Expr::Unknown { .. } => {}
-            Expr::Unary { expr, .. } | Expr::Cast { expr, .. } => self.visit_expr(expr, usage),
+            Expr::Unary { expr, .. } => self.visit_expr(expr, usage),
+            Expr::Cast { ty, expr, span, .. } => {
+                self.match_numeric_cast(*ty, expr, *span);
+                self.visit_expr(expr, usage);
+            }
             Expr::Binary {
                 op, lhs, rhs, span, ..
             } => {
                 self.match_binary(*op, lhs, rhs, *span);
+                if matches!(op, BinaryOp::Div | BinaryOp::Mod)
+                    && integer_literal_value(rhs) == Some(0)
+                {
+                    let rules = self
+                        .pack
+                        .rules
+                        .iter()
+                        .filter(|rule| {
+                            rule.matcher.division_by_literal_zero
+                                && (rule.languages.is_empty()
+                                    || rule.languages.contains(self.language))
+                                && self.rule_matches_span_path(rule, *span)
+                        })
+                        .collect::<Vec<_>>();
+                    for rule in rules {
+                        self.push_finding(rule, "division by zero", *span);
+                    }
+                }
                 if matches!(op, BinaryOp::And | BinaryOp::Or)
                     && (is_assignment_operand(lhs) || is_assignment_operand(rhs))
                 {
@@ -671,7 +1321,25 @@ impl HirScanner<'_> {
                 self.match_field_read(base, field, *span);
                 self.visit_expr(base, ValueUse::Used);
             }
-            Expr::IndexRead { base, index, .. } => {
+            Expr::IndexRead {
+                base, index, span, ..
+            } => {
+                if integer_literal_value(index).is_some_and(|value| value < 0) {
+                    let rules = self
+                        .pack
+                        .rules
+                        .iter()
+                        .filter(|rule| {
+                            rule.matcher.negative_literal_array_index
+                                && (rule.languages.is_empty()
+                                    || rule.languages.contains(self.language))
+                                && self.rule_matches_span_path(rule, *span)
+                        })
+                        .collect::<Vec<_>>();
+                    for rule in rules {
+                        self.push_finding(rule, "negative array index", *span);
+                    }
+                }
                 self.visit_expr(base, ValueUse::Used);
                 self.visit_expr(index, ValueUse::Used);
             }
@@ -697,7 +1365,9 @@ impl HirScanner<'_> {
                 let outer_loop_depth = self.loop_depth;
                 let outer_checked = std::mem::take(&mut self.checked_symbols);
                 let outer_properties = std::mem::take(&mut self.true_properties);
+                let outer_present_optionals = std::mem::take(&mut self.present_optionals);
                 let outer_catch = std::mem::replace(&mut self.catch_depth, 0);
+                let outer_receiver_calls = std::mem::take(&mut self.receiver_calls);
                 collect_true_properties(body, &mut self.true_properties);
                 self.finally_depth = 0;
                 self.loop_depth = 0;
@@ -706,7 +1376,9 @@ impl HirScanner<'_> {
                 self.loop_depth = outer_loop_depth;
                 self.checked_symbols = outer_checked;
                 self.true_properties = outer_properties;
+                self.present_optionals = outer_present_optionals;
                 self.catch_depth = outer_catch;
+                self.receiver_calls = outer_receiver_calls;
             }
             Expr::New {
                 type_name,
@@ -771,6 +1443,55 @@ impl HirScanner<'_> {
                 self.push_finding(rule, callee, call.span);
             }
         }
+        if let Some(receiver) = call.receiver.as_deref().and_then(referenced_symbol) {
+            self.receiver_calls.insert((
+                receiver,
+                callee.rsplit('.').next().unwrap_or(callee).to_string(),
+            ));
+        }
+    }
+
+    fn match_numeric_cast(
+        &mut self,
+        target: Option<uniflow_hir::TypeId>,
+        value: &Expr,
+        span: Span,
+    ) {
+        let Some(target) = target.and_then(|id| self.types.names.get(&id)) else {
+            return;
+        };
+        let Some(source) = self.types.resolve(value) else {
+            return;
+        };
+        let target = target.rsplit('.').next().unwrap_or(target);
+        let source = source.rsplit('.').next().unwrap_or(source);
+        let narrowing = numeric_width(source)
+            .zip(numeric_width(target))
+            .is_some_and(
+                |((source_kind, source_width), (target_kind, target_width))| {
+                    source_kind > target_kind
+                        || source_kind == target_kind && source_width > target_width
+                },
+            );
+        let precision_loss = matches!(
+            (source, target),
+            ("int" | "Integer", "float" | "Float")
+                | ("long" | "Long", "float" | "Float" | "double" | "Double")
+        );
+        let rules = self
+            .pack
+            .rules
+            .iter()
+            .filter(|rule| {
+                (rule.languages.is_empty() || rule.languages.contains(self.language))
+                    && self.rule_matches_span_path(rule, span)
+                    && (rule.matcher.numeric_narrowing_cast && narrowing
+                        || rule.matcher.integer_to_float_precision_loss && precision_loss)
+            })
+            .collect::<Vec<_>>();
+        for rule in rules {
+            self.push_finding(rule, "precision-losing numeric conversion", span);
+        }
     }
 
     fn call_matches_context(
@@ -782,6 +1503,17 @@ impl HirScanner<'_> {
     ) -> bool {
         if rule.matcher.inside_catch && self.catch_depth == 0 {
             return false;
+        }
+        if !rule.matcher.missing_prior_receiver_call.is_empty() {
+            let Some(receiver) = call.receiver.as_deref().and_then(referenced_symbol) else {
+                return false;
+            };
+            if self.receiver_calls.contains(&(
+                receiver,
+                rule.matcher.missing_prior_receiver_call.clone(),
+            )) {
+                return false;
+            }
         }
         if !rule.matcher.requires_hir() {
             return false;
@@ -812,27 +1544,94 @@ impl HirScanner<'_> {
         }) {
             return false;
         }
-        if !rule.matcher.string_constant_arg_patterns.iter().all(|(index, pattern)| {
-            call.args.get(*index).is_some_and(|arg| {
-                let value = match arg {
-                    Expr::Literal {
-                        kind: LiteralKind::String(value),
-                        ..
-                    } => Some(value.as_str()),
-                    Expr::VarRef { symbol, .. } => {
-                        self.string_constants.get(symbol).map(String::as_str)
-                    }
-                    _ => None,
-                };
-                value.is_some_and(|value| {
-                    Regex::new(pattern).is_ok_and(|regex| regex.is_match(value))
+        if !rule
+            .matcher
+            .string_constant_arg_patterns
+            .iter()
+            .all(|(index, pattern)| {
+                call.args.get(*index).is_some_and(|arg| {
+                    let value = match arg {
+                        Expr::Literal {
+                            kind: LiteralKind::String(value),
+                            ..
+                        } => Some(value.as_str()),
+                        Expr::VarRef { symbol, .. } => {
+                            self.string_constants.get(symbol).map(String::as_str)
+                        }
+                        _ => None,
+                    };
+                    value.is_some_and(|value| {
+                        Regex::new(pattern).is_ok_and(|regex| regex.is_match(value))
+                    })
                 })
             })
-        }) {
+        {
             return false;
         }
         if rule.matcher.inside_if_condition && self.if_condition_depth == 0 {
             return false;
+        }
+        if rule.matcher.optional_get_without_is_present
+            && call
+                .receiver
+                .as_deref()
+                .and_then(referenced_symbol)
+                .is_some_and(|symbol| self.present_optionals.contains(&symbol))
+        {
+            return false;
+        }
+        if rule.matcher.serialize_non_serializable_argument {
+            let receiver_matches = call
+                .receiver
+                .as_deref()
+                .and_then(|receiver| self.types.resolve(receiver))
+                .is_some_and(|ty| ty.rsplit('.').next() == Some("ObjectOutputStream"));
+            let argument_matches = call.args.first().and_then(|argument| self.types.resolve(argument)).is_some_and(|ty| {
+                let simple = ty.rsplit('.').next().unwrap_or(ty);
+                self.known_class_types.iter().any(|known| known.rsplit('.').next() == Some(simple))
+                    && !self.serializable_types.iter().any(|known| known.rsplit('.').next() == Some(simple))
+            });
+            if !receiver_matches || !argument_matches {
+                return false;
+            }
+        }
+        if let Some(index) = rule.matcher.non_serializable_arg {
+            let argument_matches = call
+                .args
+                .get(index)
+                .and_then(|argument| self.types.resolve(argument))
+                .is_some_and(|ty| {
+                    let simple = ty.rsplit('.').next().unwrap_or(ty);
+                    self.known_class_types
+                        .iter()
+                        .any(|known| known.rsplit('.').next() == Some(simple))
+                        && !self
+                            .serializable_types
+                            .iter()
+                            .any(|known| known.rsplit('.').next() == Some(simple))
+                });
+            if !argument_matches {
+                return false;
+            }
+        }
+        if rule.matcher.receiver_class_missing_equals {
+            let receiver_matches = call
+                .receiver
+                .as_deref()
+                .and_then(|receiver| self.types.resolve(receiver))
+                .is_some_and(|ty| {
+                    let simple = ty.rsplit('.').next().unwrap_or(ty);
+                    self.known_class_types
+                        .iter()
+                        .any(|known| known.rsplit('.').next() == Some(simple))
+                        && !self
+                            .classes_with_equals
+                            .iter()
+                            .any(|known| known.rsplit('.').next() == Some(simple))
+                });
+            if !receiver_matches {
+                return false;
+            }
         }
         if rule.matcher.call_not_last_statement && !self.has_following_statement {
             return false;
@@ -1249,6 +2048,7 @@ impl HirScanner<'_> {
                         args,
                         usage,
                         &self.automatic_symbols,
+                        &self.parameter_symbols,
                         &self.types,
                         &self.symbol_names,
                     )
@@ -1260,6 +2060,13 @@ impl HirScanner<'_> {
     }
 
     fn rule_matches_span_path(&self, rule: &BaselineRule, span: Span) -> bool {
+        if !rule.matcher.forbidden_project_pattern.is_empty()
+            && Regex::new(&rule.matcher.forbidden_project_pattern).is_ok_and(|regex| {
+                self.source_by_path.values().any(|source| regex.is_match(source))
+            })
+        {
+            return false;
+        }
         let Some(path) = self.file_paths.get(&span.file) else {
             return rule.matcher.required_file_pattern.is_empty();
         };
@@ -1456,6 +2263,7 @@ fn rule_matches_constructor(
     args: &[Expr],
     usage: ValueUse,
     automatic_symbols: &HashSet<SymbolId>,
+    parameter_symbols: &HashSet<SymbolId>,
     types: &HirTypes,
     names: &HashMap<SymbolId, String>,
 ) -> bool {
@@ -1475,9 +2283,13 @@ fn rule_matches_constructor(
         || !rule.matcher.receiver_chain_root_type_pattern.is_empty()
         || !rule.matcher.named_bool_args.is_empty()
         || !rule.matcher.named_string_arg_patterns.is_empty()
-        || !rule.matcher.parameter_args.is_empty()
         || !rule.matcher.string_constant_arg_patterns.is_empty()
     {
+        return false;
+    }
+    if rule.matcher.parameter_args.iter().any(|index| {
+        !matches!(args.get(*index), Some(Expr::VarRef { symbol, .. }) if parameter_symbols.contains(symbol))
+    }) {
         return false;
     }
     rule_matches_arguments(rule, args, usage, automatic_symbols, types, names)
@@ -1499,6 +2311,19 @@ fn rule_matches_arguments(
     }
     if rule.matcher.ignored_return && !matches!(usage, ValueUse::Discarded) {
         return false;
+    }
+    if !rule.matcher.assigned_target_type_pattern.is_empty() {
+        let ValueUse::AssignedTo(symbol) = usage else {
+            return false;
+        };
+        let Some(target_type) = types.symbols.get(&symbol) else {
+            return false;
+        };
+        if Regex::new(&rule.matcher.assigned_target_type_pattern)
+            .map_or(true, |regex| !regex.is_match(target_type))
+        {
+            return false;
+        }
     }
     if rule.matcher.self_assignment {
         let ValueUse::AssignedTo(lhs) = usage else {
@@ -1892,6 +2717,18 @@ fn collect_true_properties(block: &Block, properties: &mut HashSet<(SymbolId, St
     });
 }
 
+fn optional_present_symbol(expr: &Expr) -> Option<SymbolId> {
+    let Expr::Call(call) = expr else {
+        return None;
+    };
+    let CallTarget::Named(name) = &call.target else {
+        return None;
+    };
+    (name.rsplit('.').next() == Some("isPresent"))
+        .then(|| call.receiver.as_deref().and_then(referenced_symbol))
+        .flatten()
+}
+
 fn visit_expression_nodes(expr: &Expr, visit: &mut impl FnMut(&Expr)) {
     visit(expr);
     match expr {
@@ -2147,6 +2984,381 @@ fn block_references_symbol(block: &Block, wanted: SymbolId) -> bool {
     })
 }
 
+fn block_throws_symbol(block: &Block, wanted: SymbolId) -> bool {
+    block.stmts.iter().any(|statement| match statement {
+        Stmt::Throw {
+            value: Some(Expr::VarRef { symbol, .. }),
+            ..
+        } => *symbol == wanted,
+        Stmt::If {
+            then_block,
+            else_block,
+            ..
+        } => {
+            block_throws_symbol(then_block, wanted)
+                || else_block
+                    .as_ref()
+                    .is_some_and(|block| block_throws_symbol(block, wanted))
+        }
+        Stmt::While { body, .. } | Stmt::DoWhile { body, .. } | Stmt::ForEach { body, .. } => {
+            block_throws_symbol(body, wanted)
+        }
+        Stmt::For {
+            init, update, body, ..
+        } => {
+            block_throws_symbol(init, wanted)
+                || block_throws_symbol(update, wanted)
+                || block_throws_symbol(body, wanted)
+        }
+        Stmt::Try {
+            try_block,
+            catches,
+            finally_block,
+            ..
+        } => {
+            block_throws_symbol(try_block, wanted)
+                || catches
+                    .iter()
+                    .any(|catch| block_throws_symbol(&catch.body, wanted))
+                || finally_block
+                    .as_ref()
+                    .is_some_and(|block| block_throws_symbol(block, wanted))
+        }
+        Stmt::Switch {
+            clauses, default, ..
+        } => {
+            clauses
+                .iter()
+                .any(|clause| block_throws_symbol(&clause.body, wanted))
+                || default
+                    .as_ref()
+                    .is_some_and(|block| block_throws_symbol(block, wanted))
+        }
+        _ => false,
+    })
+}
+
+fn block_assigns_symbol(block: &Block, wanted: SymbolId) -> bool {
+    block.stmts.iter().any(|statement| match statement {
+        Stmt::Assign {
+            lhs: LValue::Var(symbol),
+            ..
+        } => *symbol == wanted,
+        Stmt::If {
+            then_block,
+            else_block,
+            ..
+        } => {
+            block_assigns_symbol(then_block, wanted)
+                || else_block
+                    .as_ref()
+                    .is_some_and(|block| block_assigns_symbol(block, wanted))
+        }
+        Stmt::While { body, .. }
+        | Stmt::DoWhile { body, .. }
+        | Stmt::ForEach { body, .. } => block_assigns_symbol(body, wanted),
+        Stmt::For {
+            init, update, body, ..
+        } => {
+            block_assigns_symbol(init, wanted)
+                || block_assigns_symbol(update, wanted)
+                || block_assigns_symbol(body, wanted)
+        }
+        Stmt::Try {
+            try_block,
+            catches,
+            finally_block,
+            ..
+        } => {
+            block_assigns_symbol(try_block, wanted)
+                || catches
+                    .iter()
+                    .any(|catch| block_assigns_symbol(&catch.body, wanted))
+                || finally_block
+                    .as_ref()
+                    .is_some_and(|block| block_assigns_symbol(block, wanted))
+        }
+        Stmt::Switch {
+            clauses, default, ..
+        } => {
+            clauses
+                .iter()
+                .any(|clause| block_assigns_symbol(&clause.body, wanted))
+                || default
+                    .as_ref()
+                    .is_some_and(|block| block_assigns_symbol(block, wanted))
+        }
+        _ => false,
+    })
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct ProcessBuilderIo {
+    merge_error: bool,
+    output_redirected: bool,
+    error_redirected: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct ProcessIoStatus {
+    merge_error: bool,
+    output_redirected: bool,
+    error_redirected: bool,
+    output_drained: bool,
+    error_drained: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ProcessStream {
+    Output,
+    Error,
+}
+
+enum ProcessRawEvent {
+    Assign {
+        symbol: SymbolId,
+        rhs: Expr,
+        offset: u32,
+    },
+    Call(CallExpr),
+}
+
+impl ProcessRawEvent {
+    fn sort_key(&self) -> (u32, u8) {
+        match self {
+            Self::Assign { offset, .. } => (*offset, 0),
+            Self::Call(call) => (call.span.start_byte, 1),
+        }
+    }
+}
+
+fn call_target_name(call: &CallExpr) -> Option<&str> {
+    match &call.target {
+        CallTarget::Named(name) => Some(name),
+        CallTarget::Resolved(_) | CallTarget::Dynamic(_) => None,
+    }
+}
+
+fn process_creation_status(
+    expression: &Expr,
+    builders: &HashMap<SymbolId, ProcessBuilderIo>,
+) -> Option<ProcessIoStatus> {
+    let expression = match expression {
+        Expr::Cast { expr, .. } => expr.as_ref(),
+        other => other,
+    };
+    let Expr::Call(call) = expression else {
+        return None;
+    };
+    let name = call_target_name(call)?.rsplit('.').next()?;
+    if name == "exec" {
+        return Some(ProcessIoStatus::default());
+    }
+    if name != "start" {
+        return None;
+    }
+    let builder = call
+        .receiver
+        .as_deref()
+        .map(|receiver| builder_io_from_expr(receiver, builders))
+        .unwrap_or_default();
+    Some(ProcessIoStatus {
+        merge_error: builder.merge_error,
+        output_redirected: builder.output_redirected,
+        error_redirected: builder.error_redirected,
+        ..Default::default()
+    })
+}
+
+fn builder_io_from_expr(
+    expression: &Expr,
+    builders: &HashMap<SymbolId, ProcessBuilderIo>,
+) -> ProcessBuilderIo {
+    match expression {
+        Expr::VarRef { symbol, .. } => builders.get(symbol).copied().unwrap_or_default(),
+        Expr::New { type_name, .. }
+            if type_name.rsplit('.').next() == Some("ProcessBuilder") =>
+        {
+            ProcessBuilderIo::default()
+        }
+        Expr::Cast { expr, .. } => builder_io_from_expr(expr, builders),
+        Expr::Call(call) => {
+            let mut state = call
+                .receiver
+                .as_deref()
+                .map(|receiver| builder_io_from_expr(receiver, builders))
+                .unwrap_or_default();
+            match call_target_name(call).and_then(|name| name.rsplit('.').next()) {
+                Some("redirectErrorStream")
+                    if call.args.first().is_some_and(|argument| {
+                        matches!(
+                            argument,
+                            Expr::Literal {
+                                kind: LiteralKind::Bool(true),
+                                ..
+                            }
+                        )
+                    }) =>
+                {
+                    state.merge_error = true;
+                }
+                Some("redirectOutput") => state.output_redirected = true,
+                Some("redirectError") => state.error_redirected = true,
+                Some("inheritIO") => {
+                    state.output_redirected = true;
+                    state.error_redirected = true;
+                }
+                _ => {}
+            }
+            state
+        }
+        _ => ProcessBuilderIo::default(),
+    }
+}
+
+fn process_stream_source(
+    expression: &Expr,
+    processes: &HashMap<SymbolId, ProcessIoStatus>,
+    streams: &HashMap<SymbolId, (SymbolId, ProcessStream)>,
+) -> Option<(SymbolId, ProcessStream)> {
+    match expression {
+        Expr::VarRef { symbol, .. } => streams.get(symbol).copied(),
+        Expr::Cast { expr, .. } => process_stream_source(expr, processes, streams),
+        Expr::New { args, .. } => args
+            .iter()
+            .find_map(|argument| process_stream_source(argument, processes, streams)),
+        Expr::Call(call) => {
+            let name = call_target_name(call)
+                .and_then(|name| name.rsplit('.').next())
+                .unwrap_or_default();
+            if matches!(name, "getInputStream" | "getErrorStream") {
+                let process = call.receiver.as_deref().and_then(referenced_symbol)?;
+                if processes.contains_key(&process) {
+                    return Some((
+                        process,
+                        if name == "getInputStream" {
+                            ProcessStream::Output
+                        } else {
+                            ProcessStream::Error
+                        },
+                    ));
+                }
+            }
+            call.receiver
+                .as_deref()
+                .and_then(|receiver| process_stream_source(receiver, processes, streams))
+                .or_else(|| {
+                    call.args.iter().find_map(|argument| {
+                        process_stream_source(argument, processes, streams)
+                    })
+                })
+        }
+        _ => None,
+    }
+}
+
+fn expression_has_access_after_write(
+    expression: &Expr,
+    written: &mut HashSet<SymbolId>,
+) -> bool {
+    match expression {
+        Expr::VarRef { symbol, .. } => written.contains(symbol),
+        Expr::Literal { .. } | Expr::Opaque { .. } | Expr::Unknown { .. } => false,
+        Expr::Unary { op, expr, .. } => {
+            let conflict = expression_has_access_after_write(expr, written);
+            if matches!(
+                op,
+                UnaryOp::PreIncrement
+                    | UnaryOp::PostIncrement
+                    | UnaryOp::PreDecrement
+                    | UnaryOp::PostDecrement
+            ) {
+                if let Some(symbol) = referenced_symbol(expr) {
+                    return conflict || !written.insert(symbol);
+                }
+            }
+            conflict
+        }
+        Expr::Binary { lhs, rhs, .. }
+        | Expr::IndexRead {
+            base: lhs,
+            index: rhs,
+            ..
+        }
+        | Expr::Range {
+            low: lhs,
+            high: rhs,
+            ..
+        } => {
+            expression_has_access_after_write(lhs, written)
+                || expression_has_access_after_write(rhs, written)
+        }
+        Expr::FieldRead { base, .. } | Expr::Cast { expr: base, .. } => {
+            expression_has_access_after_write(base, written)
+        }
+        Expr::Call(call) => {
+            call.receiver
+                .as_deref()
+                .is_some_and(|receiver| expression_has_access_after_write(receiver, written))
+                || call
+                    .args
+                    .iter()
+                    .any(|argument| expression_has_access_after_write(argument, written))
+                || matches!(&call.target, CallTarget::Dynamic(target) if expression_has_access_after_write(target, written))
+        }
+        Expr::New { args, .. }
+        | Expr::Interp { parts: args, .. }
+        | Expr::Collection { elements: args, .. } => args
+            .iter()
+            .any(|argument| expression_has_access_after_write(argument, written)),
+        Expr::Conditional {
+            cond,
+            then_expr,
+            else_expr,
+            ..
+        } => {
+            if expression_has_access_after_write(cond, written) {
+                return true;
+            }
+            let mut then_written = written.clone();
+            let mut else_written = written.clone();
+            let conflict = expression_has_access_after_write(then_expr, &mut then_written)
+                || expression_has_access_after_write(else_expr, &mut else_written);
+            written.extend(then_written);
+            written.extend(else_written);
+            conflict
+        }
+        Expr::Assign { lhs, rhs, .. } => {
+            if lvalue_has_access_after_write(lhs, written)
+                || expression_has_access_after_write(rhs, written)
+            {
+                return true;
+            }
+            lvalue_written_symbol(lhs).is_some_and(|symbol| !written.insert(symbol))
+        }
+        // A lambda body executes in a distinct expression context.
+        Expr::Lambda { .. } => false,
+    }
+}
+
+fn lvalue_has_access_after_write(lhs: &LValue, written: &mut HashSet<SymbolId>) -> bool {
+    match lhs {
+        LValue::Var(_) => false,
+        LValue::Field { base, .. } => expression_has_access_after_write(base, written),
+        LValue::Index { base, index } => {
+            expression_has_access_after_write(base, written)
+                || expression_has_access_after_write(index, written)
+        }
+    }
+}
+
+fn lvalue_written_symbol(lhs: &LValue) -> Option<SymbolId> {
+    match lhs {
+        LValue::Var(symbol) => Some(*symbol),
+        LValue::Field { .. } | LValue::Index { .. } => None,
+    }
+}
+
 fn is_null_literal(expr: &Expr) -> bool {
     matches!(
         expr,
@@ -2155,6 +3367,340 @@ fn is_null_literal(expr: &Expr) -> bool {
             ..
         }
     )
+}
+
+fn is_create_temp_file_call(expr: &Expr) -> bool {
+    matches!(
+        expr,
+        Expr::Call(CallExpr {
+            target: CallTarget::Named(name),
+            ..
+        }) if name == "File.createTempFile" || name == "java.io.File.createTempFile"
+    )
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NullValueState {
+    DefinitelyNull,
+    Nullable,
+    NonNull,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NullSafetyEvent {
+    DefiniteDereference,
+    NullableDereference,
+    RedundantCheck,
+}
+
+fn analyze_null_block(
+    block: &Block,
+    states: &mut HashMap<SymbolId, NullValueState>,
+    events: &mut Vec<(NullSafetyEvent, Span)>,
+) {
+    for statement in &block.stmts {
+        match statement {
+            Stmt::Let { symbol, init, .. } => {
+                if let Some(value) = init {
+                    analyze_null_expr(value, states, events);
+                    set_null_state(*symbol, value, states);
+                }
+            }
+            Stmt::Assign { lhs, rhs, .. } => {
+                analyze_null_expr(rhs, states, events);
+                if let LValue::Var(symbol) = lhs {
+                    set_null_state(*symbol, rhs, states);
+                } else {
+                    analyze_null_lvalue(lhs, states, events);
+                }
+            }
+            Stmt::Expr { expr, .. } => analyze_null_expr(expr, states, events),
+            Stmt::If {
+                cond,
+                then_block,
+                else_block,
+                ..
+            } => {
+                analyze_null_expr(cond, states, events);
+                let refinement = null_comparison(cond);
+                if let Some((symbol, _)) = refinement {
+                    if states.get(&symbol) == Some(&NullValueState::NonNull) {
+                        events.push((NullSafetyEvent::RedundantCheck, argument_span(cond)));
+                    }
+                }
+                let mut then_states = states.clone();
+                let mut else_states = states.clone();
+                if let Some((symbol, null_in_then)) = refinement {
+                    then_states.insert(
+                        symbol,
+                        if null_in_then {
+                            NullValueState::DefinitelyNull
+                        } else {
+                            NullValueState::NonNull
+                        },
+                    );
+                    else_states.insert(
+                        symbol,
+                        if null_in_then {
+                            NullValueState::NonNull
+                        } else {
+                            NullValueState::DefinitelyNull
+                        },
+                    );
+                }
+                analyze_null_block(then_block, &mut then_states, events);
+                if let Some(block) = else_block {
+                    analyze_null_block(block, &mut else_states, events);
+                }
+            }
+            Stmt::While { cond, body, .. } | Stmt::DoWhile { cond, body, .. } => {
+                analyze_null_expr(cond, states, events);
+                let mut nested = states.clone();
+                if let Some((symbol, null_in_body)) = null_comparison(cond) {
+                    nested.insert(
+                        symbol,
+                        if null_in_body {
+                            NullValueState::DefinitelyNull
+                        } else {
+                            NullValueState::NonNull
+                        },
+                    );
+                }
+                analyze_null_block(body, &mut nested, events);
+            }
+            Stmt::For {
+                init,
+                cond,
+                update,
+                body,
+                ..
+            } => {
+                let mut nested = states.clone();
+                analyze_null_block(init, &mut nested, events);
+                if let Some(cond) = cond {
+                    analyze_null_expr(cond, &mut nested, events);
+                }
+                analyze_null_block(body, &mut nested, events);
+                analyze_null_block(update, &mut nested, events);
+            }
+            Stmt::ForEach { iterable, body, .. } => {
+                analyze_null_expr(iterable, states, events);
+                analyze_null_block(body, &mut states.clone(), events);
+            }
+            Stmt::Return { value, .. } | Stmt::Throw { value, .. } => {
+                if let Some(value) = value {
+                    analyze_null_expr(value, states, events);
+                }
+            }
+            Stmt::Try {
+                try_block,
+                catches,
+                finally_block,
+                ..
+            } => {
+                analyze_null_block(try_block, &mut states.clone(), events);
+                for catch in catches {
+                    analyze_null_block(&catch.body, &mut states.clone(), events);
+                }
+                if let Some(block) = finally_block {
+                    analyze_null_block(block, states, events);
+                }
+            }
+            Stmt::Switch {
+                scrutinee,
+                clauses,
+                default,
+                ..
+            } => {
+                analyze_null_expr(scrutinee, states, events);
+                for clause in clauses {
+                    analyze_null_block(&clause.body, &mut states.clone(), events);
+                }
+                if let Some(block) = default {
+                    analyze_null_block(block, &mut states.clone(), events);
+                }
+            }
+            Stmt::Break { .. } | Stmt::Continue { .. } => {}
+        }
+    }
+}
+
+fn analyze_null_lvalue(
+    value: &LValue,
+    states: &mut HashMap<SymbolId, NullValueState>,
+    events: &mut Vec<(NullSafetyEvent, Span)>,
+) {
+    match value {
+        LValue::Var(_) => {}
+        LValue::Field { base, .. } => analyze_null_dereference(base, states, events),
+        LValue::Index { base, index } => {
+            analyze_null_dereference(base, states, events);
+            analyze_null_expr(index, states, events);
+        }
+    }
+}
+
+fn analyze_null_expr(
+    expression: &Expr,
+    states: &mut HashMap<SymbolId, NullValueState>,
+    events: &mut Vec<(NullSafetyEvent, Span)>,
+) {
+    match expression {
+        Expr::Call(call) => {
+            if let Some(receiver) = &call.receiver {
+                analyze_null_dereference(receiver, states, events);
+            }
+            for argument in &call.args {
+                analyze_null_expr(argument, states, events);
+            }
+            if let CallTarget::Dynamic(target) = &call.target {
+                analyze_null_expr(target, states, events);
+            }
+        }
+        Expr::FieldRead { base, .. } => analyze_null_dereference(base, states, events),
+        Expr::IndexRead { base, index, .. } => {
+            analyze_null_dereference(base, states, events);
+            analyze_null_expr(index, states, events);
+        }
+        Expr::Unary { expr, .. } | Expr::Cast { expr, .. } => {
+            analyze_null_expr(expr, states, events)
+        }
+        Expr::Binary { lhs, rhs, .. } => {
+            analyze_null_expr(lhs, states, events);
+            analyze_null_expr(rhs, states, events);
+        }
+        Expr::Conditional {
+            cond,
+            then_expr,
+            else_expr,
+            ..
+        } => {
+            analyze_null_expr(cond, states, events);
+            analyze_null_expr(then_expr, &mut states.clone(), events);
+            analyze_null_expr(else_expr, &mut states.clone(), events);
+        }
+        Expr::Assign { lhs, rhs, .. } => {
+            analyze_null_expr(rhs, states, events);
+            if let LValue::Var(symbol) = lhs {
+                set_null_state(*symbol, rhs, states);
+            } else {
+                analyze_null_lvalue(lhs, states, events);
+            }
+        }
+        Expr::Interp { parts, .. }
+        | Expr::Collection {
+            elements: parts, ..
+        } => {
+            for part in parts {
+                analyze_null_expr(part, states, events);
+            }
+        }
+        Expr::Range { low, high, .. } => {
+            analyze_null_expr(low, states, events);
+            analyze_null_expr(high, states, events);
+        }
+        Expr::Lambda { body, .. } => {
+            analyze_null_block(body, &mut states.clone(), events);
+        }
+        Expr::New { args, .. } => {
+            for argument in args {
+                analyze_null_expr(argument, states, events);
+            }
+        }
+        Expr::VarRef { .. } | Expr::Literal { .. } | Expr::Opaque { .. } | Expr::Unknown { .. } => {
+        }
+    }
+}
+
+fn analyze_null_dereference(
+    expression: &Expr,
+    states: &mut HashMap<SymbolId, NullValueState>,
+    events: &mut Vec<(NullSafetyEvent, Span)>,
+) {
+    if let Expr::VarRef { symbol, span, .. } = expression {
+        match states.get(symbol) {
+            Some(NullValueState::DefinitelyNull) => {
+                events.push((NullSafetyEvent::DefiniteDereference, *span))
+            }
+            Some(NullValueState::Nullable) => {
+                events.push((NullSafetyEvent::NullableDereference, *span))
+            }
+            _ => {}
+        }
+        states.insert(*symbol, NullValueState::NonNull);
+    } else {
+        analyze_null_expr(expression, states, events);
+    }
+}
+
+fn set_null_state(
+    symbol: SymbolId,
+    expression: &Expr,
+    states: &mut HashMap<SymbolId, NullValueState>,
+) {
+    let state = match expression {
+        Expr::Literal {
+            kind: LiteralKind::Null,
+            ..
+        } => Some(NullValueState::DefinitelyNull),
+        Expr::Literal { .. } | Expr::New { .. } | Expr::Lambda { .. } => {
+            Some(NullValueState::NonNull)
+        }
+        Expr::VarRef { symbol, .. } => states.get(symbol).copied(),
+        Expr::Call(call) if call_is_known_nullable(call) => Some(NullValueState::Nullable),
+        _ => None,
+    };
+    if let Some(state) = state {
+        states.insert(symbol, state);
+    } else {
+        states.remove(&symbol);
+    }
+}
+
+fn call_is_known_nullable(call: &CallExpr) -> bool {
+    let CallTarget::Named(name) = &call.target else {
+        return false;
+    };
+    matches!(
+        name.rsplit('.').next(),
+        Some(
+            "getenv"
+                | "getProperty"
+                | "getParameter"
+                | "getAttribute"
+                | "getHeader"
+                | "findViewById"
+                | "poll"
+                | "peek"
+        )
+    )
+}
+
+fn null_comparison(expression: &Expr) -> Option<(SymbolId, bool)> {
+    let Expr::Binary { op, lhs, rhs, .. } = expression else {
+        return None;
+    };
+    if !matches!(op, BinaryOp::Eq | BinaryOp::Ne) {
+        return None;
+    }
+    let symbol = match (&**lhs, &**rhs) {
+        (Expr::VarRef { symbol, .. }, value) if is_null_literal(value) => *symbol,
+        (value, Expr::VarRef { symbol, .. }) if is_null_literal(value) => *symbol,
+        _ => return None,
+    };
+    Some((symbol, matches!(op, BinaryOp::Eq)))
+}
+
+fn numeric_width(name: &str) -> Option<(u8, u8)> {
+    match name {
+        "byte" | "Byte" => Some((0, 8)),
+        "short" | "Short" | "char" | "Character" => Some((0, 16)),
+        "int" | "Integer" => Some((0, 32)),
+        "long" | "Long" => Some((0, 64)),
+        "float" | "Float" => Some((1, 32)),
+        "double" | "Double" => Some((1, 64)),
+        _ => None,
+    }
 }
 
 fn expression_path(expr: &Expr, symbol_names: &HashMap<SymbolId, String>) -> Option<String> {
@@ -2464,6 +4010,27 @@ struct ResourceEvents {
     acquisitions: Vec<(SymbolId, Span)>,
     closed: HashSet<SymbolId>,
     close_in_try: Vec<(SymbolId, Span)>,
+    lifecycle: Vec<ResourceLifecycleEvent>,
+    lock_lifecycle: Vec<LockLifecycleEvent>,
+    temp_files: Vec<TempFileEvent>,
+}
+
+enum ResourceLifecycleEvent {
+    Acquire(SymbolId),
+    Release(SymbolId),
+    Use(SymbolId, Span),
+}
+
+enum LockLifecycleEvent {
+    Acquire(SymbolId, Span),
+    Release(SymbolId, Span),
+    Sleep(Span),
+}
+
+enum TempFileEvent {
+    Create(SymbolId, Span),
+    Delete(SymbolId),
+    Mkdir(SymbolId, Span),
 }
 
 fn collect_resource_block(
@@ -2483,6 +4050,12 @@ fn collect_resource_block(
                 if let Some(value) = init {
                     collect_resource_expr(value, try_depth, finally_depth, out);
                 }
+                if init.as_ref().is_some_and(is_create_temp_file_call) {
+                    out.temp_files.push(TempFileEvent::Create(*symbol, *span));
+                }
+                if init.as_ref().is_some_and(|value| !is_null_literal(value)) {
+                    out.lifecycle.push(ResourceLifecycleEvent::Acquire(*symbol));
+                }
             }
             Stmt::Assign { lhs, rhs, span, .. } => {
                 if let LValue::Var(symbol) = lhs {
@@ -2491,6 +4064,14 @@ fn collect_resource_block(
                     }
                 }
                 collect_resource_expr(rhs, try_depth, finally_depth, out);
+                if let LValue::Var(symbol) = lhs {
+                    if is_create_temp_file_call(rhs) {
+                        out.temp_files.push(TempFileEvent::Create(*symbol, *span));
+                    }
+                    if !is_null_literal(rhs) {
+                        out.lifecycle.push(ResourceLifecycleEvent::Acquire(*symbol));
+                    }
+                }
             }
             Stmt::Expr { expr, .. } => collect_resource_expr(expr, try_depth, finally_depth, out),
             Stmt::If {
@@ -2573,14 +4154,45 @@ fn collect_resource_expr(
 ) {
     match expr {
         Expr::Call(call) => {
-            if call.args.is_empty()
-                && matches!(&call.target, CallTarget::Named(name) if name.rsplit('.').next() == Some("close"))
-            {
-                if let Some(symbol) = call.receiver.as_deref().and_then(referenced_symbol) {
+            let final_name = match &call.target {
+                CallTarget::Named(name) => name.rsplit('.').next(),
+                CallTarget::Dynamic(_) | CallTarget::Resolved(_) => None,
+            };
+            if matches!(
+                &call.target,
+                CallTarget::Named(name)
+                    if name == "Thread.sleep" || name == "java.lang.Thread.sleep"
+            ) {
+                out.lock_lifecycle
+                    .push(LockLifecycleEvent::Sleep(call.span));
+            }
+            if let Some(symbol) = call.receiver.as_deref().and_then(referenced_symbol) {
+                if call.args.is_empty() {
+                    match final_name {
+                        Some("lock" | "lockInterruptibly" | "tryLock") => out
+                            .lock_lifecycle
+                            .push(LockLifecycleEvent::Acquire(symbol, call.span)),
+                        Some("unlock") => out
+                            .lock_lifecycle
+                            .push(LockLifecycleEvent::Release(symbol, call.span)),
+                        Some("delete") => out.temp_files.push(TempFileEvent::Delete(symbol)),
+                        Some("mkdir" | "mkdirs") => {
+                            out.temp_files.push(TempFileEvent::Mkdir(symbol, call.span))
+                        }
+                        _ => {}
+                    }
+                }
+                if call.args.is_empty()
+                    && matches!(final_name, Some("close" | "release" | "recycle"))
+                {
                     out.closed.insert(symbol);
                     if try_depth != 0 && finally_depth == 0 {
                         out.close_in_try.push((symbol, call.span));
                     }
+                    out.lifecycle.push(ResourceLifecycleEvent::Release(symbol));
+                } else if !matches!(final_name, Some("isClosed" | "isReleased" | "isRecycled")) {
+                    out.lifecycle
+                        .push(ResourceLifecycleEvent::Use(symbol, call.span));
                 }
             }
             if let Some(receiver) = &call.receiver {

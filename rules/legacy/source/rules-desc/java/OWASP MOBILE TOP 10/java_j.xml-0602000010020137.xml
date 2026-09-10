@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010020137" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Android程序：缺少Google Play提供的安全更新</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="Android程序中缺少Google Play提供的安全更新。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Google Play服务提供了用于自动更新设备安全程序的方法，从而防御已知攻击手段。当应用程序不使用此项服务时，这可能使其易遭受漏洞的攻击。
+]]></Description>
+			<Advice><![CDATA[修补安全提供程序方法可以调用`installIfNeeded()`或者调用异步方法`installIfNeededAsync()`。  
+
+**例如**：下列代码中启用了Google Play提供的安全更新。  
+```java
+public class SyncAdapter extends AbstractThreadedSyncAdapter {  
+    ...  
+    @Override  
+    public void onPerformSync(Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult) {  
+        try {  
+            ProviderInstaller.installIfNeeded(getContext());  
+        } catch (Exception e) {  
+        ...  
+        }  
+        ...  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">299:Improper Check for Certificate Revocation</Reference>
+				<Reference type="CWE">298:Improper Validation of Certificate Expiration</Reference>
+				<Reference type="CWE">297:Improper Validation of Certificate with Host Mismatch</Reference>
+				<Reference type="CWE">296:Improper Following of a Certificate's Chain of Trust</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M3 Insufficient Transport Layer Protection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

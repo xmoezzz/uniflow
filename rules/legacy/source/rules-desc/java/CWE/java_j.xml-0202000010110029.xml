@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110029" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">隐藏的表单字段</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的字段是隐藏的。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[隐藏字段是不安全的参数，攻击者能够在浏览源码或拦截post请求时获取隐藏字段的值并改变该值。故不要在隐藏域中放置敏感信息。  
+  
+**例如**：下面代码片段使用了GWT的Hidden。  
+```java
+...  
+Hidden hidden = new Hidden("id",id);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[将隐藏字段视为不可信赖的输入，不要在隐藏字段中存储敏感信息。
+]]></Advice>
+			<References>
+				<Reference type="CWE">642:External Control of Critical State Data</Reference>
+				<Reference type="CWE">472:External Control of Assumed-Immutable Web Parameter</Reference>
+				<Reference type="CERT">IDS14-J:Do not trust the contents of hidden form fields</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 642</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010160028" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.4.5 不要使用浮点数进行精细计算</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+需要精细计算时，不能使用浮点数进行计算。   
+2) 原理   
+Java 语言提供两种基本浮点数据类型：float 型和 double 型。float 型和 double 型各自有固定的位数来表示尾数。所以，用浮点数来精确地表达无理数是不可能的（如 π）。此外，这些类型使用二进制来表示尾数，这意味着这些类型也不能精确地表达许多有限小数，例如 0.1，因为这类数据的二进制表达是无限循环的。   
+当需要进行精确计算时，例如货币兑换，不能使用浮点类型，而应该使用其他能完整表达数据的方式。例如，可以使用能够精确表达小数的 BigDecimal 类型。要注意的是，在大多数的平台上，相对于基础数据类型，用 BigDecimal 来进行计算，效率比较低。程序性能上的损失是否重要需要根据实际应用来衡量。   
+3) 示例   
+    如下不符合规则的代码示例进行一些简单货币兑换计算。   
+    ```java
+    double dollar = 1.00;    
+    double dime = 0.10;    
+    int number =7;   
+    System.out.printIn("A dollar less " + number + " dimes is $" +(dollar - number * dime));
+    ```   
+    因为 0.10 不能用 Java 的浮点类型（或任何使用二进制尾数的浮点类型）来精确表达，所以在大多数的平台上会有以下输出：   
+    `A dollar less 7 dimes is $0.29999999999999993 `  
+    对应的符合规则的解决方案是：用一个整数类型（例如 long 型）来进行计算，而且数值的单位是美分而不是上例中的美元。   
+    ```java
+    long dollar = 100;   
+    long dime = 10;   
+    int number = 7;   
+    System.out.printIn("A dollar less " + number + " dimes is " +(dollar - number *  dime) + " cents");
+    ```   
+    这段代码正确地输出以下内容：   
+    ```
+    A dollar less 7 dimes is 30 cents
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">NUM04-J:Do not use floating-point numbers if precise computation is required</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.6 浮点数的相等或不等比较</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.4 数值类型与运算</BigClassChin>  
+       
+    </BugInfo>  
+    

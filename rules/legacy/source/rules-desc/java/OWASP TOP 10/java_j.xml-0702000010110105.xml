@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110105" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">缺少Content Provider权限</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用的方法缺少Content Provider权限。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用的方法缺少Content Provider权限。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Android安全架构规定：默认情况下，任何应用都没有权限执行对其他应用、操作系统或用户有不利影响的任何操作。这包括读写用户的私有数据（如联系人或电子邮件等）、读写其他应用的文件、执行网络访问、使设备保持唤醒状态等等。如果要使用这些受保护的设备功能，需要在应用程序安装时申请相应的权限。如果程序未请求所需的权限，需要这些权限的操作在运行时将会失败。在某些情况下，程序会抛出java.lang.SecurityException异常。在其他情况下，操作会在不提示且未抛出任何异常的情况下失败。  
+  
+**例如**：下面代码片段用于查询电话薄中联系人信息。  
+```java
+Uri uri = Uri.parse("content://com.android.contacts/groups");  
+Cursor cursor = getContentResolver().query(uri,null,null,null, null);
+```  
+读取系统联系人需要声明权限，如果在`AndroidManifest.xml`中未请求该权限，程序就无法访问系统联系人信息。
+]]></Description>
+			<Advice><![CDATA[在`AndroidManifest.`xml文件的<uses-permission>标签中配置应用程序所需的权限。  
+  
+**例如**：下面`AndroidManifest.xml`中配置了请求读取系统联系人信息所需的权限。 
+```java
+<uses-permission android:name="android.permission.READ_CONTACTS" />
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发缺少Content Provider权限漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在缺少Content Provider权限漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在缺少Content Provider权限漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发缺少Content Provider权限漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

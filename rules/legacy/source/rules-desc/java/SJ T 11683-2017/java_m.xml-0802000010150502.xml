@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010150502" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">异常规范</Category>  
+        <Category type="DetailClassChin">【推荐】finally代码块中不要存在return语句</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[finally语句块中的返回指令会导致try块中抛出的异常丢失。  
+  
+**例如**：下面代码中在finally代码块中存在return语句。  
+```java
+public static String doOperation throws IOException{  
+    String string = null;  
+    FileInputStream fis = null;  
+    try{  
+        fis = new FileInputStream("Reader.txt");  
+        //...  
+        return string;  
+    }finally {  
+        if(fis !=null) {  
+            try {  
+                fis.close();  
+            } catch (IOException e) {  
+            //...  
+            }  
+            //...  
+        }  
+        //...  
+  
+    return string;  
+    }  
+}
+```  
+当`Reader.txt`不存在，finally块中存在return语句且程序并未对异常进行捕获时，try代码块中产生的FileNotFoundException将不会显示。
+]]></Description>  
+      <Advice><![CDATA[检查程序逻辑，删除finally语句块中的返回语句。  
+  
+**例如**：下面代码中在finally代码块中没有return语句。  
+```java
+public static String doOperation throws IOException{  
+    String string = null;  
+    FileInputStream fis = null;  
+    try{  
+        fis = new FileInputStream("Reader.txt");  
+        //...  
+        return string;  
+    }finally {  
+        if(fis != null) {  
+            try {  
+                fis.close();  
+            } catch (IOException e) {  
+                //...  
+            }  
+                //...  
+        }  
+        //...  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">584:Return Inside Finally Block</Reference>  
+        <Reference type="CERT">ERR04-J:Do not exit abruptly from a finally block</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.2 finally语句块中包含return语句</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Errors</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>correctness,exception</Tag> 
+    </BugInfo>  
+    

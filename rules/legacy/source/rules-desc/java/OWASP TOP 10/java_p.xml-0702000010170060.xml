@@ -1,0 +1,97 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010170060" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">7.1 资源管理</Category>  
+        <Category type="DetailClassChin">A.4.1.2 需确保流得到释放</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：程序创建或分配流资源后，不进行合理释放，将会降低系统性能。攻击者可能会通过耗尽资源池的方式发起拒绝服务攻击。  
+对于需确保流得到释放的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：   
+```java
+public void processFile(String filePath) {
+    try {
+        FileInputStream fis = new FileInputStream(filePath);
+        InputStreamReader isr = new InputStreamReader(fis);
+        BufferedReader br = new BufferedReader(isr);
+        String line = "";
+        while ((line = br.readLine()) != null) {
+            processLine(line);
+        }
+    } catch (FileNotFoundException e) {
+        log(e);
+    } catch (IOException e) {
+        log(e);
+    }
+}
+```  
+在上面Java方法中，创建I/O流对象后未进行合理释放，程序依靠Java虚拟机的垃圾回收机制释放I/O流资源，事实上，程序不能确定何时调用虚拟机的`finalize()`方法。在繁忙的程序环境下，可能导致Java虚拟机不能有效的使用I/O对象。程序不应依赖于`finalize()`回收流资源，应在finally代码块中手动释放流资源。  
+**示例2**：   
+```java
+public void processFile(String filePath) {
+    FileInputStream fis = null;
+    InputStreamReader isr = null;
+    BufferedReader br = null;
+    try {
+        fis = new FileInputStream(filePath);
+        isr = new InputStreamReader(fis);
+        br = new BufferedReader(isr);
+        String line = "";
+        while ((line = br.readLine()) != null) {
+            // processLine(line);
+        }
+    } catch (FileNotFoundException e) {
+        // log(e);
+    } catch (IOException e) {
+        // log(e);
+    } finally {
+        if (br != null) {
+            try {
+                br.close();
+            } catch (IOException e) {
+                // log(e);
+            }
+        }
+        if (isr != null) {
+            try {
+                isr.close();
+            } catch (IOException e) {
+                // log(e);
+            }
+        }
+        if (fis != null) {
+            try {
+                fis.close();
+            } catch (IOException e) {
+                // log(e);
+            }
+        }
+    }
+}
+```  
+以上代码片段中，在finally代码块中对流资源进行了合理的释放。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">775:Missing Release of File Descriptor or Handle after Effective Lifetime</Reference>  
+        <Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>  
+        <Reference type="CWE">459:Incomplete Cleanup</Reference>  
+        <Reference type="CWE">404:Improper Resource Shutdown or Release</Reference>  
+        <Reference type="CERT">FIO04-J:Close resources when they are no longer needed</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 404</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.4.1 资源管理</BigClassChin>  
+       
+    </BugInfo>  
+    

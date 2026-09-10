@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150426" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要构建错误的getter或setter方法</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在Java程序中，经常使用getter和setter方法来提供对类中私有字段的获取和修改。而当字段太多时，程序员可能会通过复制粘贴构建get和set方法，有可能会生成错误的get或set方法，当程序运行时会产生不可预料的效果。  
+  
+**例如**：下列代码中`setUsername`方法没有修改相应的字段，而`getUsername`方法没有获取相应的字段。  
+```java
+class User {  
+    private String username;  
+    private String password;  
+    ...  
+      
+    public void setUsername(String username) {  
+        this.password = username;  
+    }  
+  
+    public String getUsername() {  
+        return this.password;  
+    }  
+      
+    ...  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[使用集成开发环境一键生成get和set方法是一个很好的选择，或者在写完get或set方法对其进行检查。  
+  
+**例如**：下列代码中正确的提供了get和set方法。  
+```java
+class User {  
+    private String username;  
+    private String password;  
+    ...  
+      
+    public void setUsername(String username) {  
+        this.username = username;  
+    }  
+  
+    public String getUsername() {  
+        return this.username;  
+    }  
+      
+    ...  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness</Tag> 
+    </BugInfo>  
+    

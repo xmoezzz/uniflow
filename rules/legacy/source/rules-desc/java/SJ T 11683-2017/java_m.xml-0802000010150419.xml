@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010150419" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要创建Boolean对象</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[程序中采用`new Boolean(boolean expression)`或`new Boolean(String expression)`创建对象，该方法产生的额外对象将占用更多空间、降低性能。  
+  
+**例如**：下面代码示例中，使用了`new Boolean(boolean expression)`来创建对象。
+```java
+Boolean isEqual = new Boolean(false);
+```  
+]]></Description>  
+      <Advice><![CDATA[使用`Boolean.valueOf(boolean expression)`或者`Boolean.valueOf(String expression)`或者`Boolean.TRUE`、`Boolean.FALSE`代替`new Boolean`。  
+  
+**例1**：下面代码示例中，使用了`Boolean.valueOf(boolean expression)`来创建对象, 
+```java
+Boolean isEqual = Boolean.valueOf(false);//与Boolean isEqual = false;相同  
+``` 
+**例2**：下面代码示例中，使用了`Boolean.FALSE`直接赋值。
+```java
+Boolean isEqual = Boolean.FALSE;
+```  
+]]></Advice>  
+      <References> 
+        <Reference type="SJ/T 11683-2017">6.6.20 不必要的对象创建</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>performance,memory,bad_practice</Tag> 
+    </BugInfo>  
+    

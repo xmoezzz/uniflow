@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150413" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【强制】不要使用空的无限循环</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[空的无限循环会消耗大量的CPU资源而不做任何事情。  
+  
+**例1**：下面代码片段中，执行了一个循环，循环条件值为true，循环中不执行任何指令。  
+```java
+public int nop(){  
+    while(true){}  
+}
+```  
+**例2**：下面代码片段中，执行了一个循环，循环条件变量值为true，循环中不执行任何指令。  
+```java
+boolean condition = true;  
+public int nop(){  
+    while(condition){}  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[检查程序逻辑，去除没有代码的无限循环，或者在循环体中加入有语义的操作。  
+  
+**例如**：下面代码片段中，在while循环中调用`Thread.sleep()`方法来避免毫无意义的无限循环。  
+```java
+public final int DURATION = 10000;  
+public void nop() throws InterruptedException{  
+    while(true){  
+        Thread.sleep(DURATION);  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">835:Loop with Unreachable Exit Condition ('Infinite Loop')</Reference>  
+        <Reference type="CERT">MSC01-J:Do not use an empty infinite loop</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>CERT Java</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

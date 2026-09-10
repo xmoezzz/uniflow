@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140608" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 05. 面向对象 (OBJ)</Category>  
+        <Category type="DetailClassChin">OBJ08-J：不要在内部类中暴露外部类的私有字段</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[内部类指那些声明在另一个类或者接口代码块中的任何类。使用内部类容易出错，除非语义很容易理解。一个通用的形式是，仅有内部类可以访问外部类的内容。不仅内部类可以访问外部类的私有字段，而且，当前内部类被声明为public或者它包含public方法或者构造方法时，私有字段也可以通过这些方法而被任何在同一个包里的其他类访问。  
+根据Java语言规范的8.3节“数据成员声明”的描述：  
+>注意，一个基类的私有字段可以被它的一个子类访问（例如：如果这两个类是同一个类的成员）。然而，私有字段是不能被子类继承的。  
+
+风险评估：当出现一个内部类的时候，Java语言系统弱化了对外部类的私有成员的访问性，从而会导致信息泄露。  
+**不规范的代码样例1**：  
+内部类代码通过`getPoint()`方法将外部类的私有的x，y变量，暴露给了与Coordinates同一包下面的其他的类AnotherClass。
+```java  
+class Coordinates {
+    private int x;
+    private int y;
+
+    public class Point {
+        public void getPoint() {
+            System.out.println("(" + x + "," + y + ")");
+        }
+    }
+}
+
+class AnotherClass {
+    public static void main(String[] args) {
+        Coordinates c = new Coordinates();
+        Coordinates.Point p = c.new Point();
+        p.getPoint();
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[内部类声明为非public，并且内部类中的public方法、public构造方法不能存在访问外部类private字段的操作。  
+**规范的代码样例1**：  
+```java
+class Coordinates {
+    private int x;
+    private int y;
+
+    private class Point {
+        private void getPoint() {
+            System.out.println("(" + x + "," + y + ")");
+        }
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">492:Use of Inner Class Containing Sensitive Data</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

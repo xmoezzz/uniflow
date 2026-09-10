@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160005" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">5.2 数据净化</Category>  
+        <Category type="DetailClassChin">C.1.5 限制传递给ZipInputStream 的文件大小</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+应检查`java.util.ZipInputStream`的输入，以防止消耗过多的系统资源。   
+2) 原理   
+当资源使用大大多于输入数据所使用的资源的时候，就会出现拒绝服务问题。当需要解压一个小文件，比如zip、gif 或者gzip编码的HTTP内容，会消耗过多的资源时，并且在压缩率极高的情况下，zip算法的实现本身就会导致zip炸弹（zip bomb）的出现。   
+zip 算法能产生很高的压缩比率。在zip文件中的任何数据，如果其解压后的文件大小超出了一个特定的限制，那么就不应该将它们解压。而这个限制实际上取决于平台的能力。   
+3) 示例   
+下面是一个不符合规则的代码示例，它不能检查解压一个文件时所消耗的资源。它会允许操作完成，或者直至本地资源耗尽为止。   
+    ```java
+    static final int BUFFER = 512;
+    // ...
+    // external data source: filename
+    BufferedOutputStream dest = null;
+    FileInputStream fis = new FileInputStream(filename);
+    ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+    ZipEntry entry;
+    while ((entry = zis.getNextEntry()) != null) {
+        System.out.println("Extracting: " + entry);
+        int count;
+        byte data[] = new byte[BUFFER];
+        // write the files to the disk
+        FileOutputStream fos = new FileOutputStream(entry.getName());
+        dest = new BufferedOutputStream(fos, BUFFER);
+        while ((count = zis.read(data, 0, BUFFER)) != -1) {
+            dest.write(data, 0, count);
+        }
+        dest.flush();
+        dest.close();
+    }
+    zis.close();
+    ```   
+    在这个符合规则的方案中，while 循环中的代码会通过使用`ZipEntry.getSize()`方法在解压之前，得到zip文档中需解压文件的大小。如果该解压文件过大，比如说超过100MB，那么抛出异常。   
+    ```java
+    static final int TOOBIG = 0x6400000; // 100MB
+    // ...
+    // write the files to the disk, but only if file is not insanely big
+    if (entry.getSize() > TOOBIG) {
+        throw new IllegalStateException("File to be unzipped is huge.");
+    }
+    if (entry.getSize() == -1) {
+        throw new IllegalStateException("File to be unzipped might be huge.");
+    }
+    
+    dest = new BufferedOutputStream(fos, BUFFER);
+    while ((count = zis.read(data, 0, BUFFER)) != -1) {
+        dest.write(data, 0, count);
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">73:External Control of File Name or Path</Reference>  
+        <Reference type="CWE">23:Relative Path Traversal</Reference>  
+        <Reference type="CWE">22:Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')</Reference>  
+        <Reference type="CERT">IDS04-J:Safely extract files from ZipInputStream</Reference>  
+        <Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>  
+        <Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>  
+        <Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M8 Security Decisions Via Untrusted Inputs</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 73</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.1 输入验证与数据净化</BigClassChin>  
+       
+    </BugInfo>  
+    

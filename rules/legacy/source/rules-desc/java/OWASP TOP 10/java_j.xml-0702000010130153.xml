@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010130153" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">空的加密密匙</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行定义了空的加密密钥。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行定义了空的加密密钥。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[当程序中使用空的加密密匙时，所有项目开发人员都可以查看该密匙，甚至如果攻击者可以获取到程序class文件，可以通过反编译得到密匙，空的加密密匙会大大降低系统安全性。  
+  
+**例如**：下列代码使用空的加密密钥执行AES加密。   
+```java
+...  
+String encryptionKey = "";  
+byte[] keyBytes = encryptionKey.getBytes();  
+SecretKeySpec key = new SecretKeySpec(keyBytes, "AES");  
+Cipher encryptCipher = Cipher.getInstance("AES");  
+encryptCipher.init(Cipher.ENCRYPT_MODE, key);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[程序应采用不小于8个字节的随机生成的字符串作为密匙。  
+  
+**例如**：以下代码使用KeyGenerator来生成密匙。  
+```java
+...  
+KeyGenerator keyGen = KeyGenerator.getInstance("AES");    
+keyGen.init(128, new SecureRandom(password.getBytes()));    
+SecretKey secretKey = kgen.generateKey();    
+byte[] keyBytes = secretKey.getEncoded();    
+SecretKeySpec key = new SecretKeySpec(keyBytes, "AES");  
+Cipher encryptCipher = Cipher.getInstance("AES");  
+encryptCipher.init(Cipher.ENCRYPT_MODE, key);  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">321:Use of Hard-coded Cryptographic Key</Reference>
+				<Reference type="CERT">MSC03-J:Never hard code sensitive information</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

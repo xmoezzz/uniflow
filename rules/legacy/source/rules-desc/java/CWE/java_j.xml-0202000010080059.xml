@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010080059" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">不受控制的加密算法</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的加密算法可能被用户控制。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的加密算法可能被用户控制。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果允许用户输入来控制算法，且不进行任何验证，则攻击者可以将恶意数据传递到应用程序，这些数据随后用于指定加密散列算法，从而破坏应用程序数据的完整性和安全性。  
+  
+**例如**：下面代码片段中，用户控制了加密算法。  
+```java
+...  
+String algorithm = request.getParamter("algorithm");  
+MessageDigest messageDigest = MessageDigest.getInstance(algorithm);  
+messageDigest.update(hashInput.getBytes("UTF-8"));  
+...
+```
+]]></Description>
+			<Advice><![CDATA[对于加密算法来说，如果必须用户控制，则可以定义一组有效的加密算法，并从这组安全的加密算法中进行选择。
+]]></Advice>
+			<References>
+				<Reference type="CWE">328:Reversible One-Way Hash</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发不受控制的加密算法漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在不受控制的加密算法漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在不受控制的加密算法漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发不受控制的加密算法漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

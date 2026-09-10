@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010060115" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">危险函数</Category>
+				<Category type="DetailClassChin">在序列化类中调用危险方法</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行调用了危险方法且在序列化类中。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行调用了危险方法且在序列化类中。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在序列化类中，调用一些危险方法,例如反射相关的方法，同时如果应用对用户输入，即不可信数据，没有进行校验就进行反序列化处理，那么攻击者可以通过构造恶意输入，让反序列化产生非预期的对象，非预期的对象在产生过程中就有可能带来任意代码执行。  
+    例如引起2015年java反序列漏洞的组件Apache Commons Collections中的`org.apache.commons.collections.functors.InvokerTransformer`类。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，是否对反序列化的数据进行了合理安全校验或者如果此类没有序列化的操作则应该移除序列化接口，以避免产生Java反序列化漏洞。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A8 Insecure Deserialization</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

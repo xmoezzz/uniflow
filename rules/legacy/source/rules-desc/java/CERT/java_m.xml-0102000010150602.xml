@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010150602" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">危险函数</Category>  
+        <Category type="DetailClassChin">【强制】不要调用不安全的ThreadGroup方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[使用ThreadGroup API有可能导致竞争条件、内存泄漏以及不一致的对象状态。  
+ThreadGroup类中很多的方法已经不提倡使用了，其中包括：`allowThreadSuspension()、resume()、stop()、suspend()`。  
+危险但不反对使用的方法包括：`ThreadGroup.activeCount()、ThreadGroup.enumerate()`。
+]]></Description>  
+      <Advice><![CDATA[Executor框架提供了更好的API来管理逻辑上的线程组，并提供了安全终止线程和处理线程异常的功能。
+]]></Advice>  
+      <References> 
+        <Reference type="CERT">THI00-J:Do not invoke Thread.run()</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>CERT Java</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>concurrency,bad_practice</Tag> 
+    </BugInfo>  
+    

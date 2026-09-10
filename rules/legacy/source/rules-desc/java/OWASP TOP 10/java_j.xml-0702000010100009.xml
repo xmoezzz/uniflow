@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100009" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：特定HTTP方法</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行设置HTTP方法为特定。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Web应用程序指定 HTTP方法的安全限制可能得不到预期的效果，攻击者可以通过篡改HTTP命令来绕过应用程序的安全限制。  
+  
+**例如**：下面配置文件片段中， 以下安全限制可应用于 HTTP GET方法，但不能应用于其他 HTTP 命令： 
+```xml
+...  
+<security-constraint>  
+    <web-resource-collection>  
+        <web-resource-name>Protected Area</web-resource-name>  
+        <url-pattern>/myWeb/create</url-pattern>  
+        <http-method>GET</http-method>  
+    </web-resource-collection>  
+    <auth-constraint>  
+        <role-name>Create</role-name>  
+    </auth-constraint>  
+</security-constraint>  
+...
+``` 
+]]></Description>
+			<Advice><![CDATA[Web应用程序应该在web.xml中不要指定 HTTP方法的安全限制，防止攻击者篡改HTTP命令来绕过应用程序的安全限制。  
+  
+**例如**：下面配置文件片段中，以下安全限制将应用于所有HTTP方法。  
+```xml
+...  
+<security-constraint>  
+    <web-resource-collection>  
+        <web-resource-name>Protected Area</web-resource-name>  
+        <url-pattern>/myWeb/create</url-pattern>  
+    </web-resource-collection>  
+    <auth-constraint>  
+        <role-name>Create</role-name>  
+    </auth-constraint>  
+</security-constraint>  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">302:Authentication Bypass by Assumed-Immutable Data</Reference>
+				<Reference type="CWE">288:Authentication Bypass Using an Alternate Path or Channel</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

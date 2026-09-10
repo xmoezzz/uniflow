@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150423" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要试图重写静态方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[静态方法无法覆盖，在子类中覆盖父类的静态方法，这样容易产生混淆，从而导致错误。  
+  
+**例如**：下面代码示例中，子类不能覆盖父类的方法，`choose("user")`和`choose("admin")`都调用了父类中的方法。  
+```java
+class GrantAccess {  
+    public static void displayAccountStatus() {  
+        System.out.println("Account details for admin: XX");  
+    }  
+}  
+class GrantUserAccess extends GrantAccess {  
+    public static void displayAccountStatus() {  
+        System.out.println("Account details for user: XX");  
+    }  
+}  
+public class StatMethod {  
+    public static void choose(String username) {  
+        GrantAccess admin = new GrantAccess();  
+        GrantAccess user = new GrantUserAccess();  
+        if (username.equals("admin")) {  
+            admin.displayAccountStatus();  
+        } else {  
+            user.displayAccountStatus();  
+        }  
+    }  
+    public static void main(String[] args) {  
+        choose("user"); // Account details for admin: XX  
+        choose("admin"); // Account details for admin: XX  
+    }  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[应该尽量避免静态方法的命名与超类中的命名相同，以避免产生混淆。在开发中，可以将静态方法放入单独的final类中, 因为final类不会创建子类，还可以创建私有的构造函数，以防止针对类的实例而非类来调用静态方法。  
+  
+**例如**：下面代码示例中，去掉了static关键字，将`displayAccountStatus()`方法声明为实例方法，`choose("user")`和`choose("admin")`调用实现了预期的程序逻辑。  
+```java
+class GrantAccess {  
+    public void displayAccountStatus() {  
+        System.out.println("Account details for admin: XX");  
+    }  
+}  
+class GrantUserAccess extends GrantAccess {  
+    @Override  
+    public void displayAccountStatus() {  
+        System.out.println("Account details for user: XX");  
+    }  
+}  
+public class StatMethod {  
+    public static void choose(String username) {  
+        GrantAccess admin = new GrantAccess();  
+        GrantAccess user = new GrantUserAccess();  
+        if (username.equals("admin")) {  
+            admin.displayAccountStatus();  
+        } else {  
+            user.displayAccountStatus();  
+        }  
+    }  
+    public static void main(String[] args) {  
+        choose("user"); // Account details for user: XX  
+        choose("admin"); // Account details for admin: XX  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">486:Comparison of Classes by Name</Reference>  
+        <Reference type="CERT">MET07-J:Never declare a class method that hides a method declared in a superclass or superinterface</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>correctness,bad_practice</Tag> 
+    </BugInfo>  
+    

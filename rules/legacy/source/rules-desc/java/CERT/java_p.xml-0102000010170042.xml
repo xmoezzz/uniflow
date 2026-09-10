@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170042" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.2 并发程序安全</Category>  
+        <Category type="DetailClassChin">A.3.2.10 不要调用ThreadGroup方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：Java中每一个线程在创建时都赋予了一个线程组。这些线程组是由`java.lang.ThreadGroup`类来实现的。如果没有明确的指定线程组的名字，JVM会分配一个默认的主线程组。ThreadGroup类提供了针对属于同一个线程组的线程进行同时操作的便利方法。但是ThreadGroup类中很多方法是不提倡使用的，如：`allowThreadSuspension()、resume()、stop()、suspend()`，而且有些方法不是线程安全的，如：`activeCount()、enumerate()`。使用ThreadGroup API中的某些方法（如：`allowThreadSuspension()、resume()、stop()、suspend()`、`activeCount()、enumerate()`）可能会导致竞态、内存泄漏，以及不一致的对象状态。  
+ 对于不要调用ThreadGroup方法的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+public int docreate(ThreadGroup tg) {
+    int alive = tg.activeCount();
+    return alive;
+}
+```  
+代码调用了`ThreadGroup.activeCount()`方法，该方法在API中描述为返回线程组中活跃线程数的一个估计值，该方法可能不能正确的反应线程组中那些正在运行的线程的数量。  
+**示例2**：  
+```java
+public final class NetworkHandler {  
+    private final ExecutorService executor;
+
+    NetworkHandler(int poolSize) {  
+        this.executor = Executors.newFixedThreadPool(poolSize);  
+    }
+
+    public void startThreads() {
+        for (int i = 0; i < 3; i++) {
+            executor.execute(new HandleRequest());
+        }
+    }
+
+    public void shutdownPool() {
+        executor.shutdown();
+    }
+
+    public static void main(String[] args) {
+        NetworkHandler nh = new NetworkHandler(3);
+        nh.startThreads();
+        nh.shutdownPool();
+    }  
+}
+```  
+代码使用了一个固定的线程池来管理它的3个线程，而不是采用ThreadGroup。接口`java.util.concurrent.ExecutorService`提供了管理线程池的方法。虽然这个接口没有提供方法来获取活跃线程的数量或是进行线程列举，但是逻辑上的分组可以有助于全局化管理线程组。如：代码中`shutdownPool()`方法可以终止属于同一线程组的所有线程。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">THI00-J:Do not invoke Thread.run()</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.2 并发程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

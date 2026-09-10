@@ -12,17 +12,14 @@ const REQUIRE_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-detect-non-literal-require";
 const REGEXP_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-detect-non-literal-regexp";
 const MD5_SOURCE: &str = "LEGACY-JS-SEMGREP-TAINT-SOURCE-md5-password";
 const MD5_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-md5-used-as-password";
-const OBJECT_ASSIGN_SOURCE: &str =
-    "LEGACY-JS-SEMGREP-TAINT-SOURCE-insecure-object-assign";
+const OBJECT_ASSIGN_SOURCE: &str = "LEGACY-JS-SEMGREP-TAINT-SOURCE-insecure-object-assign";
 const OBJECT_ASSIGN_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-insecure-object-assign";
 const CHILD_PROCESS_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-detect-child-process";
-const TO_FAST_PROPERTIES_SINK: &str =
-    "LEGACY-JS-SEMGREP-TAINT-tofastproperties-code-execution";
+const TO_FAST_PROPERTIES_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-tofastproperties-code-execution";
 const MYSQL_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-node-mysql-sqli";
 const MSSQL_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-node-mssql-sqli";
 const POSTGRES_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-node-postgres-sqli";
-const AWS_CHILD_PROCESS_SINK: &str =
-    "LEGACY-JS-SEMGREP-TAINT-aws-detect-child-process";
+const AWS_CHILD_PROCESS_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-aws-detect-child-process";
 const AWS_EVAL_SINK: &str = "LEGACY-JS-SEMGREP-TAINT-aws-tainted-eval";
 
 fn focused_rules() -> RuleSet {
@@ -132,8 +129,7 @@ fn object_assign_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
     let ir = lower_program(&hir);
     let flow = build(&ir, &rules);
     assert!(flow.call_meta.values().any(|meta| {
-        meta.callee_name.as_deref() == Some("JSON.parse")
-            && meta.receiver_constant.is_none()
+        meta.callee_name.as_deref() == Some("JSON.parse") && meta.receiver_constant.is_none()
     }));
     assert!(flow
         .call_meta
@@ -180,7 +176,12 @@ fn module_sink_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
         .values()
         .filter_map(|meta| meta.callee_name.as_deref())
         .collect::<HashSet<_>>();
-    assert!(callees.iter().any(|callee| callee.starts_with("child_process.")), "{callees:?}");
+    assert!(
+        callees
+            .iter()
+            .any(|callee| callee.starts_with("child_process.")),
+        "{callees:?}"
+    );
     assert!(callees.contains("bluebird.toFastProperties"), "{callees:?}");
     analyze(&flow, &rules)
 }
@@ -197,9 +198,11 @@ fn database_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
         function_sources: legacy
             .function_sources
             .into_iter()
-            .filter(|rule| rule.id.contains("node-mysql-function-argument")
-                || rule.id.contains("node-mssql-function-argument")
-                || rule.id.contains("node-postgres-function-argument"))
+            .filter(|rule| {
+                rule.id.contains("node-mysql-function-argument")
+                    || rule.id.contains("node-mssql-function-argument")
+                    || rule.id.contains("node-postgres-function-argument")
+            })
             .collect(),
         sinks: legacy
             .sinks
@@ -227,7 +230,12 @@ fn database_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
         .filter_map(|meta| meta.callee_name.as_deref())
         .collect::<HashSet<_>>();
     for prefix in ["mysql2.", "mssql.", "pg."] {
-        assert!(callees.iter().any(|callee| callee.starts_with(prefix) && callee.ends_with(".query")), "missing {prefix} query: {callees:?}");
+        assert!(
+            callees
+                .iter()
+                .any(|callee| callee.starts_with(prefix) && callee.ends_with(".query")),
+            "missing {prefix} query: {callees:?}"
+        );
     }
     analyze(&flow, &rules)
 }
@@ -349,18 +357,36 @@ fn angular_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
         "LEGACY-JS-SEMGREP-TAINT-detect-angular-trust-as-method",
     ];
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter()
-            .filter(|rule| selected.contains(&rule.id.as_str())).collect(),
-        sources: legacy.sources.into_iter()
-            .filter(|rule| rule.id.contains("SOURCE-angular-")).collect(),
-        field_sources: legacy.field_sources.into_iter()
-            .filter(|rule| rule.id.contains("SOURCE-angular-")).collect(),
-        sinks: legacy.sinks.into_iter()
-            .filter(|rule| selected.contains(&rule.id.as_str())).collect(),
-        sanitizers: legacy.sanitizers.into_iter()
-            .filter(|rule| rule.id.contains("SANITIZER-angular-")).collect(),
-        call_conditions: legacy.call_conditions.into_iter()
-            .filter(|rule| rule.rule_id.contains("SOURCE-angular-")).collect(),
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| selected.contains(&rule.id.as_str()))
+            .collect(),
+        sources: legacy
+            .sources
+            .into_iter()
+            .filter(|rule| rule.id.contains("SOURCE-angular-"))
+            .collect(),
+        field_sources: legacy
+            .field_sources
+            .into_iter()
+            .filter(|rule| rule.id.contains("SOURCE-angular-"))
+            .collect(),
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| selected.contains(&rule.id.as_str()))
+            .collect(),
+        sanitizers: legacy
+            .sanitizers
+            .into_iter()
+            .filter(|rule| rule.id.contains("SANITIZER-angular-"))
+            .collect(),
+        call_conditions: legacy
+            .call_conditions
+            .into_iter()
+            .filter(|rule| rule.rule_id.contains("SOURCE-angular-"))
+            .collect(),
         ..Default::default()
     };
     assert_eq!(rules.metadata.len(), 3);
@@ -372,9 +398,13 @@ fn angular_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
     rules.validate().unwrap();
     let hir = parse_source(Language::JavaScript, "angular-controller.js", source).unwrap();
     let ir = lower_program(&hir);
-    assert!(ir.functions.iter().any(|function| function.attrs
-        .get("param_names").is_some_and(|names| names.contains("$scope"))),
-        "lowered AngularJS scope identity is missing: {ir:#?}");
+    assert!(
+        ir.functions.iter().any(|function| function
+            .attrs
+            .get("param_names")
+            .is_some_and(|names| names.contains("$scope"))),
+        "lowered AngularJS scope identity is missing: {ir:#?}"
+    );
     analyze(&build(&ir, &rules), &rules)
 }
 
@@ -383,11 +413,26 @@ fn hardcoded_jwt_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
     let sink_id = "LEGACY-JS-SEMGREP-TAINT-hardcoded-jwt-secret";
     let source_id = "LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-jwt-secret";
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        sources: legacy.sources.into_iter().filter(|rule| rule.id == source_id).collect(),
-        sinks: legacy.sinks.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        call_conditions: legacy.call_conditions.into_iter()
-            .filter(|rule| rule.rule_id == source_id).collect(),
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        sources: legacy
+            .sources
+            .into_iter()
+            .filter(|rule| rule.id == source_id)
+            .collect(),
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        call_conditions: legacy
+            .call_conditions
+            .into_iter()
+            .filter(|rule| rule.rule_id == source_id)
+            .collect(),
         ..Default::default()
     };
     assert_eq!(rules.metadata.len(), 1);
@@ -405,10 +450,21 @@ fn web_request_eval_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
     let sink_id = "LEGACY-JS-SEMGREP-TAINT-code-string-concat";
     let source_id = "LEGACY-JS-SEMGREP-TAINT-SOURCE-web-request-first-argument";
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        function_sources: legacy.function_sources.into_iter()
-            .filter(|rule| rule.id == source_id).collect(),
-        sinks: legacy.sinks.into_iter().filter(|rule| rule.id == sink_id).collect(),
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        function_sources: legacy
+            .function_sources
+            .into_iter()
+            .filter(|rule| rule.id == source_id)
+            .collect(),
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
         ..Default::default()
     };
     assert_eq!(rules.metadata.len(), 1);
@@ -427,17 +483,31 @@ fn knex_and_path_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
         "LEGACY-JS-SEMGREP-TAINT-path-join-resolve-traversal",
     ];
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter()
-            .filter(|rule| selected.contains(&rule.id.as_str())).collect(),
-        function_sources: legacy.function_sources.into_iter()
-            .filter(|rule| rule.id.contains("SOURCE-node-knex-")
-                || rule.id.contains("SOURCE-path-function-argument"))
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| selected.contains(&rule.id.as_str()))
             .collect(),
-        sinks: legacy.sinks.into_iter()
-            .filter(|rule| selected.contains(&rule.id.as_str())).collect(),
-        sanitizers: legacy.sanitizers.into_iter()
-            .filter(|rule| rule.id.contains("SANITIZER-node-knex-")
-                || rule.id.contains("SANITIZER-path-validation"))
+        function_sources: legacy
+            .function_sources
+            .into_iter()
+            .filter(|rule| {
+                rule.id.contains("SOURCE-node-knex-")
+                    || rule.id.contains("SOURCE-path-function-argument")
+            })
+            .collect(),
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| selected.contains(&rule.id.as_str()))
+            .collect(),
+        sanitizers: legacy
+            .sanitizers
+            .into_iter()
+            .filter(|rule| {
+                rule.id.contains("SANITIZER-node-knex-")
+                    || rule.id.contains("SANITIZER-path-validation")
+            })
             .collect(),
         ..Default::default()
     };
@@ -455,12 +525,24 @@ fn unsafe_format_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
     let legacy = legacy_models_for(Language::JavaScript).unwrap();
     let sink_id = "LEGACY-JS-SEMGREP-TAINT-unsafe-formatstring";
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        sources: legacy.sources.into_iter()
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        sources: legacy
+            .sources
+            .into_iter()
             .filter(|rule| rule.id.contains("SOURCE-unsafe-formatstring-"))
             .collect(),
-        sinks: legacy.sinks.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        call_conditions: legacy.call_conditions.into_iter()
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        call_conditions: legacy
+            .call_conditions
+            .into_iter()
             .filter(|rule| rule.rule_id.contains("SOURCE-unsafe-formatstring-"))
             .collect(),
         ..Default::default()
@@ -480,12 +562,26 @@ fn dangerous_spawn_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
     let sink_id = "LEGACY-JS-SEMGREP-TAINT-dangerous-spawn-shell";
     let source_id = "LEGACY-JS-SEMGREP-TAINT-SOURCE-dangerous-spawn-shell-argument";
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        function_sources: legacy.function_sources.into_iter()
-            .filter(|rule| rule.id == source_id).collect(),
-        sinks: legacy.sinks.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        call_conditions: legacy.call_conditions.into_iter()
-            .filter(|rule| rule.rule_id == sink_id).collect(),
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        function_sources: legacy
+            .function_sources
+            .into_iter()
+            .filter(|rule| rule.id == source_id)
+            .collect(),
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        call_conditions: legacy
+            .call_conditions
+            .into_iter()
+            .filter(|rule| rule.rule_id == sink_id)
+            .collect(),
         ..Default::default()
     };
     assert_eq!(rules.metadata.len(), 1);
@@ -503,10 +599,21 @@ fn deno_run_findings(source: &str) -> Vec<uniflow_taint::TaintFinding> {
     let sink_id = "LEGACY-JS-SEMGREP-TAINT-deno-dangerous-run";
     let source_id = "LEGACY-JS-SEMGREP-TAINT-SOURCE-deno-dangerous-run-argument";
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        function_sources: legacy.function_sources.into_iter()
-            .filter(|rule| rule.id == source_id).collect(),
-        sinks: legacy.sinks.into_iter().filter(|rule| rule.id == sink_id).collect(),
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        function_sources: legacy
+            .function_sources
+            .into_iter()
+            .filter(|rule| rule.id == source_id)
+            .collect(),
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
         ..Default::default()
     };
     assert_eq!(rules.metadata.len(), 1);
@@ -533,18 +640,36 @@ fn express_io_findings(
         .collect::<HashSet<_>>();
     selected_sink_ids.insert(sink_id.to_string());
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter()
-            .filter(|rule| rule.id == sink_id).collect(),
-        function_sources: legacy.function_sources.into_iter()
-            .filter(|rule| rule.id == source_id).collect(),
-        sinks: legacy.sinks.into_iter()
-            .filter(|rule| selected_sink_ids.contains(rule.id.as_str())).collect(),
-        sink_reports: legacy.sink_reports.into_iter()
-            .filter(|alias| alias.report_rule_id == sink_id).collect(),
-        sanitizers: legacy.sanitizers.into_iter()
-            .filter(|rule| sanitizer_id == Some(rule.id.as_str())).collect(),
-        call_conditions: legacy.call_conditions.into_iter()
-            .filter(|rule| selected_sink_ids.contains(rule.rule_id.as_str())).collect(),
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        function_sources: legacy
+            .function_sources
+            .into_iter()
+            .filter(|rule| rule.id == source_id)
+            .collect(),
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| selected_sink_ids.contains(rule.id.as_str()))
+            .collect(),
+        sink_reports: legacy
+            .sink_reports
+            .into_iter()
+            .filter(|alias| alias.report_rule_id == sink_id)
+            .collect(),
+        sanitizers: legacy
+            .sanitizers
+            .into_iter()
+            .filter(|rule| sanitizer_id == Some(rule.id.as_str()))
+            .collect(),
+        call_conditions: legacy
+            .call_conditions
+            .into_iter()
+            .filter(|rule| selected_sink_ids.contains(rule.rule_id.as_str()))
+            .collect(),
         ..Default::default()
     };
     assert_eq!(rules.metadata.len(), 1);
@@ -566,17 +691,30 @@ fn configured_map_findings(
 ) -> Vec<uniflow_taint::TaintFinding> {
     let legacy = legacy_models_for(Language::JavaScript).unwrap();
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter()
-            .filter(|rule| rule.id == sink_id).collect(),
-        sources: legacy.sources.into_iter()
-            .filter(|rule| rule.id == source_id).collect(),
-        sinks: legacy.sinks.into_iter()
-            .filter(|rule| rule.id == sink_id).collect(),
-        sanitizers: legacy.sanitizers.into_iter()
-            .filter(|rule| sanitizer_id == Some(rule.id.as_str())).collect(),
-        call_conditions: legacy.call_conditions.into_iter()
-            .filter(|rule| rule.rule_id == source_id
-                || sanitizer_id == Some(rule.rule_id.as_str()))
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        sources: legacy
+            .sources
+            .into_iter()
+            .filter(|rule| rule.id == source_id)
+            .collect(),
+        sinks: legacy
+            .sinks
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        sanitizers: legacy
+            .sanitizers
+            .into_iter()
+            .filter(|rule| sanitizer_id == Some(rule.id.as_str()))
+            .collect(),
+        call_conditions: legacy
+            .call_conditions
+            .into_iter()
+            .filter(|rule| rule.rule_id == source_id || sanitizer_id == Some(rule.rule_id.as_str()))
             .collect(),
         ..Default::default()
     };
@@ -616,11 +754,24 @@ function safe() {
         .iter()
         .map(|finding| finding.sink_rule_id.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(sink_ids.iter().filter(|id| **id == REQUIRE_SINK).count(), 1, "{actual:#?}");
-    assert_eq!(sink_ids.iter().filter(|id| **id == REGEXP_SINK).count(), 2, "{actual:#?}");
+    assert_eq!(
+        sink_ids.iter().filter(|id| **id == REQUIRE_SINK).count(),
+        1,
+        "{actual:#?}"
+    );
+    assert_eq!(
+        sink_ids.iter().filter(|id| **id == REGEXP_SINK).count(),
+        2,
+        "{actual:#?}"
+    );
     let pairs = actual
         .iter()
-        .map(|finding| (finding.source_rule_id.as_str(), finding.sink_rule_id.as_str()))
+        .map(|finding| {
+            (
+                finding.source_rule_id.as_str(),
+                finding.sink_rule_id.as_str(),
+            )
+        })
         .collect::<HashSet<_>>();
     assert!(pairs.contains(&(FUNCTION_ARGUMENT_SOURCE, REQUIRE_SINK)));
     assert!(pairs.contains(&(FUNCTION_ARGUMENT_SOURCE, REGEXP_SINK)));
@@ -683,8 +834,7 @@ function update(systemData, untrustedInput) {
     );
     assert_eq!(actual.len(), 2, "{actual:#?}");
     assert!(actual.iter().all(|finding| {
-        finding.source_rule_id == OBJECT_ASSIGN_SOURCE
-            && finding.sink_rule_id == OBJECT_ASSIGN_SINK
+        finding.source_rule_id == OBJECT_ASSIGN_SOURCE && finding.sink_rule_id == OBJECT_ASSIGN_SINK
     }));
 }
 
@@ -711,9 +861,25 @@ function execute(command, object) {
         .iter()
         .map(|finding| finding.sink_rule_id.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(sink_ids.iter().filter(|id| **id == CHILD_PROCESS_SINK).count(), 1, "{actual:#?}");
-    assert_eq!(sink_ids.iter().filter(|id| **id == TO_FAST_PROPERTIES_SINK).count(), 1, "{actual:#?}");
-    assert!(actual.iter().all(|finding| finding.source_rule_id == FUNCTION_ARGUMENT_SOURCE));
+    assert_eq!(
+        sink_ids
+            .iter()
+            .filter(|id| **id == CHILD_PROCESS_SINK)
+            .count(),
+        1,
+        "{actual:#?}"
+    );
+    assert_eq!(
+        sink_ids
+            .iter()
+            .filter(|id| **id == TO_FAST_PROPERTIES_SINK)
+            .count(),
+        1,
+        "{actual:#?}"
+    );
+    assert!(actual
+        .iter()
+        .all(|finding| finding.source_rule_id == FUNCTION_ARGUMENT_SOURCE));
 }
 
 #[test]
@@ -735,8 +901,22 @@ function execute(command, object) {
         .iter()
         .map(|finding| finding.sink_rule_id.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(sink_ids.iter().filter(|id| **id == CHILD_PROCESS_SINK).count(), 1, "{actual:#?}");
-    assert_eq!(sink_ids.iter().filter(|id| **id == TO_FAST_PROPERTIES_SINK).count(), 1, "{actual:#?}");
+    assert_eq!(
+        sink_ids
+            .iter()
+            .filter(|id| **id == CHILD_PROCESS_SINK)
+            .count(),
+        1,
+        "{actual:#?}"
+    );
+    assert_eq!(
+        sink_ids
+            .iter()
+            .filter(|id| **id == TO_FAST_PROPERTIES_SINK)
+            .count(),
+        1,
+        "{actual:#?}"
+    );
 }
 
 #[test]
@@ -775,8 +955,14 @@ function unrelatedQuery(sql) {
             .iter()
             .filter(|finding| finding.sink_rule_id == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {actual:#?}");
-        assert!(matching.iter().all(|finding| finding.source_rule_id.contains(source_fragment)));
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {actual:#?}"
+        );
+        assert!(matching
+            .iter()
+            .all(|finding| finding.source_rule_id.contains(source_fragment)));
     }
 }
 
@@ -803,10 +989,13 @@ function helper(input) {
             .iter()
             .filter(|finding| finding.sink_rule_id == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {actual:#?}");
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {actual:#?}"
+        );
         assert!(matching.iter().all(|finding| {
-            finding.source_rule_id
-                == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
+            finding.source_rule_id == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
         }));
     }
 }
@@ -856,10 +1045,13 @@ exports.handler = function(event) {
             .iter()
             .filter(|finding| finding.sink_rule_id == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {actual:#?}");
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {actual:#?}"
+        );
         assert!(matching.iter().all(|finding| {
-            finding.source_rule_id
-                == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
+            finding.source_rule_id == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
         }));
     }
 }
@@ -890,10 +1082,13 @@ exports.handler = function(event) {
             .iter()
             .filter(|finding| finding.sink_rule_id == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {actual:#?}");
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {actual:#?}"
+        );
         assert!(matching.iter().all(|finding| {
-            finding.source_rule_id
-                == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
+            finding.source_rule_id == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
         }));
     }
 }
@@ -928,7 +1123,11 @@ function browserData() {
             .iter()
             .filter(|finding| finding.sink_rule_id == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), expected, "wrong count for {sink}: {actual:#?}");
+        assert_eq!(
+            matching.len(),
+            expected,
+            "wrong count for {sink}: {actual:#?}"
+        );
     }
 }
 
@@ -958,9 +1157,15 @@ function browserData() {
         ("LEGACY-JS-SEMGREP-TAINT-detect-angular-element-taint", 1),
         ("LEGACY-JS-SEMGREP-TAINT-detect-angular-trust-as-method", 1),
     ] {
-        let matching = actual.iter()
-            .filter(|finding| finding.sink_rule_id == sink).collect::<Vec<_>>();
-        assert_eq!(matching.len(), expected, "wrong count for {sink}: {actual:#?}");
+        let matching = actual
+            .iter()
+            .filter(|finding| finding.sink_rule_id == sink)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matching.len(),
+            expected,
+            "wrong count for {sink}: {actual:#?}"
+        );
     }
 }
 
@@ -1003,7 +1208,10 @@ function handler(request, response) {
         actual[0].source_rule_id,
         "LEGACY-JS-SEMGREP-TAINT-SOURCE-web-request-first-argument"
     );
-    assert_eq!(actual[0].sink_rule_id, "LEGACY-JS-SEMGREP-TAINT-code-string-concat");
+    assert_eq!(
+        actual[0].sink_rule_id,
+        "LEGACY-JS-SEMGREP-TAINT-code-string-concat"
+    );
 }
 
 #[test]
@@ -1030,9 +1238,15 @@ function locate(prefix, name) {
         ("LEGACY-JS-SEMGREP-TAINT-node-knex-sqli", 1),
         ("LEGACY-JS-SEMGREP-TAINT-path-join-resolve-traversal", 2),
     ] {
-        let matching = actual.iter()
-            .filter(|finding| finding.sink_rule_id == sink).collect::<Vec<_>>();
-        assert_eq!(matching.len(), expected, "wrong count for {sink}: {actual:#?}");
+        let matching = actual
+            .iter()
+            .filter(|finding| finding.sink_rule_id == sink)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matching.len(),
+            expected,
+            "wrong count for {sink}: {actual:#?}"
+        );
     }
 }
 
@@ -1056,9 +1270,9 @@ function render(name, value) {
     assert_eq!(actual.len(), 3, "{actual:#?}");
     assert!(actual.iter().all(|finding| {
         finding.sink_rule_id == "LEGACY-JS-SEMGREP-TAINT-unsafe-formatstring"
-            && finding.source_rule_id.starts_with(
-                "LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-formatstring-"
-            )
+            && finding
+                .source_rule_id
+                .starts_with("LEGACY-JS-SEMGREP-TAINT-SOURCE-unsafe-formatstring-")
     }));
 }
 
@@ -1080,8 +1294,7 @@ function execute(input) {
     );
     assert_eq!(actual.len(), 2, "{actual:#?}");
     assert!(actual.iter().all(|finding| {
-        finding.source_rule_id
-            == "LEGACY-JS-SEMGREP-TAINT-SOURCE-dangerous-spawn-shell-argument"
+        finding.source_rule_id == "LEGACY-JS-SEMGREP-TAINT-SOURCE-dangerous-spawn-shell-argument"
             && finding.sink_rule_id == "LEGACY-JS-SEMGREP-TAINT-dangerous-spawn-shell"
     }));
 }
@@ -1101,8 +1314,7 @@ function execute(input) {
     );
     assert_eq!(actual.len(), 2, "{actual:#?}");
     assert!(actual.iter().all(|finding| {
-        finding.source_rule_id
-            == "LEGACY-JS-SEMGREP-TAINT-SOURCE-deno-dangerous-run-argument"
+        finding.source_rule_id == "LEGACY-JS-SEMGREP-TAINT-SOURCE-deno-dangerous-run-argument"
             && finding.sink_rule_id == "LEGACY-JS-SEMGREP-TAINT-deno-dangerous-run"
     }));
 }
@@ -1615,10 +1827,21 @@ fn remote_property_injection_tracks_only_direct_request_controlled_store_indices
     let sink_id = "LEGACY-JS-SEMGREP-TAINT-remote-property-injection";
     let source_id = "LEGACY-JS-SEMGREP-TAINT-SOURCE-express-property-request";
     let rules = RuleSet {
-        metadata: legacy.metadata.into_iter().filter(|rule| rule.id == sink_id).collect(),
-        function_sources: legacy.function_sources.into_iter()
-            .filter(|rule| rule.id == source_id).collect(),
-        index_sinks: legacy.index_sinks.into_iter().filter(|rule| rule.id == sink_id).collect(),
+        metadata: legacy
+            .metadata
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
+        function_sources: legacy
+            .function_sources
+            .into_iter()
+            .filter(|rule| rule.id == source_id)
+            .collect(),
+        index_sinks: legacy
+            .index_sinks
+            .into_iter()
+            .filter(|rule| rule.id == sink_id)
+            .collect(),
         ..Default::default()
     };
     rules.validate().unwrap();
@@ -1636,7 +1859,8 @@ function handler(request, response) {
     consume(read);
 }
 "#,
-    ).unwrap();
+    )
+    .unwrap();
     let ir = lower_program(&hir);
     let actual = analyze(&build(&ir, &rules), &rules);
     assert_eq!(actual.len(), 1, "{actual:#?}");

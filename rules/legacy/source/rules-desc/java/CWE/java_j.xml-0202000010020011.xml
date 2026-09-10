@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020011" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">XML注入</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[向XML文档中写入未经验证的数据，可能导致攻击者改变XML的结构和内容。  
+  
+**例1**：下面是一段从一个在线商店应用中摘出来的XML代码，主要用来查询后台数据库。用户可以指定该次购买商品的数量。  
+```xml
+<item>  
+    <name>Food</name>  
+    <price>100.0</price>  
+    <number>1</number>  
+</item> 
+``` 
+恶意用户可以在`number`域中输入以下字符串来替换一个简单的数字：  
+```xml
+1</number><price>1.0</price><number>1  
+```
+结果会导致生成如下XML文档： 
+```xml 
+<item>  
+    <name>Food</name>  
+    <price>100.0</price>  
+    <number>1</number><price>1.0</price><number>1</number>  
+</item>   
+```
+通过XML解析器SAX解析该文件，第二个`price`域会覆盖第一个`price`域，从而使商品的价格被设为1。  
+**例2**：下面代码片段中使用lexicalHandler将会报出DTD声明，当公共标识符或者系统标识符是外部DTD子集或者没有时，会分别用`publicId`和`systemId`代替。当`publicId`或者`systemId`来源于不可信来的数据时，DTD信息会被攻击者所控制。  
+```java
+...  
+SAXResult saxResult = new SAXResult();  
+LexicalHandler lexicalHandler = saxResult.getLexicalHandler();  
+lexicalHandler.startDTD(name, publicId, systemId);
+...
+```
+]]></Description>
+			<Advice><![CDATA[防止XML注入的方法如下：  
+1. 使用一个恰当的方法净化非受信的用户输入数据，将用户输入参数中包含的xml特殊字符`<、>、&、\、"、'`等进行转义。  
+2. 使用文档类型定义（DTD）或模板（schema）进行验证。 
+ 
+**例如**：下面代码片段中，要求用户输入的数字必须为0-9。  
+```java
+...
+private void createXMLStream(BufferedOutputStream outStream,String quantity) throws IOException {  
+    if (!Pattern.matches("[0-9]+", quantity)) {  
+        ...  
+    }  
+    String xmlString = "<item>\n<name>Food</name>\n" + "<price>500</price>\n" + "<number>" + quantity   + "</number></item>";  
+    outStream.write(xmlString.getBytes());  
+    outStream.flush();  
+}
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">91:XML Injection (aka Blind XPath Injection)</Reference>
+				<Reference type="CERT">IDS16-J:Prevent XML Injection</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发XML注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在XML注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在XML注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发XML注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

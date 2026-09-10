@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150415" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【强制】不要保留空的try代码块</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[空的try块在程序中只有存在finally才会存在作用，而finally中语句可以直接写为普通语句，这种代码将会增加代码的阅读、理解和维护难度  
+  
+**例如**：如下所示代码中存在空的try块  
+```java
+...  
+try { //空的try代码块
+} 
+catch (Exception e) {  
+    e.printStackTrace();  
+}  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[检测程序逻辑，判断程序中此try块是否存在作用。如果存在应修改此try块，否则应将其删除。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">561:Dead Code</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

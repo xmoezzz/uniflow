@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130128" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">使用空的循环</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行所在块为空的循环代码块，没有存在的意义。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在块为空的循环代码块，没有存在的意义。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序中存在空的循环代码块。
+]]></Description>
+			<Advice><![CDATA[检测程序逻辑，是否存在未完成的代码。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

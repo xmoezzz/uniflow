@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150449" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【强制】实现Externalizable的类必须存在无参构造方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当类实现了Externalizable接口，但是没有定义无参构造方法时，当此类对象被反序列化时，首先需要通过调用无参构造函数来构造。当这个类没有时，会抛出InvalidClassException并失败。  
+  
+**例如**：下面代码示例中，类实现了Externalizable接口，没有定义无参构造方法。  
+```java
+public class User implements Externalizable {  
+    private String name;  
+    private int age;  
+    ...  
+    User (String name,int age) {  
+        this.name = name;  
+        this.age = age;  
+        ...  
+    }  
+    @Override  
+    public void writeExternal(ObjectOutput out) throws IOException {  
+        ...  
+    }  
+  
+    @Override  
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {  
+        ...  
+    }  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[当类实现了Externalizable接口，添加无参构造方法时。  
+  
+**例如**：下面代码示例中，类实现了Externalizable接口，定义了无参构造方法。  
+```java
+public class User implements Externalizable {  
+    private String name;  
+    private int age;  
+    ...  
+    User (){}  
+    User (String name,int age) {  
+        this.name = name;  
+        this.age = age;  
+        ...  
+    }  
+    @Override  
+    public void writeExternal(ObjectOutput out) throws IOException {  
+        ...  
+    }  
+  
+    @Override  
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {  
+        ...  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

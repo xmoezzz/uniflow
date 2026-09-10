@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110062" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">JavaEE程序：直接使用Socket</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行直接使用Socket。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行直接使用Socket。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在JAVA EE程序中直接使用Socket进行通信容易出错。只有在与比较陈旧的系统进行通信时，JAVA EE标准才允许使用Socket，因为那时没有较高级别的协议可用。自己编写通信协议将需要考虑许多安全上的问题，其中包括：输入信号与输出信号的比较、协议版本间的兼容性、通道安全、错误处理、网络限制、会话管理。因此，自定义的通信协议将面临诸多安全隐患。在自定义标准协议的应用过程中，也会碰到许多同样的问题。通常有很多可用的资源都可以解决与标准协议相关的各种安全问题，然而，攻击者同样也能获取这些资源。  
+  
+**例如**：下面代码片段中，在Servlet中直接使用Socket。  
+```java
+public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {  
+    // Perform servlet tasks  
+    ...  
+    // Open a socket to a remote server (bad).  
+    Socket sock = null;  
+    try {  
+        sock = new Socket(remoteHostname, 3000);  
+        // Do something with the socket.  
+        ...  
+    } catch (Exception e) {  
+        ...  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[建议使用一些框架提供的方法代替直接使用Socket。
+]]></Advice>
+			<References>
+				<Reference type="CWE">246:J2EE Bad Practices: Direct Use of Sockets</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

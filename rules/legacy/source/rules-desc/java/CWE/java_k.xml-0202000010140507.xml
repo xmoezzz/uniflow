@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140507" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 03. 数据类型与运算 (NUM)</Category>  
+        <Category type="DetailClassChin">NUM07-J：不要尝试与NaN进行比较</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[根据Java语言规范4.2.3节“浮点类型、格式和数值”的描述：  
+>因为NaN（Not-a-Number，非数值）是无序的，所以当一个或者两个操作数是NaN时，数值比较<、<=、>、>=或返回false。当任意一个操作数是NaN，相等运算符==会返回false，当任意一个操作数是NaN，不等运算符!=会返回true。  
+
+因为无序的特性常常导致意外结果，所以不能和`NaN`进行直接比较。当程序员编写比较浮点数值代码，而没有考虑到`NaN`的语义时，会产生问题。  
+代码静态分析来判断是否对可能无序的结果进行正确的处理是不能实现的，本规则检测提供的警示信息对于程序员分析程序意图是有所帮助的。  
+**不规范的代码样例1**：  
+```java
+public class NaNComparison {  
+    public static void main(String[] args) {
+        double x = 0.0;
+        double result = Math.cos(1 / x); // returns NaN if input is infinity
+        if (result == Double.NaN) { // comparison is always false!
+            System.out.println("result is NaN");
+        }
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[不要将数值直接与`NaN`进行比较运算，采用如：`Double.isNaN()`或者`Float.isNaN()`方法来检测数值是否是一个`NaN`。  
+**规范的代码样例1**：  
+```java
+public class NaNComparison {  
+    public static void main(String[] args) {
+        double x = 0.0;
+        double result = Math.cos(1 / x); // returns NaN when input is infinity
+        if (Double.isNaN(result)) {
+            System.out.println("result is NaN");
+        }
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">486:Comparison of Classes by Name</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use uniflow_baseline::{builtin_security_pack, bundled_java_ast_rules, bundled_java_package_rules};
 use uniflow_hir::Language;
 use uniflow_models::{
-    audit_legacy_jvm_rule_tree, legacy_models_for, LegacyJvmRuleKind, LegacyJvmRulePack,
+    audit_legacy_jvm_rule_tree, legacy_jvm_rule_map_aliases, legacy_models_for, LegacyJvmRuleKind,
+    LegacyJvmRulePack,
 };
-use uniflow_baseline::{builtin_security_pack, bundled_java_ast_rules, bundled_java_package_rules};
 
 fn source_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -70,19 +71,38 @@ fn every_java_rule_map_is_attached_to_executable_sink_metadata() {
 
     assert_eq!(sinks_by_vulnerability.len(), 125);
     assert_eq!(rule_maps.len(), 635);
-    assert_eq!(rule_maps.iter().map(|(_, mappings)| mappings.len()).sum::<usize>(), 1_009);
+    assert_eq!(
+        rule_maps
+            .iter()
+            .map(|(_, mappings)| mappings.len())
+            .sum::<usize>(),
+        1_009
+    );
     for (vulnerability, mappings) in rule_maps {
         let expected = mappings
             .iter()
             .map(|mapping| format!("{}:{}", mapping.standard, mapping.rule_id))
             .collect::<Vec<_>>();
-        if let Some(sinks) = sinks_by_vulnerability.get(&vulnerability) {
+        let sinks = sinks_by_vulnerability.get(&vulnerability).or_else(|| {
+            sinks_by_vulnerability
+                .iter()
+                .find(|(sink_name, _)| {
+                    legacy_jvm_rule_map_aliases(sink_name)
+                        .iter()
+                        .any(|alias| *alias == vulnerability)
+                })
+                .map(|(_, sinks)| sinks)
+        });
+        if let Some(sinks) = sinks {
             for standard in &expected {
-                assert!(sinks.iter().any(|sink_id| {
-                    metadata
-                        .get(sink_id.as_str())
-                        .is_some_and(|entry| entry.standards.contains(standard))
-                }), "Java ruleMap {vulnerability} mapping {standard} is absent from taint metadata");
+                assert!(
+                    sinks.iter().any(|sink_id| {
+                        metadata
+                            .get(sink_id.as_str())
+                            .is_some_and(|entry| entry.standards.contains(standard))
+                    }),
+                    "Java ruleMap {vulnerability} mapping {standard} is absent from taint metadata"
+                );
             }
             continue;
         }
@@ -109,7 +129,9 @@ fn every_java_rule_map_is_attached_to_executable_sink_metadata() {
             })
         });
         if let Some(ast_rule) = ast_rule {
-            let native_id = ast_rule.native_rule_id.expect("all Java AST rules are migrated");
+            let native_id = ast_rule
+                .native_rule_id
+                .expect("all Java AST rules are migrated");
             let executable = baseline_rules
                 .get(native_id)
                 .unwrap_or_else(|| panic!("Java AST ruleMap {vulnerability} has no {native_id}"));
@@ -130,9 +152,9 @@ fn every_java_rule_map_is_attached_to_executable_sink_metadata() {
         });
         if let Some(package_rule) = package_rule {
             let native_id = format!("LEGACY-JAVA-PKG-{}", package_rule.id);
-            let executable = baseline_rules
-                .get(native_id.as_str())
-                .unwrap_or_else(|| panic!("Java package ruleMap {vulnerability} has no {native_id}"));
+            let executable = baseline_rules.get(native_id.as_str()).unwrap_or_else(|| {
+                panic!("Java package ruleMap {vulnerability} has no {native_id}")
+            });
             for standard in &expected {
                 assert!(executable.standards.contains(standard),
                     "Java package ruleMap {vulnerability} mapping {standard} is absent from {native_id}");
@@ -221,8 +243,7 @@ fn every_java_dataflow_source_rule_has_a_bundled_executable_model() {
             };
             let represented = match rule.kind {
                 LegacyJvmRuleKind::Cleanse => executable_ids.iter().any(|candidate| {
-                    candidate.starts_with("legacy.java.cleanse.")
-                        && candidate.contains(&normalized)
+                    candidate.starts_with("legacy.java.cleanse.") && candidate.contains(&normalized)
                         || candidate.starts_with("legacy.java.cleanse_transform.")
                             && candidate.ends_with(&normalized)
                 }),

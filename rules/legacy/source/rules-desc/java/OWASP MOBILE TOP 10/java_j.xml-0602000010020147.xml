@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010020147" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">不安全的信息传输：Tomcat配置</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行未对通信信息设置加密和验证。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序进行通信时，未对通信信息进行加密和验证，可能会受到危害。  
+  
+**例如**：下面配置文件片段中表示将使用HTTP进行连接，传递的敏感信息容易被攻击者窃取。
+```xml
+...  
+<Connector port="8009" protocol="HTTP/1.1" redirectPort="8443"/>;  
+...
+```  
+]]></Description>
+			<Advice><![CDATA[程序应尽可能对通信信息进行加密和验证，尤其是进行敏感信息的传递。  
+  
+**例如**：下面配置文件片段中表示将使用HTTPS进行连接。 
+```xml
+...  
+<Connector port="8009" protocol="HTTP/1.1" secure="true" redirectPort="8443"/>;  
+...
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE">5:J2EE Misconfiguration: Data Transmission Without Encryption</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M3 Insufficient Transport Layer Protection</Reference>
+				<Reference type="GB/T 34944-2017 Java">安全功能:敏感信息明文传输</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

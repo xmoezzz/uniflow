@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010060104" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">程序发送sticky广播</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行程序将会发送sticky广播。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行程序将会发送sticky广播。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[StickyBroadcast可被任何接收器接收，且不能使用权限进行保护。所以恶意攻击者可以会通过恶意的接收器来接受StickyBroadcast中的内容，当StickyBroadcast中包含有敏感信息时，可能会对应用程序造成危害。  
+  
+**例如**：下列代码中Context发送了`sticky`广播。  
+```java
+...  
+Intent intent = new Intent("sendMyBroadcastReceiver");     
+intent.putExtra("username", username);  
+intent.putExtra("password", password);     
+context.sendStickyBroadcast(intent);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[检查程序使用Sticky广播的意图，是否可以通过受接收器权限保护的常规广播进行替代。
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

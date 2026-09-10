@@ -1,0 +1,121 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160092" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.10.2 调用 ThreadGroup 方法</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序不应调用 ThreadGroup 方法。   
+2) 原理   
+Java 中每一个线程在创建时都赋予了一个线程组。这些线程组是由`java.lang.ThreadGroup`类来实现的。 ThreadGroup 类提供了对属于同一个线程组的线程进行同时操作的便利方法。比如，`ThreadGroup.intemipt()`方法可以中断线程组中的所有线程。通过将线程限制在线程组中可避免它们与其他线程组中的线程发生冲突，因此，线程组还可以用于分层安全机制。   
+虽然线程组有利于线程的组织，但因为 ThreadGroup 类中很多方法是不提倡使用的（例  如   
+`allowThreadSuspension()`、`resume()`、`stop()`和 `suspend()`），所以程序员很少能从线程组的使用中获得好处。而且，因为没有提供合适的功能，很多方法也是过时的。甚至一些 ThreadGroup 的方法不是线程安全的，同时，使用 ThreadGroupAPI 来终止线程也会有问题。因为不提倡使用`stop()`方法，程序需要使用替代的方法来停止线程。    
+一种方式是让即将终止的线程等待其他线程的完成，并因此知道其他线程是否已停止运行。 然而，一个应用将不得不维持一个它所创建的线程的列表，因为简单地检查 ThreadGroup 可能会得到不会终止的运行库线程并且对它们的等待不会返回。   
+Excutor 框架提供了好的 API 来管理逻辑上的线程组，并提供了安全终止线程和处理线程异常的功能。因此，程序不应该调用 ThreadGroup 方法。   
+3) 示例   
+    一个不符合规则的代码示例，该示例使用一个 NetworkHandler 类来维护一个控制线程。这个控制线程将新请求分配给一个工作线程。为说明本例子中的竞态条件，代码中的控制线程在它的`run()`方法中，通过启动 3 个线程来处理 3 个请求。所有的线程都属于 Chief 线程组。   
+    ```java
+    final class HandleRequest implements Runnable {
+        public void run() {
+            // Do something
+        }
+    }
+    
+    public final class NetworkHandler implements Runnable {
+        private static ThreadGroup tg = new ThreadGroup("Chief");
+    
+        @Override
+        public void run() {
+            new Thread(tg, new HandleRequest(), "thread1").start();
+            new Thread(tg, new HandleRequest(), "thread2").start();
+            new Thread(tg, new HandleRequest(), "thread3").start();
+        }
+    
+        public static void printActiveCount(int point) {
+            System.out.println("Active Threads in Thread Group " + tg.getName() + " at point(" + point + "):" + " "
+                    + tg.activeCount());
+        }
+    
+        public static void printEnumeratedThreads(Thread[] ta, int len) {
+            System.out.println("Enumerating all threads...");
+            for (int i = 0; i < len; i++) {
+                System.out.println("Thread " + i + " = " + ta[i].getName());
+            }
+        }
+    
+        public static void main(String[] args) throws InterruptedException {
+            // Start thread controller
+            Thread thread = new Thread(tg, new NetworkHandler(), "controller");
+            thread.start();
+    
+            // Gets the active count (insecure)
+            Thread[] ta = new Thread[tg.activeCount()];
+    
+            printActiveCount(1); // P1
+            // Delay to demonstrate TOCTOU condition (race window)
+            Thread.sleep(1000);
+            // P2: the thread count changes as new threads are initiated
+            printActiveCount(2);
+            // Incorrectly uses the (now stale) thread count obtained at P1
+            int n = tg.enumerate(ta);
+            // Silently ignores newly initiated threads
+            printEnumeratedThreads(ta, n);
+            // (between P1 and P2)
+    
+            // This code destroys the thread group if it does
+            // not have any live threads
+            for (Thread thr : ta) {
+                thr.interrupt();
+                while (thr.isAlive())
+                    ;
+            }
+            tg.destroy();
+        }
+    }
+    ```   
+    这个实现中隐藏着一个 `time-of-check,time-of-use (TOCTOU)`漏洞，因为代码在获取线程数并列举它们时，并不能保证操作的原子性。如果一个或多个请求在调用 `activeCount()`之 后，并且是在 `main()`方法中调用 `enumerate()`之前发生，那么线程组中线程的数目会增加，但是线程的列表 ta 中只包含之前数量的线程。即，只有两个线程引用：main 和控制线程。因此，程序会因为没有考虑到 Chief线程组中新加入的线程而出错。   
+       
+    对应的符合规则的解决方案中，使用一个固定的线程池，而不是 ThreadGroup 来管理它的 3 个任务。接口 `java.util.concurrent.ExecutorService` 提供了管理线程池的方法。虽然这个接口没有提供方法来 获取活跃线程的数目或是进行线程列举，但是逻辑上的分组可以有助于全局化管理线程组的行为。例如，调用 `shutdownPool()`方法可以终止属于同一线程组的所有线程。   
+    ```java
+    public final class NetworkHandler {
+        private final ExecutorService executor;
+    
+        NetworkHandler(int poolSize) {
+            this.executor = Executors.newFixedThreadPool(poolSize);
+        }
+    
+        public void startThreads() {
+            for (int i = 0; i < 3; i++) {
+                executor.execute(new HandleRequest());
+            }
+        }
+    
+        public void shutdownPool() {
+            executor.shutdown();
+        }
+    
+        public static void main(String[] args) {
+            NetworkHandler nh = new NetworkHandler(3);
+            nh.startThreads();
+            nh.shutdownPool();
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">THI00-J:Do not invoke Thread.run()</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.10 线程 API</BigClassChin>  
+       
+    </BugInfo>  
+    

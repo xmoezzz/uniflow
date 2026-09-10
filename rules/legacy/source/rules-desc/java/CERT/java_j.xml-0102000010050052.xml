@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010050052" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">缺少XML验证: 未设置XML返回类型</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行未设置XML返回类型。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行未设置XML返回类型。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序未对不可信赖资源的XML文档进行恰当模式校验（如DTD或XML schema），直接进行解析，可能会导致攻击者进行XML攻击。  
+  
+**例如**：下面代码示例Apache Axis未设置XML返回类型。  
+Axis 客户端调用：  
+```java
+call.addParameter("testParam", org.apache.axis.Constants.XSD_STRING, javax.xml.rpc.ParameterMode.IN);  
+String ret = (String) call.invoke( new Object[] { "Cake!" } );
+```
+]]></Description>
+			<Advice><![CDATA[程序解析来自不可信赖资源的XML时，应该经过恰当模式（如DTD或XML schema）的校验。  
+  
+**例1**：下面代码示例显示如何启用Xerces解析器的校验功能（包括DOM和SAX）：  
+```java
+org.apache.xerces.framework.XMLParser: parser.setValidation(true);  
+org.apache.xerces.framework.XMLParser: parser.setValidationSchema(true);
+```  
+
+**例2**：下面代码示例显示如何在javax库中为SAX和DOM解析器代理启用校验功能。  
+javax SAX解析器代理：  
+```java
+javax.xml.parsers.SAXParserFactory: factory.setValidating(true);  
+javax.xml.parsers.SAXParserFactory: factory.setFeature("http://xml.org/sax/features/validation", true);
+```  
+javax DOM解析器代理：  
+javax.xml.parsers.DocumentBuilderFactory: `factory.setValidating(true);`
+
+**例3**：下面代码示例显示如何在javax库中为单个解析器和XMLReaders启用校验功能。  
+javax SAX解析器和读取器：  
+javax.xml.parsers.SAXParser:`parser.setProperty("http://xml.org/sax/features/validation", new Boolean(true));`  
+org.xml.sax.XMLReader: `reader.setFeature("http://xml.org/sax/features/validation", true);`
+
+**例4**：以下示例将显示如何为Apache Axis设置XML返回类型。  
+Axis 客户端调用：  
+```java
+call.addParameter("testParam", org.apache.axis.Constants.XSD_STRING, javax.xml.rpc.ParameterMode.IN);  
+call.setReturnType(org.apache.axis.Constants.XSD_STRING);  
+String ret = (String) call.invoke( new Object[] { "Cake" } );
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">112:Missing XML Validation</Reference>
+				<Reference type="CERT">IDS16-J:Prevent XML Injection,IDS17-J:Prevent XML External Entity Attacks</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150115" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">API误用</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用NullCipher</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[根据约定，NullCipher类提供一个"身份密码"，它不会以任何方式转换或加密明文，密文与明文相同，这个类应用于测试，而不是在已经发布的代码中。  
+  
+**例如**：在下面的代码片段中，程序使用了NullCipher。
+```java  
+...  
+NullCipher nc = new NullCipher();  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[确认代码逻辑，判断此代码是否是测试代码，然后将其删除或者替换为更安全的加密类。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">327:Use of a Broken or Risky Cryptographic Algorithm</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>security,correctness</Tag> 
+    </BugInfo>  
+    

@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010110115" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">ContentProvider权限定义</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行定义同时具有读取和写入权限的ContentProvider。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行定义同时具有读取和写入权限的ContentProvider。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序声明content provider同时具有读取和写入权限，但在许多情况下，那些需要读取content provider存储数据的实体不应该被允许修改数据。  
+  
+**例如**：以下是声明具有读取和写入权限的content provider的示例。  
+```xml
+<provider android:name=".MyProvider" android:permission="content.permission.READ_AND_WRITE_CONTENT"/>
+```
+]]></Description>
+			<Advice><![CDATA[Android权限框架允许为一个content provider单独定义读权限和写权限，因此，开发人员应该为content provider分开定义读权限和写权限。  
+  
+**例如**：以下是为content provider分开定义读权限和写权限的示例。  
+```xml
+<provider android:name=".MyProvider"  
+    android:readPermission="content.permission.READ_CONTENT"  
+    android:writePermission="content.permission.WRITE_CONTENT">  
+</provider>
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

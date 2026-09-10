@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010050022" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">服务器端请求伪造</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[很多Web应用提供了从其他的服务器上获取数据的功能，例如用户指定URL让Web应用加载图片，下载文件等。如果恶意利用这个功能，可以让存在缺陷的Web应用作为代理攻击远程和本地的服务器。这种形式的攻击称为服务端请求伪造攻击`(Server-side Request Forgery, SSRF)`。攻击者利用SSRF可以实现的攻击主要有5种：  
+1. 可以对外网、服务器所在内网、本地进行端口扫描，获取一些服务器的banner信息；  
+2. 攻击运行在内网或本地的应用程序(比如溢出)；  
+3. 对内网web应用进行指纹识别，通过访问默认文件实现；  
+4. 攻击内外网的web应用，主要是使用get参数就可以实现的攻击(比如struts2，sqli等)；  
+5. 利用file协议读取本地文件等。  
+
+**例如**：下面的代码片段中,攻击者将能够控制服务器连接URL。  
+```java
+String url = request.getParameter("url");  
+CloseableHttpClient httpclient = HttpClients.createDefault();  
+HttpGet httpGet = new HttpGet(url);  
+CloseableHttpResponse response1 = httpclient.execute(httpGet);
+```  
+这种使用用户输入影响的资源可能存在风险。
+]]></Description>
+			<Advice><![CDATA[修复方案通常有下面5种：  
+1. 过滤返回信息，验证远程服务器对请求的响应是比较容易的方法。如果web应用是去获取某一种类型的文件。那么在把返回结果展示给用户之前先验证返回的信息是否符合标准。  
+2. 统一错误信息，避免用户可以根据错误信息来判断远端服务器的端口状态。  
+3. 限制请求的端口为http常用的端口，比如80,443,8080,8090。  
+4. 禁用不需要的协议。仅仅允许http和https请求。可以防止类似于`file:///, gopher:// , ftp://` 等引起的问题。  
+5. 过滤内网ip，限制访问内网
+]]></Advice>
+			<References>
+				<Reference type="CWE">918:Server-Side Request Forgery(SSRF)</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发服务器端请求伪造漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在服务器端请求伪造漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在服务器端请求伪造漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发服务器端请求伪造漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

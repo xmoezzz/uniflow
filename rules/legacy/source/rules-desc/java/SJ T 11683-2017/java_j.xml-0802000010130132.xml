@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010130132" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">无用的赋值</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的赋值无用。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的赋值无用。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序中存在无用的赋值
+]]></Description>
+			<Advice><![CDATA[检测程序逻辑，是否需要删除无用的赋值。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="SJ/T 11683-2017">6.2.4 自我赋值</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

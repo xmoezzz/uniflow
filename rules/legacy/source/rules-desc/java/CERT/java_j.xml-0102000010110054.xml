@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110054" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">使用浮点变量作为循环计数器</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用浮点变量作为循环计数器。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用浮点变量作为循环计数器。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[不要使用浮点变量作为循环计数器。  
+  
+**例如**：在下面的代码中，0.1f会被处理成可以用float类型表达的最接近的数值，所以在每次循环中，增加至x的数值是一个略大于0.1的值。从而，循环只会执行9次，最终不能产生预期的结果。  
+```java
+for (float x = 0.1f; x <= 1.0f; x +=0.1f) {  
+    System.out.println(x);  
+}
+```
+]]></Description>
+			<Advice><![CDATA[使用整数作为循环计数器。  
+  
+**例如**：在下面的代码中，使用整数作为循环计数器，可以得到预期的结果。  
+```java
+for(int count = 1; count <= 10; count += 1) {  
+    float x = count/10.0f;  
+    System.out.println(x);  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CERT">NUM09-J:Do not use floating-point variables as loop counters</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

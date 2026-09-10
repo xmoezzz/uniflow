@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110022" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：未使用的Action表单</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的Action表单未被使用。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[struts中通过使用\<form-beans\>标签将HTML形式映射至操作。如果配置文件的\<action-mappings\>元素中不包含与\<form-bean\>标签定义的相关Action表单对应的项，说明应用程序逻辑可能已经过时。  
+  
+**例如**：以下配置不包含bean2的映射。 
+```xml
+<form-beans>  
+    <form-bean name="loginForm" type="com.test.LoginForm"/>  
+    <form-bean name="registerForm" type="com.test.RegisterForm"/>  
+</form-beans>  
+<action-mappings>  
+    <action path="/login" type="com.test.LoginAction" name="loginForm" scope="request" input="/Login.jsp">  
+        <forward name="logsuccess" path="/LoginSuccess.jsp"/>  
+    </action>  
+</action-mappings>
+``` 
+]]></Description>
+			<Advice><![CDATA[检查配置文件的\<action-mappings\>元素中是否包含与\<form-bean\>标签定义的相关Action表单对应的项，并进行更新。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

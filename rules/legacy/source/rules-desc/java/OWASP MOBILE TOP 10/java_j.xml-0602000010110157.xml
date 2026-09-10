@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010110157" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">过于宽松的跨域策略</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行设定的跨域策略过于宽松。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行设定的跨域策略过于宽松。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[默认情况下，Silverlight应用程序需要遵循Same Origin Policy（同源策略），该策略可确保只有来自同一个域的Silverlight应用程序才能访问服务中的数据。Silverlight可让开发人员通过主机上的`clientaccesspolicy.xml`配置文件中的适当设置来更改此策略。但是，更改此设置时应小心谨慎，因为跨域策略过于宽松，恶意应用程序就能趁机采用不当方式与受攻击的服务进行通信，从而导致发生欺骗、数据被盗、转发及其他攻击。   
+  
+**例如**：以下配置文件`clientaccesspolicy.xml`中，使用通配符以声明的方式指定允许与此服务通通信的应用程序域。
+```xml
+<allow-from http-request-headers="*">
+    <domain uri="*"/>
+</allow-from>
+```  
+使用`*`作为`domain`元素的`uri`属性的值可指示任何域上的应用程序是否可以连接到此服务。
+]]></Description>
+			<Advice><![CDATA[请勿使用`*`作为`domain`元素的`uri`属性的值。而应该提供可信赖的域的显式列表。  
+
+**例如**：以下配置文件中`clientaccesspolicy.xml`中，`domain`元素可指定显式可信赖的域。
+```xml
+<allow-from http-request-headers="*">
+    <domain uri="https://test1.com"/>
+    <domain uri="https://test2.com"/>
+</allow-from>
+```  
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

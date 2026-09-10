@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170026" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">5.3 访问控制</Category>  
+        <Category type="DetailClassChin">A.2.3.3.2 避免越权访问</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：多用户系统中的文件通常为某一特定用户所有，文件所有者会指定系统中的用户可以访问这些文件的内容。当一个程序使用不充分的限制性的访问权限创建文件时，攻击者可以在程序修改权限之前读取或者修改这些文件。如果允许用户输入直接更改文件权限，则攻击者将能够访问其他受保护的系统资源。  
+对于避免越权访问的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+String permissionMask = System.getProperty("fileMask");  
+Path path= testFile.toPath();  
+...  
+Set<PosixFilePermission> permission= PosixFilePermissions.fromString(permissionMask);  
+Files.setPosixFilePermissions(path, permission);
+```
+以上代码使用来自系统属性的参数作为默认的权限代码。但是系统属性中的值未必是可信的，如果系统属性中的值为攻击者可控，则可以使用该程序获得其所处理文件的访问权限。如果程序还易受路径篡改攻击，那么攻击者可能会利用这一漏洞访问系统中的任意文件。  
+**示例2**： 
+```java
+String permissionMask = System.getProperty("fileMask");  
+Path path= testFile.toPath();  
+String[] validPermissions = {"r--------", "r--r-----"};  
+for (String validPermission : validPermissions){  
+    if (permissionMask.equals(validPermission){  
+        Set<PosixFilePermission> permission = PosixFilePermissions.fromString(validPermission);  
+        Files.setPosixFilePermissions(path, permission);  
+        ...  
+    }  
+    ...  
+} 
+```  
+上述代码可以通过允许用户设置文件权限来防止此类文件权限操纵。如果必须确保用户拥有能够设置文件的权限，则可以采用一种间接方式，即创建一个允许用户进行指定的合法文件权限列表，并且仅允许用户从列表中进行选择。通过这种方式，用户提供的输入将不会直接更改文件权限。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">732:Incorrect Permission Assignment for Critical Resource</Reference>  
+        <Reference type="CWE">264:Permissions, Privileges, and Access Controls</Reference>  
+        <Reference type="CERT">FIO01-J:Create files with appropriate access permissions</Reference>  
+        <Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M8 Security Decisions Via Untrusted Inputs</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 732</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 732</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 732</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.3 访问控制</BigClassChin>  
+       
+    </BugInfo>  
+    

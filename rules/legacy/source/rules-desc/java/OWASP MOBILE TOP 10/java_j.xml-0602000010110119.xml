@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010110119" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">自定义权限的保护级别为normal</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行自定义权限的保护级别为normal。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行自定义权限的保护级别为normal。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Android程序在`AndroidManifest.xml`中声明自定义权限时，共有如下四种保护级别：dangerous、signature、signatureOrSystem和normal。dangerous权限指高风险权限，需要在用户确认后授予，signature权限只有当申请权限的应用程序的数字签名与声明此权限的应用程序的数字签名相同时（如果是申请系统权限，则需要与系统签名相同），才能将权限授给它，signature or system权限与signature权限类似，或者申请权限的应用为系统应用时也会授权。最后的是normal级别，也是权限保护级别的默认值，定义了访问系统或其他应用程序的低风险权限，也就是说normal保护级别的权限只要是其他应用程序申请了就可以使用，无需用户确认，自动授权。  
+  
+**例如**：下面是声明为具有normal保护级别的自定义权限示例。  
+```java
+<permission android:name="com.permission.act"  
+    android:icon="@mipmap/ic_launcher"  
+    android:label="testpermission"  
+    android:protectionLevel="normal">   
+</permission>
+```
+]]></Description>
+			<Advice><![CDATA[定义Normal级别的权限可能导致恶意应用程序请求有害权限（**例如**：请求个人信息等），因此建议定义Dangerous权限，并向用户详细说明该权限，或者定义Signature权限。  
+  
+**例如**：下面声明具有dangerous保护级别的自定义权限示例。  
+```java
+<permission android:name="com.permission.act"  
+    android:icon="@mipmap/ic_launcher"  
+    android:label="testpermission"  
+    android:protectionLevel="dangerous">  
+</permission>
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170016" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">5.2 数据加密与保护</Category>  
+        <Category type="DetailClassChin">A.2.2.1.7 不要使用硬编码密匙</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：当程序中使用硬编码加密密匙时，所有项目开发人员都可以查看该密匙，甚至如果攻击者能够获取程序class文件，可通过反编译得到密匙，硬编码加密密匙会大大降低系统安全性。  
+对于避免使用硬编码密匙的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：   
+```java
+private static String encryptionKey = "dfashsdsdfsdgagascv";  
+...  
+byte[] keyBytes = encryptionKey.getBytes();  
+SecretKeySpec key = new SecretKeySpec(keyBytes, "AES");  
+Cipher encryptCipher = Cipher.getInstance("AES");  
+encryptCipher.init(Cipher.ENCRYPT_MODE, key);  
+...
+```  
+上述代码使用硬编码加密密钥执行AES加密。  
+程序应采用不小于8个字节的随机生成的字符串作为密匙。  
+**示例2**：   
+```java
+...  
+KeyGenerator keyGen = KeyGenerator.getInstance("AES");    
+keyGen.init(128, new SecureRandom(password.getBytes()));    
+SecretKey secretKey = kgen.generateKey();    
+byte[] keyBytes = secretKey.getEncoded();    
+SecretKeySpec key = new SecretKeySpec(keyBytes, "AES");  
+Cipher encryptCipher = Cipher.getInstance("AES");  
+encryptCipher.init(Cipher.ENCRYPT_MODE, key);  
+...
+```  
+上述代码使用KeyGenerator来生成密匙。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">321:Use of Hard-coded Cryptographic Key</Reference>  
+        <Reference type="CERT">MSC03-J:Never hard code sensitive information</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.2 数据加密与保护</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100031" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">Axis2配置错误：调试信息</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行配置了错误调试信息。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Apache Axis 2为开发人员提供了可通过Java applet监视输入和输出SOAP消息的功能，攻击者可以使用SOAP Monitor截取Web服务与其客户端之间的信息流。  
+
+**例如**：如下web.xml中Axis2配置错误调试信息 
+```xml
+<servlet>  
+  <servlet-name>SOAPMonitorService</servlet-name>                  
+  <display-name>SOAPMonitorService</display-name>    
+  <servlet-class>    
+      org.apache.axis.monitor.SOAPMonitorService  
+  </servlet-class>  
+  <init-param>  
+    <param-name>SOAPMonitorPort</param-name>    
+    <param-value>5001</param-value>  
+  </init-param>  
+  <load-on-startup>100</load-on-startup>  
+</servlet>
+``` 
+]]></Description>
+			<Advice><![CDATA[移除配置文件中SOAP Monitor模块相关的引用，禁用SOAP Monitor。确保web.xml中不包含SOAP Monitor服务相关的`servlet`或者`servlet-mapping`。`axis2.xml`并删除诸如`<module ref="soapmonitor"/>`的引用。
+]]></Advice>
+			<References>
+				<Reference type="CWE">215:Information Exposure Through Debug Information</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

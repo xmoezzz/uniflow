@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010000011" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">误用Os.umask()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行误用了Os.umask()。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行误用了Os.umask()。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[`Os.umask()`和`Os.chmod()`方法经常混淆，`chmod()`由用户提供的参数指定在特定文件上启用的位数，而`umask()`不同，是将`umask`设为 ~mask & 0777。  
+  
+**例如**：在以下安卓程序片段中，使用了`Os.umask()`来设置权限。  
+```java
+...  
+Os.umask(700);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[分清`Os.umask()`和`Os.chmod()`方法的差异，然后检测程序逻辑，修改调用方法。
+]]></Advice>
+			<References>
+				<Reference type="CWE">560:Use of umask() with chmod-style Argument</Reference>
+				<Reference type="OWASP TOP 10">2004:A5 Buffer Overflow</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

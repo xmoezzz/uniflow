@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020131" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">Java内容库注入</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Java内容库注入又称JCR注入，当不受控制的动态数据被传递给JCR的查询 API时，就会产生此类漏洞。此安全漏洞可以允许攻击者影响 JCR 的行为、绕过安全控制或获取未经授权的数据。  
+    
+**例如**：在下面的示例中：当name被污染。该参数通过`query`字段被连接到 JCR 查询。然后，此被污染的值被传递给`QueryManager.createQuery`。  
+```java 
+...
+QueryManager queryManager = session.getWorkspace().getQueryManager();  
+String query = "select * from nt:base where name= '" + username + "' and password = '" +password+ "'";  
+Query query = queryManager.createQuery(query, Query.JCR_SQL2);  
+query.execute();  
+...
+```  
+如果攻击者能够替代`username`和`password`中的任意字符串，它们可以使用下面的关于`username`的字符串进行SQL注入。  
+`validuser' OR '1'='1`   
+当其注入到命令时，命令就会变成：  
+`select * from nt:base where name = 'validuser' OR '1'='1' and password='';`   
+同样，攻击者可以为`password`提供如下字符串。  
+`' OR '1'='1`   
+当其注入到命令时，命令就会变成：  
+`select * from nt:base where name = '' and password='' OR '1'='1'`
+]]></Description>
+			<Advice><![CDATA[程序对非受信的用户输入数据进行净化，删除不安全的字符，从而防止JCR注入。
+]]></Advice>
+			<References>
+				<Reference type="CWE">94:Improper Control of Generation of Code ('Code Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 94</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 94</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:代码注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发Java内容库注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在Java内容库注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在Java内容库注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发Java内容库注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

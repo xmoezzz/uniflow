@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110087" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">readObject()调用可以被覆盖的方法</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法中调用了可以被覆盖的方法。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在readObject方法中调用了可以被覆盖的方法。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在反序列化过程中，父类的反序列化发生在子类之前，从`readObject()`调用可覆盖的方法，会导致覆盖的方法读取子类对象被完全创建之前的状态。  
+  
+**例如**：下面代码片段中，从`readObject()`方法中调用了一个可覆盖的方法。  
+```java
+private void readObject(final ObjectInputStream stream) throws IOException,ClassNotFoundException {  
+    overridableMethod();  
+    stream.defaultReadObject();  
+}  
+public void overridableMethod() {  
+    // ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[在反序列化过程中，readObject方法不应调用可覆盖的函数，可以将这些方法声明为final或者private,或者将类指定为final。  
+  
+**例如**：下面代码片段中，将`nonOverridableMethodmethod()`方法声明为final,避免被子类覆盖。
+```java
+private void readObject(final ObjectInputStream stream) throws IOException,ClassNotFoundException {  
+    nonOverridableMethodmethod();  
+    stream.defaultReadObject();  
+}  
+public final void nonOverridableMethodmethod() {  
+    // ...  
+}
+```  
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="CERT">SER05-J:Do not serialize instances of inner classes</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

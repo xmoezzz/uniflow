@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010070023" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">不变的类：字段可变</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行声明的字段可变，而所在类不可变。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[`@Immutable`注释表示类是不可变的，程序中修改了类的某个字段。  
+  
+**例如**：在下面的代码片段中，ImmutableClass已经被`@Immutable`所修饰，`list`仍然被修改。 
+```java
+@Immutable  
+public final class ImmutableClass {  
+    private final ArrayList<String> list = new ArrayList<String>();  
+    public static void main(String[] args) {  
+        list.add("hello world");   
+    }  
+}
+``` 
+]]></Description>
+			<Advice><![CDATA[检测程序逻辑，注释为`@Immutable`的类，所有的字段均不能被修改。
+]]></Advice>
+			<References>
+				<Reference type="CWE">471:Modification of Assumed-Immutable Data (MAID)</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

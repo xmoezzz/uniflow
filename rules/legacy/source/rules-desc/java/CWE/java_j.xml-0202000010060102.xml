@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010060102" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">程序访问设备的GPS位置</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行程序将会访问设备的GPS位置。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行程序将会访问设备的GPS位置。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序访问了设备的GPS位置，该操作会危及用户的隐私，确认程序是否需要这样的操作。  
+  
+**例1**：下面代码片段中，将可以通过`CdmaCellLocation`获取当前连接基站信息。  
+```java
+...  
+TelephonyManager telephonyManager = (TelephonyManager)context.getSystemService(Context.TELEPHONY_SERVICE);  
+CdmaCellLocation cdmaCellLocation = (CdmaCellLocation)telephonyManager.getCellLocation();  
+...
+```  
+**例2**：下面配置文件片段中，配置了获取位置信息的权限。  
+```xml
+...  
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />  
+...
+```
+]]></Description>
+			<Advice><![CDATA[确认访问设备的GPS位置是程序的必要功能，否则请勿执行该操作。
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

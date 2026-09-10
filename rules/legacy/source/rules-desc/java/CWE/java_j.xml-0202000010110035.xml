@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110035" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">非final的public static字段</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行定义了非final的public static字段。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序中定义了非final的public static字段，该字段可被外部类进行更改。  
+  
+**例如**：在下列代码中，类中字段被声明为public、static和非final的。  
+```java
+public class MysqlDBConfig {  
+    public static String driver = "com.mysql.jdbc.Driver";  
+    public static String dbName = "username";  
+    public static String password = "password";  
+    public static String userName = "root";  
+    public static String url = "jdbc:mysql://127.0.0.1:3306/" + dbName;  
+}
+```  
+在这种情况下，恶意代码可能会更改这些字段的值使程序出现意外行为。
+]]></Description>
+			<Advice><![CDATA[如果希望将字段作为常数值公开，则应将该字段声明为public static final，否则就将该字段声明为private。
+]]></Advice>
+			<References>
+				<Reference type="CWE">500:Public Static Field Not Marked Final</Reference>
+				<Reference type="CWE">493:Critical Public Variable Without Final Modifier</Reference>
+				<Reference type="CERT">OBJ10-J:Do not use public static nonfinal variables</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

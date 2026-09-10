@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010130032" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">byte数组转String时未指定编码</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行byte数组转String时未指定编码。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行byte数组转String时未指定编码。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在将字节数组的数据转换为String时如果未设定转换编码，可能会导致数据丢失。  
+  
+**例如**：下面代码片段中，将数据转换为字符串，以便创建hash值。  
+```java
+byte[] byteArray = byte[BUFSIZE];  
+FileInputStream fileInputStream = new FileInputStream("fileName");  
+int count = fileInputStream.read(byteArray);  
+String fileString = new String(byteArray);  
+String fileSHA256Hex = DigestUtils.sha256Hex(fileString);
+```  
+当文件的大小小于字节数组容量SIZE时，只要文件myFile中的信息已编码为与默认字符集相同，此方式正确。但是，如果使用不同的编码方式，或者为二进制文件，则信息将会丢失。进而导致生成的SHA散列值的可靠性降低。
+]]></Description>
+			<Advice><![CDATA[应避免将可能包含非字符数据的byte数组转换为String对象，如果必须将byte数组转String，应对其进行编码。  
+  
+**例1**：下面代码片段中，避免了将可能包含非字符数据的byte数组转换为String对象。  
+```java
+byte[] byteArray = byte[BUFSIZE];  
+FileInputStream fileInputStream = new FileInputStream("fileName");  
+int count = fileInputStream.read(byteArr);  
+byte[] fileSHA256 = DigestUtils.sha256(byteArray);
+```  
+**例2**：下面代码片段中，byte数组转String时指定了编码。  
+```java
+byte[] byteArray = byte[BUFSIZE];  
+FileInputStream fileInputStream = new FileInputStream("fileName");  
+int count = fileInputStream.read(byteArray);  
+String fileString = new String(byteArray,"utf-8");  
+String fileSHA256Hex = DigestUtils.sha256Hex(fileString);
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">486:Comparison of Classes by Name</Reference>
+				<Reference type="CERT">STR03-J:Do not encode noncharacter data as a string</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

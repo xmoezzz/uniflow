@@ -1,0 +1,188 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010050019" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">XML外部实体注入</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[XML作为一种使用较为广泛的数据传输格式，很多应用程序都包含有处理XML数据的代码，默认情况下，许多过时的或配置不当的 XML处理器都会对外部实体进行引用。如果攻击者可以上传 XML文档或者在 XML文档中添加恶意内容，通过易受攻击的代码、依赖项或集成，就能够攻击包含缺陷的XML处理器，从而造成拒绝服务攻击或者程序崩溃。  
+  
+**例1**：下面代码片段使用Java原生的SAX对evil.xml文件进行解析  
+```java
+private static void receiveXMLStream(InputStream inStream){  
+    SAXParserFactory factory = SAXParserFactory.newInstance();  
+    SAXParser saxParser;  
+    try {  
+        saxParser = factory.newSAXParser();  
+        saxParser.parse(inStream,new DefaultHandler());  
+        ...  
+    } catch (ParserConfigurationException e) {  
+        ...  
+    } catch (SAXException e) {  
+        ...  
+    } catch (IOException e) {  
+        ...  
+    }  
+}
+```  
+**例2**：下面代码片段使用Java原生的DOM对evil.xml文件进行解析  
+```java
+private static void receiveXMLStream(InputStream stream){  
+    DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();  
+    DocumentBuilder documentBuilder;  
+    try {  
+        documentBuilder = documentBuilderFactory.newDocumentBuilder();  
+        documentBuilder.parse(stream);  
+        ...  
+    } catch (ParserConfigurationException e) {  
+        ...  
+    } catch (SAXException e) {  
+        ...  
+    } catch (IOException e) {  
+        ...  
+    }     
+}
+```  
+当使用不可信数据来源作为文件输入流时  
+```java
+String fileName = request.getParameter("filename");  
+receiveXMLStream(new FileInputStream(fileName));
+```  
+如果evil.xml文件中包含以下文本  
+```xml
+<?xml version="1.0"?>  
+<!DOCTYPE foo SYSTEM "file:/dev/tty">  
+<foo>bar</foo>  
+...  
+```
+SAX或者DOM解析器会尝试访问在SYSTEM属性中标识的URL，这意味着它将读取本地/dev/tty文件的内容。在POSIX系统中，读取这个文件会导致程序阻塞，直到可以通过计算机控制台得到输入数据为止。这样，攻击者可以使用这个恶意的XML文件来导致系统挂起，程序会受到XML外部实体注入攻击。
+]]></Description>
+			<Advice><![CDATA[对于使用Java原生DOM和SAX以及DOM4J有以下两种修复方法（这里以`DocumentBuilderFactory`为例）：  
+1.禁用DTD（doctypes），这样可以阻止几乎所有的XML实体攻击  
+```java
+//仅限
+Xerces 2  -  http://xerces.apache.org/xerces2-j/features.html#disallow-doctype-decl  
+documentBuilderFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);  
+```
+
+2.如果无法完全禁用DTD，可以采用以下操作一起使用  
+(1)禁用外部通用实体和参数实体（根据实际使用的jar包）  
+  ```java
+// Xerces 1  -  http://xerces.apache.org/xerces-j/features.html#external-general-entities和http://xerces.apache.org/xerces-j/features.html#external-parameter-entities  
+// Xerces 2  -  http://xerces.apache.org/xerces2-j/features.html#external-general-entities和http://xerces.apache.org/xerces2-j/features.html#external-parameter-entities  
+// JDK7 +  -  http://xml.org/sax/features/external-general-entities和http://xml.org/sax/features/external-parameter-entities    
+documentBuilderFactory.setFeature("http://xml.org/sax/features/external-general-entities",false);  
+documentBuilderFactory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+```
+(2)禁用外部DTD  
+```java
+documentBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd",false);
+```
+(3)设置 XInclude 处理的状态为false,禁止实体扩展引用  
+```java
+documentBuilderFactory.setXIncludeAware(false);  
+documentBuilderFactory.setExpandEntityReferences(false);
+```   
+上述设置功能的方法`setFeature`也可以换成`setAttribute`，`setAttribute`方法用于用户在底层设置特定属性，使用方法和效果是一样的。  
+上述防御需要Java 7 Update 67，Java 8 Update 20或更高版本，因为`DocumentBuilderFactory`和`SAXParserFactory`的上述对策在早期Java版本中被破坏。  
+也可以从其他类上着手防范xxe漏洞：  
+如`XMLInputFactory、TransformerFactory、Validator、SchemaFactory、SAXTransformerFactory`。但这些类都是调用了`XMLConstants`中的属性，故需要支持JAXP1.5.使用StAX解析xml文件时，可使用下面方法进行防范(这里仅用`XMLInputFactory`类做为例子：其他类的防护手段类似)：  
+```java
+//这将完全禁用该工厂的DTD   
+xmlInputFactory.setProperty(XMLInputFactory.SUPPORT_DTD,false);   
+//禁用外部实体 
+xmlInputFactory.setProperty("javax.xml.stream.isSupportingExternalEntities",false);
+```
+示例1还有一个解决方案是，定义一个`CustomResolver`类，这个类实现了`org.xml.sax.EntityResolver`接口。它可以让SAX应用定制对外部实体的处理。`setEntityResolver()`方法可以将对应的SAX驱动实例注册进来。这个定制的处理器使用的是一个为外部实体定义的简单的白名单。当输入不是任何指定的、安全地实体源路径时，`resolverEntity()`方法会返回一个空的`InputSource`对象。结果是，当解析恶意输入时，这个由自定义的解析器返回的空的`InputStream`对象会抛出`java.net.MalformedURLException`异常。需要注意的是，必须创建一个`XMLReader`对象，以便通过这个对象来设置自定义的实体解析器。  
+以下为示例代码:  
+```java
+class CustomResolver implements EntityResolver {  
+    public InputSource resolveEntity(String publicId, String systemId)  
+            throws SAXException, IOException {  
+        //check for known good entities  
+        String entityPath = "/home/username/java/xxe/file";  
+        if (systemId.equals(entityPath)) {  
+            System.out.println("Resolving entity: " + publicId + " " + systemId);  
+            return new InputSource(entityPath);  
+        } else {  
+            return new InputSource(); // Disallow unknown entities by returning a blank path  
+        }  
+    }  
+}  
+class XXE {  
+    private static void receiveXMLStream(InputStream inStream,DefaultHandler defaultHandler)  
+            throws ParserConfigurationException, SAXException, IOException {  
+        SAXParserFactory factory = SAXParserFactory.newInstance();  
+        SAXParser saxParser = null;  
+        try {  
+            saxParser = factory.newSAXParser();  
+            XMLReader reader = saxParser.getXMLReader();  
+            reader.setEntityResolver(new CustomResolver());  
+            reader.setErrorHandler(new DefaultHandler());  
+            InputSource is = new InputSource(inStream);  
+            reader.parse(is);  
+            ...  
+        } catch (ParserConfigurationException e) {  
+            ...  
+        } catch (SAXException e) {  
+            ...  
+        } catch (IOException e) {  
+            ...  
+        }  
+    }  
+    ...  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 611</Reference>
+				<Reference type="CWE">611:Improper Restriction of XML External Entity Reference ('XXE')</Reference>
+				<Reference type="CERT">IDS17-J:Prevent XML External Entity Attacks</Reference>
+				<Reference type="OWASP TOP 10">2017:A4 XML External Entities (XXE)</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发XML外部实体注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在XML外部实体注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在XML外部实体注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发XML外部实体注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

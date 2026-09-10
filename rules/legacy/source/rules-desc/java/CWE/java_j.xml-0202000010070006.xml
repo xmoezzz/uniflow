@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010070006" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">数组上调用toString()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的数组上调用了toString()。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的数组上调用了toString()。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Java中所有的类都继承至Object，Object类中有一个`toString`的方法，那么所有类也都有这个方法。由于Java输出用的函数`print()`不接受对象输出，所以一般都会先用该对象的`toString`方法将其转换为字符串后再输出。  
+在Object中toString方法的源码如下  
+```java
+public String toString() {  
+    return getClass().getName() + "@" + Integer.toHexString(hashCode());  
+}
+```  
+而数组类中并没有对此方法进行重写，仅仅是重载为类的静态方法。所以数组直接调用`toString`方法的结果并不是数组中元素的值，而是[数组的类型@内存地址哈希码]。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，如果需要获取数组中元素的值，应采用循环的方式获取其中的值形成字符串。或者直接使用Java工具类Arrays中的`toString`方法转化数组为字符串。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="SJ/T 11683-2017">6.5.3 调用数组的toString方法</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

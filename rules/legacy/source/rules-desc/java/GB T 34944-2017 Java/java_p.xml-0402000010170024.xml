@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010170024" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">GB/T 34944-2017</Category>  
+        <Category type="SubClassChin">5.3 访问控制</Category>  
+        <Category type="DetailClassChin">A.2.3.2.4 避免使用明文密码</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：程序中使用了来自文件或者网络的未进行加密的明文密码。  
+对于避免使用明文密码的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：   
+```java
+String password = request.getParamter("password");  
+dBConnection = DriverManager.getConnection(url, name, password);
+```  
+上述代码片段中，使用来自网络的明文密码用于获取connection。  
+明文密码会降低系统安全性，应对程序中使用的密码值进行加密。  
+**示例2**：   
+```java
+SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes("UTF-8"), "AES");  
+aesCipher.init(Cipher.DECRYPT_MODE, secretKeySpec);  
+String decryptedPassword = new String(aesCipher.doFinal(password.getBytes("UTF-8")), "UTF-8");  
+dBConnection = DriverManager.getConnection(url, name, decryptedPassword);
+```  
+上述代码片段中，获取connection时使用已经加密的密码。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">256:Plaintext Storage of a Password</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Insufficiently Protected Credentials [XYM]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:明文存储口令</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.3 访问控制</BigClassChin>  
+       
+    </BugInfo>  
+    

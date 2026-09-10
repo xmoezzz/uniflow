@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010170008" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">GB/T 34944-2017</Category>  
+        <Category type="SubClassChin">5.1 数据清洗</Category>  
+        <Category type="DetailClassChin">A.2.1.2.2 预防反射型XSS</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：应用程序通过Web请求获取不可信赖的数据，在未检验数据是否存在恶意代码的情况下，便将其传送给了Web用户，应用程序将易于受到反射型XSS攻击。  
+对于预防反射型XSS的情况，示例1给出了不规范用法（java语言）示例。  
+**示例1**：下面JSP代码片段的功能是从HTTP请求中读取雇员的ID（eid），并将其显示给用户。
+```java
+<% String name= request.getParameter("username");%>  
+姓名: <%= name%>  
+```   
+如果name里有包含恶意代码，那么Web浏览器就会像显示HTTP响应那样执行该代码，应用程序将受到反射型XSS攻击。  
+为了避免反射型XSS攻击，建议采用以下方式进行防御：  
+1.对用户的输入进行合理验证（如年龄只能是数字），对特殊字符（如`<`、`>`、`'`、`"`以及`<script>`、`javascript`等进行过滤。  
+2.根据数据将要置于HTML上下文中的不同位置（HTML标签、HTML属性、JavaScript脚本、CSS、URL），对所有不可信数据进行恰当的输出编码。    
+**例如**：采用OWASP ESAPI对数据输出HTML上下文中不同位置，编码方法如下。  
+  ```java
+//HTML encode  
+ESAPI.encoder().encodeForHTML("inputData");  
+//HTML attribute encode  
+ESAPI.encoder().encodeForHTMLAttribute("inputData");   
+//JavaScript encode  
+ESAPI.encoder().encodeForJavaScript("inputData");  
+//CSS encode  
+ESAPI.encoder().encodeForCSS("inputData");  
+//URL encode  
+ESAPI.encoder().encodeForURL("inputData");   
+```
+3.设置HttpOnly属性，避免攻击者利用跨站脚本漏洞进行Cookie劫持攻击。在Java EE中，给Cookie添加HttpOnly的代码如下：  
+```java
+response.setHeader("Set-Cookie","cookiename=cookievalue; path=/; Domain=domainvaule; Max-age=seconds; HttpOnly");
+```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">83:Improper Neutralization of Script in Attributes in a Web Page</Reference>  
+        <Reference type="CWE">82:Improper Neutralization of Script in Attributes of IMG Tags in a Web Page</Reference>  
+        <Reference type="CWE">81:Improper Neutralization of Script in an Error Message Web Page</Reference>  
+        <Reference type="CWE">80:Improper Neutralization of Script-Related HTML Tags in a Web Page (Basic XSS)</Reference>  
+        <Reference type="CWE">79:Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</Reference>  
+        <Reference type="OWASP TOP 10">2017:A7 Cross-Site Scripting (XSS)</Reference>  
+        <Reference type="OWASP TOP 10">2013:A3 Cross-Site Scripting (XSS)</Reference>  
+        <Reference type="OWASP TOP 10">2010:A2 Cross-Site Scripting (XSS)</Reference>  
+        <Reference type="OWASP TOP 10">2007:A1 Cross Site Scripting (XSS)</Reference>  
+        <Reference type="OWASP TOP 10">2004:A4 Cross Site Scripting</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 79</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 79</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 79</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 79</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Cross-site Scripting [XYT]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">Web问题:跨站脚本</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.1 数据清洗</BigClassChin>  
+       
+    </BugInfo>  
+    

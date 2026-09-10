@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010080014" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">配置文件中的空密码</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行密码为空。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[配置文件中密码值为空，系统安全性将会受到威胁。
+]]></Description>
+			<Advice><![CDATA[即使不能阻止应用程序被那些可以访问配置文件的攻击者入侵，也可以通过加密密码提升攻击者入侵难度，故配置文件中存储的密码应该为经过加密处理的密码值。
+]]></Advice>
+			<References>
+				<Reference type="CWE">258:Empty Password in Configuration File</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

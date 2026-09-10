@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010110140" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JFinal配置错误：启用开发模式</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行启用JFinal开发模式。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行启用JFinal开发模式。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[JFinal在开发模式下，会对每次请求输出报告，如输出本次请求的`URL、Controller、Method`以及请求所携带的参数，存在着一定的安全风险。  
+  
+**例如**：下列代码中启用了开发模式。  
+```java
+public void configConstant(Constants me) {  
+    me.setDevMode(true);  
+}
+```
+]]></Description>
+			<Advice><![CDATA[当开发完成后，关闭JFinal开发模式，避免产生安全问题。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

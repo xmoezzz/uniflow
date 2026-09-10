@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020134" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">不安全的信息传输：数据库</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行通过未加密的通道与数据库通信。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行通过未加密的通道与数据库通信。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序通过未加密的通道与数据库通信，攻击者可能会修改用户输入的数据，甚至可以在数据库上执行任意SQL命令。  
+  
+**例如**：下面配置文件片段中应用程序通过未加密的通道与数据库通信。
+```xml
+...  
+<connectionStrings>  
+  <add name="Test" connectionString="Data Source=210.10.20.10,1433; Initial Catalog=myDataBase;User ID=myUsername;Password=myPassword;" providerName="MySql.Data.MySqlClient" />  
+</connectionStrings>  
+...
+```  
+]]></Description>
+			<Advice><![CDATA[大多数数据库服务器都提供了针对不同端口的加密备选方案，可使用 SSL/TLS对通过网络发送的所有数据进行加密。  
+  
+**例如**：下面配置文件片段中应用程序通过加密的通道与数据库通信。
+```xml
+...  
+<connectionStrings>  
+  <add name="Test" connectionString="Data Source=210.10.20.10,1433; Initial Catalog=myDataBase;User ID=myUsername;Password=myPassword; Encrypt=yes;" providerName="System.Data.SqlClient" >  
+</connectionStrings>  
+...
+```  
+]]></Advice>
+			<References>
+				<Reference type="CWE">297:Improper Validation of Certificate with Host Mismatch</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M3 Insufficient Transport Layer Protection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,154 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010160110" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">7.2 资源管理</Category>  
+        <Category type="DetailClassChin">C.13.5 在不需要时关闭资源</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+输出流在使用后应当及时关闭。   
+2) 原理   
+Java 调用垃圾回收器来释放没有引用且没有被释放的内存。然而，垃圾回收器不能释放那些非内存资源，例如打开的文件描述符和数据库连接。因此，如果不能释放这样的资源会导致资源耗尽攻击。   
+3) 示例   
+  
+    **例 1** 这个不符合规则的代码示例打开并使用一个文件，但没有显示关闭这个文件。   
+    ```java
+    public int processFile(String fileName)    
+                  throws IOException, FileNotFoundException {    
+        FilelnputStream stream = new FilelnputStream(fileName);   
+        BufferedReader bufRead =new BufferedReader(new InputStreamReader(stream));   
+        String line;   
+        while ((line = bufRead.readLine() )!= null) {   
+            sendLine(line);   
+        }   
+        return 1;   
+    }
+    ```   
+    对应的符合规则的解决方案是：释放所有获取的资源，而不管是否会抛出任何异常。尽管对 bufRead的解引用会导致异常，但 FilelnputStream 对象还是按照需要关闭。   
+    ```java
+    try {   
+        final FilelnputStream stream = new FilelnputStream(fileName);   
+        try {   
+            final BufferedReader bufRead =new BufferedReader(new InputStreamReader(stream));    
+            String line;   
+            while ((line = bufRead.readLine()) != null) {   
+                sendLine(line);   
+            }   
+            } finally {   
+                if (stream != null) {    
+                    try {   
+                        stream.close();   
+                    } catch (IOException e) {   
+                        // forward to handler   
+                    }   
+                }   
+            }   
+        } catch (IOException e) {    
+            // forward to handler   
+        }
+    ```   
+      
+    **例 2** 在使用数据库连接的情况下，资源池耗尽的问题会更严重。许多数据库服务器仅允许限量连接，这取决于配置和许可证的情况。不能释放数据库连接会导致可用连接快速耗尽。在执行 SQL 语句或者在处理相关的结果时，这个不符合规则代码示例没有关闭连接。   
+    ```java
+    public void getResults(String sqlQuery) {    
+        try {   
+            Connection conn = getConnection();   
+            Statement stmt = conn.createStatement();   
+            ResultSet rs = stmt.executeQuery(sqlQuery);    
+            processResults(rs);    
+            stmt.close();   
+            conn.close ();   
+        } catch (SQLException e) { /* forward to handler */ 
+        }   
+    }
+    ```   
+    对应的符合规则的解决方案是：使用 try-with-resource，这个方法是在 Java SE 7 中引入的，用来保证资源按照要求释放。   
+    ```java
+    try (Connection conn = getConnection();Statement stmt = conn.createStatement();   
+        ResultSet rs = stmt.executeQuery(sqlQuery) ) {   
+        processResults(rs);   
+    } catch (SQLException e) {   
+      // forward to handler   
+    }
+    ```   
+      
+    **例 3**这个不符合规则的代码示例想要通过在 finally代码块中加入清理代码来解决数据库连接造成的资源耗尽问题。然而，`rs`、`stmt`、或者`conn`可以是 null,从而在 finally 代码块中抛出 NullPointerException   
+    异常。   
+    ```java
+    Statement stmt = null;   
+    ResultSet rs = null;   
+    Connection conn = getConnection();   
+    try {   
+          stmt = conn.createStatement();    
+          rs = stmt.executeQuery(sqlQuery);   
+          processResults(rs);   
+    } catch(SQLException e) {   
+        // forward to handler    
+    } finally {    
+          rs.close ();    
+          stmt.close ();    
+          conn.close ();   
+    }
+    ```   
+    对应的符合规则的解决方案是：保证资源按照要求释放。   
+    ```java
+    Statement stmt = null;   
+    ResultSet rs = null;   
+    Connection conn = getConnection();    
+    try {   
+          stmt = conn.createStatement();   
+          rs = stmt.executeQuery(sqlQuery);    
+          processResults(rs);   
+    } catch (SQLException e) {   
+        // forward to handler    
+    } finally {    
+        try {   
+            if (rs != null) {
+                rs.close();
+            }   
+        } catch (SQLException e) {   
+            // forward to handler    
+        } finally {    
+            try {   
+            if (stmt != null) {
+                stmt.close();
+            }   
+            } catch (SQLException e) {   
+                // forward to handler    
+            } finally {    
+                try {   
+                    if (conn != null) {
+                        conn.close();
+                    }    
+                } catch (SQLException e) {   
+                // forward to handler   
+                }   
+            }   
+        }   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">775:Missing Release of File Descriptor or Handle after Effective Lifetime</Reference>  
+        <Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>  
+        <Reference type="CWE">459:Incomplete Cleanup</Reference>  
+        <Reference type="CWE">404:Improper Resource Shutdown or Release</Reference>  
+        <Reference type="CERT">FIO04-J:Close resources when they are no longer needed</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 404</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.13 输入输出</BigClassChin>  
+       
+    </BugInfo>  
+    

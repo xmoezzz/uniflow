@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010020001" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">命令注入</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[命令注入是指，在应用程序执行的命令中包含来源于不可信数据时，程序本身没有对这些不可信数据做正确、合理的验证和过滤，导致系统执行恶意命令。  
+  
+**例1**：以下代码通过`Runtime.exec()`方法调用Windows的dir命令，列出目录列表。  
+```java
+import java.io.*;  
+public class DirList {  
+    public static void main(String[] args) {  
+        String dir = System.getProperty("dir");  
+        Process process = null;  
+        InputStream istream = null;  
+        try {  
+            process = Runtime.getRuntime().exec("cmd.exe /c dir" + dir);  
+            int result = process.waitFor();  
+            if (result != 0) {  
+                System.out.println("process error: " + result);  
+            }  
+            istream = (result == 0) ? process.getInputStream() : process.getErrorStream();  
+            byte[] buffer = new byte[512];  
+            while (istream.read(buffer) != -1) {  
+                System.out.print(new String(buffer, "gb2312"));  
+            }  
+        } catch (IOException e1) {  
+            e1.printStackTrace();  
+        } catch (InterruptedException e2) {  
+            e2.printStackTrace();  
+        } finally {  
+            if (istream != null) {  
+                try {  
+                    istream.close();  
+                } catch (IOException e) {  
+                    e.printStackTrace();  
+                }  
+            }  
+            if (process != null) {  
+                process.destroy();  
+            }  
+        }  
+    }  
+}
+```  
+攻击者可以构造特殊命令参数来利用该程序，**例如**：  
+`java -Ddir="..\\ & shutdown -s -t 60" DirList`  
+上面的命令实际上执行下面两条命令：  
+`cmd.exe /c dir ..\ & shutdown -s -t 60`  
+  
+**例2**：以下代码片段来自一个Web应用程序，它该段代码通过运行rmanDB.bat脚本启动Oracle数据库备份，然后运行cleanup.bat脚本删除一些临时文件。脚本文件rmanDB.bat接受一个命令行参数，指明需要执行的备份类型。   
+```java
+...  
+String btype = request.getParameter("backuptype");  
+String cmd = new String("cmd.exe /K \"c:\\util\\rmanDB.bat "+btype+"&& c:\\utl\\cleanup.bat\"");  
+System.Runtime.getRuntime().exec(cmd);  
+...
+```  
+该段代码没有对来自用户请求中的参数做任何校验。  
+通常情况下，`Runtime.exec()`函数不会执行多条命令，但在以上代码中，为了执行多条命令，程序调用`Runtime.exec()`方法，首先运行了cmd.exe指令，因此能够执行用&&分隔的多条命令了。如果攻击者传递了一个形式为`&& del c:\\dbms\\*.*`的字符串，那么该段代码将会在执行其他指定命令的同时执行这条命令。
+例3：下面是利用Apache Axis框架搭建的WebService的源码片段。
+```java
+public String getResponse(String endpoint) {
+    Service service = new Service();
+    Call call = (Call) service.createCall();
+    call.setTargetEndpointAddress(new URL(endpoint));
+    call.setOperation("list");
+    ...
+}
+```
+在搭建的Axis 1.4+Tomcat6的环境，将AdminService配置中的`enableRemoteAdmin`属性设置为true时，如果上面提供访问WebService的字符串变量`endpoint`是受外部可控的，那么攻击者很可能利用精心设计的字符串作为endpoint的输入值，从而构造出包含注入命令的SOAP请求协议，进而实施命令注入攻击。]]></Description>
+			<Advice><![CDATA[防止命令注入的方法如下：  
+1. 程序对非受信的用户输入数据进行净化，删除不安全的字符。  
+2. 创建一份安全字符串列表，限制用户只能输入该列表中的数据。  
+3. 配置URL访问控制策略：部署于公网的axis服务器，可通过ACL禁止对/services/AdminService及/services/FreeMarkerService路径的访问。
+4. 禁用axis远程管理功能：axis<=1.4版本默认关闭了远程管理功能，如非必要请勿开启。若需关闭，则需修改axis目录下WEB-INF文件夹中的server-config.wsdd文件，将其中"enableRemoteAdmin"的值设置为false。
+
+  
+**例1**：下面代码片段中，使用正则表达式匹配用户的输入。  
+```java
+...  
+if (!Pattern.matches("[0-9A-Za-z@.]+", dir)) {  
+    // Handle error  
+}  
+...
+```  
+  
+**例2**：下面代码片段中，通过只向`Runtime.exec()`方法输入那些受信的字符串来防止命令注入。  
+```java
+...  
+String btype = null;  
+// only allow integer choices  
+int number = Integer.parseInt(request.getParameter("backuptype"));   
+switch (number) {  
+    case 1:   
+        btype = "tables"  
+        break; // Option 1  
+    case 2:   
+        btype = "users"  
+        break; // Option 2  
+    case 3:   
+        btype = "full"  
+        break; // Option 3  
+    default: // invalid  
+        break;   
+}  
+if (btype == null) {  
+    // handle error  
+}
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">78:Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')</Reference>
+				<Reference type="CWE">77:Improper Neutralization of Special Elements used in a Command ('Command Injection')</Reference>
+				<Reference type="CERT">IDS07-J:Sanitize untrusted data passed to the Runtime.exec() method</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 78</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 78</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 78</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:命令注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发命令注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在命令注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在命令注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发命令注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

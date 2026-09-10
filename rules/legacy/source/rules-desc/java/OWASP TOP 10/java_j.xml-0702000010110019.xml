@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110019" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：表单未继承验证器类</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行表单未继承验证器类。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[表单没有继承struts的校验器类。为了能够使用struts验证器，表单必须继承以下各类之一：`ValidatorForm、ValidatorActionForm、DynaValidatorActionForm、DynaValidaorForm`。struts的校验器是通过在这些类中执行`validate()`方法，而绑定在应用程序中的。
+]]></Description>
+			<Advice><![CDATA[为了能够使用struts验证器，表单必须继承以下各类之一：ValidatorForm、ValidatorActionForm、DynaValidatorActionForm、DynaValidaorForm。struts的校验器是通过在这些类中执行`validate()`方法，而绑定在应用程序中的。
+]]></Advice>
+			<References>
+				<Reference type="CWE">104:Struts: Form Bean Does Not Extend Validation Class</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

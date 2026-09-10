@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110065" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">缺少安全检查：clone()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法缺少安全检查。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法缺少安全检查。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[一个实现了Cloneable接口的类在克隆类时，并不会调用该类中的构造函数。因此，如果该类的构造函数中存在SecurityManager或AccessController检查，而在`clone()`方法中又没有进行相同的检查，克隆类时将会绕过此安全检查。  
+  
+**例如**：对于下列代码，构造函数中包含SecurityManager检查，而`clone()`方法中不包含该检查。  
+```java
+public class SecurityCheck implements Cloneable {  
+    private String name;  
+    public SecurityCheck(String name) {  
+        SecurityManager smanager= System.getSecurityManager();  
+        if (smanager!= null) {  
+            smanager.checkPermission(new BadPermission("SecurityCheck"));  
+        }  
+        this.name = name;  
+    }  
+    public Object clone() throws CloneNotSupportedException {  
+        SecurityCheck sc= (SecurityCheck)super.clone();  
+        return null;  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[如果在类实现了Cloneable接口，且该类的构造函数中存在SecurityManager或AccessController检查，那么该类的clone()方法中也必须存在相同的检查。  
+  
+**例如**：下列代码在构造函数与`clone()`方法中都使用`doSecurityCheck()`方法来执行SecurityManager检查。
+```java
+public class SecurityCheck implements Cloneable {  
+    private String name;  
+    public SecurityCheck(String name) {  
+        doSecurityCheck();  
+        this.name = name;  
+    }  
+    public Object clone() throws CloneNotSupportedException {  
+        SecurityCheck sc= (SecurityCheck) super.clone();  
+        doSecurityCheck();  
+        return null;  
+    }  
+    private final void doSecurityCheck() {  
+        SecurityManager smanager= System.getSecurityManager();  
+        if (smanager!= null) {  
+            smanager.checkPermission(new GoodPermission("SecurityCheck"));  
+        }  
+    }  
+}
+```  
+]]></Advice>
+			<References>
+				<Reference type="CWE">358:Improperly Implemented Security Check for Standard</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

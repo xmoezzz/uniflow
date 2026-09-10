@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010120009" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">异常处理</Category>
+				<Category type="DetailClassChin">未处理的错误</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行抛出的错误未被处理。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行抛出的错误未被处理。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在一般情况下，如果错误在方法中被抛出，并且未进行任何处理，它可能会导致程序崩溃或暴露敏感信息。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，对错误进行合理处理。
+]]></Advice>
+			<References>
+				<Reference type="CWE">431:Missing Handler</Reference>
+				<Reference type="CWE">248:Uncaught Exception</Reference>
+				<Reference type="CERT">ERR00-J:Do not suppress or ignore checked exceptions</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>exception,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

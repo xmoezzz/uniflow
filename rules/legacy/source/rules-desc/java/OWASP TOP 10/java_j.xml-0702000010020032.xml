@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010020032" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">Spring Beans注入</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Spring本地文件和远程 URL等多个资源加载 Bean定义。如果 Bean定义资源的内容被攻击者控制，Bean在初始化时将会执行任意代码。  
+  
+**例如**：下面代码片段，从不可信数据源加载Bean。 
+```java  
+...
+String bean = request.getParameter("bean");  
+GenericApplicationContext genericApplicationContext = new GenericApplicationContext();  
+XmlBeanDefinitionReader xmlBeanDefinitionReader = new XmlBeanDefinitionReader(genericApplicationContext);  
+xmlBeanDefinitionReader.loadBeanDefinitions(new UrlResource(bean));  
+genericApplicationContext.refresh();
+...
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，是否需要通过外部数据来加载Spring Beans，以避免攻击者执行任意代码。
+]]></Advice>
+			<References>
+				<Reference type="CWE">95:Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')</Reference>
+				<Reference type="CWE">94:Improper Control of Generation of Code ('Code Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 94</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 94</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发Spring Beans注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在Spring Beans注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在Spring Beans注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发Spring Beans注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

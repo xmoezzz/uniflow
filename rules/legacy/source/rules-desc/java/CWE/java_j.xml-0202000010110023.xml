@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110023" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：未使用的验证表单</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的验证表单未被使用。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[未使用的验证表单暗示着验证逻辑已经过时。当程序员删除或者重命名Action表单映射后，很容易忘记更新验证逻辑。
+]]></Description>
+			<Advice><![CDATA[当程序员删除或者重命名Action表单映射后，应该及时更新验证逻辑。
+]]></Advice>
+			<References>
+				<Reference type="CWE">107:Struts: Unused Validation Form</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

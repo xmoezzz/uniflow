@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010120008" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">异常处理</Category>
+				<Category type="DetailClassChin">空的catch代码块</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的catch代码块为空，没有存在的意义。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的catch代码块为空，没有存在的意义。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[忽略或消除程序异常会导致不一致的程序状态，**例如**：在try程序段中，不会执行在异常抛出之后的表达式或语句。  
+  
+**例如**：下面这段不符合规则的代码示例捕获并消除了`InterruptedException`。
+```java  
+class Foo implements Runnable{  
+    public void run(){  
+        try{  
+            Thread.sleep(1000);  
+        }catch(InterruptedException e){  
+            //Ignore  
+        }  
+    }  
+}
+```  
+上面程序中，妨碍了`run()`方法的调用者判断是否发生一个中断异常。
+]]></Description>
+			<Advice><![CDATA[程序异常中断了预期中的程序流程，应恰当地进行异常处理，要么从异常中恢复，将异常重新抛出，由下一个和try语句对应的catch段来处理，要么根据catch程序段的上下文抛出另一个合适的异常。
+]]></Advice>
+			<References>
+				<Reference type="CWE">391:Unchecked Error Condition</Reference>
+				<Reference type="CERT">ERR00-J:Do not suppress or ignore checked exceptions</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+				<Reference type="SJ/T 11683-2017">6.4.5 catch语句块为空</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>exception,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

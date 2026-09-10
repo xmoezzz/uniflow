@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010020058" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">不安全的反射</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用了反射。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用了反射。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序通过外部输入来确定程序中要实例化哪个类或调用哪个方法，这样攻击者可以通过提供值来选择不期望的类或者方法。这种情况下攻击者可以创建开发人员意想不到的控制流路径。这些路径可能绕过身份验证或者访问控制检查，或以其他方式导致应用程序以意想不到的方式运行。如果攻击者能够将文件上传到应用程序的类路径或者添加应用程序类路径的新入口，则攻击者能够通过反射将新的行为引入应用程序，从而产生恶意行为。  
+  
+**例如**：以下代码通过反射来加载用户指定的类。  
+```java
+...  
+String name = request.getParameter("class");  
+classLoader.loadClass(name);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[可以创建一个规定用户使用的合法名称列表，并仅允许用户从中进行选择。通过该方法，就不会直接采用用户提供的输入的名称。
+]]></Advice>
+			<References>
+				<Reference type="CWE">494:Download of Code Without Integrity Check</Reference>
+				<Reference type="CWE">470:Use of Externally-Controlled Input to Select Classes or Code ('Unsafe Reflection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发不安全的反射漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在不安全的反射漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在不安全的反射漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发不安全的反射漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

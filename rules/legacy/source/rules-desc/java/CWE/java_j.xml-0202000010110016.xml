@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110016" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts2：校验器没有对应的Action字段</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中Action字段没有对应的校验器。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[struts2校验器没有对应的Action字段，当开发人员删除或者重命名Action表单映射后，很容易忘记更新验证逻辑。如果缺少校验器定义，就表明验证逻辑没有得到适当维护。
+]]></Description>
+			<Advice><![CDATA[Struts2校验器要用Action字段对应。
+]]></Advice>
+			<References>
+				<Reference type="CWE">101:Struts Validation Problems</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

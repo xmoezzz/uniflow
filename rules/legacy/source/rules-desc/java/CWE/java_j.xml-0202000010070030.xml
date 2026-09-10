@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010070030" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">HTTP响应完成后继续操作输出流</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行在HTTP响应完成后继续操作输出流。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行在HTTP响应完成后继续操作输出流。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[转发`HttpServletRequest`、重定向`HttpServletResponse`或刷新servlet的输出流缓冲区会导致提交相关的数据流，程序后续再执行到缓冲区重置或数据流提交，将会抛出`IllegalStateException`异常。  
+此外，servlets允许使用`ServletOutputStream`或`PrintWriter`将数据写入响应数据流。如果在调用`getOutputStream()`之后再调用`getWriter()`或者反向调用，会导致抛出`IllegalStateException`异常，使其中断响应。  
+**例如**：在下面代码片段中，会在servlet的输出流缓冲区刷新之后进行重定向，会抛出`IllegalStateException`异常。
+```java
+public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {  
+    OutputStream os = response.`getOutputStream()`;  
+    ...  
+    os.flush();  
+    os.close();          
+    response.sendRedirect("http://www.codesafe.cn");  
+}
+```  
+]]></Description>
+			<Advice><![CDATA[避免HTTP响应完成后继续操作输出流，应注意：  
+1. 提交servlet的输出流之后，不要重置数据流缓冲区或执行重新提交该数据流。  
+2. 避免在调用`getOutputStream()`之后调用`getWriter()`，或者在调用`getWriter()`后调用`getOutputStream()`。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

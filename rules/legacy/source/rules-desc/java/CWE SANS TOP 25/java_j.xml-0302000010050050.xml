@@ -1,0 +1,130 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010050050" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">路径遍历：ZIP条目覆盖</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序在解压zip文件时，由于没有对文件名进行合法性的校验，而是直接将文件名拼接在待解压目录后面，导致可以将文件解压到正常解压缩路径之外并覆盖可执行文件，从而等待系统或用户调用他们实现代码执行（也可能是覆盖配置文件或其他可敏感文件）。  
+  
+**例1**：以下代码示例解压zip文件。  
+```java
+...  
+File sourceFile = new File(sourceName);  
+ZipFile zipFile = null;  
+try {  
+    zipFile = new ZipFile(sourceFile,"UTF-8");  
+} catch (IOException exception) {  
+    exception.printStackTrace();  
+    System.out.println("解压文件不存在!");  
+}  
+Enumeration e = zipFile.getEntries();  
+while(e.hasMoreElements()) {  
+    ZipEntry zipEntry = (ZipEntry)e.nextElement();  
+    System.out.println(`zipEntry.getName()`);  
+    File f = new File(targetFile,`zipEntry.getName()`);  
+    f.getParentFile().mkdirs();  
+    f.createNewFile();  
+    InputStream is = zipFile.getInputStream(zipEntry);  
+    FileOutputStream fos = new FileOutputStream(f);  
+    int length = 0;  
+    byte[] b = new byte[1024];  
+    while((length=is.read(b, 0, 1024))!=-1) {  
+        fos.write(b, 0, length);  
+    }  
+    is.close();  
+    fos.close();  
+}  
+if (zipFile != null) {  
+    zipFile.close();  
+}
+```  
+代码示例未验证`zipEntry.getName()`，如果zip文件放在`/tmp/`目录中，zip条目为`../etc/hosts`，且应用程序在必要的权限下运行，则会导致系统的hosts文件被覆盖。  
+**例2**：以下代码使用`org.zeroturnaround.zip.ZipUtil`解压zip文件。  
+```java
+public void unZip(String zipPath,String targetPath) {  
+    ...  
+    ZipUtil.unpack(new File(zipPath), new File(targetPath));  
+    ...  
+}
+```  
+代码示例中如果使用了`zt-zip 1.13`之前版本。攻击者可借助带有目录遍历名称的zip文件利用该漏洞写入任意文件。
+]]></Description>
+			<Advice><![CDATA[防止ZIP条目覆盖导致路径遍历可以通过判定zipEntry路径是否在指定路径内，或者使用一些最新的解压jar包来解压文件。  
+  
+**例1**：下面的validateFileDir函数来限制zip条目文件路径只在许可的目录内。  
+```java
+//限制文件在许可的目录内  
+public static String validateFileDir(String fileName, String permitDirectory) throws IOException{  
+    File file= new File(fileName);  
+    String canonicalFilePath= checkFile.getCanonicalPath();  
+    File permitDir = new File(permitDirectory);  
+    String canonicalPermitDir = permitDir.getCanonicalPath();  
+    if (canonicalFilePath.startsWith(canonicalPermitDir)){  
+        return canonicalFilePath;  
+    }else{  
+        throw new IllegalStateException("文件不在许可的目录内");  
+    }  
+}
+```  
+可以解压zip文件过程中使用`validateFileDir`函数来限制zip条目文件只在许可目录内。  
+**例2**：使用当前zt-zip 1.13以及之后的版本来进行解压文件。
+]]></Advice>
+			<References>
+				<Reference type="CWE">73:External Control of File Name or Path</Reference>
+				<Reference type="CWE">23:Relative Path Traversal</Reference>
+				<Reference type="CWE">22:Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')</Reference>
+				<Reference type="CERT">IDS04-J:Safely extract files from ZipInputStream</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M8 Security Decisions Via Untrusted Inputs</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 22</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 22</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 22</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 73</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发路径遍历：ZIP条目覆盖漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在路径遍历：ZIP条目覆盖漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在路径遍历：ZIP条目覆盖漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发路径遍历：ZIP条目覆盖漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

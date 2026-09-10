@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010070002" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">类没有实现equals()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在的类没有实现equals()。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在没有重写`equals()`方法的类（或接口）上调用`equals()`方法，会导致调用继承自java.lang.Object的`equals()`方法，尽管可以合法的使用`Object.equals()`，但是`Object.equals()`将比较两个对象的内存地址，而不是比较对象的成员变量。  
+  
+**例如**：下列代码中PersonTeam类未实现`equals()`方法，当使用`equals()`方法时是通过两个对象的内存地址比较。  
+```java
+public class PersonTeam{  
+    private int tid;  
+    public int getTeamID(){  
+        return tid;  
+    }  
+    public void setTeamID(int newTid){  
+        tid = newTid;  
+    }  
+ }    
+public class CompareTeam{  
+    public boolean compareTeams(PersonTeam t1, PersonTeam t2){  
+        return t1.equals(t2);   
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[使用`equals()`方法比较对象的成员信息，需要重写Object的`equals()`方法。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="SJ/T 11683-2017">6.3.4 equals方法的错误使用</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

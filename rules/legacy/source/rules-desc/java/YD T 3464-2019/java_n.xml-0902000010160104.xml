@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160104" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.12.3 不要在初始化类时使用后台线程</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序必须确保在启动任何线程之前完成类的初始化。   
+2) 原理   
+在类初始化时启动和使用后台线程，会造成类的初始化循环和死锁。例如，负责类初始化的 main线程可能会阻塞并等待后台线程，而后台线程也会等待 main 线程完成类的初始化。这种问题可能会发生在，例如，在初始化类的过程中后台线程建立数据库连接时。    
+3) 示例   
+    如下不符合规则的代码示例中，作为类初始化的一部分，静态的初始化方法启动了一个后台线程。这个后台线程尝试建立一个数据库连接，但是它应该等待 ConnectionFactory 类中所有成员，包括dbConnection,都完成初始化。   
+    ```java
+    public final class ConnectionFactory {
+        private static Connection dbConnection;
+        // Other fields ...
+    
+        static {
+            Thread dbInitializerThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    // Initialize the database connection
+                    try {
+                        dbConnection = DriverManager.getConnection("connection string");
+                    } catch (SQLException e) {
+                        dbConnection = null;
+                    }
+                }
+            });
+    
+            // Other initialization, for example, start other threads
+    
+            dbInitializerThread.start();
+            try {
+                dbInitializerThread.join();
+            } catch (InterruptedException ie) {
+                throw new AssertionError(ie);
+            }
+        }
+    
+        public static Connection getConnection() {
+            if (dbConnection == null) {
+                throw new IllegalStateException("Error initializing connection");
+            }
+            return dbConnection;
+        }
+    
+        public static void main(String[] args) {
+            // ...
+            Connection connection = getConnection();
+        }
+    }
+    ```   
+       
+    对应的符合规则的解决方案在 main 线程初始化了所有的成员，而不是从静态的初始化方法中生成一个后台线程。   
+    ```java
+    public final class ConnectionFactory {
+        private static Connection dbConnection;
+        // Other fields ...
+    
+        static {
+            // Initialize a database connection
+            try {
+                dbConnection = DriverManager.getConnection("connection string");
+            } catch (SQLException e) {
+                dbConnection = null;
+            }
+            // Other initialization (do not start any threads)
+        }
+    
+        // ...
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.12 与线程安全相关的其他规则</BigClassChin>  
+       
+    </BugInfo>  
+    

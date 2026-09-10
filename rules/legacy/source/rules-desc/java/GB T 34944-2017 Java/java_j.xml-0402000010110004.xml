@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010110004" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Cookie：未经过SSL加密</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行中Cookie未经过SSL加密。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中Cookie未经过SSL加密。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[使用未加密的网络传输通道发送Cookie易受到网络截取攻击。创建Cookie时，需要将secure标记设置为true，表明浏览器必须通过HTTPS来加密传输Cookie。  
+  
+**例如**：下面代码片段中，将Cookie添加到HTTP响应中时，未设置secure标记。  
+```java
+...  
+Cookie cookie = new Cookie("SessionID", sessionID);  
+response.addCookie(cookie);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[为Cookie添加secure标记，要求浏览器通过HTTPS发送Cookie，这样有助于保护Cookie值的保密性。
+]]></Advice>
+			<References>
+				<Reference type="CWE">614:Sensitive Cookie in HTTPS Session Without 'Secure' Attribute</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="GB/T 34944-2017 Java">安全功能:HTTPS会话中的敏感cookie没有设置安全属性</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

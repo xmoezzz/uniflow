@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010050015" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">XQuery注入</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序使用可被用户控制的输入构建动态XQuery表达式，未经合理校验，使得攻击者就能够修改指令的含义。  
+  
+**例如**：下面代码动态地构建和执行XQuery表达式，根据书籍信息查询书籍。由于书籍信息由用户输入，因而是不可信的。  
+```java
+...  
+XQDataSource ds= new XQDataSource();  
+XQConnection conn = ds.getConnection();  
+String query = "for $book in doc(books.xml)/bookstore/book[category='" + request.getParameter("category") + "'and adult='" +   request.getParameter("adult") + "'] return  $book";  
+XQExpression expression =conn.createExpression();  
+XQResultSequence res = expression.executeQuery(query);  
+...
+```  
+在正常情况下，该代码执行的表达式如下：  
+`for $book in doc(books.xml)/bookstore/book[category='' and adult=''] return  $book;`  
+但是，如果攻击者为category输入字符串 ' or 1=1 or ''='，则该查询会变成：  
+`for $book in doc(books.xml)/bookstore/book[category='' or 1=1 or ''='' and adult=''] return  $book;`  
+添加条件 `' or 1=1 or ''=' `会使 XQuery 表达式永远为true。因此该语句会查询出所有书籍的信息
+]]></Description>
+			<Advice><![CDATA[防止XQuery注入的方法如下：  
+1. 使用参数化的查询，`/root/element[@id=$ID]` 
+2. 创建一份安全字符串列表，限制用户只能输入该列表中的数据。  
+3. 净化用户输入，`fn:doc(),fn:collection(), xdmp:eval() and xdmp:value()`这些函数需要特别注意，过滤掉’，[，=，&等特殊字符
+]]></Advice>
+			<References>
+				<Reference type="CWE">652:Improper Neutralization of Data within Xquery Expressions ('XQuery Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:XPath注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发XQuery注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在XQuery注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在XQuery注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发XQuery注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use uniflow_parser_core::java_syntax::{JavaDeclarationKind as D, JavaSyntax, JavaSyntaxKind as K};
+use std::collections::HashSet;
+use uniflow_parser_core::java_syntax::{
+    JavaDeclaration, JavaDeclarationKind as D, JavaSyntax, JavaSyntaxKind as K,
+};
 use uniflow_parser_core::{TokKind, Token};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -61,6 +64,82 @@ pub enum JavaStyleCheck {
     CallSecuritymanagerCheckMethod,
     CloneMethodUseSecMethod,
     ReadobjectCallFinalMethod,
+    NativeMethod,
+    CloneWithoutCloneable,
+    FinalizeWithoutSuper,
+    ReturnGenericWildcard,
+    AssertAlwaysFalse,
+    AssertSideEffect,
+    AssertValidatesParameter,
+    MethodOverFiftyLines,
+    NestedForOverThree,
+    NestedIfOverThree,
+    TryInsideLoop,
+    ConstantName,
+    SerializableMissingUid,
+    SerializableSensitiveField,
+    AppletPublicMutableField,
+    AppletInnerClass,
+    AppletReturnsPrivateArray,
+    EqualsMissingTypeCheck,
+    CustomX509TrustManager,
+    MultipartUploadEndpoint,
+    InclusiveArrayLengthLoop,
+    ActivityMissingOnPause,
+    ApplicationMissingProviderUpdate,
+    SpringSecurityMissingCsp,
+    SpringAntMatcherPermitAll,
+    SpringAntMatcherUrlOrder,
+    InsecureWebDataBinder,
+    MemoryLeakNonStaticInnerClass,
+    GetterSetterSynchronizationMismatch,
+    WrongGetterSetterField,
+    SynchronizeOnGetClass,
+    SynchronizeOnConcurrencyObject,
+    SerializableMissingSecurityCheck,
+    SerializableDangerousMethodCall,
+    InstanceLockProtectsStaticData,
+    JavaStandardLibraryIdentifier,
+    CaseInsensitivePackageComparison,
+    JavaEeMainMethod,
+    AndroidStaticCryptoSecret,
+    SerializableParentMissingNoArgConstructor,
+    MultipleServletStreamCommit,
+    ExposeAliasedBuffer,
+    HiddenInheritedMethod,
+    MisleadingMethodSignature,
+    UnsynchronizedOverride,
+    IncreasedOverrideAccessibility,
+    CollectionViewSynchronization,
+    InvalidConstantRegex,
+    SpringSecurityMissingDenyAll,
+    DoubleCheckedLocking,
+    StaticUnsafeFormatterField,
+    StaticDatabaseConnection,
+    ServletMutableInstanceField,
+    ClassInitializationCycle,
+    AndroidSharedStorageApkInstall,
+    WrongParameterOrder,
+    FixedInitializationVector,
+    PublicPrivilegedMethod,
+    StrutsAwareMapExposure,
+    SpringSessionAttributes,
+    SpringPersistedEntityBinding,
+    UnsafeZipEntryExtraction,
+    SessionFixation,
+    PbeExternalSalt,
+    CookieSecurityDecision,
+    MissingXmlValidation,
+    AxisMissingReturnType,
+    FragmentInjection,
+    JsonpSameOriginExecution,
+    DeserializationBlacklist,
+    HttpRequestSmugglingHeaders,
+    ExcessiveMemoryAllocation,
+    ExternalDivideByZero,
+    ExternalArrayIndex,
+    ExternalLoopBound,
+    ExternalIntegerArithmetic,
 }
 
 impl JavaStyleCheck {
@@ -68,7 +147,107 @@ impl JavaStyleCheck {
         use JavaStyleCheck as C;
         if matches!(
             self,
-            C::SyncObjectIsFinal | C::SynchronizedObject | C::SyncObjectNotifyMethod
+            C::AssertAlwaysFalse | C::AssertSideEffect | C::AssertValidatesParameter
+        ) {
+            return self.assert_offsets(syntax);
+        }
+        if matches!(self, C::InvalidConstantRegex) {
+            return invalid_constant_regex_offsets(source, syntax);
+        }
+        if matches!(self, C::DoubleCheckedLocking) {
+            return double_checked_locking_offsets(syntax);
+        }
+        if matches!(self, C::ClassInitializationCycle) {
+            return class_initialization_cycle_offsets(syntax);
+        }
+        if matches!(self, C::AndroidSharedStorageApkInstall) {
+            return android_shared_storage_apk_offsets(syntax);
+        }
+        if matches!(self, C::WrongParameterOrder) {
+            return wrong_parameter_order_offsets(syntax);
+        }
+        if matches!(self, C::FixedInitializationVector) {
+            return fixed_initialization_vector_offsets(source, syntax);
+        }
+        if matches!(
+            self,
+            C::MethodOverFiftyLines
+                | C::ConstantName
+                | C::SerializableMissingUid
+                | C::SerializableSensitiveField
+                | C::AppletPublicMutableField
+                | C::AppletInnerClass
+                | C::AppletReturnsPrivateArray
+                | C::EqualsMissingTypeCheck
+                | C::CustomX509TrustManager
+                | C::MultipartUploadEndpoint
+                | C::ActivityMissingOnPause
+                | C::ApplicationMissingProviderUpdate
+                | C::SpringSecurityMissingCsp
+                | C::SpringAntMatcherPermitAll
+                | C::SpringAntMatcherUrlOrder
+                | C::InsecureWebDataBinder
+                | C::MemoryLeakNonStaticInnerClass
+                | C::GetterSetterSynchronizationMismatch
+                | C::WrongGetterSetterField
+                | C::JavaStandardLibraryIdentifier
+                | C::JavaEeMainMethod
+                | C::AndroidStaticCryptoSecret
+                | C::SerializableParentMissingNoArgConstructor
+                | C::ExposeAliasedBuffer
+                | C::HiddenInheritedMethod
+                | C::MisleadingMethodSignature
+                | C::UnsynchronizedOverride
+                | C::IncreasedOverrideAccessibility
+                | C::SpringSecurityMissingDenyAll
+                | C::StaticUnsafeFormatterField
+                | C::StaticDatabaseConnection
+                | C::ServletMutableInstanceField
+                | C::PublicPrivilegedMethod
+                | C::StrutsAwareMapExposure
+                | C::SpringSessionAttributes
+                | C::SpringPersistedEntityBinding
+                | C::UnsafeZipEntryExtraction
+                | C::SessionFixation
+                | C::PbeExternalSalt
+                | C::CookieSecurityDecision
+                | C::MissingXmlValidation
+                | C::AxisMissingReturnType
+                | C::FragmentInjection
+                | C::JsonpSameOriginExecution
+                | C::DeserializationBlacklist
+                | C::HttpRequestSmugglingHeaders
+                | C::ExcessiveMemoryAllocation
+                | C::ExternalDivideByZero
+                | C::ExternalArrayIndex
+                | C::ExternalLoopBound
+                | C::ExternalIntegerArithmetic
+        ) {
+            return self.quality_declaration_offsets(source, syntax);
+        }
+        if matches!(
+            self,
+            C::NestedForOverThree | C::NestedIfOverThree | C::TryInsideLoop
+        ) {
+            return self.nesting_offsets(syntax);
+        }
+        if matches!(self, C::InstanceLockProtectsStaticData) {
+            return instance_lock_static_data_offsets(syntax);
+        }
+        if matches!(self, C::CaseInsensitivePackageComparison) {
+            return case_insensitive_package_offsets(source, syntax);
+        }
+        if matches!(self, C::MultipleServletStreamCommit) {
+            return multiple_servlet_stream_commit_offsets(syntax);
+        }
+        if matches!(
+            self,
+            C::SyncObjectIsFinal
+                | C::SynchronizedObject
+                | C::SyncObjectNotifyMethod
+                | C::SynchronizeOnGetClass
+                | C::SynchronizeOnConcurrencyObject
+                | C::CollectionViewSynchronization
         ) {
             return self.synchronization_offsets(syntax);
         }
@@ -92,6 +271,8 @@ impl JavaStyleCheck {
                 | C::CallSecuritymanagerCheckMethod
                 | C::CloneMethodUseSecMethod
                 | C::ReadobjectCallFinalMethod
+                | C::SerializableMissingSecurityCheck
+                | C::SerializableDangerousMethodCall
         ) {
             return self.member_call_offsets(syntax);
         }
@@ -124,6 +305,10 @@ impl JavaStyleCheck {
                 | C::AnonymousInnerClassCallMethod
                 | C::ClassInitializerUseThread
                 | C::SelectInterpolation
+                | C::NativeMethod
+                | C::CloneWithoutCloneable
+                | C::FinalizeWithoutSuper
+                | C::ReturnGenericWildcard
         ) {
             return self.declaration_offsets(source, syntax);
         }
@@ -232,6 +417,906 @@ impl JavaStyleCheck {
                                     })
                             })
                     }
+                    C::InclusiveArrayLengthLoop => {
+                        node.kind == K::For
+                            && node.condition.clone().is_some_and(|range| {
+                                let tokens = syntax.tokens_in(range).collect::<Vec<_>>();
+                                tokens.iter().any(|token| token.text == "<=")
+                                    && tokens
+                                        .windows(2)
+                                        .any(|pair| pair[0].text == "." && pair[1].text == "length")
+                            })
+                    }
+                    C::AssertAlwaysFalse
+                    | C::AssertSideEffect
+                    | C::AssertValidatesParameter
+                    | C::MethodOverFiftyLines
+                    | C::NestedForOverThree
+                    | C::NestedIfOverThree
+                    | C::TryInsideLoop
+                    | C::ConstantName => false,
+                    _ => false,
+                }
+            })
+            .map(|node| node.range.start)
+            .collect()
+    }
+
+    fn assert_offsets(self, syntax: &JavaSyntax) -> Vec<usize> {
+        use JavaStyleCheck as C;
+        syntax
+            .nodes
+            .iter()
+            .filter(|node| node.kind == K::Other)
+            .filter_map(|node| {
+                let tokens = syntax.tokens_in(node.range.clone()).collect::<Vec<_>>();
+                if tokens.first().is_none_or(|token| token.text != "assert") {
+                    return None;
+                }
+                let expression = tokens
+                    .iter()
+                    .skip(1)
+                    .take_while(|token| !matches!(token.text.as_str(), ":" | ";"))
+                    .collect::<Vec<_>>();
+                let matched = match self {
+                    C::AssertAlwaysFalse => expression.len() == 1 && expression[0].text == "false",
+                    C::AssertSideEffect => {
+                        expression.iter().any(|token| {
+                            matches!(
+                                token.text.as_str(),
+                                "=" | "+="
+                                    | "-="
+                                    | "*="
+                                    | "/="
+                                    | "%="
+                                    | "&="
+                                    | "|="
+                                    | "^="
+                                    | "++"
+                                    | "--"
+                            )
+                        }) || expression.windows(2).any(|pair| {
+                            matches!(
+                                (pair[0].text.as_str(), pair[1].text.as_str()),
+                                ("+", "+") | ("-", "-")
+                            )
+                        })
+                    }
+                    C::AssertValidatesParameter => syntax.declarations.iter().any(|declaration| {
+                        declaration.kind == D::Method
+                            && declaration.body.as_ref().is_some_and(|body| {
+                                body.start <= node.range.start && node.range.end <= body.end
+                            })
+                            && declaration.parameters.clone().is_some_and(|parameters| {
+                                assertion_parameter_names(syntax, parameters)
+                                    .iter()
+                                    .any(|name| expression.iter().any(|token| token.text == *name))
+                            })
+                    }),
+                    _ => false,
+                };
+                matched.then_some(node.range.start)
+            })
+            .collect()
+    }
+
+    fn quality_declaration_offsets(self, source: &str, syntax: &JavaSyntax) -> Vec<usize> {
+        use JavaStyleCheck as C;
+        syntax
+            .declarations
+            .iter()
+            .filter(|declaration| match self {
+                C::MethodOverFiftyLines => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            source[body].bytes().filter(|byte| *byte == b'\n').count() + 1 > 50
+                        })
+                }
+                C::ConstantName => {
+                    declaration.kind == D::Field
+                        && declaration.modifiers.iter().any(|value| value == "static")
+                        && declaration.modifiers.iter().any(|value| value == "final")
+                        && declaration.names.iter().any(|name| !constant_name(name))
+                }
+                C::SerializableMissingUid => {
+                    declaration.kind == D::Class
+                        && declaration
+                            .interfaces
+                            .iter()
+                            .any(|base| base.rsplit('.').next() == Some("Serializable"))
+                        && !syntax.declarations.iter().any(|field| {
+                            field.owner
+                                == syntax
+                                    .declarations
+                                    .iter()
+                                    .position(|item| std::ptr::eq(item, *declaration))
+                                && field.kind == D::Field
+                                && field.names.iter().any(|name| name == "serialVersionUID")
+                        })
+                }
+                C::SerializableSensitiveField => {
+                    declaration.kind == D::Field
+                        && !declaration
+                            .modifiers
+                            .iter()
+                            .any(|value| matches!(value.as_str(), "transient" | "static"))
+                        && declaration.owner.is_some_and(|owner| {
+                            syntax.declarations[owner]
+                                .interfaces
+                                .iter()
+                                .any(|base| base.rsplit('.').next() == Some("Serializable"))
+                        })
+                        && declaration.names.iter().any(|name| {
+                            let name = name.to_ascii_lowercase();
+                            [
+                                "password",
+                                "passwd",
+                                "secret",
+                                "token",
+                                "credential",
+                                "privatekey",
+                            ]
+                            .iter()
+                            .any(|part| name.contains(part))
+                        })
+                }
+                C::AppletPublicMutableField => {
+                    declaration.kind == D::Field
+                        && declaration.modifiers.iter().any(|value| value == "public")
+                        && !declaration.modifiers.iter().any(|value| value == "final")
+                        && declaration.owner.is_some_and(|owner| {
+                            syntax.declarations[owner].superclass.rsplit('.').next()
+                                == Some("Applet")
+                        })
+                }
+                C::AppletInnerClass => {
+                    matches!(
+                        declaration.kind,
+                        D::Class | D::Interface | D::Enum | D::Record
+                    ) && declaration.owner.is_some_and(|owner| {
+                        syntax.declarations[owner].superclass.rsplit('.').next() == Some("Applet")
+                    })
+                }
+                C::AppletReturnsPrivateArray => {
+                    declaration.kind == D::Method
+                        && declaration.modifiers.iter().any(|value| value == "public")
+                        && declaration.declared_type.contains('[')
+                        && declaration.owner.is_some_and(|owner| {
+                            let class = &syntax.declarations[owner];
+                            class.superclass.rsplit('.').next() == Some("Applet")
+                                && syntax.declarations.iter().any(|field| {
+                                    field.owner == Some(owner)
+                                        && field.kind == D::Field
+                                        && field.declared_type.contains('[')
+                                        && field.modifiers.iter().any(|value| value == "private")
+                                        && field.names.iter().any(|name| {
+                                            let tokens = syntax
+                                                .tokens_in(declaration.range.clone())
+                                                .collect::<Vec<_>>();
+                                            tokens.windows(2).enumerate().any(|(index, pair)| {
+                                                pair[0].text == "return"
+                                                    && pair[1].text == *name
+                                                    && tokens.get(index + 2).is_some_and(|next| {
+                                                        next.text != "." && next.text != "["
+                                                    })
+                                            })
+                                        })
+                                })
+                        })
+                }
+                C::EqualsMissingTypeCheck => {
+                    declaration.kind == D::Method
+                        && declaration.name == "equals"
+                        && declaration.body.is_some()
+                        && !syntax
+                            .tokens_in(declaration.body.clone().unwrap())
+                            .any(|token| matches!(token.text.as_str(), "instanceof" | "getClass"))
+                }
+                C::CustomX509TrustManager => {
+                    declaration.kind == D::Class
+                        && declaration
+                            .interfaces
+                            .iter()
+                            .any(|base| base.rsplit('.').next() == Some("X509TrustManager"))
+                }
+                C::MultipartUploadEndpoint => {
+                    declaration.kind == D::Method
+                        && declaration.parameters.clone().is_some_and(|parameters| {
+                            syntax.tokens_in(parameters).any(|token| {
+                                token.kind == TokKind::Ident
+                                    && matches!(token.text.as_str(), "MultipartFile" | "Part")
+                            })
+                        })
+                        && declaration.annotations.iter().any(|annotation| {
+                            matches!(
+                                annotation.rsplit('.').next(),
+                                Some("RequestMapping" | "PostMapping")
+                            )
+                        })
+                }
+                C::ActivityMissingOnPause => {
+                    declaration.kind == D::Class
+                        && declaration
+                            .superclass
+                            .rsplit('.')
+                            .next()
+                            .is_some_and(|base| base == "Activity" || base.ends_with("Activity"))
+                        && !syntax.declarations.iter().any(|method| {
+                            method.owner
+                                == syntax
+                                    .declarations
+                                    .iter()
+                                    .position(|item| std::ptr::eq(item, *declaration))
+                                && method.kind == D::Method
+                                && method.name == "onPause"
+                        })
+                }
+                C::ApplicationMissingProviderUpdate => {
+                    declaration.kind == D::Class
+                        && declaration.superclass.rsplit('.').next() == Some("Application")
+                        && !syntax.tokens_in(declaration.range.clone()).any(|token| {
+                            matches!(
+                                token.text.as_str(),
+                                "installIfNeeded" | "installIfNeededAsync"
+                            )
+                        })
+                }
+                C::SpringSecurityMissingCsp => {
+                    declaration.kind == D::Method
+                        && declaration.name == "configure"
+                        && declaration.parameters.clone().is_some_and(|parameters| {
+                            syntax
+                                .tokens_in(parameters)
+                                .any(|token| token.text == "HttpSecurity")
+                        })
+                        && declaration.body.is_some()
+                        && !syntax
+                            .tokens_in(declaration.body.clone().unwrap())
+                            .any(|token| token.text == "contentSecurityPolicy")
+                }
+                C::SpringSecurityMissingDenyAll => {
+                    declaration.kind == D::Method
+                        && declaration.name == "configure"
+                        && declaration.parameters.clone().is_some_and(|parameters| {
+                            syntax
+                                .tokens_in(parameters)
+                                .any(|token| token.text == "HttpSecurity")
+                        })
+                        && declaration.body.clone().is_some_and(|body| {
+                            let has_specific_matcher = [
+                                "mvcMatchers",
+                                "antMatchers",
+                                "requestMatchers",
+                                "securityMatcher",
+                            ]
+                            .iter()
+                            .any(|method| {
+                                syntax.has_token_sequence(body.clone(), &[*method, "("])
+                            });
+                            has_specific_matcher
+                                && !syntax.has_token_sequence(
+                                    body,
+                                    &["anyRequest", "(", ")", ".", "denyAll", "("],
+                                )
+                        })
+                }
+                C::SpringAntMatcherPermitAll => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            syntax.has_token_sequence(body.clone(), &["antMatchers", "("])
+                                && syntax.has_token_sequence(
+                                    body,
+                                    &["anyRequest", "(", ")", ".", "permitAll"],
+                                )
+                        })
+                }
+                C::SpringAntMatcherUrlOrder => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            let mut patterns = Vec::new();
+                            for index in 0..tokens.len().saturating_sub(2) {
+                                if tokens[index].text == "antMatchers"
+                                    && tokens[index + 1].text == "("
+                                    && tokens[index + 2].kind == TokKind::StringLit
+                                {
+                                    patterns
+                                        .push(tokens[index + 2].text.trim_matches('"').to_string());
+                                }
+                            }
+                            patterns.iter().enumerate().any(|(index, pattern)| {
+                                pattern.ends_with("/**")
+                                    && patterns[index + 1..].iter().any(|later| {
+                                        later != pattern
+                                            && later.starts_with(pattern.trim_end_matches("**"))
+                                    })
+                            })
+                        })
+                }
+                C::InsecureWebDataBinder => {
+                    declaration.kind == D::Method
+                        && declaration
+                            .annotations
+                            .iter()
+                            .any(|annotation| annotation.rsplit('.').next() == Some("InitBinder"))
+                        && declaration.body.is_some()
+                        && !syntax
+                            .tokens_in(declaration.body.clone().unwrap())
+                            .any(|token| {
+                                matches!(
+                                    token.text.as_str(),
+                                    "setAllowedFields" | "setDisallowedFields"
+                                )
+                            })
+                }
+                C::MemoryLeakNonStaticInnerClass => {
+                    matches!(declaration.kind, D::Class | D::AnonymousClass)
+                        && declaration.owner.is_some_and(|owner| {
+                            matches!(
+                                syntax.declarations[owner].kind,
+                                D::Class | D::AnonymousClass
+                            )
+                        })
+                        && !declaration.modifiers.iter().any(|value| value == "static")
+                }
+                C::GetterSetterSynchronizationMismatch => {
+                    declaration.kind == D::Method
+                        && bean_property(&declaration.name).is_some_and(|(kind, property)| {
+                            !method_is_synchronized(syntax, declaration)
+                                && syntax.declarations.iter().any(|other| {
+                                    other.owner == declaration.owner
+                                        && other.kind == D::Method
+                                        && bean_property(&other.name).is_some_and(
+                                            |(other_kind, other_property)| {
+                                                property == other_property
+                                                    && kind != other_kind
+                                                    && method_is_synchronized(syntax, other)
+                                            },
+                                        )
+                                })
+                        })
+                }
+                C::WrongGetterSetterField => {
+                    declaration.kind == D::Method
+                        && bean_property(&declaration.name).is_some_and(|(kind, property)| {
+                            direct_bean_field(syntax, declaration, kind)
+                                .is_some_and(|actual| actual != property)
+                        })
+                }
+                C::JavaStandardLibraryIdentifier => {
+                    matches!(
+                        declaration.kind,
+                        D::Class | D::Interface | D::Enum | D::Record
+                    ) && is_java_standard_type_name(&declaration.name)
+                }
+                C::JavaEeMainMethod => {
+                    declaration.kind == D::Method
+                        && declaration.name == "main"
+                        && declaration.modifiers.iter().any(|value| value == "public")
+                        && declaration.modifiers.iter().any(|value| value == "static")
+                        && declaration.owner.is_some_and(|owner| {
+                            let class = &syntax.declarations[owner];
+                            class.superclass.rsplit('.').next() == Some("HttpServlet")
+                                || class.annotations.iter().any(|annotation| {
+                                    matches!(
+                                        annotation.rsplit('.').next(),
+                                        Some("WebServlet" | "Controller" | "RestController")
+                                    )
+                                })
+                        })
+                }
+                C::AndroidStaticCryptoSecret => {
+                    declaration.kind == D::Field
+                        && declaration.modifiers.iter().any(|value| value == "static")
+                        && (declaration.names.iter().any(|name| {
+                            let name = name.to_ascii_lowercase();
+                            name.contains("secret")
+                                || name.contains("privatekey")
+                                || name.contains("encryptionkey")
+                                || name.contains("cryptokey")
+                        }) || matches!(
+                            declaration.declared_type.rsplit('.').next(),
+                            Some("SecretKey" | "PrivateKey" | "KeyPair")
+                        ))
+                }
+                C::StaticUnsafeFormatterField => {
+                    declaration.kind == D::Field
+                        && declaration.modifiers.iter().any(|value| value == "static")
+                        && matches!(
+                            declaration.declared_type.rsplit('.').next(),
+                            Some(
+                                "Format"
+                                    | "DateFormat"
+                                    | "SimpleDateFormat"
+                                    | "NumberFormat"
+                                    | "DecimalFormat"
+                                    | "MessageFormat"
+                            )
+                        )
+                }
+                C::StaticDatabaseConnection => {
+                    declaration.kind == D::Field
+                        && declaration.modifiers.iter().any(|value| value == "static")
+                        && matches!(
+                            declaration.declared_type.rsplit('.').next(),
+                            Some("Connection" | "EntityManager" | "Session")
+                        )
+                }
+                C::ServletMutableInstanceField => {
+                    declaration.kind == D::Field
+                        && !declaration.modifiers.iter().any(|value| value == "static")
+                        && declaration.owner.is_some_and(|owner| {
+                            let class = &syntax.declarations[owner];
+                            matches!(
+                                class.superclass.rsplit('.').next(),
+                                Some("HttpServlet" | "GenericServlet" | "Action")
+                            )
+                        })
+                        && !(declaration.modifiers.iter().any(|value| value == "final")
+                            && matches!(
+                                declaration.declared_type.rsplit('.').next(),
+                                Some(
+                                    "boolean"
+                                        | "byte"
+                                        | "short"
+                                        | "int"
+                                        | "long"
+                                        | "float"
+                                        | "double"
+                                        | "char"
+                                        | "String"
+                                )
+                            ))
+                }
+                C::PublicPrivilegedMethod => {
+                    declaration.kind == D::Method
+                        && declaration.modifiers.iter().any(|value| value == "public")
+                        && declaration.body.clone().is_some_and(|body| {
+                            syntax.has_token_sequence(
+                                body,
+                                &["AccessController", ".", "doPrivileged", "("],
+                            )
+                        })
+                }
+                C::StrutsAwareMapExposure => {
+                    declaration.kind == D::Class
+                        && declaration.interfaces.iter().any(|interface| {
+                            matches!(
+                                interface.rsplit('.').next(),
+                                Some("ApplicationAware" | "RequestAware" | "SessionAware")
+                            )
+                        })
+                        && !declaration.interfaces.iter().any(|interface| {
+                            interface.rsplit('.').next() == Some("ParameterNameAware")
+                        })
+                        && syntax
+                            .declarations
+                            .iter()
+                            .position(|candidate| std::ptr::eq(candidate, *declaration))
+                            .is_some_and(|id| {
+                                !syntax.declarations.iter().any(|method| {
+                                    method.owner == Some(id)
+                                        && method.kind == D::Method
+                                        && method.name == "acceptableParameterName"
+                                })
+                            })
+                }
+                C::SpringSessionAttributes => {
+                    declaration.kind == D::Class
+                        && declaration.annotations.iter().any(|annotation| {
+                            annotation.rsplit('.').next() == Some("SessionAttributes")
+                        })
+                        && syntax
+                            .declarations
+                            .iter()
+                            .position(|candidate| std::ptr::eq(candidate, *declaration))
+                            .is_some_and(|id| {
+                                syntax.declarations.iter().any(|method| {
+                                    method.owner == Some(id)
+                                        && method.kind == D::Method
+                                        && method.annotations.iter().any(|annotation| {
+                                            matches!(
+                                                annotation.rsplit('.').next(),
+                                                Some(
+                                                    "RequestMapping"
+                                                        | "GetMapping"
+                                                        | "PostMapping"
+                                                        | "PutMapping"
+                                                        | "PatchMapping"
+                                                )
+                                            )
+                                        })
+                                })
+                            })
+                }
+                C::SpringPersistedEntityBinding => {
+                    declaration.kind == D::Method
+                        && declaration.annotations.iter().any(|annotation| {
+                            matches!(
+                                annotation.rsplit('.').next(),
+                                Some(
+                                    "RequestMapping"
+                                        | "PostMapping"
+                                        | "PutMapping"
+                                        | "PatchMapping"
+                                )
+                            )
+                        })
+                        && parameter_bindings(syntax, declaration).iter().any(|(name, ty)| {
+                            syntax.declarations.iter().any(|class| {
+                                matches!(class.kind, D::Class | D::Record)
+                                    && class.name == ty.rsplit('.').next().unwrap_or(ty)
+                                    && class.annotations.iter().any(|annotation| {
+                                        matches!(
+                                            annotation.rsplit('.').next(),
+                                            Some("Entity" | "Document" | "Table")
+                                        )
+                                    })
+                            }) && declaration.body.clone().is_some_and(|body| {
+                                let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                                tokens.windows(4).any(|window| {
+                                    matches!(
+                                        window[0].text.as_str(),
+                                        "save" | "persist" | "merge"
+                                    ) && window[1].text == "("
+                                        && window[2].text == *name
+                                }) || tokens.windows(6).any(|window| {
+                                    window[1].text == "."
+                                        && matches!(
+                                            window[2].text.as_str(),
+                                            "save" | "persist" | "merge"
+                                        )
+                                        && window[3].text == "("
+                                        && window[4].text == *name
+                                })
+                            })
+                        })
+                }
+                C::UnsafeZipEntryExtraction => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            let entry_name = tokens.windows(2).any(|pair| {
+                                pair[0].text == "getName" && pair[1].text == "("
+                            });
+                            let path_sink = tokens.windows(2).any(|pair| {
+                                matches!(
+                                    pair[0].text.as_str(),
+                                    "File" | "get" | "resolve" | "copy" | "move"
+                                ) && pair[1].text == "("
+                            });
+                            let normalized = tokens.iter().any(|token| {
+                                matches!(
+                                    token.text.as_str(),
+                                    "getCanonicalPath" | "getCanonicalFile" | "normalize"
+                                )
+                            });
+                            let containment_checked = tokens.iter().any(|token| {
+                                matches!(token.text.as_str(), "startsWith" | "relativize")
+                            });
+                            entry_name && path_sink && !(normalized && containment_checked)
+                        })
+                }
+                C::SessionFixation => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            let Some(login) = tokens.windows(2).position(|pair| {
+                                pair[0].text == "login" && pair[1].text == "("
+                            }) else {
+                                return false;
+                            };
+                            let authentication_context = parameter_bindings(syntax, declaration)
+                                .iter()
+                                .any(|(_, ty)| {
+                                    matches!(
+                                        ty.rsplit('.').next(),
+                                        Some(
+                                            "LoginContext"
+                                                | "AuthenticationManager"
+                                                | "UsernamePasswordAuthenticationToken"
+                                        )
+                                    )
+                                });
+                            let invalidated_first = tokens[..login].windows(2).any(|pair| {
+                                pair[0].text == "invalidate" && pair[1].text == "("
+                            });
+                            authentication_context && !invalidated_first
+                        })
+                }
+                C::PbeExternalSalt => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            let pbe = tokens.windows(3).any(|window| {
+                                window[0].text == "new"
+                                    && window[1].text == "PBEParameterSpec"
+                                    && window[2].text == "("
+                            });
+                            let external = tokens.windows(2).any(|pair| {
+                                matches!(
+                                    pair[0].text.as_str(),
+                                    "getProperty" | "getParameter" | "readLine" | "nextLine"
+                                ) && pair[1].text == "("
+                            });
+                            pbe && external
+                        })
+                }
+                C::CookieSecurityDecision => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            let reads_cookie = tokens.windows(2).any(|pair| {
+                                matches!(pair[0].text.as_str(), "getCookies" | "getValue")
+                                    && pair[1].text == "("
+                            });
+                            let security_value = tokens.iter().any(|token| {
+                                let name = token.text.to_ascii_lowercase();
+                                [
+                                    "admin",
+                                    "role",
+                                    "privilege",
+                                    "permission",
+                                    "authenticated",
+                                    "authorized",
+                                ]
+                                .iter()
+                                .any(|needle| name.contains(needle))
+                            });
+                            reads_cookie
+                                && security_value
+                                && tokens.windows(2).any(|pair| {
+                                    pair[0].text == "if" && pair[1].text == "("
+                                })
+                        })
+                }
+                C::MissingXmlValidation => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            let parses_xml = tokens.windows(2).any(|pair| {
+                                pair[0].text == "parse" && pair[1].text == "("
+                            }) && (tokens.iter().any(|token| {
+                                matches!(
+                                    token.text.as_str(),
+                                    "DocumentBuilderFactory"
+                                        | "SAXParserFactory"
+                                        | "DocumentBuilder"
+                                        | "SAXParser"
+                                        | "XMLReader"
+                                )
+                            }) || parameter_bindings(syntax, declaration).iter().any(|(_, ty)| {
+                                matches!(
+                                    ty.rsplit('.').next(),
+                                    Some(
+                                        "DocumentBuilderFactory"
+                                            | "SAXParserFactory"
+                                            | "DocumentBuilder"
+                                            | "SAXParser"
+                                            | "XMLReader"
+                                    )
+                                )
+                            }));
+                            let validation = tokens.windows(2).any(|pair| {
+                                matches!(
+                                    pair[0].text.as_str(),
+                                    "setSchema" | "setValidating" | "setValidation"
+                                ) && pair[1].text == "("
+                            }) && !tokens.windows(3).any(|window| {
+                                matches!(
+                                    window[0].text.as_str(),
+                                    "setValidating" | "setValidation"
+                                ) && window[1].text == "("
+                                    && window[2].text == "false"
+                            });
+                            parses_xml && !validation
+                        })
+                }
+                C::AxisMissingReturnType => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            tokens.windows(2).any(|pair| {
+                                pair[0].text == "invoke" && pair[1].text == "("
+                            }) && tokens.iter().any(|token| token.text == "addParameter")
+                                && !tokens.iter().any(|token| token.text == "setReturnType")
+                        })
+                }
+                C::FragmentInjection => {
+                    declaration.kind == D::Class
+                        && declaration.superclass.rsplit('.').next()
+                            == Some("PreferenceActivity")
+                        && syntax
+                            .declarations
+                            .iter()
+                            .position(|candidate| std::ptr::eq(candidate, *declaration))
+                            .is_some_and(|id| {
+                                !syntax.declarations.iter().any(|method| {
+                                    method.owner == Some(id)
+                                        && method.kind == D::Method
+                                        && method.name == "isValidFragment"
+                                })
+                            })
+                }
+                C::JsonpSameOriginExecution => {
+                    declaration.kind == D::Class
+                        && declaration.superclass.rsplit('.').next()
+                            == Some("AbstractJsonpResponseBodyAdvice")
+                }
+                C::DeserializationBlacklist => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            tokens.windows(3).any(|window| {
+                                window[0].text == "createFilter"
+                                    && window[1].text == "("
+                                    && window[2].kind == TokKind::StringLit
+                                    && window[2].text.trim_matches('"').starts_with('!')
+                                    && window[2].text.contains('*')
+                            })
+                        })
+                }
+                C::HttpRequestSmugglingHeaders => {
+                    declaration.kind == D::Method
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            let header = |name: &str| {
+                                tokens.iter().any(|token| {
+                                    token.kind == TokKind::StringLit
+                                        && token.text.trim_matches('"').eq_ignore_ascii_case(name)
+                                })
+                            };
+                            header("Content-Length") && header("Transfer-Encoding")
+                        })
+                }
+                C::ExcessiveMemoryAllocation => excessive_allocation_in(declaration, syntax),
+                C::ExternalDivideByZero => {
+                    external_numeric_use(declaration, syntax, NumericUse::Divisor)
+                }
+                C::ExternalArrayIndex => {
+                    external_numeric_use(declaration, syntax, NumericUse::ArrayIndex)
+                }
+                C::ExternalLoopBound => {
+                    external_numeric_use(declaration, syntax, NumericUse::LoopBound)
+                }
+                C::ExternalIntegerArithmetic => {
+                    external_numeric_use(declaration, syntax, NumericUse::Arithmetic)
+                }
+                C::SerializableParentMissingNoArgConstructor => {
+                    declaration.kind == D::Class
+                        && declaration.interfaces.iter().any(|base| {
+                            base.rsplit('.').next() == Some("Serializable")
+                        })
+                        && !declaration.superclass.is_empty()
+                        && syntax.declarations.iter().enumerate().find(|(_, candidate)| {
+                            candidate.kind == D::Class
+                                && candidate.name
+                                    == declaration
+                                        .superclass
+                                        .rsplit('.')
+                                        .next()
+                                        .unwrap_or(&declaration.superclass)
+                        }).is_some_and(|(parent_id, parent)| {
+                            !parent.interfaces.iter().any(|base| {
+                                base.rsplit('.').next() == Some("Serializable")
+                            }) && {
+                                let constructors = syntax.declarations.iter().filter(|member| {
+                                    member.owner == Some(parent_id)
+                                        && member.kind == D::Constructor
+                                }).collect::<Vec<_>>();
+                                !constructors.is_empty()
+                                    && !constructors.iter().any(|constructor| {
+                                        constructor.parameters.clone().is_some_and(|range| {
+                                            syntax.tokens_in(range).next().is_none()
+                                        })
+                                    })
+                            }
+                        })
+                }
+                C::ExposeAliasedBuffer => {
+                    declaration.kind == D::Method
+                        && declaration.modifiers.iter().any(|value| value == "public")
+                        && declaration.declared_type.rsplit('.').next().is_some_and(|ty| {
+                            matches!(
+                                ty,
+                                "Buffer" | "ByteBuffer" | "CharBuffer" | "DoubleBuffer"
+                                    | "FloatBuffer" | "IntBuffer" | "LongBuffer" | "ShortBuffer"
+                            )
+                        })
+                        && declaration.body.clone().is_some_and(|body| {
+                            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+                            let aliased = tokens.windows(2).any(|pair| {
+                                matches!(pair[0].text.as_str(), "wrap" | "duplicate")
+                                    && pair[1].text == "("
+                            });
+                            let read_only = tokens.iter().any(|token| token.text == "asReadOnlyBuffer");
+                            aliased && !read_only
+                        })
+                }
+                C::HiddenInheritedMethod => {
+                    declaration.kind == D::Method
+                        && declaration.modifiers.iter().any(|value| value == "static")
+                        && inherited_methods(syntax, declaration).iter().any(|parent| {
+                            parent.modifiers.iter().any(|value| value == "static")
+                                && method_signatures_equal(syntax, declaration, parent)
+                        })
+                }
+                C::MisleadingMethodSignature => {
+                    declaration.kind == D::Method
+                        && !declaration.modifiers.iter().any(|value| value == "static")
+                        && !declaration.annotations.iter().any(|annotation| {
+                            annotation.rsplit('.').next() == Some("Override")
+                        })
+                        && inherited_methods(syntax, declaration).iter().any(|parent| {
+                            !parent.modifiers.iter().any(|value| value == "static")
+                                && parent.name == declaration.name
+                                && method_parameter_types(syntax, parent).len()
+                                    == method_parameter_types(syntax, declaration).len()
+                                && !method_signatures_equal(syntax, declaration, parent)
+                        })
+                }
+                C::UnsynchronizedOverride => {
+                    declaration.kind == D::Method
+                        && !method_is_synchronized(syntax, declaration)
+                        && inherited_methods(syntax, declaration).iter().any(|parent| {
+                            method_is_synchronized(syntax, parent)
+                                && method_signatures_equal(syntax, declaration, parent)
+                        })
+                }
+                C::IncreasedOverrideAccessibility => {
+                    declaration.kind == D::Method
+                        && inherited_methods(syntax, declaration).iter().any(|parent| {
+                            method_signatures_equal(syntax, declaration, parent)
+                                && method_visibility(syntax, declaration)
+                                    > method_visibility(syntax, parent)
+                        })
+                }
+                _ => false,
+            })
+            .map(|declaration| declaration.range.start)
+            .collect()
+    }
+
+    fn nesting_offsets(self, syntax: &JavaSyntax) -> Vec<usize> {
+        use JavaStyleCheck as C;
+        syntax
+            .nodes
+            .iter()
+            .filter(|node| {
+                let target = match self {
+                    C::NestedForOverThree => K::For,
+                    C::NestedIfOverThree => K::If,
+                    C::TryInsideLoop => K::Try,
+                    _ => return false,
+                };
+                if node.kind != target {
+                    return false;
+                }
+                let contains = |outer: &&uniflow_parser_core::java_syntax::JavaSyntaxNode| {
+                    outer.range.start < node.range.start && node.range.end <= outer.range.end
+                };
+                match self {
+                    C::NestedForOverThree => {
+                        syntax
+                            .nodes
+                            .iter()
+                            .filter(|outer| outer.kind == K::For)
+                            .filter(contains)
+                            .count()
+                            >= 3
+                    }
+                    C::NestedIfOverThree => {
+                        syntax
+                            .nodes
+                            .iter()
+                            .filter(|outer| outer.kind == K::If)
+                            .filter(contains)
+                            .count()
+                            >= 3
+                    }
+                    C::TryInsideLoop => syntax.nodes.iter().any(|outer| {
+                        matches!(outer.kind, K::For | K::While | K::Do) && contains(&outer)
+                    }),
                     _ => false,
                 }
             })
@@ -528,6 +1613,27 @@ impl JavaStyleCheck {
                                         && arguments.contains("${")
                                 })
                     }
+                    C::NativeMethod => method && modifier("native"),
+                    C::CloneWithoutCloneable => {
+                        method
+                            && declaration.name == "clone"
+                            && class_owner.is_some_and(|owner| {
+                                !owner
+                                    .interfaces
+                                    .iter()
+                                    .any(|base| base.rsplit('.').next() == Some("Cloneable"))
+                            })
+                    }
+                    C::FinalizeWithoutSuper => {
+                        method
+                            && declaration.name == "finalize"
+                            && declaration.body.is_some()
+                            && !syntax.has_token_sequence(
+                                declaration.range.clone(),
+                                &["super", ".", "finalize", "(", ")"],
+                            )
+                    }
+                    C::ReturnGenericWildcard => method && declaration.declared_type.contains('?'),
                     _ => false,
                 }
             })
@@ -547,6 +1653,14 @@ impl JavaStyleCheck {
                 continue;
             };
             let condition_tokens = syntax.tokens_in(condition).collect::<Vec<_>>();
+            if matches!(self, C::SynchronizeOnGetClass) {
+                if condition_tokens.windows(3).any(|window| {
+                    window[0].text == "getClass" && window[1].text == "(" && window[2].text == ")"
+                }) {
+                    offsets.push(node.range.start);
+                }
+                continue;
+            }
             if matches!(self, C::SyncObjectNotifyMethod) {
                 let Some(body) = node.body.clone() else {
                     continue;
@@ -581,6 +1695,23 @@ impl JavaStyleCheck {
                 continue;
             }
             let name = condition_tokens[0].text.as_str();
+            if matches!(self, C::CollectionViewSynchronization) {
+                let method = syntax
+                    .declarations
+                    .iter()
+                    .filter(|declaration| {
+                        matches!(declaration.kind, D::Method | D::Constructor)
+                            && declaration.range.start <= node.range.start
+                            && node.range.end <= declaration.range.end
+                    })
+                    .min_by_key(|declaration| declaration.range.end - declaration.range.start);
+                if method.is_some_and(|method| {
+                    collection_view_backing(syntax, method, name, node.range.start).is_some()
+                }) {
+                    offsets.push(node.range.start);
+                }
+                continue;
+            }
             let owner = syntax
                 .declarations
                 .iter()
@@ -592,16 +1723,49 @@ impl JavaStyleCheck {
                 })
                 .min_by_key(|(_, declaration)| declaration.range.end - declaration.range.start)
                 .map(|(id, _)| id);
-            let Some(field) = syntax.declarations.iter().find(|declaration| {
+            let field = syntax.declarations.iter().find(|declaration| {
                 declaration.kind == D::Field
                     && declaration.owner == owner
                     && declaration.names.iter().any(|candidate| candidate == name)
-            }) else {
-                continue;
-            };
+            });
             let matches = match self {
-                C::SyncObjectIsFinal => !field.modifiers.iter().any(|modifier| modifier == "final"),
-                C::SynchronizedObject => field.declared_type.rsplit('.').next() == Some("String"),
+                C::SyncObjectIsFinal => field.is_some_and(|field| {
+                    !field.modifiers.iter().any(|modifier| modifier == "final")
+                }),
+                C::SynchronizedObject => field
+                    .is_some_and(|field| field.declared_type.rsplit('.').next() == Some("String")),
+                C::SynchronizeOnConcurrencyObject => {
+                    let field_type = field.map(|field| field.declared_type.as_str());
+                    let parameter_type = syntax
+                        .declarations
+                        .iter()
+                        .filter(|declaration| {
+                            declaration.kind == D::Method
+                                && declaration.range.start <= node.range.start
+                                && node.range.end <= declaration.range.end
+                        })
+                        .min_by_key(|declaration| declaration.range.end - declaration.range.start)
+                        .and_then(|method| {
+                            parameter_bindings(syntax, method)
+                                .into_iter()
+                                .find_map(|(parameter, ty)| (parameter == name).then_some(ty))
+                        });
+                    field_type
+                        .map(str::to_string)
+                        .or(parameter_type)
+                        .is_some_and(|ty| {
+                            matches!(
+                                ty.rsplit('.').next(),
+                                Some(
+                                    "Lock"
+                                        | "ReentrantLock"
+                                        | "ReadWriteLock"
+                                        | "ReentrantReadWriteLock"
+                                        | "Condition"
+                                )
+                            )
+                        })
+                }
                 _ => false,
             };
             if matches {
@@ -887,12 +2051,560 @@ impl JavaStyleCheck {
                         offsets.push(declaration.range.start);
                     }
                 }
+                C::SerializableMissingSecurityCheck
+                    if declaration.kind == D::Method
+                        && matches!(
+                            declaration.name.as_str(),
+                            "readObject" | "readObjectNoData"
+                        )
+                        && owner
+                            .interfaces
+                            .iter()
+                            .any(|base| base.rsplit('.').next() == Some("Serializable")) =>
+                {
+                    let constructor_checks = syntax.declarations.iter().enumerate().any(
+                        |(constructor_id, constructor)| {
+                            constructor.owner == Some(owner_id)
+                                && constructor.kind == D::Constructor
+                                && reaches_security_check(
+                                    syntax,
+                                    owner_id,
+                                    constructor_id,
+                                    3,
+                                    &mut Vec::new(),
+                                )
+                        },
+                    );
+                    if constructor_checks
+                        && !reaches_security_check(syntax, owner_id, id, 3, &mut Vec::new())
+                    {
+                        offsets.push(declaration.range.start);
+                    }
+                }
+                C::SerializableDangerousMethodCall
+                    if matches!(declaration.kind, D::Method | D::Constructor)
+                        && owner
+                            .interfaces
+                            .iter()
+                            .any(|base| base.rsplit('.').next() == Some("Serializable")) =>
+                {
+                    offsets.extend(
+                        call_sites(syntax, declaration)
+                            .into_iter()
+                            .filter(|call| {
+                                matches!(
+                                    call.name.as_str(),
+                                    "forName"
+                                        | "newInstance"
+                                        | "invoke"
+                                        | "exec"
+                                        | "loadClass"
+                                        | "defineClass"
+                                        | "getDeclaredMethod"
+                                        | "getDeclaredField"
+                                )
+                            })
+                            .map(|call| call.offset),
+                    );
+                }
                 _ => {}
             }
         }
         offsets.sort_unstable();
         offsets.dedup();
         offsets
+    }
+}
+
+#[derive(Clone, Copy)]
+enum NumericUse {
+    Divisor,
+    ArrayIndex,
+    LoopBound,
+    Arithmetic,
+}
+
+fn external_numeric_use(
+    declaration: &JavaDeclaration,
+    syntax: &JavaSyntax,
+    usage: NumericUse,
+) -> bool {
+    if declaration.kind != D::Method {
+        return false;
+    }
+    let Some(body) = declaration.body.clone() else {
+        return false;
+    };
+    let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+    let mut names = HashSet::new();
+    for index in 0..tokens.len() {
+        if !matches!(tokens[index].text.as_str(), "parseInt" | "parseLong") {
+            continue;
+        }
+        let external = tokens[index..tokens.len().min(index + 16)]
+            .iter()
+            .any(|token| {
+                matches!(
+                    token.text.as_str(),
+                    "getParameter" | "readLine" | "nextLine" | "getQueryParameter"
+                )
+            });
+        if !external {
+            continue;
+        }
+        if let Some(equal) = (0..index).rev().find(|candidate| tokens[*candidate].text == "=") {
+            if let Some(name) = tokens[..equal]
+                .iter()
+                .rev()
+                .find(|token| token.kind == TokKind::Ident)
+            {
+                names.insert(name.text.clone());
+            }
+        }
+    }
+    names.into_iter().any(|name| {
+        let bounded = tokens.windows(4).any(|window| {
+            window[0].text == "if"
+                && window.iter().any(|token| token.text == name)
+                && window.iter().any(|token| matches!(token.text.as_str(), "<" | ">"))
+        });
+        if bounded {
+            return false;
+        }
+        match usage {
+            NumericUse::Divisor => tokens
+                .windows(2)
+                .any(|pair| matches!(pair[0].text.as_str(), "/" | "%") && pair[1].text == name),
+            NumericUse::ArrayIndex => tokens.windows(3).any(|window| {
+                window[0].text == "[" && window[1].text == name && window[2].text == "]"
+            }),
+            NumericUse::LoopBound => tokens.iter().enumerate().any(|(index, token)| {
+                token.text == "for"
+                    && tokens[index..tokens.len().min(index + 24)]
+                        .iter()
+                        .any(|candidate| candidate.text == name)
+            }),
+            NumericUse::Arithmetic => tokens.windows(3).any(|window| {
+                (window[0].text == name
+                    && matches!(window[1].text.as_str(), "+" | "-" | "*"))
+                    || (matches!(window[1].text.as_str(), "+" | "-" | "*")
+                        && window[2].text == name)
+            }) && !tokens.iter().any(|token| {
+                matches!(
+                    token.text.as_str(),
+                    "addExact" | "subtractExact" | "multiplyExact"
+                )
+            }),
+        }
+    })
+}
+
+fn excessive_allocation_in(declaration: &JavaDeclaration, syntax: &JavaSyntax) -> bool {
+    if declaration.kind != D::Method {
+        return false;
+    }
+    declaration.body.clone().is_some_and(|body| {
+        let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+        tokens.iter().enumerate().any(|(index, token)| {
+            if token.kind != TokKind::IntLit {
+                return false;
+            }
+            let value = token.text.replace('_', "").parse::<u64>().unwrap_or(0);
+            value >= 1024
+                && tokens[index.saturating_sub(5)..index]
+                    .iter()
+                    .any(|previous| previous.text == "new")
+        })
+    })
+}
+
+fn assertion_parameter_names(syntax: &JavaSyntax, range: std::ops::Range<usize>) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut last_identifier = None;
+    for token in syntax.tokens_in(range) {
+        if token.kind == TokKind::Ident {
+            last_identifier = Some(token.text.clone());
+        }
+        if token.text == "," {
+            if let Some(name) = last_identifier.take() {
+                names.push(name);
+            }
+        }
+    }
+    if let Some(name) = last_identifier {
+        names.push(name);
+    }
+    names
+}
+
+fn constant_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_')
+        && name.bytes().any(|byte| byte.is_ascii_uppercase())
+}
+
+fn is_java_standard_type_name(name: &str) -> bool {
+    matches!(
+        name,
+        "Appendable"
+            | "AutoCloseable"
+            | "Boolean"
+            | "Byte"
+            | "Character"
+            | "CharSequence"
+            | "Class"
+            | "ClassLoader"
+            | "Cloneable"
+            | "Comparable"
+            | "Double"
+            | "Enum"
+            | "Error"
+            | "Exception"
+            | "Float"
+            | "Integer"
+            | "Iterable"
+            | "Long"
+            | "Math"
+            | "Number"
+            | "Object"
+            | "Process"
+            | "Runtime"
+            | "SecurityManager"
+            | "Short"
+            | "StackTraceElement"
+            | "String"
+            | "StringBuffer"
+            | "StringBuilder"
+            | "System"
+            | "Thread"
+            | "Throwable"
+            | "Void"
+            | "File"
+            | "InputStream"
+            | "OutputStream"
+            | "Reader"
+            | "Writer"
+            | "IOException"
+            | "Serializable"
+            | "BigDecimal"
+            | "BigInteger"
+            | "URI"
+            | "URL"
+            | "Socket"
+            | "Collection"
+            | "Collections"
+            | "Comparator"
+            | "Deque"
+            | "HashMap"
+            | "HashSet"
+            | "Iterator"
+            | "LinkedHashMap"
+            | "LinkedHashSet"
+            | "LinkedList"
+            | "List"
+            | "Map"
+            | "Optional"
+            | "Queue"
+            | "Set"
+            | "SortedMap"
+            | "SortedSet"
+            | "TreeMap"
+            | "TreeSet"
+            | "Vector"
+            | "Date"
+            | "Calendar"
+            | "Locale"
+            | "Random"
+            | "UUID"
+            | "Arrays"
+            | "Pattern"
+            | "Matcher"
+            | "Path"
+            | "Paths"
+            | "Files"
+            | "Instant"
+            | "Duration"
+            | "LocalDate"
+            | "LocalDateTime"
+            | "ZoneId"
+            | "Executor"
+            | "ExecutorService"
+            | "Future"
+            | "Callable"
+            | "Semaphore"
+            | "CountDownLatch"
+            | "Lock"
+            | "Condition"
+            | "AtomicInteger"
+            | "Stream"
+            | "Collectors"
+            | "Connection"
+            | "Statement"
+            | "PreparedStatement"
+            | "ResultSet"
+    )
+}
+
+fn instance_lock_static_data_offsets(syntax: &JavaSyntax) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for (owner_id, owner) in syntax
+        .declarations
+        .iter()
+        .enumerate()
+        .filter(|(_, declaration)| declaration.kind == D::Class)
+    {
+        let static_fields = syntax
+            .declarations
+            .iter()
+            .filter(|field| {
+                field.owner == Some(owner_id)
+                    && field.kind == D::Field
+                    && field.modifiers.iter().any(|modifier| modifier == "static")
+            })
+            .flat_map(|field| field.names.iter())
+            .collect::<Vec<_>>();
+        if static_fields.is_empty() {
+            continue;
+        }
+        for method in syntax.declarations.iter().filter(|method| {
+            method.owner == Some(owner_id)
+                && method.kind == D::Method
+                && method
+                    .modifiers
+                    .iter()
+                    .any(|modifier| modifier == "synchronized")
+                && !method.modifiers.iter().any(|modifier| modifier == "static")
+        }) {
+            if method.body.clone().is_some_and(|body| {
+                static_fields.iter().any(|name| {
+                    syntax
+                        .tokens_in(body.clone())
+                        .any(|token| token.text == name.as_str())
+                })
+            }) {
+                offsets.push(method.range.start);
+            }
+        }
+        let instance_locks = syntax
+            .declarations
+            .iter()
+            .filter(|field| {
+                field.owner == Some(owner_id)
+                    && field.kind == D::Field
+                    && !field.modifiers.iter().any(|modifier| modifier == "static")
+            })
+            .flat_map(|field| field.names.iter())
+            .collect::<Vec<_>>();
+        for node in syntax.nodes.iter().filter(|node| {
+            node.kind == K::Synchronized
+                && owner.range.start <= node.range.start
+                && node.range.end <= owner.range.end
+        }) {
+            let Some(condition) = node.condition.clone() else {
+                continue;
+            };
+            let lock_is_instance = syntax.tokens_in(condition).any(|token| {
+                token.text == "this"
+                    || instance_locks
+                        .iter()
+                        .any(|name| token.text == name.as_str())
+            });
+            let protects_static = node.body.clone().is_some_and(|body| {
+                static_fields.iter().any(|name| {
+                    syntax
+                        .tokens_in(body.clone())
+                        .any(|token| token.text == name.as_str())
+                })
+            });
+            if lock_is_instance && protects_static {
+                offsets.push(node.range.start);
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn case_insensitive_package_offsets(source: &str, syntax: &JavaSyntax) -> Vec<usize> {
+    let tokens = syntax.tokens_in(0..source.len()).collect::<Vec<_>>();
+    let mut offsets = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if token.text != "equalsIgnoreCase" {
+            continue;
+        }
+        let start = index.saturating_sub(12);
+        let end = (index + 13).min(tokens.len());
+        if tokens[start..end].iter().any(|nearby| {
+            let name = nearby.text.to_ascii_lowercase();
+            name == "getpackagename" || name.contains("packagename") || name == "package_name"
+        }) {
+            offsets.push(token.start as usize);
+        }
+    }
+    offsets
+}
+
+fn multiple_servlet_stream_commit_offsets(syntax: &JavaSyntax) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for method in syntax
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.kind == D::Method && declaration.body.is_some())
+    {
+        let response_names = parameter_bindings(syntax, method)
+            .into_iter()
+            .filter_map(|(name, ty)| {
+                (ty.rsplit('.').next() == Some("HttpServletResponse")).then_some(name)
+            })
+            .collect::<Vec<_>>();
+        if response_names.is_empty() {
+            continue;
+        }
+        let calls = call_sites(syntax, method);
+        let mut accessor: Option<bool> = None;
+        let mut committed = false;
+        for call in calls {
+            let on_response = call
+                .receiver
+                .as_ref()
+                .is_some_and(|receiver| response_names.contains(receiver));
+            if on_response && matches!(call.name.as_str(), "getOutputStream" | "getWriter") {
+                let output_stream = call.name == "getOutputStream";
+                if accessor.is_some_and(|previous| previous != output_stream) {
+                    offsets.push(call.offset);
+                }
+                accessor = Some(output_stream);
+                continue;
+            }
+            let response_commit = on_response
+                && matches!(
+                    call.name.as_str(),
+                    "sendRedirect" | "flushBuffer" | "reset" | "resetBuffer"
+                );
+            let stream_commit = call.receiver.as_deref().is_some_and(|receiver| {
+                receiver_has_type_at(
+                    syntax,
+                    method,
+                    receiver,
+                    &["OutputStream", "ServletOutputStream", "PrintWriter", "Writer"],
+                    call.offset,
+                )
+            }) && matches!(call.name.as_str(), "flush" | "close");
+            if response_commit {
+                if committed {
+                    offsets.push(call.offset);
+                }
+                committed = true;
+            } else if stream_commit {
+                committed = true;
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BeanMethodKind {
+    Getter,
+    Setter,
+}
+
+fn bean_property(name: &str) -> Option<(BeanMethodKind, String)> {
+    let (kind, suffix) = if let Some(suffix) = name.strip_prefix("get") {
+        (BeanMethodKind::Getter, suffix)
+    } else if let Some(suffix) = name.strip_prefix("is") {
+        (BeanMethodKind::Getter, suffix)
+    } else if let Some(suffix) = name.strip_prefix("set") {
+        (BeanMethodKind::Setter, suffix)
+    } else {
+        return None;
+    };
+    let mut characters = suffix.chars();
+    let first = characters.next()?;
+    if !first.is_ascii_uppercase() {
+        return None;
+    }
+    let property = if suffix
+        .chars()
+        .nth(1)
+        .is_some_and(|second| second.is_ascii_uppercase())
+    {
+        suffix.to_string()
+    } else {
+        first.to_ascii_lowercase().to_string() + characters.as_str()
+    };
+    Some((kind, property))
+}
+
+fn method_is_synchronized(
+    syntax: &JavaSyntax,
+    declaration: &uniflow_parser_core::java_syntax::JavaDeclaration,
+) -> bool {
+    declaration
+        .modifiers
+        .iter()
+        .any(|modifier| modifier == "synchronized")
+        || declaration.body.as_ref().is_some_and(|body| {
+            syntax.nodes.iter().any(|node| {
+                node.kind == K::Synchronized
+                    && body.start <= node.range.start
+                    && node.range.end <= body.end
+            })
+        })
+}
+
+fn direct_bean_field(
+    syntax: &JavaSyntax,
+    declaration: &uniflow_parser_core::java_syntax::JavaDeclaration,
+    kind: BeanMethodKind,
+) -> Option<String> {
+    let owner = declaration.owner?;
+    let body = declaration.body.clone()?;
+    let fields = syntax
+        .declarations
+        .iter()
+        .filter(|item| item.owner == Some(owner) && item.kind == D::Field)
+        .flat_map(|item| item.names.iter())
+        .collect::<Vec<_>>();
+    let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+    match kind {
+        BeanMethodKind::Getter => {
+            let at = tokens.iter().position(|token| token.text == "return")?;
+            let candidate = match tokens.get(at + 1..at + 4) {
+                Some([this, dot, field]) if this.text == "this" && dot.text == "." => field,
+                _ => tokens.get(at + 1)?,
+            };
+            fields
+                .iter()
+                .any(|field| *field == &candidate.text)
+                .then(|| candidate.text.clone())
+        }
+        BeanMethodKind::Setter => {
+            for window in tokens.windows(4) {
+                if window[0].text == "this"
+                    && window[1].text == "."
+                    && window[2].kind == TokKind::Ident
+                    && window[3].text == "="
+                    && fields.iter().any(|field| *field == &window[2].text)
+                {
+                    return Some(window[2].text.clone());
+                }
+            }
+            for pair in tokens.windows(2) {
+                if pair[0].kind == TokKind::Ident
+                    && pair[1].text == "="
+                    && fields.iter().any(|field| *field == &pair[0].text)
+                {
+                    return Some(pair[0].text.clone());
+                }
+            }
+            None
+        }
     }
 }
 
@@ -1563,6 +3275,728 @@ fn url_collection_declarations(tokens: &[&Token]) -> Vec<usize> {
         i += 1;
     }
     offsets
+}
+
+fn inherited_methods<'a>(
+    syntax: &'a JavaSyntax,
+    method: &JavaDeclaration,
+) -> Vec<&'a JavaDeclaration> {
+    let Some(owner) = method.owner else {
+        return Vec::new();
+    };
+    let mut pending = Vec::new();
+    let class = &syntax.declarations[owner];
+    if !class.superclass.is_empty() {
+        pending.push(class.superclass.clone());
+    }
+    pending.extend(class.interfaces.iter().cloned());
+    let mut owners = Vec::new();
+    let mut visited = std::collections::HashSet::new();
+    while let Some(name) = pending.pop() {
+        let simple = name.rsplit('.').next().unwrap_or(&name);
+        let Some((id, declaration)) = syntax
+            .declarations
+            .iter()
+            .enumerate()
+            .find(|(_, candidate)| {
+                matches!(candidate.kind, D::Class | D::Interface)
+                    && candidate.name == simple
+            })
+        else {
+            continue;
+        };
+        if !visited.insert(id) {
+            continue;
+        }
+        owners.push(id);
+        if !declaration.superclass.is_empty() {
+            pending.push(declaration.superclass.clone());
+        }
+        pending.extend(declaration.interfaces.iter().cloned());
+    }
+    syntax
+        .declarations
+        .iter()
+        .filter(|candidate| {
+            candidate.kind == D::Method
+                && owners.contains(&candidate.owner.unwrap_or(usize::MAX))
+                && candidate.name == method.name
+        })
+        .collect()
+}
+
+fn method_signatures_equal(
+    syntax: &JavaSyntax,
+    left: &JavaDeclaration,
+    right: &JavaDeclaration,
+) -> bool {
+    left.name == right.name
+        && method_parameter_types(syntax, left) == method_parameter_types(syntax, right)
+}
+
+fn method_parameter_types(syntax: &JavaSyntax, method: &JavaDeclaration) -> Vec<String> {
+    let Some(range) = method.parameters.clone() else {
+        return Vec::new();
+    };
+    let tokens = syntax.tokens_in(range).collect::<Vec<_>>();
+    if tokens.is_empty() {
+        return Vec::new();
+    }
+    let mut result = Vec::new();
+    let mut start = 0usize;
+    let mut angle = 0i32;
+    let mut paren = 0i32;
+    let mut bracket = 0i32;
+    for index in 0..=tokens.len() {
+        let separator = index == tokens.len()
+            || tokens[index].text == "," && angle == 0 && paren == 0 && bracket == 0;
+        if separator {
+            if start < index {
+                result.push(parameter_type_key(&tokens[start..index]));
+            }
+            start = index + 1;
+            continue;
+        }
+        match tokens[index].text.as_str() {
+            "<" => angle += 1,
+            ">" => angle = (angle - 1).max(0),
+            ">>" => angle = (angle - 2).max(0),
+            ">>>" => angle = (angle - 3).max(0),
+            "(" => paren += 1,
+            ")" => paren = (paren - 1).max(0),
+            "[" => bracket += 1,
+            "]" => bracket = (bracket - 1).max(0),
+            _ => {}
+        }
+    }
+    result
+}
+
+fn parameter_type_key(tokens: &[&Token]) -> String {
+    let Some(name_index) = tokens.iter().rposition(|token| token.kind == TokKind::Ident) else {
+        return String::new();
+    };
+    let mut type_tokens = Vec::new();
+    let mut index = 0usize;
+    while index < name_index {
+        if tokens[index].text == "final" {
+            index += 1;
+            continue;
+        }
+        if tokens[index].text == "@" {
+            index += 1;
+            while index < name_index
+                && (tokens[index].kind == TokKind::Ident || tokens[index].text == ".")
+            {
+                index += 1;
+            }
+            if index < name_index && tokens[index].text == "(" {
+                let mut depth = 1i32;
+                index += 1;
+                while index < name_index && depth > 0 {
+                    match tokens[index].text.as_str() {
+                        "(" => depth += 1,
+                        ")" => depth -= 1,
+                        _ => {}
+                    }
+                    index += 1;
+                }
+            }
+            continue;
+        }
+        type_tokens.push(tokens[index].text.as_str());
+        index += 1;
+    }
+    // Java treats qualified and imported spellings of the same simple type alike
+    // for this source-local inheritance check.
+    type_tokens.join("").replace("java.lang.", "")
+}
+
+fn method_visibility(syntax: &JavaSyntax, method: &JavaDeclaration) -> u8 {
+    if method.modifiers.iter().any(|value| value == "public")
+        || method.owner.is_some_and(|owner| syntax.declarations[owner].kind == D::Interface)
+    {
+        3
+    } else if method.modifiers.iter().any(|value| value == "protected") {
+        2
+    } else if method.modifiers.iter().any(|value| value == "private") {
+        0
+    } else {
+        1
+    }
+}
+
+fn collection_view_backing(
+    syntax: &JavaSyntax,
+    method: &JavaDeclaration,
+    view: &str,
+    before: usize,
+) -> Option<String> {
+    let body = method.body.clone()?;
+    let tokens = syntax
+        .tokens_in(body.start..before.min(body.end))
+        .collect::<Vec<_>>();
+    tokens.windows(6).rev().find_map(|window| {
+        (window[0].kind == TokKind::Ident
+            && window[0].text == view
+            && window[1].text == "="
+            && window[2].kind == TokKind::Ident
+            && window[3].text == "."
+            && matches!(
+                window[4].text.as_str(),
+                "keySet" | "values" | "entrySet" | "subList"
+            )
+            && window[5].text == "(")
+            .then(|| window[2].text.clone())
+    })
+}
+
+fn invalid_constant_regex_offsets(source: &str, syntax: &JavaSyntax) -> Vec<usize> {
+    let tokens = syntax.tokens_in(0..source.len()).collect::<Vec<_>>();
+    let mut offsets = Vec::new();
+    for index in 0..tokens.len().saturating_sub(2) {
+        let name = tokens[index].text.as_str();
+        let pattern_api = name == "compile"
+            && index >= 2
+            && tokens[index - 1].text == "."
+            && tokens[index - 2].text == "Pattern";
+        let string_api = matches!(name, "matches" | "replaceAll" | "replaceFirst" | "split");
+        if !(pattern_api || string_api)
+            || tokens[index + 1].text != "("
+            || tokens[index + 2].kind != TokKind::StringLit
+        {
+            continue;
+        }
+        let Some(pattern) = java_string_literal_value(&tokens[index + 2].text) else {
+            continue;
+        };
+        if !is_valid_java_regex_shape(&pattern) {
+            offsets.push(tokens[index].start as usize);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn double_checked_locking_offsets(syntax: &JavaSyntax) -> Vec<usize> {
+    let fields = syntax
+        .declarations
+        .iter()
+        .filter(|declaration| {
+            declaration.kind == D::Field
+                && declaration.modifiers.iter().any(|modifier| modifier == "static")
+                && !declaration
+                    .modifiers
+                    .iter()
+                    .any(|modifier| modifier == "volatile")
+        })
+        .flat_map(|declaration| declaration.names.iter().cloned())
+        .collect::<Vec<_>>();
+    let mut offsets = Vec::new();
+    for outer in syntax.nodes.iter().filter(|node| node.kind == K::If) {
+        let Some(outer_condition) = outer.condition.clone() else {
+            continue;
+        };
+        let Some(field) = fields
+            .iter()
+            .find(|field| null_check_names(syntax, outer_condition.clone(), field))
+        else {
+            continue;
+        };
+        let Some(sync) = syntax.nodes.iter().find(|node| {
+            node.kind == K::Synchronized
+                && outer.range.start < node.range.start
+                && node.range.end <= outer.range.end
+        }) else {
+            continue;
+        };
+        let Some(inner) = syntax.nodes.iter().find(|node| {
+            node.kind == K::If
+                && sync.range.start < node.range.start
+                && node.range.end <= sync.range.end
+                && node
+                    .condition
+                    .clone()
+                    .is_some_and(|condition| null_check_names(syntax, condition, field))
+        }) else {
+            continue;
+        };
+        let tokens = syntax.tokens_in(inner.range.clone()).collect::<Vec<_>>();
+        if tokens.windows(3).any(|window| {
+            window[0].text == *field
+                && window[1].text == "="
+                && matches!(window[2].text.as_str(), "new" | "getInstance" | "create" | "build")
+        }) {
+            offsets.push(outer.range.start);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn class_initialization_cycle_offsets(syntax: &JavaSyntax) -> Vec<usize> {
+    let static_fields = syntax
+        .declarations
+        .iter()
+        .filter(|declaration| {
+            declaration.kind == D::Field
+                && declaration.modifiers.iter().any(|modifier| modifier == "static")
+        })
+        .collect::<Vec<_>>();
+    let mut offsets = Vec::new();
+
+    // A static initializer that directly reads a later field of the same class
+    // observes that field's JVM default value.
+    for field in &static_fields {
+        let Some(owner) = field.owner else {
+            continue;
+        };
+        let later_names = static_fields
+            .iter()
+            .filter(|candidate| {
+                candidate.owner == Some(owner) && candidate.range.start > field.range.start
+            })
+            .flat_map(|candidate| candidate.names.iter())
+            .collect::<Vec<_>>();
+        let tokens = syntax.tokens_in(field.range.clone()).collect::<Vec<_>>();
+        let direct_late_read = tokens.iter().any(|token| {
+            token.kind == TokKind::Ident
+                && later_names.iter().any(|name| token.text == name.as_str())
+        });
+        let constructs_owner = tokens.windows(2).any(|window| {
+            window[0].text == "new" && window[1].text == syntax.declarations[owner].name
+        });
+        let constructor_reads_later = constructs_owner
+            && syntax.declarations.iter().any(|constructor| {
+                constructor.owner == Some(owner)
+                    && constructor.kind == D::Constructor
+                    && constructor.body.clone().is_some_and(|body| {
+                        syntax.tokens_in(body).any(|token| {
+                            token.kind == TokKind::Ident
+                                && later_names.iter().any(|name| token.text == name.as_str())
+                        })
+                    })
+            });
+        if direct_late_read || constructor_reads_later {
+            offsets.push(field.range.start);
+        }
+    }
+
+    // Build class-to-class static initializer edges and report both ends of a
+    // direct cycle. Longer cycles are found by the transitive reachability walk.
+    let mut edges = std::collections::HashMap::<usize, std::collections::HashSet<usize>>::new();
+    let mut edge_field = std::collections::HashMap::<(usize, usize), usize>::new();
+    for field in &static_fields {
+        let Some(owner) = field.owner else {
+            continue;
+        };
+        let tokens = syntax.tokens_in(field.range.clone()).collect::<Vec<_>>();
+        for window in tokens.windows(3) {
+            if window[0].kind != TokKind::Ident
+                || window[1].text != "."
+                || window[2].kind != TokKind::Ident
+            {
+                continue;
+            }
+            let Some((target, _)) = syntax.declarations.iter().enumerate().find(|(_, class)| {
+                matches!(class.kind, D::Class | D::Interface)
+                    && class.name == window[0].text
+            }) else {
+                continue;
+            };
+            if target != owner {
+                edges.entry(owner).or_default().insert(target);
+                edge_field.entry((owner, target)).or_insert(field.range.start);
+            }
+        }
+    }
+    for (&from, targets) in &edges {
+        for &to in targets {
+            if class_dependency_reaches(&edges, to, from) {
+                if let Some(offset) = edge_field.get(&(from, to)) {
+                    offsets.push(*offset);
+                }
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn class_dependency_reaches(
+    edges: &std::collections::HashMap<usize, std::collections::HashSet<usize>>,
+    start: usize,
+    wanted: usize,
+) -> bool {
+    let mut pending = vec![start];
+    let mut seen = std::collections::HashSet::new();
+    while let Some(node) = pending.pop() {
+        if node == wanted {
+            return true;
+        }
+        if seen.insert(node) {
+            pending.extend(edges.get(&node).into_iter().flatten().copied());
+        }
+    }
+    false
+}
+
+fn android_shared_storage_apk_offsets(syntax: &JavaSyntax) -> Vec<usize> {
+    syntax
+        .declarations
+        .iter()
+        .filter(|declaration| matches!(declaration.kind, D::Method | D::Constructor))
+        .filter_map(|declaration| {
+            let body = declaration.body.clone()?;
+            let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+            let shared_storage = tokens.iter().any(|token| {
+                matches!(
+                    token.text.as_str(),
+                    "getExternalStorageDirectory" | "getExternalStoragePublicDirectory"
+                )
+            });
+            let apk_install = tokens.iter().any(|token| {
+                token.kind == TokKind::StringLit
+                    && token.text.contains("application/vnd.android.package-archive")
+            }) && tokens.iter().any(|token| token.text == "startActivity");
+            (shared_storage && apk_install).then_some(declaration.range.start)
+        })
+        .collect()
+}
+
+fn wrong_parameter_order_offsets(syntax: &JavaSyntax) -> Vec<usize> {
+    let signatures = syntax
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.kind == D::Method)
+        .filter_map(|declaration| {
+            let parameters = parameter_names(syntax, declaration);
+            (parameters.len() >= 2).then(|| (declaration.name.clone(), parameters))
+        })
+        .collect::<Vec<_>>();
+    let mut offsets = Vec::new();
+    for caller in syntax
+        .declarations
+        .iter()
+        .filter(|declaration| matches!(declaration.kind, D::Method | D::Constructor))
+    {
+        let Some(body) = caller.body.clone() else {
+            continue;
+        };
+        let tokens = syntax.tokens_in(body).collect::<Vec<_>>();
+        let mut index = 0usize;
+        while index + 1 < tokens.len() {
+            if tokens[index].kind != TokKind::Ident || tokens[index + 1].text != "(" {
+                index += 1;
+                continue;
+            }
+            if index >= 1 && tokens[index - 1].text == "."
+                && !(index >= 2 && tokens[index - 2].text == "this")
+            {
+                index += 1;
+                continue;
+            }
+            let name = tokens[index].text.as_str();
+            let mut depth = 1i32;
+            let mut cursor = index + 2;
+            let mut segment = cursor;
+            let mut arguments = Vec::new();
+            let mut valid = true;
+            while cursor < tokens.len() && depth > 0 {
+                match tokens[cursor].text.as_str() {
+                    "(" | "[" | "{" => depth += 1,
+                    ")" | "]" | "}" => {
+                        depth -= 1;
+                        if depth == 0 {
+                            if segment < cursor {
+                                if cursor - segment == 1
+                                    && tokens[segment].kind == TokKind::Ident
+                                {
+                                    arguments.push(tokens[segment].text.clone());
+                                } else {
+                                    valid = false;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    "," if depth == 1 => {
+                        if cursor - segment == 1 && tokens[segment].kind == TokKind::Ident {
+                            arguments.push(tokens[segment].text.clone());
+                        } else {
+                            valid = false;
+                        }
+                        segment = cursor + 1;
+                    }
+                    _ => {}
+                }
+                cursor += 1;
+            }
+            if valid
+                && signatures.iter().any(|(candidate, parameters)| {
+                    candidate == name
+                        && arguments.len() == parameters.len()
+                        && arguments != *parameters
+                        && arguments.iter().all(|argument| parameters.contains(argument))
+                        && parameters.iter().all(|parameter| arguments.contains(parameter))
+                })
+            {
+                offsets.push(tokens[index].start as usize);
+            }
+            index = cursor.max(index + 1);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn fixed_initialization_vector_offsets(source: &str, syntax: &JavaSyntax) -> Vec<usize> {
+    let tokens = syntax.tokens_in(0..source.len()).collect::<Vec<_>>();
+    let mut offsets = Vec::new();
+    for index in 0..tokens.len().saturating_sub(3) {
+        if tokens[index].text != "new"
+            || tokens[index + 1].text != "IvParameterSpec"
+            || tokens[index + 2].text != "("
+        {
+            continue;
+        }
+        let argument = &tokens[index + 3];
+        let fixed = if argument.kind == TokKind::StringLit {
+            true
+        } else if argument.text == "new" {
+            tokens.get(index + 4).is_some_and(|token| token.text == "byte")
+        } else if argument.kind == TokKind::Ident {
+            let name = argument.text.as_str();
+            let before = &tokens[..index];
+            let securely_filled = before.windows(4).any(|window| {
+                window[0].text == "nextBytes"
+                    && window[1].text == "("
+                    && window[2].text == name
+                    && window[3].text == ")"
+            }) || before.windows(3).any(|window| {
+                window[0].text == name
+                    && window[1].text == "="
+                    && window[2].text == "generateSeed"
+            }) || before.windows(5).any(|window| {
+                window[0].text == name
+                    && window[1].text == "="
+                    && window[2].text == "secureRandom"
+                    && window[3].text == "."
+                    && window[4].text == "generateSeed"
+            });
+            let fixed_initializer = before.windows(3).any(|window| {
+                window[0].text == name
+                    && window[1].text == "="
+                    && (window[2].text == "{" || window[2].kind == TokKind::StringLit)
+            }) || before.windows(5).any(|window| {
+                window[0].text == name
+                    && window[1].text == "="
+                    && window[2].text == "new"
+                    && window[3].text == "byte"
+                    && window[4].text == "["
+            });
+            fixed_initializer && !securely_filled
+        } else {
+            false
+        };
+        if fixed {
+            offsets.push(tokens[index].start as usize);
+        }
+    }
+    offsets
+}
+
+fn null_check_names(
+    syntax: &JavaSyntax,
+    range: std::ops::Range<usize>,
+    name: &str,
+) -> bool {
+    let tokens = syntax.tokens_in(range).collect::<Vec<_>>();
+    tokens.windows(3).any(|window| {
+        (window[0].text == name
+            && window[1].text == "=="
+            && window[2].text == "null")
+            || (window[0].text == "null"
+                && window[1].text == "=="
+                && window[2].text == name)
+    })
+}
+
+fn java_string_literal_value(literal: &str) -> Option<String> {
+    let body = literal.strip_prefix('"')?.strip_suffix('"')?;
+    let mut chars = body.chars().peekable();
+    let mut output = String::new();
+    while let Some(character) = chars.next() {
+        if character != '\\' {
+            output.push(character);
+            continue;
+        }
+        let escaped = chars.next()?;
+        match escaped {
+            'b' => output.push('\u{0008}'),
+            't' => output.push('\t'),
+            'n' => output.push('\n'),
+            'f' => output.push('\u{000c}'),
+            'r' => output.push('\r'),
+            '"' => output.push('"'),
+            '\'' => output.push('\''),
+            '\\' => output.push('\\'),
+            'u' => {
+                let digits = (0..4).map(|_| chars.next()).collect::<Option<String>>()?;
+                output.push(char::from_u32(u32::from_str_radix(&digits, 16).ok()?)?);
+            }
+            '0'..='7' => {
+                // The exact code point is irrelevant to regex structure.
+                output.push('x');
+                for _ in 0..2 {
+                    if chars.peek().is_some_and(|next| matches!(next, '0'..='7')) {
+                        chars.next();
+                    }
+                }
+            }
+            // Invalid Java escapes are compiler errors rather than regex errors.
+            _ => return None,
+        }
+    }
+    Some(output)
+}
+
+fn is_valid_java_regex_shape(pattern: &str) -> bool {
+    let chars = pattern.chars().collect::<Vec<_>>();
+    let mut index = 0usize;
+    let mut parens = 0usize;
+    let mut in_class = false;
+    let mut class_has_atom = false;
+    let mut can_quantify = false;
+    let mut previous_quantifier = false;
+    let mut quoted = false;
+    while index < chars.len() {
+        let character = chars[index];
+        if quoted {
+            if character == '\\' && chars.get(index + 1) == Some(&'E') {
+                quoted = false;
+                index += 2;
+            } else {
+                index += 1;
+            }
+            can_quantify = true;
+            continue;
+        }
+        if character == '\\' {
+            let Some(&escaped) = chars.get(index + 1) else {
+                return false;
+            };
+            if escaped == 'Q' {
+                quoted = true;
+                index += 2;
+                continue;
+            }
+            if matches!(escaped, 'p' | 'P') && chars.get(index + 2) == Some(&'{') {
+                let Some(close) = chars[index + 3..].iter().position(|value| *value == '}') else {
+                    return false;
+                };
+                if close == 0 {
+                    return false;
+                }
+                index += close + 4;
+            } else {
+                index += 2;
+            }
+            if in_class {
+                class_has_atom = true;
+            }
+            can_quantify = true;
+            previous_quantifier = false;
+            continue;
+        }
+        if in_class {
+            if character == ']' {
+                if !class_has_atom {
+                    return false;
+                }
+                in_class = false;
+                can_quantify = true;
+            } else {
+                class_has_atom = true;
+            }
+            index += 1;
+            continue;
+        }
+        match character {
+            '[' => {
+                in_class = true;
+                class_has_atom = false;
+                can_quantify = false;
+                previous_quantifier = false;
+            }
+            '(' => {
+                parens += 1;
+                can_quantify = false;
+                previous_quantifier = false;
+            }
+            ')' => {
+                if parens == 0 {
+                    return false;
+                }
+                parens -= 1;
+                can_quantify = true;
+                previous_quantifier = false;
+            }
+            '*' | '+' | '?' => {
+                let group_prefix = character == '?'
+                    && index > 0
+                    && chars[index - 1] == '('
+                    && parens > 0;
+                if !can_quantify && !group_prefix && !previous_quantifier {
+                    return false;
+                }
+                can_quantify = !group_prefix;
+                previous_quantifier = !group_prefix;
+            }
+            '{' => {
+                if !can_quantify {
+                    return false;
+                }
+                let Some(relative_close) = chars[index + 1..].iter().position(|value| *value == '}')
+                else {
+                    return false;
+                };
+                let close = index + 1 + relative_close;
+                let body = chars[index + 1..close].iter().collect::<String>();
+                let valid = body
+                    .split_once(',')
+                    .map_or_else(|| !body.is_empty() && body.chars().all(|c| c.is_ascii_digit()), |(low, high)| {
+                        !low.is_empty()
+                            && low.chars().all(|c| c.is_ascii_digit())
+                            && (high.is_empty() || high.chars().all(|c| c.is_ascii_digit()))
+                    });
+                if !valid {
+                    return false;
+                }
+                index = close;
+                previous_quantifier = true;
+            }
+            '}' => return false,
+            '|' | '^' | '$' => {
+                can_quantify = false;
+                previous_quantifier = false;
+            }
+            '.' => {
+                can_quantify = true;
+                previous_quantifier = false;
+            }
+            _ => {
+                can_quantify = true;
+                previous_quantifier = false;
+            }
+        }
+        index += 1;
+    }
+    !in_class && parens == 0 && !quoted
 }
 
 fn contains_method_invocation(syntax: &JavaSyntax, range: std::ops::Range<usize>) -> bool {

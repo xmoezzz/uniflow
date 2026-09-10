@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0502000010090004" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">ISO/IEC TR 24772</Category>
+				<Category type="SubClassChin">资源管理</Category>
+				<Category type="DetailClassChin">单例成员变量</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行为单例成员变量。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行为单例成员变量。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[`javax.servlet.http.HttpServlet`和`org.apache.struts.action.Action`的对象不是线程安全的。对于同一个Servlet对象（或struts1的Action对象）的多个请求，Servlet对象（或struts1的Action对象）将在一个多线程的环境中并发执行。Web容器默认采用单实例多线程的方式来处理Http请求，这将导致Servlet对象（或struts1的Action对象）成员变量访问的线程安全问题。  
+  
+**例如**：下面是一段JAVA EE的Servlet代码片断，变量`username`为成员变量，当LoginServlet的对象处理多个请求时，变量`username`将被多个请求共享，这将导致线程间数据泄露。  
+```java
+...  
+import javax.servlet.http.HttpServlet;  
+public class LoginServlet extends HttpServlet {  
+    String username;  
+    protected void doPost(HttpServletRequest req,HttpServletResponse res) {  
+        username = req.getParameter("username");  
+        ...  
+        out.println( " 欢迎您，"+username+" !");  
+    }  
+}  
+...
+```
+]]></Description>
+			<Advice><![CDATA[使用Java EE的Servlet或struts1的Action时，必须保证其是线程安全的。修复方式举例如下：  
+  
+**例如**：下面代码示例，使用局部变量，因为局部变量在每个线程中都有各自的实例，从而保证线程安全。  
+```java
+...  
+import javax.servlet.http.HttpServlet;  
+public class LoginServlet extends HttpServlet {  
+    protected void doPost(HttpServletRequest req,HttpServletResponse res) {  
+        String username = req.getParameter("username");  
+        ...  
+        out.println("欢迎您，"+username+"!");  
+    }  
+}  
+...
+```  
+另外，也可以使用同步代码块访问servlet实例变量。但使用同步代码块可能会导致性能问题。
+]]></Advice>
+			<References>
+				<Reference type="CWE">488:Exposure of Data Element to Wrong Session</Reference>
+				<Reference type="CWE">362:Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')</Reference>
+				<Reference type="CERT">MSC07-J:Prevent multiple instantiations of singleton objects</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 362</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 362</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:New Vulnerabilities Concurrent Data Access [CGX]</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,concurrency</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

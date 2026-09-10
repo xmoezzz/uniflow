@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020145" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">请求参数自动填充数据库实体</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行中请求参数自动填充数据库实体。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中请求参数自动填充数据库实体。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[持久性框架（如 Hibernate或JPA）通常会自动更新数据库实体，当系统允许请求参数可以直接自动填充数据库持久实体时，攻击者将能够通过提供附加的请求参数向数据库中注入非预期的值。  
+**例如**：在下面的示例中：Order、User都是 Hibernate持久类。  
+```java
+public class Order {  
+    String orderId;  
+    List goods;  
+    User User;  
+    ...  
+}  
+public class User {  
+    String userId;  
+    String username;  
+    String password;  
+    ...  
+}
+```  
+OrderController是处理该请求的Spring控制器类：  
+```java
+@Controller  
+public class OrderController {  
+    ...  
+    @RequestMapping("/updateOrder")  
+    public String updateOrder(Order order) {  
+        ...  
+        session.save(order);  
+    }  
+}
+```  
+当系统允许请求自动绑定到数据库实体时，攻击者可以通过在该请求中添加如下请求参数来更新其他用户的密码：`https://www.shopwebsite.com/myOrder/updateOrder?order.user.userId=1234&order.user.password=newpassword`
+]]></Description>
+			<Advice><![CDATA[程序对非受信的用户输入数据进行净化，不要直接填充给数据库实体。
+]]></Advice>
+			<References>
+				<Reference type="CWE">915:Improperly Controlled Modification of Dynamically-Determined Object Attributes</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

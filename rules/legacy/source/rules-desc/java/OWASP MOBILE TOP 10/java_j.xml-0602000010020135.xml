@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010020135" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Spring Boot配置错误：关闭执行器端点</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行关闭了执行器端点。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[当启用Spring Boot Shutdown Actuator时，攻击者经过可能比较简单的身份验证后可以关闭应用程序。  
+
+**例如**：下列配置文件中启用了Spring Boot Shutdown Actuator。
+```java  
+endpoints.shutdown.enabled=true
+```
+]]></Description>
+			<Advice><![CDATA[不要启用Spring Boot Shutdown Actuator。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

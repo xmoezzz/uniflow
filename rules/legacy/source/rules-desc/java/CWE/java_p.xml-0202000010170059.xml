@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170059" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.4 异常处理安全</Category>  
+        <Category type="DetailClassChin">A.3.4.7 不要忽略SSL异常</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：SSL相关的异常有`javax.net.ssl.SSLHandshakeException`、`javax.net.ssl. SSLKeyException`和`javax.net.ssl.SSLPeerUnverifiedException`，被用于传达与SSL连接相关的重要错误，如果选择不抛出这些异常或者是没有显式地处理这些异常，连接会被处于一种意想不到的、潜在不安全的状态。检查程序逻辑，对SSL异常进行合理处理。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">388:Error Handling</Reference>  
+        <Reference type="CWE">248:Uncaught Exception</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.4 未捕获异常</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.4 异常处理安全</BigClassChin>  
+       
+    </BugInfo>  
+    

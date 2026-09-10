@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010130110" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">JavaScript劫持</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[使用JavaScript传送敏感数据的应用程序可能会存在JavaScript劫持的漏洞，该漏洞允许未经授权的攻击者从一个易受攻击的应用程序中读取机密数据。  
+  JavaScript劫持可以简单的理解为模拟授权的用户，窃取用户在服务器上的信息。Web浏览器使用同源策略(Same Origin Policy)，以保护用户免受恶意网站的攻击。同源策略规定：如果要使用JavaScript来访问某个网页的内容的话，则JavaScript和网页必须都来源于相同的域。若不采取同源策略，恶意网站便可以使用受害者的客户端凭证来运行 JavaScript，从其他网站加载的敏感信息，并对这些信息进行处理，然后将其返回给攻击者。 使用JSON传输数据的JavaScript应用更容易受到JavaScript劫持攻击。  
+**例1**：下面代码片段中，使用JsonUtils的`unsafeEval`解析JavaScript。
+```java
+String js = response.getText();  
+JsonUtils.unsafeEval(js);
+``` 
+ 
+**例2**：下面代码片段中，使用Json来传输数据。  
+```java
+response.setContentType("application/json; charset=UTF-8");
+```
+]]></Description>
+			<Advice><![CDATA[尽量避免跨域的数据传输，对于同域的数据传输使用xmlhttp的方式作为数据获取的方式。如果是跨域的数据传输，必须要对敏感的数据获取做权限认证，具体的方式可以包括：   
+1. referer的来源限制，利用前端referer的不可伪造性来保障请求数据的应用来源于可信的地方，此种方式力度较稀，完全依赖于referer，某些情况下(如存在XSS)可能导致被绕过。  
+2. 加入Token。利用Token对调用者的身份进行认证，这种方式对于调用者的身份会要求力度较细，但是一旦出现XSS也可能导致前端Token的泄露，从而导致保护失效。  
+3. 避免直接执行JavaScript响应：在响应中加入一些额外的字符。这些响应只有经过了修改，才能成功地转到JavaScript解释器进行处理。这样可以防止攻击者使用<script>标签来进行劫持。比如，可以给响应加上注释符号，使其无法直接执行；或者是在真实的响应前面，添加死循环语句，使其无法正常的直接运行。
+]]></Advice>
+			<References>
+				<Reference type="OWASP MOBILE TOP 10">2014:M4 Unintended Data Leakage</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发JavaScript劫持漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在JavaScript劫持漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在JavaScript劫持漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发JavaScript劫持漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

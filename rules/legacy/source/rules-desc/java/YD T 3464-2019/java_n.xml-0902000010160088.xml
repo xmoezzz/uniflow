@@ -1,0 +1,140 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160088" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.9.10 不要执行那些持有锁时会阻塞的操作</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序必须不能持有锁的时候执行阻塞操作   
+2) 原理   
+当执行耗时的或者阻塞的操作时，持有锁会严重影响系统的性能并且会导致资源不足。此 外，如果无限期阻塞相互关联的线程，会发生死锁。阻塞操作包括网络、文件和控制台 I/O 和对象序列化。将一个线程延时同样会形成阻塞操作。因此，程序必须不能持有锁的时候执行阻塞操作。   
+当 Java 虚拟机与文件系统进行交互时，如果这些操作基于不可靠的网络、文件 I/O 会导致严重性能问题。在这样的情况下，要避免在持有锁时进行基于网络的文件 I/O 操作。   
+3) 示例   
+    1、不符合规则的代码示例（延迟一个线程），该示例定义了一个方法来接受一个time参数。   
+    ```java
+    public synchronized void doSomething(long time)  throws InterruptedException {   
+        // . . .    
+        Thread.sleep(time);   
+    }
+    ```   
+    因为方法是同步的，当挂起线程时，其他线程也不能使用这个类的同步方法。将继续持有当前的对象监视器，因为 `Thread.sleep()`方法缺少同步语义。   
+    对应符合规则的解决方案（内置锁）是：定义一个 `doSomething()`方法，它使用了一个 timeout参数而不是一个time数值。使用 `Object.wait()`方法而不是 `Thread.sleep()`方法会设置一个 timeout 期限，从而由一个通知唤醒线程。   
+    ```java
+    public synchronized void doSomething(long timeout) throws InterruptedException {
+        // ...
+        while (<condition does not hold>) {
+            wait(timeout); // Immediately releases the current monitor
+    ```
+    当前对象的监视器在进入等待的状态时，会被立即释放。在 timeout 期限到达时，线程在获得当前对象的监视器之后会继续执行。   
+    2、不符合规则的代码示例（网络 I/O )，该示例定义了一个`sendPage()`方法，该方法会从服务器发送一个 Page 对象到客户端。当多个线程请求并发访问时，同步这个方法来保护 pageBuff 队列。   
+    ```java
+    // Class Page is defined separately.
+    // It stores and returns the Page name via getName()
+    Page[] pageBuff = new Page[MAX_PAGE_SIZE];
+    
+    public synchronized boolean sendPage(Socket socket, String pageName) throws IOException {
+        // Get the output stream to write the Page to
+        ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+    
+        // Find the Page requested by the client
+        // (this operation requires synchronization)
+        Page targetPage = null;
+        for (Page p : pageBuff) {
+            if (p.getName().compareTo(pageName) == 0) {
+                targetPage = p;
+            }
+        }
+    
+        // Requested Page does not exist
+        if (targetPage == null) {
+            return false;
+        }
+    
+        // Send the Page to the client
+        // (does not require any synchronization)
+        out.writeObject(targetPage);
+    
+        out.flush();
+        out.close();
+        return true;
+    }
+    ```   
+    在同步`sendPage()`方法中调用`writeObject()`会导致延时，并且在高延时的网络或者当网络条件本身存在丢包现象时，会产生类似死锁的条件。   
+    对应的符合规则的解决方案是：   
+    将进程分成以下几个步骤：   
+    1）基于需要同步的数据结构执行动作。   
+    1） 创建被发送对象的复制。   
+    3）在一个分离的不同步方法中执行网络调用。   
+    本方案中，不同步的`sendPage()`方法调用同步的`sentPage()`方法来 在 pageBuff 队列中取得请求的 Page。在取得 Page 之后，`sendPage()`方法会调用不同步的 `deliverPage()`方法来将 Page 提交到客户端。   
+    ```java
+    // No synchronization
+    public boolean sendPage(Socket socket, String pageName) {
+        Page targetPage = getPage(pageName);
+    
+        if (targetPage == null) {
+            return false;
+        }
+        return deliverPage(socket, targetPage);
+    }
+    
+    // Requires synchronization
+    private synchronized Page getPage(String pageName) {
+        Page targetPage = null;
+    
+        for (Page p : pageBuff) {
+            if (p.getName().equals(pageName)) {
+                targetPage = p;
+            }
+        }
+        return targetPage;
+    }
+    
+    // Return false if an error occurs, true if successful
+    public boolean deliverPage(Socket socket, Page page) {
+        ObjectOutputStream out = null;
+        boolean result = true;
+        try {
+            // Get the output stream to write the Page to
+            out = new ObjectOutputStream(socket.getOutputStream());
+    
+            // Send the page to the client
+            out.writeObject(page);
+            out.flush();
+        } catch (IOException io) {
+            result = false;
+        } finally {
+            if (out != null) {
+                try {
+                    out.close();
+                } catch (IOException e) {
+                    result = false;
+                }
+            }
+        }
+        return result;
+    }
+    ``` 
+4) 特例   
+1、向调用者提供正确终止机制的类可以违反本规则。   
+2、要求多个锁的方法可以在持有若干锁的同时，等待剩余的锁。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">557:Concurrency Issues</Reference>  
+        <Reference type="CERT">LCK09-J:Do not perform operations that can block while holding a lock</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">6.8.4 持锁时调用sleep方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.9 锁</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010110008" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Cookie：持久</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行中Cookie设置过于持久。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中Cookie设置过于持久。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[过于持久的Cookie可能危及帐户安全或泄露用户信息。创建Cookie时默认为非永久性的Cookie。但程序员可以通过给Cookie设置属性的方法指定Cookie保留在浏览器中的时长，私人信息存储于Cookie中的时间越长，信息泄露的可能性越大，因为攻击者有足够长的时间进行攻击来窃取数据。  
+  
+**例如**：下列代码片段中，指定Cookie在半年后过期。  
+```java
+Cookie cookie = new Cookie("usernameCookie", username);  
+cookie.setMaxAge(60*60*24*365*0.5);
+```
+]]></Description>
+			<Advice><![CDATA[不要在持久的Cookie中存储敏感数据，确保在合理的时间内清除持久Cookie中与服务器端存储的相关联的所有数据。
+]]></Advice>
+			<References>
+				<Reference type="CWE">539:Information Exposure Through Persistent Cookies</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:信息通过持久cookie泄露</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

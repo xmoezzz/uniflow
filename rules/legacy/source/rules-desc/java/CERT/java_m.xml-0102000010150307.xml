@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010150307" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【强制】不要使用非静态内部类实现序列化接口</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[非静态内部类（包括普通内部类、Local内部类和匿名内部类）的实例持有一个外部类实例的隐式引用。非静态内部类实现序列化接口，当其被序列化时会出现运行时异常或泄露外部类中的信息。  
+下面代码示例中，内部类间接实现序列化接口  
+```java
+public class SuperSer implements Serializable{  
+    //...  
+}  
+public class OuterSer{  
+    private int rank;  
+    class InnerSer extends SuperSer{  
+        protected String name;  
+    }  
+}
+```     
+**例1**：下面代码示例中，内部类实现或间接实现序列化接口，外部类没有实现序列化，当内部类被序列化时，程序会报出NotSerializableException  
+```java
+public class OuterSer{  
+    private int rank;  
+    class InnerSer implements Serializable{  
+        protected String name;  
+    }  
+}
+```   
+**例2**：下面代码示例中，内部类和外部类实现或间接实现序列化接口，当内部类被序列化时，外部类的字段也会被序列化。  
+```java
+public class OuterSer implements Serializable {  
+    private int rank;  
+    class InnerSer implements Serializable{  
+        protected String name;  
+    }  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[内部类不要实现或间接实现Serializable接口，或将内部类声明为静态的。  
+  
+**例1**：下面代码示例中，内部类没有实现序列化接口。  
+```java
+public class OuterSer implements Serializable {  
+    private int rank;  
+    class InnerSer{  
+        protected String name;  
+    }  
+}
+```  
+**例2**：下面代码示例中，将内部类声明为静态内部类。  
+```java
+public class OuterSer implements Serializable {  
+    private int rank;  
+    static class InnerSer implements Serializable{  
+        protected String name;  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="CERT">SER05-J:Do not serialize instances of inner classes</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

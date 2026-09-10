@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010150418" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要在循环中拼接字符串</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[字符串对象是不可改变的，字符串对象的拼接和修改，最后都会创建一个新的字符串对象。而在循环中拼接字符串将会产生很多的对象，浪费系统运行时间和空间。  
+  
+**例如**：在下面代码片段中，在循环中拼接字符串。  
+```java
+String string = ""  
+for (int i < 0;i < 10;i++) {  
+    string = string + i;  
+}  
+...
+```  
+循环中将产生10个StringBuilder对象，每次都会调用两次`append`方法分别将`string`和`i`的值追加至StringBuilder对象中，最后调用`toStirng`方法将StringBuilder对象内容转化为字符串并赋值给`string`变量。
+]]></Description>  
+      <Advice><![CDATA[在循环语句结构中，需要保证线程安全可以使用StringBuffer代替String进行拼接，不需要时可以使用StringBuilder代替String进行拼接。  
+  
+**例如**：在下面代码片段中，在循环中使用StringBuilder拼接字符串。  
+```java
+StringBuilder stringBuilder = new StringBuilder();  
+for (int i < 0;i < 10;i++) {  
+    stringBuilder.append(i);  
+}  
+String string = stringBuilder.toString();  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="SJ/T 11683-2017">6.6.16 在循环体中使用"+"或"+="运算符拼接字符串</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>performance,bad_practice</Tag> 
+    </BugInfo>  
+    

@@ -1,6 +1,6 @@
 pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
     let index = PyProjectIndex::build(entries);
-    let mut project = Program::empty(Language::Python);
+    let mut project = uniflow_hir::ProgramMerger::new(Language::Python);
     for (path, source) in entries {
         // Python executes imported modules before the importing module's
         // function bodies become callable.  Use a per-module index snapshot so
@@ -12,7 +12,7 @@ pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
         let parsed = parse_python_file(path, source, Some(&effective_index))?;
         project.merge(parsed);
     }
-    Ok(project)
+    Ok(project.finish())
 }
 
 impl SourceParser for PythonParser {

@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010130149" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">直接绑定敏感字段</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行直接绑定敏感字段。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行直接绑定敏感字段。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[目前大部分WEB框架支持将HTTP请求参数与类的属性相匹配的而生成一个对象。因此，攻击者能够将值放入HTTP请求参数中从而绑定系统对象。  
+  
+**例如**：在以下代码片段中， Spring MVC可以将 HTTP请求参数绑定到 User属性：  
+```java
+@RequestMapping("/login" )  
+public String login(User user) {  
+  ...  
+}
+```  
+其中，User 类定义为：  
+```java
+public class User {  
+  private String username;  
+  private String address;  
+  private int age;  
+  private boolean admin;  
+  ...  
+}
+```  
+当Spring MVC未配置为禁止绑定敏感属性，则攻击者可能会通过发送以下使普通用户变为管理员。  
+`name=张三&address=北京&age=22&admin=true`
+]]></Description>
+			<Advice><![CDATA[当程序将非将HTTP请求参数直接绑定给对象时，应该要控制绑定到对象的属性，防止暴露敏感属性。  
+  
+**例1**：在以下代码片段中，在 Spring MVC(3.0版本至最新)禁止绑定敏感属性。  
+```java
+@InitBinder  
+public void initBinder(WebDataBinder binder) {  
+    binder.setDisallowedFields(new String[]{"admin"});  
+}  
+@RequestMapping("/login" )  
+public String login(User user) {  
+  ...  
+}
+```  
+
+**例2**：在 Spring MVC(2.X版本)禁止绑定敏感属性。  
+```java
+@Override  
+protected void initBinder(HttpServletRequest request, ServletRequestDataBinder binder) throws Exception {  
+    binder.setDisallowedFields(new String[]{"admin"});  
+}
+```  
+在使用`@RequestBody`注释参数的 Spring MVC应用程序中，绑定过程由`HttpMessageConverter`进行处理，这些实例使用Jackson和JAXB等库将 HTTP请求参数转换为Java对象。这些库提供了注释来控制应允许或禁止的字段。例如对于Jackson，可以使用`@JsonIgnore`注释禁止将某个字段绑定到请求。  
+**例3**：在以下代码片段中，Jackson禁止绑定敏感属性。  
+```java
+@RequestMapping(value="/add/user", method=RequestMethod.POST, consumes="text/html")  
+public void addEmployee(@RequestBody User user){  
+    ...  
+}  
+public class User {  
+  private String username;  
+  private String address;  
+  @JsonIgnore  
+  private boolean admin;  
+  private int age;  
+  ...  
+}
+```  
+同理，Jackson还可以使用`@JsonIgnoreProperties、@JsonIgnoreTyp和 @JsonInclude`等注解告诉框架忽略这些属性，使用JAXB使用`@XmlAccessorType、@XmlAttribute、@XmlElement和 @XmlTransient`等注解告诉框架忽略这些属性,然后使用`@XmlAttribute和@XmlElement`等注解选择应绑定的字段。  
+**例4**：在以下代码片段中，Jackson使用`@XmlAttribute`选择要绑定的字段。  
+```java
+@XmlRootElement  
+@XmlAccessorType(XmlAccessType.NONE)  
+public class User {  
+    private String username;  
+    private String address;  
+    @JsonIgnore  
+    private boolean admin;  
+    private int age;  
+    @XmlAttribute  
+    public String getUsername() {  
+        return username;  
+    }  
+    public void setUsername(String username) {  
+        this.username = username;  
+    }  
+    @XmlAttribute  
+    public String getAddress() {  
+        return address;  
+    }  
+    public void setAddress(String address) {  
+        this.address = address;  
+    }  
+    private boolean isAdmin()  {  
+       return admin;  
+    }  
+    private void setAdmin(boolean admin)  {  
+       this.admin = admin;  
+    }  
+    ...  
+}
+```  
+**例5**：在以下代码片段中，在Struts可以将某个属性的`setter`方法设置为私有从而禁止绑定敏感属性。  
+```java
+private boolean admin;  
+private void setAdmin(boolean admin)  {  
+   this.admin = admin;  
+}
+```  
+还有另一种方法是使用将 HTTP请求参数绑定到仅含有 Web表单或 API中定义的属性DTO对象中，再将其映射到User中，防止敏感字段暴露。
+]]></Advice>
+			<References>
+				<Reference type="CWE">915:Improperly Controlled Modification of Dynamically-Determined Object Attributes</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发直接绑定敏感字段漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在直接绑定敏感字段漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在直接绑定敏感字段漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发直接绑定敏感字段漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

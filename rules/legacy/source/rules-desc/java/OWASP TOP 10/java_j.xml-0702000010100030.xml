@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100030" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">Struts配置错误：缺少forward标签的path属性</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的forward标签缺少path属性。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[缺少path属性的`<forward>`标签通常表示存在残留的调试代码或存在错误。  
+  
+**例如**：下列配置文件中`forward`标签未指定path属性值
+```xml
+<action path="/NoImageCSVReportAction" type="org.posterita.webstore.action.ProductAction"  
+        scope="request" validate="true" parameter="action">      
+    <forward name="getNoImageCSVReport" path=""/>       
+</action>
+```  
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，增加`<forward>`标签的type属性。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

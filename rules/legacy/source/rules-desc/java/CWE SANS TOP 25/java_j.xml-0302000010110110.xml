@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010110110" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">资源管理</Category>
+				<Category type="DetailClassChin">释放后使用：SQLite</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行SQLite在释放后使用。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行SQLite在释放后使用。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序释放了SQLite数据库对象后，在未重新获取SQLite数据库对象的情况下，试图再使用该对象，将会抛出异常。如果未捕获该异常，可能会导致程序崩溃。  
+  
+**例如**：下面代码片段中，通过调用`flushUpdates()`方法向数据库中插入缓存数据，并关闭`dbHelper`资源，当再次调用`flushUpdates()`时，dbHelper对象会在重新初始化之前被再次引用，导致出现程序异常。  
+```java
+public class MyDBActivity extends Activity {  
+    private DBHelper dbHelper;  
+    private SQLiteDatabase db;  
+    @Override  
+    public void onCreate(Bundle dundle) {  
+        ...  
+        db = dbHelper.getWritableDatabase();  
+        ...  
+    }  
+    ...  
+    private void flushUpdates() {  
+        db.insert(cached_data);       
+        dbHelper.close();  
+    }  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，确保程序未调用关闭后的SQLite数据库对象。
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 416</Reference>
+				<Reference type="CWE">416:Use After Free</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.2 使用已释放的资源</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,exception</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

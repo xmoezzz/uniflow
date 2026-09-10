@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010141706" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">Rule 16. 运行环境 (ENV)</Category>  
+        <Category type="DetailClassChin">ENV06-J：产品代码不能包含调试入口</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[根据J2EE不良实践:遗留的调试代码 [Hewlett-Packard 2015]:  
+一种常见的开发实践是添加专门为调试或测试目的而设计的“后门”代码，这些代码不打算被发送或部署到应用程序中。这些后门入口点会造成安全风险，因为在设计或测试过程中，它们不会被考虑，并且在应用程序的预期运行条件之外。  
+最常见的被遗忘的调试代码示例是在web应用程序中出现的`main()`方法。  
+**不规范的代码样例1**：  
+```java
+class Stuff {
+    private static final bool DEBUG = False;
+
+    // Other fields and methods
+    public static void main(String args[]) {
+        Stuff.DEBUG = True;
+        Stuff stuff = new Stuff();
+        // Test stuff
+    }
+}
+```  
+在这个不合规的代码示例中：Stuff类有一个`main()`函数,测试它的方法。虽然用于调试,如果这个函数是在生产环境的代码(**例如**：一个web应用程序),攻击者可以调用`Stuff.main()`直接获得Stuff的测试方法。
+]]></Description>  
+      <Advice><![CDATA[符合规范解决方案简单地从Stuff类中删除`main()`方法，使攻击者失去这个入口点。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">489:Leftover Debug Code</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

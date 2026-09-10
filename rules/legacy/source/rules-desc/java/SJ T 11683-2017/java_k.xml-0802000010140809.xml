@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010140809" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">Rule 07. 异常行为 (ERR)</Category>  
+        <Category type="DetailClassChin">ERR09-J：不要允许不可信的代码终止JVM</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[调用`System.exit()`终止Java虚拟机(JVM)，从而终止所有正在运行的程序和线程。这可能导致拒绝服务(DoS)攻击。例如：嵌入到Java Server Pages（JSP）代码中的`System.exit()`的调用可能导致Web服务器终止，从而阻止用户进一步的服务。程序必须防止对`System.exit()`的无意和恶意的调用。此外，程序在强制终止时应执行必要的清除操作（**例如**：使用Windows任务管理器，POSIX kill命令或其他机制）。  
+**不规范的代码样例1**：  
+以下代码使用`System.exit()`强制关闭JVM并终止正在运行的进程。该程序缺乏安全管理，同时无法检测调用者是否有权调用`System.exit()`。  
+```java
+public class InterceptExit {
+    public static void main(String[] args) {
+        // ...
+        System.exit(1); // Abrupt exit
+        System.out.println("This never executes");
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[程序必须避免无意地和恶意地调用`System.exit()`。而且，在被强迫终止时（例如通过Windows任务管理器、POSIX kill命令或者其他机制），程序应该进行必要的清理操作。  
+**规范的代码样例1**：  
+以下代码设置了一个自定义的安全管理器PasswordSecurityManager，并重写SecurityManager类中定义的`checkExit()`方法。为了实现退出前启用清除代码的调用，必须重写该方法。SecurityManager类中默认的`checkExit()`方法没有该功能。  
+```java
+class PasswordSecurityManager extends SecurityManager {
+    private boolean isExitAllowedFlag;
+
+    public PasswordSecurityManager() {
+        super();
+        isExitAllowedFlag = false;
+    }
+
+    public boolean isExitAllowed() {
+        return isExitAllowedFlag;
+    }
+
+    @Override
+    public void checkExit(int status) {
+        if (!isExitAllowed()) {
+            throw new SecurityException();
+        }
+        super.checkExit(status);
+    }
+
+    public void setExitAllowed(boolean f) {
+        isExitAllowedFlag = f;
+    }
+}
+
+public class InterceptExit {
+    public static void main(String[] args) {
+        PasswordSecurityManager secManager = new PasswordSecurityManager();
+        System.setSecurityManager(secManager);
+        try {
+            // ...
+            System.exit(1); // Abrupt exit call
+        } catch (Throwable x) {
+            if (x instanceof SecurityException) {
+                System.out.println("Intercepted `System.exit()`");
+                // Log exception
+            } else {
+                // Forward to exception handler
+            }
+        }
+        // ...
+        secManager.setExitAllowed(true); // Permit exit
+        // `System.exit()` will work subsequently
+        // ...
+    }
+}
+```
+此实现使用内部标志来跟踪是否允许退出。`setExitAllowed()`方法设置此标志。当标志未设置（即为false）时，`checkExit()`方法会抛出SecurityException异常。因为这个标志没有初始设置，正常的异常处理会绕过初始调用`System.exit()`。程序捕获SecurityException并执行强制清除操作，包括记录异常。`System.exit()`方法仅在清除完成后才能启用。  
+**特例**：一个命令行应用程序调用`System.exit()`是允许的，例如：当没有输入足够数量要求的参数时[Bloch 2008], [ESA 2005].
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">382:J2EE Bad Practices: Use of System.exit()</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">调用System.exit方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

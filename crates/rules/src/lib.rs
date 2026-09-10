@@ -127,7 +127,11 @@ impl RuleSet {
             .chain(self.field_sanitizers.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
-            .chain(self.sink_reports.iter().map(|rule| rule.report_rule_id.as_str()))
+            .chain(
+                self.sink_reports
+                    .iter()
+                    .map(|rule| rule.report_rule_id.as_str()),
+            )
             .collect::<HashSet<_>>();
         let mut unknown = requested
             .iter()
@@ -171,10 +175,8 @@ impl RuleSet {
             .collect::<HashSet<_>>();
         self.sink_reports
             .retain(|alias| retained_sink_ids.contains(alias.sink_rule_id.as_str()));
-        self.field_sinks
-            .retain(|rule| requested.contains(&rule.id));
-        self.index_sinks
-            .retain(|rule| requested.contains(&rule.id));
+        self.field_sinks.retain(|rule| requested.contains(&rule.id));
+        self.index_sinks.retain(|rule| requested.contains(&rule.id));
         self.function_sinks
             .retain(|rule| requested.contains(&rule.id));
         let selected_kinds = self
@@ -202,49 +204,43 @@ impl RuleSet {
                     .map(|rule| normalize_rule_kind(&rule.kind).to_string()),
             )
             .collect::<HashSet<_>>();
-        let keeps_kind = |kind: &str| {
-            selected_kinds.contains(normalize_rule_kind(kind))
-        };
+        let keeps_kind = |kind: &str| selected_kinds.contains(normalize_rule_kind(kind));
         self.sources.retain(|rule| {
             !has_complete_dependency_closure
                 || requested.contains(&rule.id)
                 || dependency_ids.contains(&rule.id)
                 || keeps_kind(&rule.kind)
         });
-        self.field_sources
-            .retain(|rule| {
-                !has_complete_dependency_closure
-                    || requested.contains(&rule.id)
-                    || dependency_ids.contains(&rule.id)
-                    || keeps_kind(&rule.kind)
-            });
+        self.field_sources.retain(|rule| {
+            !has_complete_dependency_closure
+                || requested.contains(&rule.id)
+                || dependency_ids.contains(&rule.id)
+                || keeps_kind(&rule.kind)
+        });
         self.named_value_sources.retain(|rule| {
             !has_complete_dependency_closure
                 || requested.contains(&rule.id)
                 || dependency_ids.contains(&rule.id)
                 || keeps_kind(&rule.kind)
         });
-        self.function_sources
-            .retain(|rule| {
-                !has_complete_dependency_closure
-                    || requested.contains(&rule.id)
-                    || dependency_ids.contains(&rule.id)
-                    || keeps_kind(&rule.kind)
-            });
-        self.sanitizers
-            .retain(|rule| {
-                !has_complete_dependency_closure
-                    || requested.contains(&rule.id)
-                    || dependency_ids.contains(&rule.id)
-                    || keeps_kind(&rule.kind)
-            });
-        self.field_sanitizers
-            .retain(|rule| {
-                !has_complete_dependency_closure
-                    || requested.contains(&rule.id)
-                    || dependency_ids.contains(&rule.id)
-                    || keeps_kind(&rule.kind)
-            });
+        self.function_sources.retain(|rule| {
+            !has_complete_dependency_closure
+                || requested.contains(&rule.id)
+                || dependency_ids.contains(&rule.id)
+                || keeps_kind(&rule.kind)
+        });
+        self.sanitizers.retain(|rule| {
+            !has_complete_dependency_closure
+                || requested.contains(&rule.id)
+                || dependency_ids.contains(&rule.id)
+                || keeps_kind(&rule.kind)
+        });
+        self.field_sanitizers.retain(|rule| {
+            !has_complete_dependency_closure
+                || requested.contains(&rule.id)
+                || dependency_ids.contains(&rule.id)
+                || keeps_kind(&rule.kind)
+        });
         self.taint_transforms.retain(|rule| {
             !has_complete_dependency_closure
                 || requested.contains(&rule.id)
@@ -284,7 +280,11 @@ impl RuleSet {
             .chain(self.field_sanitizers.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
-            .chain(self.sink_reports.iter().map(|rule| rule.report_rule_id.as_str()))
+            .chain(
+                self.sink_reports
+                    .iter()
+                    .map(|rule| rule.report_rule_id.as_str()),
+            )
             .collect::<HashSet<_>>();
         self.call_conditions
             .retain(|condition| retained.contains(condition.rule_id.as_str()));
@@ -309,7 +309,11 @@ impl RuleSet {
             .chain(self.field_sanitizers.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
-            .chain(self.sink_reports.iter().map(|rule| rule.report_rule_id.as_str()))
+            .chain(
+                self.sink_reports
+                    .iter()
+                    .map(|rule| rule.report_rule_id.as_str()),
+            )
             .collect::<HashSet<_>>();
         let mut metadata_ids = HashSet::new();
         for metadata in &self.metadata {
@@ -402,7 +406,11 @@ impl RuleSet {
         let sink_ids = executable_sink_ids
             .iter()
             .copied()
-            .chain(self.sink_reports.iter().map(|alias| alias.report_rule_id.as_str()))
+            .chain(
+                self.sink_reports
+                    .iter()
+                    .map(|alias| alias.report_rule_id.as_str()),
+            )
             .collect::<HashSet<_>>();
         for condition in &self.sink_conditions {
             if !sink_ids.contains(condition.sink_rule_id.as_str()) {
@@ -480,7 +488,10 @@ impl RuleSet {
                 bail!("unused-return sink rule id must not be empty");
             }
             if rule.source_kind.trim().is_empty() {
-                bail!("unused-return sink rule '{}' must define a source kind", rule.id);
+                bail!(
+                    "unused-return sink rule '{}' must define a source kind",
+                    rule.id
+                );
             }
         }
         Ok(())
@@ -909,9 +920,7 @@ impl ApiMatcher {
         ) {
             return false;
         }
-        if self.receiver_parameter.is_some()
-            && self.receiver_parameter != call.receiver_parameter
-        {
+        if self.receiver_parameter.is_some() && self.receiver_parameter != call.receiver_parameter {
             return false;
         }
         if !match_optional_string_constraints(
@@ -1151,10 +1160,13 @@ impl CallInfo {
 }
 
 fn split_callee_name(callee_name: &str) -> (Option<String>, Option<String>) {
-    let separator = [(callee_name.rfind("::"), "::"), (callee_name.rfind('.'), ".")]
-        .into_iter()
-        .filter_map(|(index, separator)| index.map(|index| (index, separator)))
-        .max_by_key(|(index, _)| *index);
+    let separator = [
+        (callee_name.rfind("::"), "::"),
+        (callee_name.rfind('.'), "."),
+    ]
+    .into_iter()
+    .filter_map(|(index, separator)| index.map(|index| (index, separator)))
+    .max_by_key(|(index, _)| *index);
     if let Some((index, separator)) = separator {
         let method = &callee_name[index + separator.len()..];
         return (
@@ -1730,10 +1742,9 @@ call_conditions:
 
     #[test]
     fn api_matcher_can_require_receiver_parameter_role() {
-        let matcher: ApiMatcher = serde_yaml::from_str(
-            "method_name: redirect\nreceiver_parameter: 1\narg_count: 1\n",
-        )
-        .unwrap();
+        let matcher: ApiMatcher =
+            serde_yaml::from_str("method_name: redirect\nreceiver_parameter: 1\narg_count: 1\n")
+                .unwrap();
         let mut call = CallInfo::from_callee_name("reply.redirect");
         call.arg_count = Some(1);
         call.receiver_parameter = Some(1);
@@ -1762,7 +1773,9 @@ model_dependencies:
         )
         .unwrap();
         assert_eq!(rules.report_id_for_sink("model-arg0"), "public-rule");
-        rules.retain_reportable_ids(&["public-rule".to_string()]).unwrap();
+        rules
+            .retain_reportable_ids(&["public-rule".to_string()])
+            .unwrap();
         assert_eq!(rules.sinks.len(), 2);
         assert_eq!(rules.sink_reports.len(), 2);
         assert_eq!(rules.metadata.len(), 1);
@@ -1770,10 +1783,9 @@ model_dependencies:
 
     #[test]
     fn api_matcher_can_require_containing_function() {
-        let matcher: ApiMatcher = serde_yaml::from_str(
-            "method_name: parse\ncontaining_function_regex: __lambda_\n",
-        )
-        .unwrap();
+        let matcher: ApiMatcher =
+            serde_yaml::from_str("method_name: parse\ncontaining_function_regex: __lambda_\n")
+                .unwrap();
         let mut call = CallInfo::from_callee_name("parser.parse");
         call.containing_function = Some("handler.__lambda_4_2".to_string());
         assert!(matcher.matches_call(&call));

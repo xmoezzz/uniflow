@@ -2575,6 +2575,7 @@ rules:
   - ast:02000010130014
   - ast:0202000010130014
   - bug:02000010130014
+  - bug:02000010130132
   message: Remove the first assignment because the next statement overwrites it without using its value.
   translations:
     zh-CN:
@@ -7936,6 +7937,10 @@ rules:
   matcher:
     callee: (^|\.)(System|Runtime)\.exit$
   standards:
+  - bug:02000010070032
+  - cert:02000010140809
+  - std:02000010150404
+  - YD/T 3464-2019:02000010160072
   - CERT:ERR09-J:Do not allow untrusted code to terminate the JVM
   - 'CWE:382:J2EE Bad Practices: Use of System.exit()'
   - LEGACY-MSG-02000010110002
@@ -9633,6 +9638,8 @@ rules:
     max_args: 0
     outside_loop: true
   standards:
+  - bug:02000010070029
+  - std:02000010150108
   - CERT:THI03-J:Always invoke wait() and await() methods inside a loop
   - LEGACY-MSG-0102000010090008
   - LEGACY-MSG-0102000010141103
@@ -10398,6 +10405,7 @@ rules:
     arg_type_patterns:
       0: ^byte\[\]$
   standards:
+  - YD/T 3464-2019:02000010160117
   - CERT:STR03-J:Do not encode noncharacter data as a string
   - CWE:320:Key Management Errors
   - CWE:486:Comparison of Classes by Name
@@ -12160,7 +12168,10 @@ rules:
     max_args: 0
   standards:
   - bug:02000010110091
+  - bug:02000010110038
   - cert:02000010140801
+  - YD/T 3464-2019:02000010160064
+  - guide:02000010170055
   - std:02000010150428
   message: Route exceptions through the application logger instead of printing stack traces directly.
   translations:
@@ -12223,6 +12234,7 @@ rules:
     max_args: 2
   standards:
   - bug:02000010110067
+  - bug:02000010110139
   message: Validate the class name and trust boundary before loading a class dynamically.
   translations:
     zh-CN:
@@ -12400,3 +12412,3506 @@ rules:
     en:
       title: WebView saves a plaintext password
       message: Do not store credentials with WebView.savePassword; use platform credential storage.
+- id: LEGACY-JAVA-RULEMAP-catch-nullpointerexception
+  title: NullPointerException catch clause
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    catch_type_pattern: ^(?:java\.lang\.)?NullPointerException$
+  standards:
+  - bug:02000010120003
+  - cert:02000010140808
+  - std:02000010150501
+  - YD/T 3464-2019:02000010160071
+  message: Prevent the null dereference at its source instead of catching NullPointerException.
+  translations:
+    zh-CN:
+      title: 捕获 NullPointerException
+      message: 应在源头防止空指针解引用，不要依赖捕获 NullPointerException 处理程序错误。
+    en:
+      title: NullPointerException catch clause
+      message: Prevent the null dereference at its source instead of catching NullPointerException.
+- id: LEGACY-JAVA-RULEMAP-empty-catch-block
+  title: Empty catch block
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    empty_catch: true
+  standards:
+  - bug:02000010120008
+  - cert:02000010140800
+  - YD/T 3464-2019:02000010160063
+  - guide:02000010170054
+  message: Handle, translate, or intentionally document the caught exception.
+  translations:
+    zh-CN:
+      title: 空 catch 块
+      message: 应处理、转换异常，或明确记录有意忽略异常的理由。
+    en:
+      title: Empty catch block
+      message: Handle, translate, or intentionally document the caught exception.
+- id: LEGACY-JAVA-RULEMAP-unprotected-send-broadcast
+  title: Android broadcast sent without receiver permission
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: (^|\.)sendBroadcast$
+    receiver_type_pattern: ^(?:android\.content\.)?Context(?:Wrapper)?$
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+  standards:
+  - bug:02000010110101
+  - bug:02000010110169
+  message: Supply an explicit receiver permission when broadcasting sensitive application data.
+  translations:
+    zh-CN:
+      title: Android 广播未设置接收权限
+      message: 广播敏感应用数据时应提供明确的接收者权限，避免任意应用接收。
+    en:
+      title: Android broadcast sent without receiver permission
+      message: Supply an explicit receiver permission when broadcasting sensitive application data.
+- id: LEGACY-JAVA-RULEMAP-unprotected-register-receiver
+  title: Android dynamic receiver registered without permission
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: (^|\.)registerReceiver$
+    receiver_type_pattern: ^(?:android\.content\.)?Context(?:Wrapper)?$
+    requires_receiver: true
+    min_args: 2
+    max_args: 2
+  standards:
+  - bug:02000010110102
+  - bug:02000010110168
+  message: Register dynamic receivers with an explicit sender permission or use a non-exported receiver mode.
+  translations:
+    zh-CN:
+      title: Android 动态接收器未设置权限
+      message: 注册动态广播接收器时应提供明确的发送者权限，或使用非导出接收器模式。
+    en:
+      title: Android dynamic receiver registered without permission
+      message: Register dynamic receivers with an explicit sender permission or use a non-exported receiver mode.
+- id: LEGACY-JAVA-RULEMAP-spring-default-permit
+  title: Spring Security catch-all permits access
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: (^|\.)permitAll$
+    receiver_callee_chain:
+    - (^|\.)anyRequest$
+    min_args: 0
+    max_args: 0
+  standards:
+  - bug:02000010100111
+  message: Deny or authenticate unmatched endpoints instead of ending the security chain with anyRequest().permitAll().
+  translations:
+    zh-CN:
+      title: Spring Security 默认允许访问
+      message: 不要以 anyRequest().permitAll() 结束安全链；未匹配端点应默认拒绝或要求认证。
+    en:
+      title: Spring Security catch-all permits access
+      message: Deny or authenticate unmatched endpoints instead of ending the security chain with anyRequest().permitAll().
+- id: LEGACY-JAVA-RULEMAP-spring-permissive-firewall
+  title: Spring Security firewall policy relaxed
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: (^|\.)(setAllowSemicolon|setAllowBackSlash|setAllowNull|setAllowUrlEncodedSlash|setAllowUrlEncodedDoubleSlash|setAllowUrlEncodedPercent|setAllowUrlEncodedPeriod|setAllowUrlEncodedLineSeparator|setAllowUrlEncodedParagraphSeparator)$
+    receiver_type_pattern: ^(?:org\.springframework\.security\.web\.firewall\.)?StrictHttpFirewall$
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    bool_arg_values: {0: true}
+  standards:
+  - bug:02000010100104
+  message: Keep the StrictHttpFirewall rejection policy enabled for ambiguous or dangerous URL characters.
+  translations:
+    zh-CN:
+      title: 放宽 Spring Security 防火墙策略
+      message: 请保留 StrictHttpFirewall 对歧义或危险 URL 字符的拒绝策略。
+    en:
+      title: Spring Security firewall policy relaxed
+      message: Keep the StrictHttpFirewall rejection policy enabled for ambiguous or dangerous URL characters.
+- id: LEGACY-JAVA-RULEMAP-spring-csrf-disabled
+  title: Spring Security CSRF protection disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: (^|\.)disable$
+    receiver_callee_chain:
+    - (^|\.)csrf$
+    min_args: 0
+    max_args: 0
+  standards:
+  - bug:02000010110100
+  - bug:02000010030004
+  message: Keep CSRF protection enabled for browser-accessible state-changing endpoints.
+  translations:
+    zh-CN:
+      title: 禁用 Spring Security CSRF 防护
+      message: 对浏览器可访问且会改变状态的端点，应保持 CSRF 防护开启。
+    en:
+      title: Spring Security CSRF protection disabled
+      message: Keep CSRF protection enabled for browser-accessible state-changing endpoints.
+- id: LEGACY-JAVA-RULEMAP-spring-security-headers-disabled
+  title: Spring Security default response headers are disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)disable$'
+    receiver_callee_chain: ['(^|\.)headers$']
+    min_args: 0
+    max_args: 0
+  standards: [bug:02000010100105]
+  message: Keep Spring Security default response headers enabled.
+- id: LEGACY-JAVA-RULEMAP-spring-mime-sniffing-disabled
+  title: Spring Security MIME sniffing protection is disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)disable$'
+    receiver_callee_chain: ['(^|\.)contentTypeOptions$']
+    min_args: 0
+    max_args: 0
+  standards: [bug:02000010100107]
+  message: Keep X-Content-Type-Options nosniff protection enabled.
+- id: LEGACY-JAVA-RULEMAP-spring-xss-header-disabled
+  title: Spring Security browser XSS response protection is disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)disable$'
+    receiver_callee_chain: ['(^|\.)xssProtection$']
+    min_args: 0
+    max_args: 0
+  standards: [bug:02000010100106]
+  message: Do not disable configured browser XSS response protection on legacy clients.
+- id: LEGACY-JAVA-RULEMAP-spring-hsts-disabled
+  title: Spring Security HSTS protection is disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)disable$'
+    receiver_callee_chain: ['(^|\.)(httpStrictTransportSecurity|hsts)$']
+    min_args: 0
+    max_args: 0
+  standards: [bug:02000010100109]
+  message: Keep HTTP Strict Transport Security enabled for HTTPS applications.
+- id: LEGACY-JAVA-RULEMAP-spring-hsts-subdomains-disabled
+  title: Spring Security HSTS excludes subdomains
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)includeSubDomains$'
+    min_args: 1
+    max_args: 1
+    bool_arg_values: {0: false}
+  standards: [bug:02000010100110]
+  message: Apply HSTS to all controlled subdomains.
+- id: LEGACY-JAVA-RULEMAP-spring-hsts-short-max-age
+  title: Spring Security HSTS maximum age is too short
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)maxAgeInSeconds$'
+    min_args: 1
+    max_args: 1
+    int_arg_max_values: {0: 31535999}
+  standards: [bug:02000010100200]
+  message: Configure HSTS with a maximum age of at least one year.
+- id: LEGACY-JAVA-RULEMAP-spring-csp-report-only
+  title: Spring Security CSP is report-only
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)reportOnly$'
+    receiver_callee_chain: ['(^|\.)contentSecurityPolicy$']
+    min_args: 0
+    max_args: 0
+  standards: [bug:02000010100112]
+  message: Enforce the deployed Content Security Policy instead of using report-only mode.
+- id: LEGACY-JAVA-RULEMAP-spring-csp-permissive
+  title: Spring Security CSP contains unsafe directives
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)contentSecurityPolicy$'
+    min_args: 1
+    max_args: 1
+    string_constant_arg_patterns: {0: '(?i)(?:unsafe-inline|unsafe-eval|(?:^|[ ;])\*(?:[ ;]|$))'}
+  standards: [bug:02000010100113]
+  message: Remove wildcard, unsafe-inline, and unsafe-eval sources from the enforced CSP.
+- id: LEGACY-JAVA-RULEMAP-spring-frame-options-disabled
+  title: Spring Security frame protection is disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)disable$'
+    receiver_callee_chain: ['(^|\.)frameOptions$']
+    min_args: 0
+    max_args: 0
+  standards:
+  - bug:02000010100114
+  - bug:02000010110171
+  message: Keep X-Frame-Options or an equivalent CSP frame-ancestors policy enabled.
+- id: LEGACY-JAVA-RULEMAP-jfinal-dev-mode
+  title: JFinal development mode enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: (^|\.)setDevMode$
+    receiver_type_pattern: ^(?:com\.jfinal\.config\.)?Constants$
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    bool_arg_values: {0: true}
+  standards:
+  - bug:02000010110140
+  message: Disable JFinal development mode in deployable configurations.
+  translations:
+    zh-CN:
+      title: JFinal 开启开发模式
+      message: 可部署配置中必须关闭 JFinal 开发模式，避免泄露调试信息。
+    en:
+      title: JFinal development mode enabled
+      message: Disable JFinal development mode in deployable configurations.
+- id: LEGACY-JAVA-RULEMAP-use-gethostname
+  title: Host name used as a security identity
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: (^|\.)getHostName$
+    receiver_type_pattern: ^(?:java\.net\.)?InetAddress$
+    requires_receiver: true
+    min_args: 0
+    max_args: 0
+  standards:
+  - bug:02000010110127
+  message: Do not use reverse-DNS host names as a trusted security identity.
+  translations:
+    zh-CN:
+      title: 使用 getHostName 确定安全身份
+      message: 不要把反向 DNS 获得的主机名作为可信安全身份；应使用经过验证的标识。
+    en:
+      title: Host name used as a security identity
+      message: Do not use reverse-DNS host names as a trusted security identity.
+- id: LEGACY-JAVA-RULEMAP-unsafe-jni
+  title: Native Java method boundary
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_style: native_method
+  standards:
+  - bug:02000010130115
+  - bug:02000010130148
+  - cert:02000010141900
+  message: Audit this JNI boundary and its native implementation for memory, validation, and ownership safety.
+  translations:
+    zh-CN:
+      title: JNI 本地方法边界
+      message: 请同时审计此 JNI 边界及其本地实现，重点检查内存安全、输入验证和对象所有权。
+    en:
+      title: Native Java method boundary
+      message: Audit this JNI boundary and its native implementation for memory, validation, and ownership safety.
+- id: LEGACY-JAVA-RULEMAP-string-getbytes-default-charset
+  title: String converted to bytes without an explicit charset
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: (^|\.)getBytes$
+    receiver_type_pattern: ^(?:java\.lang\.)?String$
+    requires_receiver: true
+    min_args: 0
+    max_args: 0
+  standards:
+  - YD/T 3464-2019:02000010160117
+  message: Specify an explicit charset when converting text to bytes.
+  translations:
+    zh-CN:
+      title: String 转 byte[] 时未指定字符集
+      message: 文本转换为字节时应显式指定字符集，避免不同运行环境产生不一致结果。
+    en:
+      title: String converted to bytes without an explicit charset
+      message: Specify an explicit charset when converting text to bytes.
+- id: LEGACY-JAVA-RULEMAP-missing-contract-null-parameter-check
+  title: Contract method does not check null parameters
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    missing_contract_null_check: true
+  standards:
+  - bug:02000010130023
+  - cert:02000010140708
+  message: Check each equals, compareTo, or compare contract parameter against null explicitly.
+  translations:
+    zh-CN:
+      title: 契约方法未检查 null 参数
+      message: equals、compareTo 或 compare 的实现应按其契约显式处理每个 null 参数。
+    en:
+      title: Contract method does not check null parameters
+      message: Check each equals, compareTo, or compare contract parameter against null explicitly.
+- id: LEGACY-JAVA-RULEMAP-locale-dependent-case-conversion
+  title: Locale-dependent case conversion
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: (^|\.)(toLowerCase|toUpperCase)$
+    receiver_type_pattern: ^(?:java\.lang\.)?String$
+    requires_receiver: true
+    min_args: 0
+    max_args: 0
+  standards:
+  - bug:02000010110085
+  - cert:02000010142002
+  - YD/T 3464-2019:02000010160010
+  - guide:02000010170007
+  message: Supply an explicit Locale when normalizing text for comparison or security decisions.
+  translations:
+    zh-CN:
+      title: 依赖默认区域的大小写转换
+      message: 用于比较或安全判断的文本大小写转换应显式指定 Locale，避免不同运行环境产生不同结果。
+    en:
+      title: Locale-dependent case conversion
+      message: Supply an explicit Locale when normalizing text for comparison or security decisions.
+- id: LEGACY-JAVA-RULEMAP-stream-read-result-narrowed
+  title: Stream read result stored in byte or char
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: (^|\.)read$
+    receiver_type_pattern: (^|\.)(InputStream|Reader|FileInputStream|BufferedInputStream|BufferedReader|InputStreamReader)$
+    requires_receiver: true
+    assigned_target_type_pattern: ^(byte|char)$
+  standards:
+  - cert:02000010141408
+  - YD/T 3464-2019:02000010160114
+  message: Store read() in an int so the -1 end-of-stream sentinel is preserved before narrowing.
+  translations:
+    zh-CN:
+      title: read() 结果存入 byte 或 char
+      message: 应先用 int 保存 read() 的结果并检查 -1 流结束标志，再进行必要的窄化转换。
+    en:
+      title: Stream read result stored in byte or char
+      message: Store read() in an int so the -1 end-of-stream sentinel is preserved before narrowing.
+- id: LEGACY-JAVA-RULEMAP-single-read-assumed-to-fill-array
+  title: Single stream read assumed to fill an array
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: (^|\.)read$
+    receiver_type_pattern: (^|\.)(InputStream|FileInputStream|BufferedInputStream)$
+    requires_receiver: true
+    min_args: 1
+    arg_type_patterns:
+      0: ^byte\[\]$
+  standards:
+  - cert:02000010141410
+  - YD/T 3464-2019:02000010160116
+  message: A single read call may return fewer bytes than requested; loop until the required length or EOF.
+  translations:
+    zh-CN:
+      title: 假定一次 read 会填满数组
+      message: 单次 read 可能返回少于请求长度的字节；应循环读取直到达到所需长度或遇到 EOF。
+    en:
+      title: Single stream read assumed to fill an array
+      message: A single read call may return fewer bytes than requested; loop until the required length or EOF.
+- id: LEGACY-JAVA-RULEMAP-outputstream-write-out-of-range
+  title: Out-of-range integer passed to OutputStream.write
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    call_alternatives:
+    - callee: (^|\.)write$
+      receiver_type_pattern: (^|\.)(OutputStream|FileOutputStream|BufferedOutputStream)$
+      requires_receiver: true
+      min_args: 1
+      max_args: 1
+      int_arg_max_values: {0: -1}
+    - callee: (^|\.)write$
+      receiver_type_pattern: (^|\.)(OutputStream|FileOutputStream|BufferedOutputStream)$
+      requires_receiver: true
+      min_args: 1
+      max_args: 1
+      int_arg_min_values: {0: 256}
+  standards:
+  - cert:02000010141409
+  - YD/T 3464-2019:02000010160115
+  message: OutputStream.write emits only the low eight bits; pass a value in the range 0 through 255.
+  translations:
+    zh-CN:
+      title: OutputStream.write 参数超出字节范围
+      message: OutputStream.write 只输出低 8 位；请传入 0 到 255 范围内的值。
+    en:
+      title: Out-of-range integer passed to OutputStream.write
+      message: OutputStream.write emits only the low eight bits; pass a value in the range 0 through 255.
+- id: LEGACY-JAVA-RULEMAP-android-debuggable-manifest
+  title: Android application is debuggable
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_debuggable
+    path_pattern: (^|/)AndroidManifest\.xml$
+  standards:
+  - bug:02000010100101
+  message: Disable android:debuggable in production manifests.
+  translations:
+    zh-CN:
+      title: Android 应用允许调试
+      message: 生产清单中必须关闭 android:debuggable，避免攻击者附加调试器并读取应用状态。
+    en:
+      title: Android application is debuggable
+      message: Disable android:debuggable in production manifests.
+- id: LEGACY-JAVA-RULEMAP-android-backup-enabled
+  title: Android application backup enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_backup_enabled
+    path_pattern: (^|/)AndroidManifest\.xml$
+  standards:
+  - bug:02000010110124
+  message: Set android:allowBackup="false" unless all backed-up data is explicitly safe to export.
+  translations:
+    zh-CN:
+      title: Android 应用允许备份
+      message: 除非所有备份数据均可安全导出，否则应显式设置 android:allowBackup="false"。
+    en:
+      title: Android application backup enabled
+      message: Set android:allowBackup="false" unless all backed-up data is explicitly safe to export.
+- id: LEGACY-JAVA-RULEMAP-android-task-reparenting
+  title: Android task reparenting enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_task_reparenting
+    path_pattern: (^|/)AndroidManifest\.xml$
+  standards:
+  - bug:02000010110165
+  message: Disable task reparenting to prevent activities from moving into an attacker-controlled task.
+  translations:
+    zh-CN:
+      title: Android 允许任务重归属
+      message: 应禁用任务重归属，避免 Activity 被移动到攻击者控制的任务栈。
+    en:
+      title: Android task reparenting enabled
+      message: Disable task reparenting to prevent activities from moving into an attacker-controlled task.
+- id: LEGACY-JAVA-RULEMAP-android-single-task
+  title: Android singleTask launch mode
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: android_single_task
+    path_pattern: (^|/)AndroidManifest\.xml$
+  standards:
+  - bug:02000010110167
+  message: Review singleTask launch mode for task-hijacking and intent-confusion risks.
+  translations:
+    zh-CN:
+      title: Android 使用 singleTask 启动模式
+      message: 请审查 singleTask 启动模式可能造成的任务劫持与 Intent 混淆风险。
+    en:
+      title: Android singleTask launch mode
+      message: Review singleTask launch mode for task-hijacking and intent-confusion risks.
+- id: LEGACY-JAVA-RULEMAP-android-normal-permission
+  title: Android custom permission has normal protection
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_normal_permission
+    path_pattern: (^|/)AndroidManifest\.xml$
+  standards:
+  - bug:02000010110119
+  message: Protect security-sensitive custom permissions with signature-level protection.
+  translations:
+    zh-CN:
+      title: Android 自定义权限保护级别为 normal
+      message: 涉及安全边界的自定义权限应使用 signature 级保护，不能使用默认或 normal 级别。
+    en:
+      title: Android custom permission has normal protection
+      message: Protect security-sensitive custom permissions with signature-level protection.
+- id: LEGACY-JAVA-RULEMAP-android-deprecated-permission-level
+  title: Android permission uses a deprecated protection level
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_deprecated_permission
+    path_pattern: (^|/)AndroidManifest\.xml$
+  standards:
+  - bug:02000010110116
+  - bug:02000010110160
+  message: Replace system or signatureOrSystem custom permission levels with a supported least-privilege design.
+  translations:
+    zh-CN:
+      title: Android 权限使用已废弃保护级别
+      message: 请用受支持的最小权限设计替代 system 或 signatureOrSystem 自定义权限级别。
+    en:
+      title: Android permission uses a deprecated protection level
+      message: Replace system or signatureOrSystem custom permission levels with a supported least-privilege design.
+- id: LEGACY-JAVA-RULEMAP-android-exported-without-permission
+  title: Exported Android component has no permission
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_exposed_without_permission
+    path_pattern: (^|/)AndroidManifest\.xml$
+  standards:
+  - bug:02000010110112
+  - bug:02000010110117
+  message: Restrict exported components with an explicit permission or make them non-exported.
+  translations:
+    zh-CN:
+      title: 导出的 Android 组件没有权限保护
+      message: 应通过明确权限限制导出的组件，或将其设置为不导出。
+    en:
+      title: Exported Android component has no permission
+      message: Restrict exported components with an explicit permission or make them non-exported.
+- id: LEGACY-JAVA-RULEMAP-spring-actuator-security-disabled
+  title: Spring Boot Actuator endpoint security disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: spring_actuator_security_disabled
+    path_pattern: '(^|/)application(?:-[^/]+)?\.(?:properties|ya?ml)$'
+  standards:
+  - bug:02000010100102
+  - bug:02000010020141
+  message: Keep Actuator authentication enabled and do not mark sensitive endpoints as non-sensitive.
+  translations:
+    zh-CN:
+      title: Spring Boot Actuator 安全检查被禁用
+      message: 应保持 Actuator 身份验证开启，不要把敏感端点设置为非敏感。
+    en:
+      title: Spring Boot Actuator endpoint security disabled
+      message: Keep Actuator authentication enabled and do not mark sensitive endpoints as non-sensitive.
+- id: LEGACY-JAVA-RULEMAP-spring-admin-mbean-enabled
+  title: Spring Boot Admin MBean enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: spring_admin_mbean_enabled
+    path_pattern: '(^|/)application(?:-[^/]+)?\.(?:properties|ya?ml)$'
+  standards:
+  - bug:02000010020136
+  message: Disable the Spring Boot Admin MBean in deployable configurations.
+  translations:
+    zh-CN:
+      title: Spring Boot 启用 Admin MBean
+      message: 可部署配置中应关闭 Spring Boot Admin MBean，避免未经授权的远程管理。
+    en:
+      title: Spring Boot Admin MBean enabled
+      message: Disable the Spring Boot Admin MBean in deployable configurations.
+- id: LEGACY-JAVA-RULEMAP-spring-devtools-enabled
+  title: Spring Boot DevTools packaged for deployment
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: spring_devtools_enabled
+    path_pattern: '(^|/)(?:pom\.xml|[^/]+\.gradle)$'
+  standards:
+  - bug:02000010020144
+  message: Remove spring-boot-devtools from artifacts deployed to remote environments.
+  translations:
+    zh-CN:
+      title: 部署依赖中包含 Spring Boot DevTools
+      message: 应从部署到远程环境的构件中移除 spring-boot-devtools 依赖。
+    en:
+      title: Spring Boot DevTools packaged for deployment
+      message: Remove spring-boot-devtools from artifacts deployed to remote environments.
+- id: LEGACY-JAVA-RULEMAP-spring-shutdown-endpoint-enabled
+  title: Spring Boot shutdown Actuator endpoint enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: spring_shutdown_endpoint_enabled
+    path_pattern: '(^|/)application(?:-[^/]+)?\.(?:properties|ya?ml)$'
+  standards:
+  - bug:02000010020135
+  message: Keep the Spring Boot shutdown Actuator endpoint disabled.
+  translations:
+    zh-CN:
+      title: Spring Boot 启用 shutdown 端点
+      message: 应保持 Spring Boot shutdown Actuator 端点关闭，避免远程终止应用。
+    en:
+      title: Spring Boot shutdown Actuator endpoint enabled
+      message: Keep the Spring Boot shutdown Actuator endpoint disabled.
+- id: LEGACY-JAVA-RULEMAP-j2ee-excessive-session-timeout
+  title: Java EE session timeout is excessive
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_excessive_session_timeout
+    path_pattern: '(^|/)web\.xml$'
+  standards:
+  - bug:02000010100007
+  - guide:02000010170069
+  message: Set the Java EE session timeout to a positive value no greater than 30 minutes.
+  translations:
+    zh-CN:
+      title: Java EE Session 失效时间过长
+      message: Session 失效时间应设置为大于 0 且不超过 30 分钟。
+    en:
+      title: Java EE session timeout is excessive
+      message: Set the Java EE session timeout to a positive value no greater than 30 minutes.
+- id: LEGACY-JAVA-RULEMAP-j2ee-insufficient-session-id-length
+  title: Java EE session identifier is too short
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_insufficient_session_id_length
+    path_pattern: '(^|/)weblogic(?:-application)?\.xml$'
+  standards:
+  - bug:02000010100012
+  message: Configure session identifiers with at least 128 bits of entropy (16 bytes).
+  translations:
+    zh-CN:
+      title: Java EE Session ID 长度过短
+      message: Session ID 应至少具有 128 比特（16 字节）长度，降低暴力猜测风险。
+    en:
+      title: Java EE session identifier is too short
+      message: Configure session identifiers with at least 128 bits of entropy (16 bytes).
+- id: LEGACY-JAVA-RULEMAP-j2ee-cookies-disabled
+  title: Java EE session cookies disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_cookies_disabled
+    path_pattern: '(^|/)(?:web|weblogic(?:-application)?)\.xml$'
+  standards:
+  - bug:02000010100001
+  message: Transport session identifiers only in cookies; do not enable URL rewriting as the session mechanism.
+  translations:
+    zh-CN:
+      title: Java EE 未使用 Cookie 传输 Session ID
+      message: 应仅通过 Cookie 传输 Session ID，不要启用 URL 重写作为会话传输机制。
+    en:
+      title: Java EE session cookies disabled
+      message: Transport session identifiers only in cookies; do not enable URL rewriting as the session mechanism.
+- id: LEGACY-JAVA-RULEMAP-j2ee-missing-authentication-method
+  title: Java EE authorization constraints lack an authentication method
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_missing_authentication_method
+    path_pattern: '(^|/)web\.xml$'
+  standards:
+  - bug:02000010110154
+  message: Define BASIC, FORM, DIGEST, or CLIENT_CERT authentication whenever authorization constraints are present.
+  translations:
+    zh-CN:
+      title: Java EE 授权限制缺少登录配置
+      message: 存在授权限制时，应配置 BASIC、FORM、DIGEST 或 CLIENT_CERT 身份验证方式。
+    en:
+      title: Java EE authorization constraints lack an authentication method
+      message: Define BASIC, FORM, DIGEST, or CLIENT_CERT authentication whenever authorization constraints are present.
+- id: LEGACY-JAVA-RULEMAP-j2ee-missing-transport-constraint
+  title: Java EE authorization constraint lacks confidential transport
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_missing_transport_constraint
+    path_pattern: '(^|/)web\.xml$'
+  standards:
+  - bug:02000010100014
+  - bug:02000010100011
+  message: Require CONFIDENTIAL transport for every protected Java EE web resource.
+  translations:
+    zh-CN:
+      title: Java EE 授权限制缺少保密传输
+      message: 每个受保护的 Java EE Web 资源都应要求 CONFIDENTIAL 传输保护。
+    en:
+      title: Java EE authorization constraint lacks confidential transport
+      message: Require CONFIDENTIAL transport for every protected Java EE web resource.
+- id: LEGACY-JAVA-RULEMAP-j2ee-debug-information
+  title: Java EE container debug logging exposes sensitive data
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_debug_information
+    path_pattern: '(^|/)(?:server|context)\.xml$'
+  standards: [bug:02000010100002]
+  message: Keep Tomcat Realm debug levels below 3 in deployed configurations.
+  translations:
+    zh-CN: {title: Java EE 容器调试级别过高, message: 部署配置中的 Tomcat Realm 调试级别应低于 3，避免记录敏感凭据。}
+    en: {title: Java EE container debug logging exposes sensitive data, message: Keep Tomcat Realm debug levels below 3 in deployed configurations.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-duplicate-security-role
+  title: Duplicate Java EE security role
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: j2ee_duplicate_security_role
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100004]
+  message: Define each Java EE security role exactly once.
+  translations:
+    zh-CN: {title: Java EE 安全角色重复, message: 每个 Java EE 安全角色只能定义一次。}
+    en: {title: Duplicate Java EE security role, message: Define each Java EE security role exactly once.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-duplicate-servlet-mapping
+  title: Duplicate Java EE servlet URL mapping
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: j2ee_duplicate_servlet_mapping
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100005]
+  message: Map each URL pattern to only one servlet.
+  translations:
+    zh-CN: {title: Java EE Servlet 映射重复, message: 每个 URL 模式只应映射到一个 Servlet。}
+    en: {title: Duplicate Java EE servlet URL mapping, message: Map each URL pattern to only one servlet.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-excessive-servlet-mappings
+  title: Servlet has excessive URL mappings
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: j2ee_excessive_servlet_mappings
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100006]
+  message: Split unrelated servlet responsibilities instead of assigning several URL patterns to one servlet mapping.
+  translations:
+    zh-CN: {title: Servlet URL 映射过多, message: 不要把多个不相关 URL 模式映射到同一个 Servlet；应拆分职责。}
+    en: {title: Servlet has excessive URL mappings, message: Split unrelated servlet responsibilities instead of assigning several URL patterns to one servlet mapping.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-incomplete-throwable-error-handling
+  title: Java EE deployment lacks a Throwable error page
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_incomplete_throwable_error_handling
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100008]
+  message: Define a generic java.lang.Throwable error page that does not disclose container details.
+  translations:
+    zh-CN: {title: Java EE Throwable 错误处理不完整, message: 应配置不泄露容器细节的 java.lang.Throwable 通用错误页面。}
+    en: {title: Java EE deployment lacks a Throwable error page, message: Define a generic java.lang.Throwable error page that does not disclose container details.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-invalid-servlet-name
+  title: Invalid Java EE servlet name declaration
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_invalid_servlet_name
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100013]
+  message: Give each servlet exactly one non-empty servlet-name.
+  translations:
+    zh-CN: {title: Java EE Servlet 名称无效, message: 每个 Servlet 必须且只能包含一个非空 servlet-name。}
+    en: {title: Invalid Java EE servlet name declaration, message: Give each servlet exactly one non-empty servlet-name.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-missing-error-handling
+  title: Java EE deployment has no custom error page
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_missing_error_handling
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100015]
+  message: Define custom error pages so container-generated responses cannot disclose internals.
+  translations:
+    zh-CN: {title: Java EE 缺少错误页面配置, message: 应配置自定义错误页面，避免容器默认响应泄露内部信息。}
+    en: {title: Java EE deployment has no custom error page, message: Define custom error pages so container-generated responses cannot disclose internals.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-missing-filter-definition
+  title: Java EE filter mapping has no definition
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_missing_filter_definition
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100016]
+  message: Define every filter referenced by a filter-mapping.
+  translations:
+    zh-CN: {title: Java EE Filter 映射缺少定义, message: 每个 filter-mapping 引用的过滤器都必须有对应 filter 定义。}
+    en: {title: Java EE filter mapping has no definition, message: Define every filter referenced by a filter-mapping.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-missing-security-role
+  title: Java EE authorization references an undefined role
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_missing_security_role
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100017]
+  message: Declare every role referenced by an auth-constraint as a security-role.
+  translations:
+    zh-CN: {title: Java EE 授权引用未定义角色, message: auth-constraint 引用的每个角色都必须通过 security-role 定义。}
+    en: {title: Java EE authorization references an undefined role, message: Declare every role referenced by an auth-constraint as a security-role.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-missing-servlet-mapping
+  title: Java EE servlet has no mapping
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: j2ee_missing_servlet_mapping
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100018]
+  message: Add a servlet-mapping for every declared servlet that must be reachable.
+  translations:
+    zh-CN: {title: Java EE Servlet 缺少映射, message: 应为每个需要访问的已声明 Servlet 添加 servlet-mapping。}
+    en: {title: Java EE servlet has no mapping, message: Add a servlet-mapping for every declared servlet that must be reachable.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-unsafe-bean-declaration
+  title: Entity bean exposes a remote interface
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_unsafe_bean_declaration
+    path_pattern: '(^|/)ejb-jar\.xml$'
+  standards: [bug:02000010100020]
+  message: Do not expose entity-bean data access through a remote interface.
+  translations:
+    zh-CN: {title: 实体 Bean 暴露远程接口, message: 不要通过远程接口暴露实体 Bean 的数据读取或修改能力。}
+    en: {title: Entity bean exposes a remote interface, message: Do not expose entity-bean data access through a remote interface.}
+- id: LEGACY-JAVA-RULEMAP-j2ee-weak-access-permissions
+  title: EJB method permission grants access to ANYONE
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_weak_access_permissions
+    path_pattern: '(^|/)ejb-jar\.xml$'
+  standards: [bug:02000010100019]
+  message: Grant EJB method access to explicit least-privilege roles, not ANYONE.
+  translations:
+    zh-CN: {title: EJB 方法权限授予 ANYONE, message: EJB 方法只能授予明确的最小权限角色，不能授予 ANYONE。}
+    en: {title: EJB method permission grants access to ANYONE, message: Grant EJB method access to explicit least-privilege roles, not ANYONE.}
+- id: LEGACY-JAVA-RULEMAP-tomcat-insecure-connector
+  title: Tomcat HTTP connector is not marked secure
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: tomcat_insecure_connector
+    path_pattern: '(^|/)server\.xml$'
+  standards: [bug:02000010020147]
+  message: Protect sensitive traffic with an HTTPS connector configured as secure.
+  translations:
+    zh-CN: {title: Tomcat Connector 使用不安全传输, message: 敏感流量应使用配置为 secure 的 HTTPS Connector。}
+    en: {title: Tomcat HTTP connector is not marked secure, message: Protect sensitive traffic with an HTTPS connector configured as secure.}
+- id: LEGACY-JAVA-RULEMAP-websphere-servlet-by-class-name
+  title: WebSphere serves servlets by class name
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: websphere_servlet_by_class_name
+    path_pattern: '(^|/)ibm-web-ext\.(?:xml|xmi)$'
+  standards: [bug:02000010110186]
+  message: Disable serving servlets by class name so only explicit mappings are reachable.
+  translations:
+    zh-CN: {title: WebSphere 允许按类名访问 Servlet, message: 应关闭按类名提供 Servlet 服务，只允许显式映射的 Servlet 被访问。}
+    en: {title: WebSphere serves servlets by class name, message: Disable serving servlets by class name so only explicit mappings are reachable.}
+- id: LEGACY-JAVA-RULEMAP-build-dynamic-dependency-version
+  title: Ivy dependency uses a dynamic revision
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: build_dynamic_dependency_version
+    path_pattern: '(^|/)ivy\.xml$'
+  standards: [bug:02000010020143]
+  message: Pin every Ivy dependency to an exact reviewed revision.
+  translations:
+    zh-CN: {title: Ivy 依赖使用动态版本, message: 每个 Ivy 依赖都应固定到经过审查的精确版本。}
+    en: {title: Ivy dependency uses a dynamic revision, message: Pin every Ivy dependency to an exact reviewed revision.}
+- id: LEGACY-JAVA-RULEMAP-build-external-ant-repository
+  title: Ant build downloads an external dependency
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: build_external_ant_repository
+    path_pattern: '(^|/)build\.xml$'
+  standards: [bug:02000010110185]
+  message: Mirror build dependencies into a controlled internal repository instead of downloading an external URL.
+  translations:
+    zh-CN: {title: Ant 构建下载外部依赖, message: 应将构建依赖镜像到受控内部仓库，不要直接下载外部 URL。}
+    en: {title: Ant build downloads an external dependency, message: Mirror build dependencies into a controlled internal repository instead of downloading an external URL.}
+- id: LEGACY-JAVA-RULEMAP-build-external-ivy-repository
+  title: Ivy resolver uses an external repository
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: build_external_ivy_repository
+    path_pattern: '(^|/)ivy(?:conf|settings)\.xml$'
+  standards: [bug:02000010020140]
+  message: Resolve Ivy dependencies from a controlled internal repository.
+  translations:
+    zh-CN: {title: Ivy 使用外部依赖仓库, message: Ivy 依赖应从受控内部仓库解析。}
+    en: {title: Ivy resolver uses an external repository, message: Resolve Ivy dependencies from a controlled internal repository.}
+- id: LEGACY-JAVA-RULEMAP-build-external-maven-repository
+  title: Maven configuration uses an external repository
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: build_external_maven_repository
+    path_pattern: '(^|/)(?:pom|settings)\.xml$'
+  standards: [bug:02000010100050]
+  message: Resolve Maven dependencies through a controlled internal repository or mirror.
+  translations:
+    zh-CN: {title: Maven 使用外部依赖仓库, message: Maven 依赖应通过受控内部仓库或镜像解析。}
+    en: {title: Maven configuration uses an external repository, message: Resolve Maven dependencies through a controlled internal repository or mirror.}
+- id: LEGACY-JAVA-RULEMAP-docker-default-user-privilege
+  title: Docker image defaults to the root user
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: docker_default_user_privilege
+    path_pattern: '(^|/)Dockerfile$'
+  standards: [bug:02000010020152]
+  message: End the Dockerfile with a non-root USER for the deployed process.
+  translations:
+    zh-CN: {title: Docker 镜像默认使用 root 用户, message: Dockerfile 应为部署进程最终设置非 root USER。}
+    en: {title: Docker image defaults to the root user, message: End the Dockerfile with a non-root USER for the deployed process.}
+- id: LEGACY-JAVA-RULEMAP-docker-privileged-container
+  title: Docker build launches a privileged container
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: docker_privileged_container
+    path_pattern: '(^|/)Dockerfile$'
+  standards: [bug:02000010020151]
+  message: Do not launch nested containers with --privileged from an image build or startup command.
+  translations:
+    zh-CN: {title: Docker 启动特权容器, message: 镜像构建或启动命令中不得使用 --privileged 启动嵌套容器。}
+    en: {title: Docker build launches a privileged container, message: Do not launch nested containers with --privileged from an image build or startup command.}
+- id: LEGACY-JAVA-RULEMAP-docker-privileged-port
+  title: Docker image exposes a privileged port
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: docker_privileged_port
+    path_pattern: '(^|/)Dockerfile$'
+  standards: [bug:02000010020149]
+  message: Bind the application to an unprivileged port (1024 or higher).
+  translations:
+    zh-CN: {title: Docker 镜像暴露特权端口, message: 应让应用监听 1024 或更高的非特权端口。}
+    en: {title: Docker image exposes a privileged port, message: Bind the application to an unprivileged port (1024 or higher).}
+- id: LEGACY-JAVA-RULEMAP-docker-sensitive-host-directory
+  title: Docker image declares a sensitive system volume
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: docker_sensitive_host_directory
+    path_pattern: '(^|/)Dockerfile$'
+  standards: [bug:02000010020150]
+  message: Do not declare sensitive system paths as container volumes.
+  translations:
+    zh-CN: {title: Docker 声明敏感系统目录为卷, message: 不要把敏感系统路径声明为容器卷。}
+    en: {title: Docker image declares a sensitive system volume, message: Do not declare sensitive system paths as container volumes.}
+- id: LEGACY-JAVA-RULEMAP-docker-ssh-service
+  title: Docker image exposes an SSH service
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: docker_ssh_service
+    path_pattern: '(^|/)Dockerfile$'
+  standards: [bug:02000010020153]
+  message: Do not install, run, or expose SSH inside an application container.
+  translations:
+    zh-CN: {title: Docker 镜像启用 SSH 服务, message: 应用容器中不应安装、运行或暴露 SSH 服务。}
+    en: {title: Docker image exposes an SSH service, message: Do not install, run, or expose SSH inside an application container.}
+- id: LEGACY-JAVA-RULEMAP-cookie-secure-disabled
+  title: Cookie Secure attribute explicitly disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setSecure$'
+    receiver_type_pattern: '(^|\.)(Cookie|ResponseCookieBuilder)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    bool_arg_values: {0: false}
+  standards:
+  - bug:02000010000002
+  - bug:02000010110004
+  message: Keep the Secure attribute enabled for cookies that can carry authentication or sensitive state.
+  translations:
+    zh-CN: {title: Cookie 显式关闭 Secure 属性, message: 承载认证或敏感状态的 Cookie 必须启用 Secure 属性。}
+    en: {title: Cookie Secure attribute explicitly disabled, message: Keep the Secure attribute enabled for cookies that can carry authentication or sensitive state.}
+- id: LEGACY-JAVA-RULEMAP-cookie-httponly-disabled
+  title: Cookie HttpOnly attribute explicitly disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setHttpOnly$'
+    receiver_type_pattern: '(^|\.)(Cookie|ResponseCookieBuilder)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    bool_arg_values: {0: false}
+  standards:
+  - bug:02000010000001
+  - bug:02000010000006
+  - std:02000010150447
+  message: Keep HttpOnly enabled for session and authentication cookies.
+  translations:
+    zh-CN: {title: Cookie 显式关闭 HttpOnly 属性, message: 会话与认证 Cookie 必须启用 HttpOnly 属性。}
+    en: {title: Cookie HttpOnly attribute explicitly disabled, message: Keep HttpOnly enabled for session and authentication cookies.}
+- id: LEGACY-JAVA-RULEMAP-cookie-overly-broad-domain
+  title: Cookie Domain attribute broadens host scope
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '(^|\.)setDomain$'
+    receiver_type_pattern: '(^|\.)(Cookie|ResponseCookieBuilder)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+  standards:
+  - bug:02000010000005
+  - bug:02000010110005
+  message: Prefer a host-only cookie; setting Domain exposes the cookie to additional hosts.
+  translations:
+    zh-CN: {title: Cookie Domain 范围过宽, message: 应优先使用仅限当前主机的 Cookie；设置 Domain 会扩大可接收 Cookie 的主机范围。}
+    en: {title: Cookie Domain attribute broadens host scope, message: Prefer a host-only cookie; setting Domain exposes the cookie to additional hosts.}
+- id: LEGACY-JAVA-RULEMAP-cookie-overly-broad-path
+  title: Cookie Path attribute is root-wide
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '(^|\.)setPath$'
+    receiver_type_pattern: '(^|\.)(Cookie|ResponseCookieBuilder)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    string_arg_patterns: {0: '^/$'}
+  standards:
+  - bug:02000010000004
+  - bug:02000010110006
+  message: Scope the cookie path to the narrowest application route that needs it.
+  translations:
+    zh-CN: {title: Cookie Path 范围过宽, message: Cookie Path 应限制到实际需要它的最窄应用路径。}
+    en: {title: Cookie Path attribute is root-wide, message: Scope the cookie path to the narrowest application route that needs it.}
+- id: LEGACY-JAVA-RULEMAP-persistent-session-cookie
+  title: Session cookie made persistent
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '(^|\.)setMaxAge$'
+    receiver_type_pattern: '(^|\.)(Cookie|ResponseCookieBuilder)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    int_arg_min_values: {0: 1}
+  standards:
+  - bug:02000010000003
+  - bug:02000010110008
+  message: Keep authentication cookies session-scoped unless persistence is an explicit reviewed requirement.
+  translations:
+    zh-CN: {title: 会话 Cookie 被设置为持久化, message: 除非持久化是经过审查的明确需求，否则认证 Cookie 应保持为会话 Cookie。}
+    en: {title: Session cookie made persistent, message: Keep authentication cookies session-scoped unless persistence is an explicit reviewed requirement.}
+- id: LEGACY-JAVA-RULEMAP-reflection-increase-accessibility
+  title: Reflection bypasses Java access checks
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setAccessible$'
+    receiver_type_pattern: '(^|\.)(AccessibleObject|Field|Method|Constructor)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    bool_arg_values: {0: true}
+  standards:
+  - cert:02000010141605
+  - YD/T 3464-2019:02000010160138
+  message: Do not suppress Java language access checks through reflection.
+  translations:
+    zh-CN: {title: 反射绕过 Java 访问控制, message: 不要通过反射关闭 Java 语言访问检查。}
+    en: {title: Reflection bypasses Java access checks, message: Do not suppress Java language access checks through reflection.}
+- id: LEGACY-JAVA-RULEMAP-android-provider-write-only-permission
+  title: Android provider declares only a write permission
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_provider_write_only_permission
+    path_pattern: '(^|/)AndroidManifest\.xml$'
+  standards: [bug:02000010110111]
+  message: Define separate read and write permissions for the content provider.
+  translations:
+    zh-CN: {title: ContentProvider 仅声明写权限, message: ContentProvider 应分别定义读取权限和写入权限。}
+    en: {title: Android provider declares only a write permission, message: Define separate read and write permissions for the content provider.}
+- id: LEGACY-JAVA-RULEMAP-android-provider-missing-export-or-permission
+  title: Android provider has no explicit export policy or permission
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_provider_missing_export_or_permission
+    path_pattern: '(^|/)AndroidManifest\.xml$'
+  standards: [bug:02000010110113]
+  message: Explicitly make the provider non-exported or protect it with read and write permissions.
+  translations:
+    zh-CN: {title: ContentProvider 未声明导出策略或权限, message: 应显式将 ContentProvider 设为不导出，或配置读写权限保护。}
+    en: {title: Android provider has no explicit export policy or permission, message: Explicitly make the provider non-exported or protect it with read and write permissions.}
+- id: LEGACY-JAVA-RULEMAP-android-missing-network-security-config
+  title: Android application has no network security configuration
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: android_missing_network_security_config
+    path_pattern: '(^|/)AndroidManifest\.xml$'
+  standards: [bug:02000010020138]
+  message: Reference an explicit Android network security configuration from the application element.
+  translations:
+    zh-CN: {title: Android 缺少网络安全配置, message: application 元素应引用明确的 Android 网络安全配置。}
+    en: {title: Android application has no network security configuration, message: Reference an explicit Android network security configuration from the application element.}
+- id: LEGACY-JAVA-RULEMAP-android-mixed-receiver-functionality
+  title: Android receiver mixes system and application broadcasts
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_mixed_receiver_functionality
+    path_pattern: '(^|/)AndroidManifest\.xml$'
+  standards: [bug:02000010110114]
+  message: Use separate receivers for protected system broadcasts and externally reachable application broadcasts.
+  translations:
+    zh-CN: {title: Receiver 混合接收系统与应用广播, message: 受保护的系统广播和外部可达的应用广播应使用不同 Receiver。}
+    en: {title: Android receiver mixes system and application broadcasts, message: Use separate receivers for protected system broadcasts and externally reachable application broadcasts.}
+- id: LEGACY-JAVA-RULEMAP-android-provider-combined-permission
+  title: Android provider combines read and write permission
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: android_provider_combined_permission
+    path_pattern: '(^|/)AndroidManifest\.xml$'
+  standards: [bug:02000010110115]
+  message: Define distinct readPermission and writePermission values for the content provider.
+  translations:
+    zh-CN: {title: ContentProvider 共用读写权限, message: ContentProvider 应分别设置 readPermission 与 writePermission。}
+    en: {title: Android provider combines read and write permission, message: Define distinct readPermission and writePermission values for the content provider.}
+- id: LEGACY-JAVA-RULEMAP-android-tap-jacking-sdk
+  title: Android minimum SDK permits tap-jacking behavior
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: android_tap_jacking_sdk
+    path_pattern: '(^|/)AndroidManifest\.xml$'
+  standards: [bug:02000010110164]
+  message: Set minSdkVersion to 9 or later and apply modern overlay protections.
+  translations:
+    zh-CN: {title: Android 最低 SDK 存在触屏劫持风险, message: minSdkVersion 应至少设置为 9，并应用现代覆盖层防护。}
+    en: {title: Android minimum SDK permits tap-jacking behavior, message: Set minSdkVersion to 9 or later and apply modern overlay protections.}
+- id: LEGACY-JAVA-RULEMAP-dangerous-intent-uri-permission
+  title: Intent grants URI access permission
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)(setFlags|addFlags)$'
+    receiver_type_pattern: '(^|\.)Intent$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    argument_token_patterns:
+      0: 'FLAG_GRANT_(?:READ|WRITE)_URI_PERMISSION'
+  standards: [bug:02000010060112]
+  message: Avoid granting URI permissions on an intent unless its destination and data scope are explicit and trusted.
+  translations:
+    zh-CN: {title: Intent 授予 URI 访问权限, message: 除非目标和数据范围明确且可信，否则不要通过 Intent 授予 URI 权限。}
+    en: {title: Intent grants URI access permission, message: Avoid granting URI permissions on an intent unless its destination and data scope are explicit and trusted.}
+- id: LEGACY-JAVA-RULEMAP-open-android-app-service
+  title: Android application opens a listening socket
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)(ServerSocket|NanoHTTPD)$'
+  standards: [bug:02000010060121]
+  message: Avoid opening an in-app listening service; if required, strongly authenticate every client.
+  translations:
+    zh-CN: {title: Android 应用开启监听服务, message: 应避免在应用内开启监听服务；确有需要时必须严格认证每个客户端。}
+    en: {title: Android application opens a listening socket, message: Avoid opening an in-app listening service; if required, strongly authenticate every client.}
+- id: LEGACY-JAVA-RULEMAP-insecure-rfcomm-socket
+  title: Android uses an unauthenticated RFCOMM socket
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)createInsecureRfcommSocketToServiceRecord$'
+    receiver_type_pattern: '(^|\.)BluetoothDevice$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+  standards: [bug:02000010110095]
+  message: Use an authenticated RFCOMM socket to prevent unauthenticated Bluetooth peers and interception.
+  translations:
+    zh-CN: {title: Android 使用不安全的 RFCOMM 套接字, message: 应使用经过认证的 RFCOMM 套接字，防止未认证蓝牙对端和中间人攻击。}
+    en: {title: Android uses an unauthenticated RFCOMM socket, message: Use an authenticated RFCOMM socket to prevent unauthenticated Bluetooth peers and interception.}
+- id: LEGACY-JAVA-RULEMAP-android-world-accessible-file-mode
+  title: Android file uses a world-accessible mode
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)(openFileOutput|getSharedPreferences|openOrCreateDatabase)$'
+    receiver_type_pattern: '(^|\.)(Context|ContextWrapper|Activity|Service)$'
+    requires_receiver: true
+    min_args: 2
+    argument_token_patterns:
+      1: 'MODE_WORLD_(?:READABLE|WRITEABLE)'
+  standards: [bug:02000010110107, bug:02000010020132]
+  message: Use MODE_PRIVATE instead of deprecated world-readable or world-writable Android storage.
+  translations:
+    zh-CN: {title: Android 文件使用全局可访问模式, message: 应使用 MODE_PRIVATE，不要使用已废弃的全局可读或全局可写存储模式。}
+    en: {title: Android file uses a world-accessible mode, message: Use MODE_PRIVATE instead of deprecated world-readable or world-writable Android storage.}
+- id: LEGACY-JAVA-RULEMAP-android-calling-or-self-permission-check
+  title: Android permission check includes the app's own identity
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)(checkCallingOrSelfPermission|checkCallingOrSelfUriPermission)$'
+    receiver_type_pattern: '(^|\.)(Context|ContextWrapper|Activity|Service)$'
+    requires_receiver: true
+  standards: [bug:02000010060107]
+  message: Check only the external caller identity to avoid confused-deputy permission bypasses.
+  translations:
+    zh-CN: {title: Android 权限检查包含应用自身身份, message: 应只检查外部调用者身份，避免混淆代理权限绕过。}
+    en: {title: Android permission check includes the app's own identity, message: Check only the external caller identity to avoid confused-deputy permission bypasses.}
+- id: LEGACY-JAVA-RULEMAP-android-hidden-api-reflection
+  title: Android hidden or internal API loaded reflectively
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^(?:java\.lang\.)?Class\.forName$'
+    min_args: 1
+    string_constant_arg_patterns:
+      0: '^android\.(?:internal\.|test\.|.*\.internal\.)'
+  standards: [bug:02000010110129]
+  message: Do not depend on undocumented Android hidden or internal APIs.
+  translations:
+    zh-CN: {title: 通过反射加载 Android 隐藏 API, message: 不要依赖未公开、隐藏或内部 Android API。}
+    en: {title: Android hidden or internal API loaded reflectively, message: Do not depend on undocumented Android hidden or internal APIs.}
+- id: LEGACY-JAVA-RULEMAP-android-external-storage-location
+  title: Android application uses an external storage location
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)(getExternalFilesDirs?|getExternalCacheDirs?|getExternalMediaDirs|getExternalStorageDirectory|getExternalStoragePublicDirectory)$'
+    receiver_type_pattern: '(^|\.)(Context|ContextWrapper|Activity|Service|Environment)$'
+    requires_receiver: true
+  standards: [bug:02000010110103]
+  message: Keep sensitive or trusted application data in private internal storage.
+  translations:
+    zh-CN: {title: Android 使用外部存储位置, message: 敏感或需要信任的应用数据应保存在私有内部存储中。}
+    en: {title: Android application uses an external storage location, message: Keep sensitive or trusted application data in private internal storage.}
+- id: LEGACY-JAVA-RULEMAP-unreleased-android-camera
+  title: Android Camera resource is not safely released
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    unreleased_resource_type_pattern: '(^|\.)Camera$'
+  standards: [bug:02000010130102]
+  message: Release every acquired Android Camera on all exit paths.
+  translations:
+    zh-CN: {title: Android Camera 资源未释放, message: 每个已获取的 Android Camera 都必须在所有退出路径上释放。}
+    en: {title: Android Camera resource is not safely released, message: Release every acquired Android Camera on all exit paths.}
+- id: LEGACY-JAVA-RULEMAP-unreleased-android-media
+  title: Android media resource is not safely released
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    unreleased_resource_type_pattern: '(^|\.)(MediaPlayer|MediaRecorder)$'
+  standards: [bug:02000010130101]
+  message: Release every acquired Android media resource on all exit paths.
+  translations:
+    zh-CN: {title: Android 媒体资源未释放, message: 每个已获取的 Android 媒体资源都必须在所有退出路径上释放。}
+    en: {title: Android media resource is not safely released, message: Release every acquired Android media resource on all exit paths.}
+- id: LEGACY-JAVA-RULEMAP-unreleased-android-sqlite
+  title: Android SQLite database is not safely closed
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    unreleased_resource_type_pattern: '(^|\.)SQLiteDatabase$'
+  standards: [bug:02000010130103]
+  message: Close every opened Android SQLiteDatabase on all exit paths.
+  translations:
+    zh-CN: {title: Android SQLiteDatabase 未关闭, message: 每个已打开的 Android SQLiteDatabase 都必须在所有退出路径上关闭。}
+    en: {title: Android SQLite database is not safely closed, message: Close every opened Android SQLiteDatabase on all exit paths.}
+- id: LEGACY-JAVA-RULEMAP-clone-without-cloneable
+  title: Class declares clone without implementing Cloneable
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_style: clone_without_cloneable
+  standards: [bug:02000010110042]
+  message: Implement Cloneable when a class intentionally exposes Object.clone behavior.
+  translations:
+    zh-CN: {title: 类声明 clone() 但未实现 Cloneable, message: 类需要有意公开 Object.clone 行为时必须实现 Cloneable。}
+    en: {title: Class declares clone without implementing Cloneable, message: Implement Cloneable when a class intentionally exposes Object.clone behavior.}
+- id: LEGACY-JAVA-RULEMAP-finalize-without-super
+  title: finalize method does not invoke super.finalize
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_style: finalize_without_super
+  standards:
+  - bug:02000010070003
+  - cert:02000010140712
+  - YD/T 3464-2019:02000010160062
+  message: Remove finalization or ensure an overriding finalize method delegates to super.finalize.
+  translations:
+    zh-CN: {title: finalize() 未调用 super.finalize(), message: 应移除终结器；如果必须重写 finalize，则必须调用 super.finalize。}
+    en: {title: finalize method does not invoke super.finalize, message: Remove finalization or ensure an overriding finalize method delegates to super.finalize.}
+- id: LEGACY-JAVA-RULEMAP-return-generic-wildcard
+  title: Public API method returns a generic wildcard type
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_style: return_generic_wildcard
+  standards: [bug:02000010000026]
+  message: Return a concrete generic abstraction instead of exposing a wildcard type from an API.
+  translations:
+    zh-CN: {title: 方法返回泛型通配符类型, message: API 应返回具体的泛型抽象，不应向调用方暴露通配符返回类型。}
+    en: {title: Public API method returns a generic wildcard type, message: Return a concrete generic abstraction instead of exposing a wildcard type from an API.}
+- id: LEGACY-JAVA-RULEMAP-axis-soap-monitor-enabled
+  title: Axis SOAP Monitor is enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: axis_soap_monitor_enabled
+    path_pattern: '(^|/)(?:web|axis2)\.xml$'
+  standards: [bug:02000010100031]
+  message: Remove SOAP Monitor servlet, mapping, and module references from deployed Axis applications.
+  translations:
+    zh-CN: {title: Axis SOAP Monitor 已启用, message: 应从部署的 Axis 应用中删除 SOAP Monitor Servlet、映射和模块引用。}
+    en: {title: Axis SOAP Monitor is enabled, message: Remove SOAP Monitor servlet, mapping, and module references from deployed Axis applications.}
+- id: LEGACY-JAVA-RULEMAP-axis-missing-inflow-security
+  title: Axis inbound WS-Security is not enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: axis_missing_inflow_security
+    path_pattern: '(^|/)axis2\.xml$'
+  standards: [bug:02000010110180]
+  message: Configure InflowSecurity for authenticated and integrity-protected inbound SOAP messages.
+  translations:
+    zh-CN: {title: Axis 未启用入站 WS-Security, message: 应配置 InflowSecurity，确保入站 SOAP 消息经过认证和完整性保护。}
+    en: {title: Axis inbound WS-Security is not enabled, message: Configure InflowSecurity for authenticated and integrity-protected inbound SOAP messages.}
+- id: LEGACY-JAVA-RULEMAP-axis-rest-enabled
+  title: Axis REST transport is enabled without message security
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: axis_rest_enabled
+    path_pattern: '(^|/)axis2\.xml$'
+  standards: [bug:02000010110181]
+  message: Disable Axis REST transport when end-to-end WS-Security message protection is required.
+  translations:
+    zh-CN: {title: Axis 启用缺少消息安全的 REST, message: 需要端到端 WS-Security 消息保护时，应禁用 Axis REST 传输。}
+    en: {title: Axis REST transport is enabled without message security, message: Disable Axis REST transport when end-to-end WS-Security message protection is required.}
+- id: LEGACY-JAVA-RULEMAP-axis-missing-outflow-security
+  title: Axis outbound WS-Security is not enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: axis_missing_outflow_security
+    path_pattern: '(^|/)axis2\.xml$'
+  standards: [bug:02000010110182]
+  message: Configure OutflowSecurity for integrity-protected and confidential outbound SOAP messages.
+  translations:
+    zh-CN: {title: Axis 未启用出站 WS-Security, message: 应配置 OutflowSecurity，确保出站 SOAP 消息得到完整性与机密性保护。}
+    en: {title: Axis outbound WS-Security is not enabled, message: Configure OutflowSecurity for integrity-protected and confidential outbound SOAP messages.}
+- id: LEGACY-JAVA-RULEMAP-axis-missing-rampart
+  title: Axis WS-Security Rampart module is not enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: axis_missing_rampart
+    path_pattern: '(^|/)axis2\.xml$'
+  standards: [bug:02000010110183]
+  message: Enable the Axis Rampart module to provide WS-Security message protection.
+  translations:
+    zh-CN: {title: Axis 未启用 Rampart WS-Security 模块, message: 应启用 Axis Rampart 模块以提供 WS-Security 消息保护。}
+    en: {title: Axis WS-Security Rampart module is not enabled, message: Enable the Axis Rampart module to provide WS-Security message protection.}
+- id: LEGACY-JAVA-RULEMAP-adf-url-invoke-default
+  title: ADF task flow relies on the default URL invocation policy
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    java_config: adf_missing_url_invoke_disallowed
+    path_pattern: '(^|/)[^/]+-task-flow-definition\.xml$'
+  standards: [bug:02000010110184]
+  message: Explicitly add url-invoke-disallowed to every ADF task flow that must not be directly invoked.
+  translations:
+    zh-CN: {title: ADF 任务流依赖默认 URL 调用策略, message: 每个禁止直接调用的 ADF 任务流都应显式声明 url-invoke-disallowed。}
+    en: {title: ADF task flow relies on the default URL invocation policy, message: Explicitly add url-invoke-disallowed to every ADF task flow that must not be directly invoked.}
+- id: LEGACY-JAVA-RULEMAP-struts-duplicate-form-bean
+  title: Struts configuration declares a duplicate form bean
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_duplicate_form_bean, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100021]
+  message: Give every Struts form bean a unique name.
+- id: LEGACY-JAVA-RULEMAP-struts-invalid-action-path
+  title: Struts action path is invalid
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_invalid_action_path, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100022]
+  message: Declare every Struts action with a non-empty absolute path.
+- id: LEGACY-JAVA-RULEMAP-struts-missing-action-input
+  title: Validated Struts action has no input page
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_missing_action_input, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100023]
+  message: Configure an input page for every validated Struts action.
+- id: LEGACY-JAVA-RULEMAP-struts-missing-exception-type
+  title: Struts exception mapping has no exception type
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_missing_exception_type, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100024]
+  message: Configure an exception type for every Struts exception mapping.
+- id: LEGACY-JAVA-RULEMAP-struts-missing-form-bean
+  title: Struts action references a missing form bean
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_missing_form_bean, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100025]
+  message: Define every form bean referenced by a Struts action.
+- id: LEGACY-JAVA-RULEMAP-struts-missing-form-bean-name
+  title: Struts form bean has no name
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_missing_form_bean_name, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100026]
+  message: Configure a non-empty name for every Struts form bean.
+- id: LEGACY-JAVA-RULEMAP-struts-missing-form-bean-type
+  title: Struts form bean has no type
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_missing_form_bean_type, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100027]
+  message: Configure a concrete type for every Struts form bean.
+- id: LEGACY-JAVA-RULEMAP-struts-missing-form-property-type
+  title: Struts form property has no type
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_missing_form_property_type, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100028]
+  message: Configure a concrete type for every dynamic Struts form property.
+- id: LEGACY-JAVA-RULEMAP-struts-missing-forward-name
+  title: Struts forward has no name
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_missing_forward_name, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100029]
+  message: Configure a non-empty name for every Struts forward.
+- id: LEGACY-JAVA-RULEMAP-struts-missing-forward-path
+  title: Struts forward has no path
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_missing_forward_path, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010100030]
+  message: Configure a non-empty path for every Struts forward.
+- id: LEGACY-JAVA-RULEMAP-struts-validator-plugin-missing
+  title: Struts Validator framework is not enabled
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: struts_plugin_framework_missing, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010110021]
+  message: Register the Struts ValidatorPlugIn when declarative form validation is expected.
+- id: LEGACY-JAVA-RULEMAP-struts-unused-action-form
+  title: Struts action form is unused
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: struts_unused_action_form, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010110022]
+  message: Remove unused Struts form beans or reference them from an action.
+- id: LEGACY-JAVA-RULEMAP-struts-validator-disabled
+  title: Struts action disables form validation
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts_validator_disabled, path_pattern: '(^|/)struts-config\.xml$'}
+  standards: [bug:02000010110025]
+  message: Keep validation enabled for Struts actions that accept form input.
+- id: LEGACY-JAVA-RULEMAP-anonymous-ldap-bind
+  title: LDAP context is configured for anonymous authentication
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)put$'
+    min_args: 2
+    max_args: 2
+    arg_path_patterns: {0: '(^|\.)Context\.SECURITY_AUTHENTICATION$'}
+    string_constant_arg_patterns: {1: '^(?i:none|anonymous)$'}
+  standards: [bug:02000010020038]
+  message: Authenticate LDAP directory bindings with a specific least-privilege identity.
+- id: LEGACY-JAVA-RULEMAP-webview-javascript-interface
+  title: WebView exposes a Java object to JavaScript
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)addJavascriptInterface$'
+    receiver_type_pattern: '^(?:android\.webkit\.)?WebView$'
+    requires_receiver: true
+    min_args: 2
+    max_args: 2
+  standards: [bug:02000010020103]
+  message: Do not expose unrestricted Java objects to untrusted WebView JavaScript.
+- id: LEGACY-JAVA-RULEMAP-webview-wildcard-message-origin
+  title: WebView message uses a wildcard target origin
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)postWebMessage$'
+    receiver_type_pattern: '^(?:android\.webkit\.)?WebView$'
+    requires_receiver: true
+    min_args: 2
+    max_args: 2
+    descendant_string_arg_patterns: {1: '^\*$'}
+  standards: [bug:02000010130144]
+  message: Send cross-document messages only to an explicit trusted origin.
+- id: LEGACY-JAVA-RULEMAP-implicit-intent-constructor
+  title: Android implicit Intent is constructed from an action
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    constructor_type: '^(?:android\.content\.)?Intent$'
+    min_args: 1
+    max_args: 1
+  standards: [bug:02000010110133]
+  message: Use an explicit component or package for security-sensitive Android intents.
+- id: LEGACY-JAVA-RULEMAP-implicit-intent-set-action
+  title: Android Intent is made implicit with setAction
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '(^|\.)setAction$'
+    receiver_type_pattern: '^(?:android\.content\.)?Intent$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+  standards: [bug:02000010110133]
+  message: Use an explicit component or package for security-sensitive Android intents.
+- id: LEGACY-JAVA-RULEMAP-sensitive-clipboard-data
+  title: Application writes data to the Android clipboard
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setPrimaryClip$'
+    receiver_type_pattern: '^(?:android\.content\.)?ClipboardManager$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+  standards: [bug:02000010110125]
+  message: Do not place passwords, tokens, or other sensitive values on the globally readable clipboard.
+- id: LEGACY-JAVA-RULEMAP-unauthenticated-mongodb
+  title: MongoDB client is created without credentials
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)(MongoClient|MongoClientURI)$'
+    min_args: 0
+    max_args: 0
+  standards: [bug:02000010130146]
+  message: Configure MongoDB authentication credentials and encrypted transport.
+- id: LEGACY-JAVA-RULEMAP-unauthenticated-redis
+  title: Redis connection factory is created without authentication
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)JedisConnectionFactory$'
+    min_args: 0
+    max_args: 0
+  standards: [bug:02000010130147]
+  message: Configure Redis authentication credentials and encrypted transport.
+- id: LEGACY-JAVA-RULEMAP-spring-html-escaping-disabled
+  title: Spring tag HTML escaping is disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: spring_html_escaping_disabled, path_pattern: '\.xml$'}
+  standards: [bug:02000010100103]
+  message: Keep default HTML escaping enabled for Spring-rendered content.
+- id: LEGACY-JAVA-RULEMAP-cors-wildcard-origin
+  title: Spring CORS configuration permits every origin
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: cors_wildcard_origin, path_pattern: '(^|/)application(?:-[^/]+)?\.(?:properties|ya?ml)$'}
+  standards: [bug:02000010020142, bug:02000010090016]
+  message: Allow only explicit trusted CORS origins.
+- id: LEGACY-JAVA-RULEMAP-cross-domain-wildcard
+  title: Cross-domain policy permits every domain
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: cross_domain_wildcard, path_pattern: '(^|/)(?:crossdomain|clientaccesspolicy)\.xml$'}
+  standards: [bug:02000010110157]
+  message: Permit only explicit trusted domains in cross-domain policy files.
+- id: LEGACY-JAVA-RULEMAP-cross-domain-wildcard-headers
+  title: Cross-domain policy permits every request header
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: cross_domain_wildcard_headers, path_pattern: '(^|/)crossdomain\.xml$'}
+  standards: [bug:02000010110156]
+  message: Permit only the specific cross-domain request headers the application needs.
+- id: LEGACY-JAVA-RULEMAP-druid-dependency
+  title: Deployed application includes Druid monitoring support
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: druid_dependency, path_pattern: '(^|/)pom\.xml$'}
+  standards: [bug:02000010110147]
+  message: Remove Druid monitoring endpoints from production or protect them with strict authentication and network controls.
+- id: LEGACY-JAVA-RULEMAP-springfox-dependency
+  title: Deployed application includes Springfox Swagger UI
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: springfox_dependency, path_pattern: '(^|/)pom\.xml$'}
+  standards: [bug:02000010110148]
+  message: Remove API documentation endpoints from production or require strong authorization.
+- id: LEGACY-JAVA-RULEMAP-broad-sql-logging
+  title: SQL logging is configured too broadly
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: broad_sql_logging, path_pattern: '\.properties$'}
+  standards: [bug:02000010110039]
+  message: Do not log SQL statements or bound values at broad production log levels.
+- id: LEGACY-JAVA-RULEMAP-broad-debug-logging
+  title: Root logging is configured for debug output
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: broad_debug_logging, path_pattern: '\.properties$'}
+  standards: [bug:02000010110043]
+  message: Keep production root logging above DEBUG and TRACE.
+- id: LEGACY-JAVA-RULEMAP-assert-always-false
+  title: Assert condition is always false
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: assert_always_false}
+  standards: [bug:02000010130116]
+  message: Remove an assertion that unconditionally terminates whenever assertions are enabled.
+- id: LEGACY-JAVA-RULEMAP-assert-side-effect
+  title: Assert expression has a side effect
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: assert_side_effect}
+  standards: [cert:02000010140406]
+  message: Assertion expressions must not assign or mutate program state.
+- id: LEGACY-JAVA-RULEMAP-assert-validates-parameter
+  title: Assertion validates a method parameter
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: assert_validates_parameter}
+  standards: [cert:02000010140701, YD/T 3464-2019:02000010160051]
+  message: Validate public method arguments with always-on checks, not assertions.
+- id: LEGACY-JAVA-RULEMAP-method-over-fifty-lines
+  title: Method exceeds fifty lines
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: method_over_fifty_lines}
+  standards: [bug:02000010130166]
+  message: Split this method into cohesive operations no longer than fifty lines.
+- id: LEGACY-JAVA-RULEMAP-nested-for-over-three
+  title: For loop nesting exceeds three levels
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: nested_for_over_three}
+  standards: [bug:02000010130163]
+  message: Refactor loops nested beyond three levels into named operations.
+- id: LEGACY-JAVA-RULEMAP-nested-if-over-three
+  title: If statement nesting exceeds three levels
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: nested_if_over_three}
+  standards: [bug:02000010130164]
+  message: Refactor conditionals nested beyond three levels into guard clauses or named operations.
+- id: LEGACY-JAVA-RULEMAP-try-inside-loop
+  title: Try block is nested inside a loop
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: try_inside_loop}
+  standards: [bug:02000010110138]
+  message: Move stable exception handling outside the loop when behavior permits.
+- id: LEGACY-JAVA-RULEMAP-constant-name
+  title: Constant name does not use upper snake case
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: constant_name}
+  standards: [bug:02000010130165]
+  message: Name static final constants with upper snake case.
+- id: LEGACY-JAVA-RULEMAP-gwt-hidden-field
+  title: GWT hidden form field may expose sensitive state
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    constructor_type: '^(?:com\.google\.gwt\.user\.client\.ui\.)?Hidden$'
+    min_args: 1
+  standards: [bug:02000010110029, cert:02000010140214, guide:02000010170004]
+  message: Do not place secrets or authorization state in client-controlled hidden form fields.
+- id: LEGACY-JAVA-RULEMAP-use-released-camera
+  title: Android Camera is used after release
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {resource_use_after_release_type_pattern: '(^|\.)Camera$'}
+  standards: [bug:02000010110109]
+  message: Reacquire the Camera before using it after release.
+- id: LEGACY-JAVA-RULEMAP-use-released-media
+  title: Android media object is used after release
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {resource_use_after_release_type_pattern: '(^|\.)(MediaPlayer|MediaRecorder)$'}
+  standards: [bug:02000010110108]
+  message: Recreate the media object before using it after release.
+- id: LEGACY-JAVA-RULEMAP-use-closed-sqlite
+  title: Android SQLite database is used after close
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {resource_use_after_release_type_pattern: '(^|\.)SQLiteDatabase$'}
+  standards: [bug:02000010110110]
+  message: Reopen the SQLiteDatabase before using it after close.
+- id: LEGACY-JAVA-RULEMAP-use-recycled-bitmap
+  title: Android Bitmap is used after recycle
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {resource_use_after_release_type_pattern: '(^|\.)Bitmap$'}
+  standards: [bug:02000010110128]
+  message: Do not access a Bitmap after recycle; decode or create a new bitmap first.
+- id: LEGACY-JAVA-RULEMAP-unreleased-wakelock
+  title: Android WakeLock is not safely released
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {unreleased_resource_type_pattern: '(^|\.)WakeLock$'}
+  standards: [bug:02000010130104, cert:02000010141008, YD/T 3464-2019:02000010160087, guide:02000010170040]
+  message: Release every acquired WakeLock on all exit paths.
+- id: LEGACY-JAVA-RULEMAP-serializable-missing-uid
+  title: Serializable class has no serialVersionUID
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: serializable_missing_uid}
+  standards: [cert:02000010141500, YD/T 3464-2019:02000010160121]
+  message: Declare an explicit private static final long serialVersionUID for compatibility.
+- id: LEGACY-JAVA-RULEMAP-serializable-sensitive-field
+  title: Serializable class contains a sensitive field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: serializable_sensitive_field}
+  standards: [bug:02000010130124]
+  message: Exclude credentials and secrets from serialization, for example with transient and controlled reconstruction.
+- id: LEGACY-JAVA-RULEMAP-applet-public-mutable-field
+  title: Applet exposes a mutable public field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: applet_public_mutable_field}
+  standards: [bug:02000010110071]
+  message: Keep Applet state private and expose only validated operations.
+- id: LEGACY-JAVA-RULEMAP-applet-inner-class
+  title: Applet declares an inner type
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: applet_inner_class}
+  standards: [bug:02000010130121]
+  message: Avoid inner classes in mobile code where compiler-generated access bridges expand visibility.
+- id: LEGACY-JAVA-RULEMAP-applet-private-array-return
+  title: Applet public method exposes a private array
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: applet_returns_private_array}
+  standards: [bug:02000010110072]
+  message: Return a defensive copy instead of exposing the private array.
+- id: LEGACY-JAVA-RULEMAP-equals-missing-type-check
+  title: equals method does not validate the parameter type
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: equals_missing_type_check}
+  standards: [bug:02000010000025]
+  message: Check instanceof or exact runtime class compatibility before casting in equals.
+- id: LEGACY-JAVA-RULEMAP-cipher-insecure-mode
+  title: Cipher uses an insecure mode of operation
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '^(?:javax\.crypto\.)?Cipher\.getInstance$'
+    min_args: 1
+    string_constant_arg_patterns: {0: '(?i)^(?:AES|DES|DESede|Blowfish)(?:/ECB(?:/|$)|$)'}
+  standards: [bug:02000010080019, std:02000010150208, guide:02000010170015]
+  message: Use an authenticated encryption mode such as AES-GCM instead of ECB or an implicit provider default.
+- id: LEGACY-JAVA-RULEMAP-keygenerator-small-key
+  title: Symmetric key size is insufficient
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)init$'
+    receiver_type_pattern: '^(?:javax\.crypto\.)?KeyGenerator$'
+    requires_receiver: true
+    min_args: 1
+    int_arg_max_values: {0: 127}
+  standards: [bug:02000010080013, std:02000010150204, guide:02000010170013]
+  message: Generate symmetric keys with at least 128 bits of strength.
+- id: LEGACY-JAVA-RULEMAP-keygenerator-user-size
+  title: Symmetric key size is externally controlled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)init$'
+    receiver_type_pattern: '^(?:javax\.crypto\.)?KeyGenerator$'
+    requires_receiver: true
+    min_args: 1
+    non_literal_args: [0]
+  standards: [bug:02000010080017]
+  message: Select an approved fixed key size rather than accepting an externally controlled size.
+- id: LEGACY-JAVA-RULEMAP-pbe-low-iteration-count
+  title: PBE iteration count is insufficient
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '^(?:javax\.crypto\.spec\.)?PBEParameterSpec$'
+    min_args: 2
+    int_arg_max_values: {1: 9999}
+  standards: [bug:02000010080050]
+  message: Use a reviewed password-based key derivation iteration count of at least 10000.
+- id: LEGACY-JAVA-RULEMAP-pbe-hardcoded-salt
+  title: PBE uses a hardcoded salt
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '^(?:javax\.crypto\.spec\.)?PBEParameterSpec$'
+    min_args: 2
+    argument_token_patterns: {0: '\{[-0-9,]+\}'}
+  standards: [bug:02000010080053, std:02000010150207]
+  message: Generate a unique unpredictable salt for every password-based encryption operation.
+- id: LEGACY-JAVA-RULEMAP-android-permission-activity-recognition
+  title: Android application requests activity recognition access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_activity_recognition, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060128]
+  message: Request activity recognition access only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-calendar
+  title: Android application requests calendar access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_calendar, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060122]
+  message: Request calendar access only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-call-log
+  title: Android application requests call-log access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_call_log, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060125]
+  message: Request call-log access only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-camera
+  title: Android application requests camera access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_camera, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060124]
+  message: Request camera access only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-contacts
+  title: Android application requests contacts access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_contacts, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060123]
+  message: Request contacts or account access only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-external-storage
+  title: Android application requests external storage access
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: android_permission_external_storage, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010110121]
+  message: Store sensitive data in private storage and avoid broad external-storage permissions.
+- id: LEGACY-JAVA-RULEMAP-android-permission-device-admin
+  title: Android application requests device administration privileges
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_device_admin, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060109]
+  message: Request device administration privileges only for an explicit managed-device feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-location
+  title: Android application requests location access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_location, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060102]
+  message: Request the least precise location permission required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-messaging
+  title: Android application requests messaging access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_messaging, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060101]
+  message: Request SMS or MMS access only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-microphone
+  title: Android application requests microphone access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_microphone, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060127, bug:02000010110131]
+  message: Request recording access only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-network
+  title: Android application requests network access
+  languages: [java]
+  severity: note
+  confidence: high
+  matcher: {java_config: android_permission_network, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060110]
+  message: Request network access only when required and secure all resulting transport paths.
+- id: LEGACY-JAVA-RULEMAP-android-permission-sensors
+  title: Android application requests body-sensor access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_sensors, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060126]
+  message: Request body-sensor access only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-android-permission-telephony
+  title: Android application requests telephony access
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_permission_telephony, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010060103]
+  message: Request phone-state or call privileges only when required by an explicit feature.
+- id: LEGACY-JAVA-RULEMAP-struts2-dynamic-method-invocation
+  title: Struts 2 dynamic method invocation is enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts2_dynamic_method_invocation, path_pattern: '(^|/)struts\.xml$'}
+  standards: [bug:02000010130040, bug:02000010050057]
+  message: Explicitly disable Struts dynamic method invocation.
+- id: LEGACY-JAVA-RULEMAP-struts2-config-browser
+  title: Struts 2 Config Browser is deployed
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts2_config_browser, path_pattern: '(^|/)(?:struts|pom)\.xml$'}
+  standards: [bug:02000010110150]
+  message: Remove the Struts Config Browser plugin from production deployments.
+- id: LEGACY-JAVA-RULEMAP-struts2-duplicate-field-validator
+  title: Struts 2 field has a duplicate validator
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: struts2_duplicate_field_validator, path_pattern: '(^|/)[^/]+-validation\.xml$'}
+  standards: [bug:02000010110010]
+  message: Define each validator type only once for an action field.
+- id: LEGACY-JAVA-RULEMAP-struts2-duplicate-validator
+  title: Struts 2 validator name is declared more than once
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: struts2_duplicate_validator, path_pattern: '(^|/)validators\.xml$'}
+  standards: [bug:02000010110012]
+  message: Give every global Struts validator definition a unique name.
+- id: LEGACY-JAVA-RULEMAP-custom-x509-trust-manager
+  title: Application implements a custom X509TrustManager
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: custom_x509_trust_manager}
+  standards: [bug:02000010060113]
+  message: Prefer the platform trust manager and add narrowly scoped certificate pinning when required.
+- id: LEGACY-JAVA-RULEMAP-allow-all-hostname-verifier
+  title: TLS hostname verification is disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setHostnameVerifier$'
+    min_args: 1
+    max_args: 1
+    arg_path_patterns: {0: '(^|\.)ALLOW_ALL_HOSTNAME_VERIFIER$'}
+  standards: [bug:02000010060106, std:02000010150434]
+  message: Validate every TLS peer hostname against the certificate identity.
+- id: LEGACY-JAVA-RULEMAP-allow-all-hostname-verifier-constructor
+  title: Permissive TLS hostname verifier is constructed
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {constructor_type: '(^|\.)AllowAllHostnameVerifier$'}
+  standards: [bug:02000010060106, std:02000010150434]
+  message: Validate every TLS peer hostname against the certificate identity.
+- id: LEGACY-JAVA-RULEMAP-android-insecure-ssl-socket
+  title: Android SSL socket bypasses hostname validation
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    call_alternatives:
+    - callee: '^(?:android\.net\.)?SSLCertificateSocketFactory\.getInsecure$'
+      min_args: 2
+    - callee: '(^|\.)createSocket$'
+      receiver_type_pattern: '^(?:android\.net\.)?SSLCertificateSocketFactory$'
+      requires_receiver: true
+      min_args: 2
+      max_args: 4
+  standards: [bug:02000010060105, guide:02000010170070]
+  message: Use a TLS socket API that verifies the peer hostname and certificate chain.
+- id: LEGACY-JAVA-RULEMAP-direct-server-certificates
+  title: Application directly consumes the server certificate chain
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)getServerCertificates$'
+    receiver_type_pattern: '^(?:javax\.net\.ssl\.)?HttpsURLConnection$'
+    requires_receiver: true
+    min_args: 0
+    max_args: 0
+  standards: [bug:02000010060120]
+  message: Rely on a correctly configured trust manager and explicit pin verification rather than accepting a raw certificate list.
+- id: LEGACY-JAVA-RULEMAP-ldap-url-deserialization-enabled
+  title: JNDI LDAP URL object deserialization is enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '^(?:java\.lang\.)?System\.setProperty$'
+    min_args: 2
+    max_args: 2
+    string_constant_arg_patterns:
+      0: '^com\.sun\.jndi\.ldap\.object\.trustURLCodebase$'
+      1: '^(?i:true)$'
+  standards: [std:02000010150438]
+  message: Keep JNDI LDAP remote object-codebase trust disabled.
+- id: LEGACY-JAVA-RULEMAP-referer-authentication
+  title: Application reads Referer for an authorization decision
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)getHeader$'
+    receiver_type_pattern: '(^|\.)(HttpServletRequest|ServerHttpRequest)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    string_constant_arg_patterns: {0: '^(?i:referer)$'}
+  standards: [bug:02000010070034]
+  message: Authenticate and authorize with trusted server-side identity, never the spoofable Referer header.
+- id: LEGACY-JAVA-RULEMAP-axis-http-transport-sender
+  title: Axis transport sender uses cleartext HTTP
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: axis_http_transport_sender, path_pattern: '(^|/)axis2\.xml$'}
+  standards: [bug:02000010110158]
+  message: Configure the Axis transport sender for authenticated TLS.
+- id: LEGACY-JAVA-RULEMAP-axis-http-transport-receiver
+  title: Axis transport receiver uses cleartext HTTP
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: axis_http_transport_receiver, path_pattern: '(^|/)axis2\.xml$'}
+  standards: [bug:02000010110159]
+  message: Configure the Axis transport receiver for authenticated TLS.
+- id: LEGACY-JAVA-RULEMAP-spring-web-service-exporter
+  title: Spring bean is exposed as a web service
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: spring_web_service_exporter, path_pattern: '\.xml$'}
+  standards: [bug:02000010110151]
+  message: Expose Spring beans only over authenticated, authorized, integrity-protected services.
+- id: LEGACY-JAVA-RULEMAP-spring-remote-service-exporter
+  title: Spring bean is exposed through a remote-service exporter
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: spring_remote_service_exporter, path_pattern: '\.xml$'}
+  standards: [bug:02000010110152]
+  message: Protect every Spring remote service with authentication, authorization, and encrypted transport.
+- id: LEGACY-JAVA-RULEMAP-android-exact-permission-path
+  title: Android URI permission uses an exact path
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: android_exact_permission_path, path_pattern: '(^|/)AndroidManifest\.xml$'}
+  standards: [bug:02000010110166]
+  message: Use pathPrefix or pathPattern when URI permission must also protect descendants.
+- id: LEGACY-JAVA-RULEMAP-android-os-privilege-change
+  title: Android process changes its Unix identity
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '^(?:android\.system\.)?Os\.(?:setuid|setgid)$'
+    min_args: 1
+    max_args: 1
+  standards: [bug:02000010000010]
+  message: Do not retain or delegate elevated Unix identity through application code.
+- id: LEGACY-JAVA-RULEMAP-android-os-umask
+  title: Android code changes the process umask
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '^(?:android\.system\.)?Os\.umask$'
+    min_args: 1
+    max_args: 1
+  standards: [bug:02000010000011]
+  message: Set explicit least-privilege file modes instead of changing the process-wide umask.
+- id: LEGACY-JAVA-RULEMAP-smtp-without-tls
+  title: SMTP client is created without TLS
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {constructor_type: '(^|\.)AuthenticatingSMTPClient$', min_args: 0, max_args: 0}
+  standards: [bug:02000010110083, cert:02000010141800, std:02000010150422]
+  message: Establish SMTP connections with TLS and verified server identity.
+- id: LEGACY-JAVA-RULEMAP-file-upload-endpoint
+  title: Web endpoint accepts a file upload
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: multipart_upload_endpoint}
+  standards: [bug:02000010000009]
+  message: Enforce size, content, extension, storage-path, and authorization checks on uploaded files.
+- id: LEGACY-JAVA-RULEMAP-literal-division-by-zero
+  title: Division uses a constant zero denominator
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {division_by_literal_zero: true}
+  standards: [bug:02000010130139]
+  message: Ensure the denominator cannot be zero before division or remainder.
+- id: LEGACY-JAVA-RULEMAP-negative-array-index
+  title: Array access uses a negative constant index
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {negative_literal_array_index: true}
+  standards: [bug:02000010130169]
+  message: Keep every array index within zero and length minus one.
+- id: LEGACY-JAVA-RULEMAP-inclusive-array-length-loop
+  title: Loop permits the array length as an index
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: inclusive_array_length_loop}
+  standards: [bug:02000010130168]
+  message: Use an exclusive upper bound when iterating over array indices.
+- id: LEGACY-JAVA-RULEMAP-hardcoded-bank-card
+  title: Source contains a hardcoded bank-card number
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    lexical_kind: string_literal
+    lexical_pattern: '^"[0-9]{13,19}"$'
+  standards: [bug:02000010110135]
+  message: Remove payment-card numbers from source and use an approved tokenized secret store.
+- id: LEGACY-JAVA-RULEMAP-hardcoded-national-id
+  title: Source contains a hardcoded national identity number
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    lexical_kind: string_literal
+    lexical_pattern: '^"[1-9][0-9]{5}(?:18|19|20)[0-9]{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12][0-9]|3[01])[0-9]{3}[0-9Xx]"$'
+  standards: [bug:02000010110134]
+  message: Remove identity numbers from source and use protected runtime data.
+- id: LEGACY-JAVA-RULEMAP-hardcoded-phone-number
+  title: Source contains a hardcoded mobile phone number
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    lexical_kind: string_literal
+    lexical_pattern: '^"1[3-9][0-9]{9}"$'
+  standards: [bug:02000010110136]
+  message: Remove personal phone numbers from source and use protected runtime data.
+- id: LEGACY-JAVA-RULEMAP-empty-password-property
+  title: Configuration contains an empty password
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: empty_password_property, path_pattern: '\.(?:properties|ya?ml|xml)$'}
+  standards: [bug:02000010080014]
+  message: Require a non-empty credential supplied through a protected runtime secret source.
+- id: LEGACY-JAVA-RULEMAP-hardcoded-password-property
+  title: Configuration contains a hardcoded password
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: hardcoded_password_property, path_pattern: '\.(?:properties|ya?ml|xml)$'}
+  standards: [bug:02000010080015]
+  message: Resolve credentials from a protected runtime secret source instead of configuration text.
+- id: LEGACY-JAVA-RULEMAP-optional-get-without-ispresent
+  title: Optional.get is not guarded by isPresent
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '(^|\.)get$'
+    receiver_type_pattern: '^(?:java\.util\.)?Optional(?:Int|Long|Double)?$'
+    requires_receiver: true
+    min_args: 0
+    max_args: 0
+    optional_get_without_is_present: true
+  standards: [bug:02000010000024]
+  message: Guard Optional.get with isPresent in the active branch or use a safe fallback operation.
+- id: LEGACY-JAVA-RULEMAP-unnecessary-thread-safe-class
+  title: Legacy synchronized collection or buffer is constructed
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    constructor_type: '^(?:java\.(?:util|lang)\.)?(?:Vector|Hashtable|StringBuffer)$'
+  standards: [bug:02000010000020]
+  message: Prefer modern unsynchronized types unless shared access specifically requires synchronization.
+- id: LEGACY-JAVA-RULEMAP-lock-acquired-twice
+  title: Synchronization lock is acquired repeatedly
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {lock_acquired_twice_type_pattern: '(^|\.)(Lock|ReentrantLock|ReentrantReadWriteLock\.WriteLock|ReentrantReadWriteLock\.ReadLock)$'}
+  standards: [bug:02000010130118]
+  message: Do not acquire the same explicit lock twice without a matching release.
+- id: LEGACY-JAVA-RULEMAP-lock-released-twice
+  title: Synchronization lock is released without a matching acquisition
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {lock_released_twice_type_pattern: '(^|\.)(Lock|ReentrantLock|ReentrantReadWriteLock\.WriteLock|ReentrantReadWriteLock\.ReadLock)$'}
+  standards: [bug:02000010130117]
+  message: Release each explicit lock exactly once for each successful acquisition.
+- id: LEGACY-JAVA-RULEMAP-unreleased-explicit-lock
+  title: Synchronization lock is not released
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {unreleased_lock_type_pattern: '(^|\.)(Lock|ReentrantLock|ReentrantReadWriteLock\.WriteLock|ReentrantReadWriteLock\.ReadLock)$'}
+  standards: [bug:02000010130021, cert:02000010141008, YD/T 3464-2019:02000010160087, guide:02000010170040]
+  message: Release every successful explicit lock acquisition, preferably in a finally block.
+- id: LEGACY-JAVA-RULEMAP-xsd-lax-processing
+  title: XML Schema permits lax or skipped wildcard validation
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: xml_schema_lax_processing, path_pattern: '\.xsd$'}
+  standards: [bug:02000010100032]
+  message: Require strict validation for XML wildcard content.
+- id: LEGACY-JAVA-RULEMAP-xsd-any-type
+  title: XML Schema exposes the unconstrained anyType
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: xml_schema_any_type, path_pattern: '\.xsd$'}
+  standards: [bug:02000010100033]
+  message: Replace anyType with the narrowest schema type accepted by the service.
+- id: LEGACY-JAVA-RULEMAP-xsd-unbounded-occurrence
+  title: XML Schema permits unbounded element occurrences
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: xml_schema_unbounded_occurrence, path_pattern: '\.xsd$'}
+  standards: [bug:02000010100034]
+  message: Set a finite reviewed maximum occurrence count to bound parser resource use.
+- id: LEGACY-JAVA-RULEMAP-activity-hijack-onpause
+  title: Android Activity does not implement an onPause defense
+  languages: [java]
+  severity: warning
+  confidence: medium
+  matcher: {java_style: activity_missing_on_pause}
+  standards: [bug:02000010110126]
+  message: Implement reviewed lifecycle handling for sensitive activities to detect or mitigate UI replacement.
+- id: LEGACY-JAVA-RULEMAP-provider-installer-missing
+  title: Android Application does not install the updated security provider
+  languages: [java]
+  severity: warning
+  confidence: medium
+  matcher: {java_style: application_missing_provider_update}
+  standards: [bug:02000010020137]
+  message: Install the updated Google Play security provider before initiating protected network traffic.
+- id: LEGACY-JAVA-RULEMAP-dex-class-loader-input-path
+  title: DexClassLoader input path is supplied by a method parameter
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '^(?:dalvik\.system\.)?DexClassLoader$'
+    min_args: 4
+    max_args: 4
+    parameter_args: [0]
+  standards: [bug:02000010020108]
+  message: Load executable code only from a trusted immutable application path.
+- id: LEGACY-JAVA-RULEMAP-dex-class-loader-output-path
+  title: DexClassLoader optimized path is supplied by a method parameter
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '^(?:dalvik\.system\.)?DexClassLoader$'
+    min_args: 4
+    max_args: 4
+    parameter_args: [1]
+  standards: [bug:02000010020108]
+  message: Write optimized executable code only to a private trusted directory.
+- id: LEGACY-JAVA-RULEMAP-visible-password-input
+  title: Android password input is configured as visible text
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setInputType$'
+    receiver_type_pattern: '(^|\.)(EditText|TextView)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    argument_token_patterns: {0: 'TYPE_(?:TEXT_VARIATION_VISIBLE_PASSWORD|NUMBER_VARIATION_NORMAL)'}
+  standards: [bug:02000010110187]
+  message: Mask password input so it cannot be read by nearby observers.
+- id: LEGACY-JAVA-RULEMAP-password-transformation-disabled
+  title: Android password masking transformation is disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setTransformationMethod$'
+    receiver_type_pattern: '(^|\.)(EditText|TextView)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    null_args: [0]
+  standards: [bug:02000010110187]
+  message: Keep password masking enabled for sensitive text entry.
+- id: LEGACY-JAVA-RULEMAP-spring-security-missing-csp
+  title: Spring Security configuration does not define a CSP
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: spring_security_missing_csp}
+  standards: [bug:02000010100117]
+  message: Configure and enforce a restrictive Content Security Policy.
+- id: LEGACY-JAVA-RULEMAP-spring-antmatcher-permit-all
+  title: Ant request matcher precedes a permissive fallback
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: spring_ant_matcher_permit_all}
+  standards: [bug:02000010100115]
+  message: Use MVC-aware request matchers and deny unmatched requests by default.
+- id: LEGACY-JAVA-RULEMAP-spring-antmatcher-url-order
+  title: Broad Spring Security URL rule precedes a narrower rule
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: spring_ant_matcher_url_order}
+  standards: [std:02000010150446]
+  message: Order Spring Security matchers from the narrowest path to the broadest fallback.
+- id: LEGACY-JAVA-RULEMAP-insecure-web-data-binder
+  title: Spring WebDataBinder has no field allowlist or denylist
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: insecure_web_data_binder}
+  standards: [bug:02000010070033, bug:02000010130149]
+  message: Restrict request binding to explicitly reviewed fields.
+- id: LEGACY-JAVA-RULEMAP-unsafe-referrer-policy
+  title: Spring Security uses the unsafe-url Referrer Policy
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)referrerPolicy$'
+    min_args: 1
+    max_args: 1
+    arg_path_patterns: {0: '(^|\.)(UNSAFE_URL|UnsafeUrl)$'}
+  standards: [bug:02000010100108]
+  message: Use a Referrer Policy that does not disclose complete sensitive URLs cross-origin.
+- id: LEGACY-JAVA-RULEMAP-direct-jsp-access
+  title: Deployment descriptor maps a JSP directly
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_config: j2ee_direct_jsp_access, path_pattern: '(^|/)web\.xml$'}
+  standards: [bug:02000010100003]
+  message: Route JSP rendering through a controlled application endpoint rather than a direct mapping.
+- id: LEGACY-JAVA-RULEMAP-jsp-html-comment
+  title: JSP contains an HTML comment visible to clients
+  languages: [java, jsp]
+  severity: warning
+  confidence: high
+  pattern: '(?s)<!--.*?-->'
+  matcher: {path_pattern: '\.jspx?$'}
+  standards: [bug:02000010110037]
+  message: Remove implementation details and sensitive data from client-visible HTML comments.
+- id: LEGACY-JAVA-RULEMAP-sleep-while-lock-held
+  title: Thread.sleep while holding an explicit lock
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {sleep_while_lock_held: true}
+  standards: [bug:02000010090001, cert:02000010141009, 'YD/T 3464-2019:02000010160088']
+  message: Release the explicit lock before calling Thread.sleep.
+- id: LEGACY-JAVA-RULEMAP-non-static-inner-class-memory-leak
+  title: Non-static inner class retains its outer instance
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: memory_leak_non_static_inner_class}
+  standards: [bug:02000010130108]
+  message: Make the nested class static and pass a weak reference when it must outlive its owner.
+- id: LEGACY-JAVA-RULEMAP-getter-setter-synchronization
+  title: Getter and setter synchronization mismatch
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: getter_setter_synchronization_mismatch}
+  standards: [std:02000010150308, guide:02000010170050]
+  message: Synchronize both accessors of a property consistently.
+- id: LEGACY-JAVA-RULEMAP-wrong-getter-setter-field
+  title: Getter or setter accesses the wrong field
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: wrong_getter_setter_field}
+  standards: [std:02000010150426]
+  message: Access the field named by the JavaBean getter or setter.
+- id: LEGACY-JAVA-RULEMAP-synchronize-on-getclass
+  title: Synchronization on the result of getClass
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: synchronize_on_get_class}
+  standards: [cert:02000010141002, 'YD/T 3464-2019:02000010160081', guide:02000010170036]
+  message: Synchronize on an explicitly named class or a private lock with stable identity.
+- id: LEGACY-JAVA-RULEMAP-synchronize-on-concurrency-object
+  title: Intrinsic synchronization on a high-level concurrency object
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: synchronize_on_concurrency_object}
+  standards: [cert:02000010141003, 'YD/T 3464-2019:02000010160082', guide:02000010170037]
+  message: Use the Lock or Condition API instead of the object's intrinsic monitor.
+- id: LEGACY-JAVA-RULEMAP-email-server-identity-disabled
+  title: Email TLS server identity verification disabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setSSLCheckServerIdentity$'
+    receiver_type_pattern: '^(?:org\.apache\.commons\.mail\.)?(?:Email|SimpleEmail|HtmlEmail|MultiPartEmail)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    bool_arg_values: {0: false}
+  standards: [bug:02000010110084, std:02000010150435, guide:02000010170020]
+  message: Enable TLS server identity verification for outbound email connections.
+- id: LEGACY-JAVA-RULEMAP-serializable-security-check
+  title: Deserialization callback omits constructor security checks
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: serializable_missing_security_check}
+  standards: [bug:02000010110066]
+  message: Apply constructor SecurityManager or AccessController checks in every deserialization callback.
+- id: LEGACY-JAVA-RULEMAP-serializable-dangerous-call
+  title: Dangerous reflective or execution call in a serializable class
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: serializable_dangerous_method_call}
+  standards: [bug:02000010060115]
+  message: Remove reflective class loading or command execution from serializable object behavior.
+- id: LEGACY-JAVA-RULEMAP-temporary-file-not-deleted
+  title: Temporary file is not deleted
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {temporary_file_not_deleted: true}
+  standards: [bug:02000010130035, cert:02000010141403, 'YD/T 3464-2019:02000010160109', guide:02000010170066]
+  message: Delete temporary files on every completed path, preferably with a scoped cleanup construct.
+- id: LEGACY-JAVA-RULEMAP-temporary-file-directory-race
+  title: Temporary file is converted into a directory
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {temp_file_directory_conversion: true}
+  standards: [std:02000010150445]
+  message: Create temporary directories atomically with Files.createTempDirectory.
+- id: LEGACY-JAVA-RULEMAP-definite-null-dereference
+  title: Definite null dereference
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {definite_null_dereference: true}
+  standards: [bug:02000010130008]
+  message: Do not dereference a value that is null on the current control-flow path.
+- id: LEGACY-JAVA-RULEMAP-unchecked-nullable-return
+  title: Nullable API result is dereferenced without a null check
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {nullable_return_dereference: true}
+  standards: [bug:02000010130022]
+  message: Check the nullable API result before dereferencing it.
+- id: LEGACY-JAVA-RULEMAP-redundant-null-check
+  title: Redundant null check
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {redundant_null_check: true}
+  standards: [bug:02000010130016]
+  message: Remove the null check because this path has already established the value is non-null.
+- id: LEGACY-JAVA-RULEMAP-numeric-narrowing-cast
+  title: Numeric conversion narrows the value representation
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {numeric_narrowing_cast: true}
+  standards: [bug:02000010130141, cert:02000010140512, 'YD/T 3464-2019:02000010160036']
+  message: Range-check the value before converting it to a narrower numeric type.
+- id: LEGACY-JAVA-RULEMAP-integer-to-floating-precision-loss
+  title: Integer conversion can lose floating-point precision
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {integer_to_float_precision_loss: true}
+  standards: [cert:02000010140513, 'YD/T 3464-2019:02000010160037']
+  message: Prove that the integer is exactly representable before converting it to floating point.
+- id: LEGACY-JAVA-RULEMAP-swallowed-thread-death
+  title: ThreadDeath is caught without being rethrown
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    catch_type_pattern: '^(?:java\.lang\.)?ThreadDeath$'
+    catch_must_rethrow: true
+  standards: [bug:02000010120005]
+  message: Rethrow ThreadDeath after performing strictly necessary cleanup.
+- id: LEGACY-JAVA-RULEMAP-unhandled-ssl-exception
+  title: SSL exception is ignored
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    catch_type_pattern: '^(?:javax\.net\.ssl\.)?(?:SSLHandshakeException|SSLKeyException|SSLPeerUnverifiedException)$'
+    catch_must_handle: true
+  standards: [bug:02000010120007, std:02000010150503, guide:02000010170059]
+  message: Handle or propagate SSL connection failures instead of ignoring them.
+- id: LEGACY-JAVA-RULEMAP-unsafe-deserialization-component
+  title: Spring Boot Actuator dependency exposes unsafe deserialization surfaces
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: unsafe_deserialization_dependency
+    path_pattern: '(^|/)pom\.xml$'
+  standards: [bug:02000010020146]
+  message: Remove the Actuator dependency when unused and disable its JMX exposure explicitly.
+- id: LEGACY-JAVA-RULEMAP-guomi-algorithm-review
+  title: Guomi cryptographic algorithm requires security review
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    constructor_type: '(^|\.)(SM2Engine|SM2Signer|SM3Digest|SM4Engine)$'
+  standards: [bug:02000010110172]
+  message: Confirm that the Guomi algorithm, mode, key management, and provider meet the deployment security requirements.
+- id: LEGACY-JAVA-RULEMAP-instance-lock-static-data
+  title: Instance lock protects shared static data
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: instance_lock_protects_static_data}
+  standards: [cert:02000010141006, 'YD/T 3464-2019:02000010160085', guide:02000010170039]
+  message: Protect static state with a private static lock or a static synchronized method.
+- id: LEGACY-JAVA-RULEMAP-java-standard-library-identifier
+  title: Custom type shadows a Java standard library type
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: java_standard_library_identifier}
+  standards: [cert:02000010140301, 'YD/T 3464-2019:02000010160016']
+  message: Rename the custom type so it cannot be confused with a public Java standard library type.
+- id: LEGACY-JAVA-RULEMAP-android-webview-debugging
+  title: WebView debugging is enabled
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setWebContentsDebuggingEnabled$'
+    receiver_type_pattern: '^(?:android\.webkit\.)?WebView$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    bool_arg_values: {0: true}
+  standards: [bug:02000010110096]
+  message: Disable WebView debugging in production builds.
+- id: LEGACY-JAVA-RULEMAP-javaee-main-debug-entry
+  title: Java EE component contains a main debug entry point
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: java_ee_main_method}
+  standards: [bug:02000010110031, cert:02000010141706, std:02000010150403]
+  message: Remove standalone main entry points from deployed Java EE components.
+- id: LEGACY-JAVA-RULEMAP-case-insensitive-package-comparison
+  title: Android package name is compared case-insensitively
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: case_insensitive_package_comparison}
+  standards: [bug:02000010090014]
+  message: Compare Android package names with case-sensitive equality.
+- id: LEGACY-JAVA-RULEMAP-esapi-prohibited-api
+  title: API prohibited by the OWASP ESAPI secure coding profile
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    call_alternatives:
+    - {callee: '(^|\.)printStackTrace$', receiver_type_pattern: '^(?:java\.lang\.)?Throwable$', requires_receiver: true}
+    - {callee: '(^|\.)exec$', receiver_type_pattern: '^(?:java\.lang\.)?Runtime$', requires_receiver: true}
+    - {callee: '^(?:java\.io\.)?File\.createTempFile$'}
+    - {callee: '(^|\.)sendRedirect$', receiver_type_pattern: '^(?:javax\.servlet\.http\.)?HttpServletResponse$', requires_receiver: true}
+    - {callee: '(^|\.)forward$', receiver_type_pattern: '^(?:javax\.servlet\.)?RequestDispatcher$', requires_receiver: true}
+    - {callee: '(^|\.)execute$', receiver_type_pattern: '^(?:java\.sql\.)?Statement$', requires_receiver: true}
+    - {callee: '(^|\.)(encodeURL|encodeRedirectURL)$', receiver_type_pattern: '^(?:javax\.servlet\.http\.)?HttpServletResponse$', requires_receiver: true}
+  standards: [bug:02000010130025]
+  message: Replace this ESAPI-prohibited API with its reviewed safer alternative.
+- id: LEGACY-JAVA-RULEMAP-j2ee-weak-security-constraint
+  title: Java EE security constraint uses a wildcard URL
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_weak_security_constraint
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100010]
+  message: Protect sensitive operations with exact URL patterns instead of wildcard constraints.
+- id: LEGACY-JAVA-RULEMAP-android-static-crypto-secret
+  title: Android encryption secret is retained in a static field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: android_static_crypto_secret}
+  standards: [bug:02000010110097]
+  message: Do not retain encryption keys or secrets in static process memory.
+- id: LEGACY-JAVA-RULEMAP-android-permission-review
+  title: Android permission requires a least-privilege review
+  languages: [java]
+  severity: warning
+  confidence: medium
+  matcher:
+    java_config: android_permission_review
+    path_pattern: '(^|/)AndroidManifest\.xml$'
+  standards: [bug:02000010110122]
+  message: Confirm this requested permission is necessary for a documented application feature.
+- id: LEGACY-JAVA-RULEMAP-serialize-non-serializable
+  title: ObjectOutputStream serializes a non-Serializable project class
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)writeObject$'
+    min_args: 1
+    max_args: 1
+    serialize_non_serializable_argument: true
+  standards: [std:02000010150440]
+  message: Implement Serializable on the serialized class or use an explicit serialization format.
+- id: LEGACY-JAVA-RULEMAP-serializable-parent-noarg-constructor
+  title: Non-serializable parent has no no-argument constructor
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: serializable_parent_missing_no_arg_constructor}
+  standards: [std:02000010150442]
+  message: Provide an accessible no-argument constructor on the first non-serializable superclass.
+- id: LEGACY-JAVA-RULEMAP-class-missing-equals
+  title: equals is called on a project class that does not override equals
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '(^|\.)equals$'
+    min_args: 1
+    max_args: 1
+    receiver_class_missing_equals: true
+  standards: [bug:02000010070002, std:02000010150102]
+  message: Override equals for value comparison or use identity comparison explicitly.
+- id: LEGACY-JAVA-RULEMAP-multiple-servlet-stream-commits
+  title: HTTP response stream is committed more than once
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: multiple_servlet_stream_commit}
+  standards: [bug:02000010070030, cert:02000010141415]
+  message: Choose one response stream and do not redirect, reset, or recommit after it is flushed or closed.
+- id: LEGACY-JAVA-RULEMAP-enhanced-for-item-reassigned
+  title: Enhanced-for iteration variable is reassigned
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {foreach_item_reassigned: true}
+  standards: [cert:02000010140302, 'YD/T 3464-2019:02000010160017']
+  message: Do not reassign the enhanced-for iteration variable; update the collection explicitly if required.
+- id: LEGACY-JAVA-RULEMAP-exposed-aliased-buffer
+  title: Public method exposes an aliased mutable buffer
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: expose_aliased_buffer}
+  standards: [cert:02000010141405, 'YD/T 3464-2019:02000010160111']
+  message: Return a read-only buffer or an independent copy instead of a wrap or duplicate view.
+- id: LEGACY-JAVA-RULEMAP-hidden-inherited-method
+  title: Static method hides an inherited method
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: hidden_inherited_method}
+  standards: [bug:02000010110086, cert:02000010140707, std:02000010150423, 'YD/T 3464-2019:02000010160057', guide:02000010170033]
+  message: Rename the class method or redesign the hierarchy so an inherited method is not hidden.
+- id: LEGACY-JAVA-RULEMAP-misleading-method-signature
+  title: Method signature is misleadingly close to an inherited method
+  languages: [java]
+  severity: warning
+  confidence: medium
+  matcher: {java_style: misleading_method_signature}
+  standards: [bug:02000010110047]
+  message: Use the exact inherited signature and @Override, or rename an intentional overload.
+- id: LEGACY-JAVA-RULEMAP-unsynchronized-override
+  title: Override drops synchronization from an inherited method
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: unsynchronized_override}
+  standards: [bug:02000010110048, cert:02000010141300, 'YD/T 3464-2019:02000010160102', guide:02000010170045]
+  message: Preserve the synchronization contract when overriding this method.
+- id: LEGACY-JAVA-RULEMAP-increased-override-accessibility
+  title: Override or hidden method increases inherited accessibility
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: increased_override_accessibility}
+  standards: [cert:02000010140704, 'YD/T 3464-2019:02000010160054', guide:02000010170032]
+  message: Do not expose an inherited operation with broader accessibility.
+- id: LEGACY-JAVA-RULEMAP-process-io-buffer-deadlock
+  title: External process may block on undrained IO buffers
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {external_process_wait_without_io_drain: true}
+  standards: [cert:02000010141407, 'YD/T 3464-2019:02000010160113']
+  message: Redirect or concurrently drain both process output streams before waiting for termination.
+- id: LEGACY-JAVA-RULEMAP-collection-view-synchronization
+  title: Collection view is used as a synchronization lock
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: collection_view_synchronization}
+  standards: [cert:02000010141004, 'YD/T 3464-2019:02000010160083', guide:02000010170038]
+  message: Synchronize on the backing collection, not on a separately accessible collection view.
+- id: LEGACY-JAVA-RULEMAP-expression-access-after-write
+  title: Expression accesses an object after modifying it
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {conflicting_side_effects_in_expression: true}
+  standards: [cert:02000010140405, 'YD/T 3464-2019:02000010160023']
+  message: Split the expression so each object is modified at most once before any later access.
+- id: LEGACY-JAVA-RULEMAP-invalid-constant-regex
+  title: Constant regular expression is malformed
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: invalid_constant_regex}
+  standards: [std:02000010150450]
+  message: Correct the regular-expression syntax before compiling or applying the pattern.
+- id: LEGACY-JAVA-RULEMAP-unsafe-security-exception-logging
+  title: Security exception is logged through an unsafe output channel
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {unsafe_security_exception_logging: true}
+  standards: [cert:02000010140802, 'YD/T 3464-2019:02000010160065']
+  message: Send the caught security exception to a resilient structured logger with sanitization.
+- id: LEGACY-JAVA-RULEMAP-spring-security-missing-fallback
+  title: Spring Security request rules lack a deny-all fallback
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: spring_security_missing_deny_all}
+  standards: [bug:02000010100116]
+  message: End the request authorization policy with anyRequest().denyAll().
+- id: LEGACY-JAVA-RULEMAP-http-verb-tampering
+  title: Java EE security constraint protects only selected HTTP methods
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: j2ee_http_method_constraint
+    path_pattern: '(^|/)web\.xml$'
+  standards: [bug:02000010100009]
+  message: Apply the security constraint to every HTTP method by removing method-specific exclusions.
+- id: LEGACY-JAVA-RULEMAP-insecure-database-transport
+  title: Database connection does not require transport encryption
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_config: insecure_database_transport}
+  standards: [bug:02000010020134]
+  message: Require TLS and peer verification in the database connection configuration.
+- id: LEGACY-JAVA-RULEMAP-double-checked-locking
+  title: Double-checked locking uses a non-volatile field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: double_checked_locking}
+  standards: [bug:02000010090011, cert:02000010141010, std:02000010150305, guide:02000010170051]
+  message: Make the lazily initialized field volatile or use initialization-on-demand holder semantics.
+- id: LEGACY-JAVA-RULEMAP-static-unsafe-formatter
+  title: Non-thread-safe formatter is stored in a static field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: static_unsafe_formatter_field}
+  standards: [bug:02000010090003, std:02000010150301, guide:02000010170048]
+  message: Use an immutable java.time formatter, a local formatter, or a ThreadLocal instance.
+- id: LEGACY-JAVA-RULEMAP-servlet-instance-state
+  title: Servlet or Struts action stores request state in an instance field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: servlet_mutable_instance_field}
+  standards: [bug:02000010090004, cert:02000010141811, std:02000010150302, guide:02000010170047, guide:02000010170049]
+  message: Keep per-request state in local variables instead of shared component fields.
+- id: LEGACY-JAVA-RULEMAP-static-database-connection
+  title: Transactional database resource is stored in a static field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: static_database_connection}
+  standards: [bug:02000010090005, std:02000010150303]
+  message: Acquire database resources per operation or transaction instead of sharing a static instance.
+- id: LEGACY-JAVA-RULEMAP-class-initialization-cycle
+  title: Static initialization contains a dependency cycle
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: class_initialization_cycle}
+  standards: [bug:02000010110090, cert:02000010140300, 'YD/T 3464-2019:02000010160015']
+  message: Remove cyclic static-field dependencies and make initialization order explicit.
+- id: LEGACY-JAVA-RULEMAP-shared-storage-apk-install
+  title: APK is installed from Android shared storage
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: android_shared_storage_apk_install}
+  standards: [bug:02000010090013]
+  message: Download and verify application packages in private storage before installation.
+- id: LEGACY-JAVA-RULEMAP-wrong-parameter-order
+  title: Call arguments are a permutation of the declared parameter order
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: wrong_parameter_order}
+  standards: [bug:02000010130160]
+  message: Pass same-named arguments in the order declared by the called method.
+- id: LEGACY-JAVA-RULEMAP-hash-missing-update
+  title: MessageDigest result is produced without hashing input
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)digest$'
+    receiver_type_pattern: '^(?:java\.security\.)?MessageDigest$'
+    requires_receiver: true
+    min_args: 0
+    max_args: 0
+    missing_prior_receiver_call: update
+  standards: [bug:02000010080052]
+  message: Supply input to digest or call update on the same MessageDigest instance first.
+- id: LEGACY-JAVA-RULEMAP-signature-missing-update
+  title: Signature is produced without signing input
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)sign$'
+    receiver_type_pattern: '^(?:java\.security\.)?Signature$'
+    requires_receiver: true
+    min_args: 0
+    max_args: 0
+    missing_prior_receiver_call: update
+  standards: [bug:02000010080018, bug:02000010080051, guide:02000010170021]
+  message: Call update on the same Signature instance with all signed data before sign.
+- id: LEGACY-JAVA-RULEMAP-fixed-initialization-vector
+  title: Cryptographic initialization vector is fixed or predictable
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: fixed_initialization_vector}
+  standards: [bug:02000010080020, std:02000010150206]
+  message: Fill every IV with fresh bytes from SecureRandom before constructing IvParameterSpec.
+- id: LEGACY-JAVA-RULEMAP-public-privileged-method
+  title: Public method performs an AccessController privileged operation
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: public_privileged_method}
+  standards: [bug:02000010110123]
+  message: Make the privileged operation private and expose a validated least-privilege wrapper.
+- id: LEGACY-JAVA-RULEMAP-geolocation-permission-override
+  title: Geolocation callback overrides the user's permission decision
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)invoke$'
+    receiver_type_pattern: '^(?:android\.webkit\.)?GeolocationPermissions\.Callback$'
+    requires_receiver: true
+    min_args: 3
+    max_args: 3
+    bool_arg_values: {1: true}
+  standards: [bug:02000010060111]
+  message: Grant geolocation only after an explicit user-controlled permission decision.
+- id: LEGACY-JAVA-RULEMAP-missing-send-sms-permission
+  title: SMS API is used without declaring SEND_SMS permission
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)sendTextMessage$'
+    receiver_type_pattern: '^(?:android\.telephony\.)?SmsManager$'
+    requires_receiver: true
+    forbidden_project_pattern: 'android\.permission\.SEND_SMS'
+  standards: [bug:02000010110104]
+  message: Declare android.permission.SEND_SMS in the application manifest or remove the protected API call.
+- id: LEGACY-JAVA-RULEMAP-struts-aware-map-exposure
+  title: Struts runtime map is exposed to request parameter binding
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: struts_aware_map_exposure}
+  standards: [bug:02000010130036, bug:02000010130037, bug:02000010130038]
+  message: Reject framework-reserved parameter names or remove the public Struts Aware binding surface.
+- id: LEGACY-JAVA-RULEMAP-spring-session-attributes
+  title: Spring controller persists model attributes in the HTTP session
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: spring_session_attributes}
+  standards: [bug:02000010130150]
+  message: Validate session-bound model attributes and avoid storing request-controlled objects in the session.
+- id: LEGACY-JAVA-RULEMAP-spring-persisted-entity-binding
+  title: Request parameters are bound directly into a persisted entity
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: spring_persisted_entity_binding}
+  standards: [bug:02000010020145]
+  message: Bind requests to a dedicated input DTO and copy explicitly allowed fields into the persisted entity.
+- id: LEGACY-JAVA-RULEMAP-key-parameter-tampering
+  title: Security-sensitive business value is read directly from a request parameter
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)getParameter$'
+    receiver_type_pattern: '^(?:javax\.servlet\.http\.|jakarta\.servlet\.http\.)?HttpServletRequest$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    string_arg_patterns: {0: '(?i)^(?:price|amount|balance|discount|role|privilege|isAdmin)$'}
+  standards: [bug:02000010130155]
+  message: Resolve authoritative business values on the server instead of trusting a request parameter.
+- id: LEGACY-JAVA-RULEMAP-unsafe-zip-entry-extraction
+  title: ZIP entry path is extracted without a containment check
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: unsafe_zip_entry_extraction}
+  standards: [bug:02000010050050, cert:02000010140204, 'YD/T 3464-2019:02000010160005', guide:02000010170002]
+  message: Normalize the output path and prove it remains below the extraction root before writing.
+- id: LEGACY-JAVA-RULEMAP-session-fixation
+  title: Authentication succeeds without rotating the existing HTTP session
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: session_fixation}
+  standards: [bug:02000010090012, bug:02000010090015]
+  message: Invalidate or rotate the current session identifier before completing authentication.
+- id: LEGACY-JAVA-RULEMAP-user-controlled-pbe-salt
+  title: Password-based encryption salt comes from an external input
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: pbe_external_salt}
+  standards: [bug:02000010110155]
+  message: Generate and protect the PBE salt independently of user-controlled inputs.
+- id: LEGACY-JAVA-RULEMAP-cookie-security-decision
+  title: Unverified cookie data controls a security decision
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: cookie_security_decision}
+  standards: [bug:02000010070035]
+  message: Make authorization decisions from authenticated server-side state, not client-controlled cookies.
+- id: LEGACY-JAVA-RULEMAP-nonserializable-session-value
+  title: HTTP session stores a non-serializable project object
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)setAttribute$'
+    receiver_type_pattern: '^(?:(?:javax|jakarta)\.servlet\.http\.)?HttpSession$'
+    requires_receiver: true
+    min_args: 2
+    max_args: 2
+    non_serializable_arg: 1
+  standards: [bug:02000010110001, cert:02000010141808, std:02000010150401]
+  message: Store only serializable values in distributable HTTP sessions.
+- id: LEGACY-JAVA-RULEMAP-password-in-redirect
+  title: Password value is included in an HTTP redirect
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)sendRedirect$'
+    receiver_type_pattern: '^(?:(?:javax|jakarta)\.servlet\.http\.)?HttpServletResponse$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    argument_token_patterns: {0: '(?i)(?:password|passwd|pwd)'}
+  standards: [bug:02000010080007]
+  message: Never include credentials or password-derived values in redirect locations.
+- id: LEGACY-JAVA-RULEMAP-unbounded-string-builder-input
+  title: Unbounded external input is appended to a StringBuilder or StringBuffer
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)append$'
+    receiver_type_pattern: '^(?:java\.lang\.)?(?:StringBuilder|StringBuffer)$'
+    requires_receiver: true
+    min_args: 1
+    max_args: 1
+    argument_token_patterns: {0: '(?:getParameter|readLine|nextLine)\s*\('}
+  standards: [bug:02000010050055]
+  message: Enforce an input-size limit before appending untrusted content.
+- id: LEGACY-JAVA-RULEMAP-struts2-action-field-without-validator
+  title: Struts 2 action field has no validator
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts2_action_field_without_validator}
+  standards: [bug:02000010110009]
+  message: Define a validator for each request-bindable action field.
+- id: LEGACY-JAVA-RULEMAP-struts2-duplicate-validation-files
+  title: Struts 2 action has duplicate validation files
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_project: struts2_duplicate_validation_files}
+  standards: [bug:02000010110011]
+  message: Keep one unambiguous validation definition for each action.
+- id: LEGACY-JAVA-RULEMAP-struts2-undeclared-validator
+  title: Struts 2 validation file references an undeclared validator
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts2_undeclared_validator}
+  standards: [bug:02000010110013]
+  message: Use a built-in validator or declare the custom validator in the project configuration.
+- id: LEGACY-JAVA-RULEMAP-struts2-unvalidated-action
+  title: Struts 2 action has no validation file
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts2_unvalidated_action}
+  standards: [bug:02000010110014]
+  message: Add a validation file for every request-bindable action.
+- id: LEGACY-JAVA-RULEMAP-struts2-validation-without-action
+  title: Struts 2 validation file has no corresponding action
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_project: struts2_validation_file_without_action}
+  standards: [bug:02000010110015]
+  message: Remove stale validation files or restore the corresponding action class.
+- id: LEGACY-JAVA-RULEMAP-struts2-validator-without-field
+  title: Struts 2 validator references a missing action field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts2_validator_without_action_field}
+  standards: [bug:02000010110016]
+  message: Keep validation field names synchronized with action fields.
+- id: LEGACY-JAVA-RULEMAP-struts-duplicate-validation-forms
+  title: Struts validation file declares a form more than once
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_project: struts_duplicate_validation_forms}
+  standards: [bug:02000010110017]
+  message: Declare each validation form exactly once.
+- id: LEGACY-JAVA-RULEMAP-struts-erroneous-validate-method
+  title: Struts form validate method has the wrong contract
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts_erroneous_validate_method}
+  standards: [bug:02000010110018]
+  message: Implement validate(ActionMapping, HttpServletRequest) returning ActionErrors.
+- id: LEGACY-JAVA-RULEMAP-struts-form-base-class
+  title: Validated Struts form does not extend a validation-aware base class
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts_form_does_not_extend_validation_class}
+  standards: [bug:02000010110019]
+  message: Extend ValidatorForm or another validation-aware Struts form base.
+- id: LEGACY-JAVA-RULEMAP-struts-form-field-without-validator
+  title: Struts form field has no validator
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts_form_field_without_validator}
+  standards: [bug:02000010110020]
+  message: Define validation for every request-bindable form field.
+- id: LEGACY-JAVA-RULEMAP-struts-unused-validation-form
+  title: Struts validation form is not referenced by an action
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_project: struts_unused_validation_form}
+  standards: [bug:02000010110023]
+  message: Remove stale validation forms or reference them from an action mapping.
+- id: LEGACY-JAVA-RULEMAP-struts-unvalidated-action-form
+  title: Struts action uses a form without an effective validation contract
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts_unvalidated_action_form}
+  standards: [bug:02000010110024]
+  message: Enable validation and use a validation-aware form class or validation definition.
+- id: LEGACY-JAVA-RULEMAP-struts-validator-without-form-field
+  title: Struts validator references a missing form field
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_project: struts_validator_without_form_field}
+  standards: [bug:02000010110026]
+  message: Keep validation property names synchronized with form fields.
+- id: LEGACY-JAVA-RULEMAP-missing-xml-validation
+  title: XML parser processes input without schema or DTD validation
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: missing_xml_validation}
+  standards: [bug:02000010050007, cert:02000010140216, guide:02000010170005]
+  message: Configure schema or DTD validation before parsing untrusted XML.
+- id: LEGACY-JAVA-RULEMAP-axis-untyped-xml-response
+  title: Apache Axis invocation has no declared XML return type
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: axis_missing_return_type}
+  standards: [bug:02000010050052, cert:02000010140216, guide:02000010170005]
+  message: Set the Axis return type before invoking the remote operation.
+- id: LEGACY-JAVA-RULEMAP-fragment-injection
+  title: PreferenceActivity does not validate dynamically selected fragments
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: fragment_injection}
+  standards: [bug:02000010050101]
+  message: Override isValidFragment and allowlist every fragment class that may be instantiated.
+- id: LEGACY-JAVA-RULEMAP-jsonp-same-origin-execution
+  title: JSONP advice exposes a user-selected callback
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: jsonp_same_origin_execution}
+  standards: [bug:02000010020033]
+  message: Replace JSONP with CORS-protected JSON or strictly allowlist callback names.
+- id: LEGACY-JAVA-RULEMAP-deserialization-blacklist
+  title: Java deserialization filter relies on a blacklist
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: deserialization_blacklist}
+  standards: [bug:02000010130119]
+  message: Use a minimal allowlist for deserializable types instead of an incomplete blacklist.
+- id: LEGACY-JAVA-RULEMAP-http-request-smuggling-headers
+  title: Outbound request sets both Content-Length and Transfer-Encoding
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: http_request_smuggling_headers}
+  standards: [bug:02000010020037]
+  message: Emit one unambiguous HTTP message framing mechanism.
+- id: LEGACY-JAVA-RULEMAP-excessive-memory-allocation
+  title: Allocation requests an excessive initial capacity
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: excessive_memory_allocation}
+  standards: [bug:02000010130138, cert:02000010141805, 'YD/T 3464-2019:02000010160153']
+  message: Bound allocations according to validated workload limits.
+- id: LEGACY-JAVA-RULEMAP-external-divisor
+  title: Unvalidated external number is used as a divisor
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: external_divide_by_zero}
+  standards: [bug:02000010130137]
+  message: Prove the externally controlled divisor is nonzero before division or remainder.
+- id: LEGACY-JAVA-RULEMAP-external-array-index
+  title: Unvalidated external number is used as an array index
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: external_array_index}
+  standards: [bug:02000010130136]
+  message: Check that the external index lies between zero and array length minus one.
+- id: LEGACY-JAVA-RULEMAP-external-loop-bound
+  title: Unvalidated external number controls loop work
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher: {java_style: external_loop_bound}
+  standards: [bug:02000010130140]
+  message: Apply a strict upper bound before using external input as a loop limit.
+- id: LEGACY-JAVA-RULEMAP-external-integer-arithmetic
+  title: External integer participates in unchecked arithmetic
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher: {java_style: external_integer_arithmetic}
+  standards: [bug:02000010130167]
+  message: Validate operands or use Math exact arithmetic helpers to detect overflow.
+- id: LEGACY-JAVA-RULEMAP-antisamy-external-links
+  title: AntiSamy policy permits off-site links
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: anti_samy_external_links
+    path_pattern: '(?i)(antisamy|policy).*\.xml$'
+  standards: [bug:02000010030006]
+  message: Remove offsiteURL from the AntiSamy href policy.
+- id: LEGACY-JAVA-RULEMAP-spring-webflow-form-validator
+  title: Spring WebFlow FormAction has no validator
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    java_config: spring_webflow_missing_validator
+    path_pattern: '\.xml$'
+  standards: [bug:02000010050056]
+  message: Configure an explicit validator for every Spring WebFlow FormAction.
+- id: LEGACY-JAVA-RULEMAP-dom-xss
+  title: Untrusted value is assigned to an executable DOM sink
+  languages: [java, javascript, jsp]
+  severity: error
+  confidence: high
+  matcher:
+    code_pattern: '(?:\.innerHTML\s*=|document\.(?:write|writeln)\s*\()'
+  standards: [bug:02000010030001, guide:02000010170009]
+  message: Encode untrusted data for its DOM context or use a non-executable text sink.
+- id: LEGACY-JAVA-RULEMAP-file-disclosure-model-view
+  title: Request data selects a Spring server-side view
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '^(?:org\.springframework\.web\.(?:servlet|portlet)\.)?ModelAndView$'
+    min_args: 1
+    argument_token_patterns: {0: 'getParameter\s*\('}
+  standards: [bug:02000010070027]
+  message: Select server-side views from a fixed allowlist rather than request data.
+- id: LEGACY-JAVA-RULEMAP-path-access-control
+  title: Request-controlled identifier selects a file path
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    constructor_type: '^(?:java\.io\.)?File$'
+    min_args: 1
+    argument_token_patterns: {0: 'getParameter\s*\('}
+  standards: [bug:02000010090017]
+  message: Authorize the requested resource against the authenticated principal before opening it.
+- id: LEGACY-JAVA-RULEMAP-android-query-access-control
+  title: Android query selects an object identifier without a principal constraint
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)query$'
+    receiver_type_pattern: '^(?:android\.content\.)?(?:ContentResolver|ContentProvider)$'
+    requires_receiver: true
+    min_args: 4
+    descendant_string_arg_patterns: {2: '(?i)^id\s*=\s*\?$'}
+  standards: [bug:02000010020107]
+  message: Constrain object queries by the authenticated user or another server-enforced authorization scope.
+- id: LEGACY-JAVA-RULEMAP-reflected-file-download
+  title: Spring content negotiation enables reflected file downloads
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    call_alternatives:
+    - {callee: '(^|\.)setUseJaf$', bool_arg_values: {0: true}, min_args: 1, max_args: 1}
+    - {callee: '(^|\.)setIgnoreAcceptHeader$', bool_arg_values: {0: false}, min_args: 1, max_args: 1}
+    - {callee: '(^|\.)setFavorPathExtension$', bool_arg_values: {0: true}, min_args: 1, max_args: 1}
+  standards: [bug:02000010050051]
+  message: Disable JAF and request-controlled content negotiation, and set a safe default media type.
+- id: LEGACY-JAVA-RULEMAP-untrusted-search-path
+  title: Process execution relies on operating-system path search
+  languages: [java]
+  severity: error
+  confidence: high
+  matcher:
+    callee: '(^|\.)exec$'
+    receiver_type_pattern: '^(?:java\.lang\.)?Runtime$'
+    requires_receiver: true
+    min_args: 1
+    string_arg_not_patterns: {0: '^(?:/|[A-Za-z]:[\\/])'}
+  standards: [bug:02000010020040]
+  message: Execute a trusted executable through its canonical absolute path.
+- id: LEGACY-JAVA-RULEMAP-unhandled-error
+  title: Code explicitly creates an unhandled Error
+  languages: [java]
+  severity: warning
+  confidence: high
+  matcher:
+    constructor_type: '^(?:java\.lang\.)?(?:Error|AssertionError|LinkageError|VirtualMachineError)$'
+  standards: [bug:02000010120009]
+  message: Use a recoverable exception where callers can handle the failure, or terminate through a controlled boundary.

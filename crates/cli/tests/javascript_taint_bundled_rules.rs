@@ -71,7 +71,11 @@ function safe() { require("./fixed.js"); RegExp("fixed"); }
             .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {findings:#?}");
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {findings:#?}"
+        );
         assert!(matching.iter().all(|finding| {
             finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-function-argument"
                 && finding["analysis_complete"] == true
@@ -93,11 +97,13 @@ function passwords(user, input) {
     );
     let md5 = findings
         .iter()
-        .filter(|finding| {
-            finding["sink_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-md5-used-as-password"
-        })
+        .filter(|finding| finding["sink_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-md5-used-as-password")
         .collect::<Vec<_>>();
-    assert_eq!(md5.len(), 1, "missing or duplicated MD5 finding: {findings:#?}");
+    assert_eq!(
+        md5.len(),
+        1,
+        "missing or duplicated MD5 finding: {findings:#?}"
+    );
     assert!(md5.iter().all(|finding| {
         finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-md5-password"
             && finding["analysis_complete"] == true
@@ -127,8 +133,7 @@ function assign(target, input) {
         "missing or duplicated Object.assign finding: {findings:#?}"
     );
     assert!(object_assign.iter().all(|finding| {
-        finding["source_rule_id"]
-            == "LEGACY-JS-SEMGREP-TAINT-SOURCE-insecure-object-assign"
+        finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-insecure-object-assign"
             && finding["analysis_complete"] == true
     }));
 }
@@ -161,10 +166,13 @@ function execute(command, object) {
             .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {findings:#?}");
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {findings:#?}"
+        );
         assert!(matching.iter().all(|finding| {
-            finding["source_rule_id"]
-                == "LEGACY-JS-SEMGREP-TAINT-SOURCE-function-argument"
+            finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-function-argument"
                 && finding["analysis_complete"] == true
                 && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
                     finding["translations"][locale]["message"]
@@ -217,8 +225,14 @@ function unrelatedQuery(sql) {
             .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {findings:#?}");
-        assert!(matching.iter().all(|finding| finding["analysis_complete"] == true));
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {findings:#?}"
+        );
+        assert!(matching
+            .iter()
+            .all(|finding| finding["analysis_complete"] == true));
     }
 }
 
@@ -252,10 +266,13 @@ function helper(input) {
             .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {findings:#?}");
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {findings:#?}"
+        );
         assert!(matching.iter().all(|finding| {
-            finding["source_rule_id"]
-                == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
+            finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
                 && finding["analysis_complete"] == true
                 && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
                     finding["translations"][locale]["message"]
@@ -302,10 +319,13 @@ exports.handler = function(event) {
             .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {findings:#?}");
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {findings:#?}"
+        );
         assert!(matching.iter().all(|finding| {
-            finding["source_rule_id"]
-                == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
+            finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
                 && finding["analysis_complete"] == true
                 && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
                     finding["translations"][locale]["message"]
@@ -344,10 +364,13 @@ exports.handler = function(event) {
             .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), 1, "missing or duplicated {sink}: {findings:#?}");
+        assert_eq!(
+            matching.len(),
+            1,
+            "missing or duplicated {sink}: {findings:#?}"
+        );
         assert!(matching.iter().all(|finding| {
-            finding["source_rule_id"]
-                == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
+            finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-aws-lambda-event"
                 && finding["analysis_complete"] == true
                 && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
                     finding["translations"][locale]["message"]
@@ -395,7 +418,11 @@ function browserData() {
             .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), expected, "wrong count for {sink}: {findings:#?}");
+        assert_eq!(
+            matching.len(),
+            expected,
+            "wrong count for {sink}: {findings:#?}"
+        );
         assert!(matching.iter().all(|finding| {
             finding["analysis_complete"] == true
                 && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
@@ -435,14 +462,21 @@ function browserData() {
         &sink_ids,
     );
     for (sink, expected) in [(sink_ids[0], 2), (sink_ids[1], 1), (sink_ids[2], 1)] {
-        let matching = findings.iter()
-            .filter(|finding| finding["sink_rule_id"] == sink).collect::<Vec<_>>();
-        assert_eq!(matching.len(), expected, "wrong count for {sink}: {findings:#?}");
+        let matching = findings
+            .iter()
+            .filter(|finding| finding["sink_rule_id"] == sink)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matching.len(),
+            expected,
+            "wrong count for {sink}: {findings:#?}"
+        );
         assert!(matching.iter().all(|finding| {
             finding["analysis_complete"] == true
                 && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
                     finding["translations"][locale]["message"]
-                        .as_str().is_some_and(|message| !message.is_empty())
+                        .as_str()
+                        .is_some_and(|message| !message.is_empty())
                 })
         }));
     }
@@ -465,16 +499,18 @@ function tokens(data, configured) {
 "#,
         &[sink],
     );
-    let matching = findings.iter()
-        .filter(|finding| finding["sink_rule_id"] == sink).collect::<Vec<_>>();
+    let matching = findings
+        .iter()
+        .filter(|finding| finding["sink_rule_id"] == sink)
+        .collect::<Vec<_>>();
     assert_eq!(matching.len(), 2, "{findings:#?}");
     assert!(matching.iter().all(|finding| {
-        finding["source_rule_id"]
-            == "LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-jwt-secret"
+        finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-hardcoded-jwt-secret"
             && finding["analysis_complete"] == true
             && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
                 finding["translations"][locale]["message"]
-                    .as_str().is_some_and(|message| !message.is_empty())
+                    .as_str()
+                    .is_some_and(|message| !message.is_empty())
             })
     }));
 }
@@ -493,16 +529,18 @@ function handler(request, response) {
 "#,
         &[sink],
     );
-    let matching = findings.iter()
-        .filter(|finding| finding["sink_rule_id"] == sink).collect::<Vec<_>>();
+    let matching = findings
+        .iter()
+        .filter(|finding| finding["sink_rule_id"] == sink)
+        .collect::<Vec<_>>();
     assert_eq!(matching.len(), 1, "{findings:#?}");
     assert!(matching.iter().all(|finding| {
-        finding["source_rule_id"]
-            == "LEGACY-JS-SEMGREP-TAINT-SOURCE-web-request-first-argument"
+        finding["source_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-SOURCE-web-request-first-argument"
             && finding["analysis_complete"] == true
             && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
                 finding["translations"][locale]["message"]
-                    .as_str().is_some_and(|message| !message.is_empty())
+                    .as_str()
+                    .is_some_and(|message| !message.is_empty())
             })
     }));
 }
@@ -531,14 +569,21 @@ function locate(prefix, name) {
         &sink_ids,
     );
     for (sink, expected) in [(sink_ids[0], 1), (sink_ids[1], 2)] {
-        let matching = findings.iter()
-            .filter(|finding| finding["sink_rule_id"] == sink).collect::<Vec<_>>();
-        assert_eq!(matching.len(), expected, "wrong count for {sink}: {findings:#?}");
+        let matching = findings
+            .iter()
+            .filter(|finding| finding["sink_rule_id"] == sink)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matching.len(),
+            expected,
+            "wrong count for {sink}: {findings:#?}"
+        );
         assert!(matching.iter().all(|finding| {
             finding["analysis_complete"] == true
                 && ["zh-CN", "en", "zh-TW"].iter().all(|locale| {
                     finding["translations"][locale]["message"]
-                        .as_str().is_some_and(|message| !message.is_empty())
+                        .as_str()
+                        .is_some_and(|message| !message.is_empty())
                 })
         }));
     }
@@ -558,9 +603,9 @@ function render(name, value) {
 "#,
         &["LEGACY-JS-SEMGREP-TAINT-unsafe-formatstring"],
     );
-    let matching = findings.iter()
-        .filter(|finding| finding["sink_rule_id"]
-            == "LEGACY-JS-SEMGREP-TAINT-unsafe-formatstring")
+    let matching = findings
+        .iter()
+        .filter(|finding| finding["sink_rule_id"] == "LEGACY-JS-SEMGREP-TAINT-unsafe-formatstring")
         .collect::<Vec<_>>();
     assert_eq!(matching.len(), 2, "{findings:#?}");
     assert!(matching.iter().all(|finding| {
@@ -606,11 +651,14 @@ function handler(request, response) {
         &sink_ids,
     );
     for sink in sink_ids {
-        let matching = findings.iter()
+        let matching = findings
+            .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
         assert_eq!(matching.len(), 1, "wrong count for {sink}: {findings:#?}");
-        assert!(matching.iter().all(|finding| finding["analysis_complete"] == true));
+        assert!(matching
+            .iter()
+            .all(|finding| finding["analysis_complete"] == true));
     }
 }
 
@@ -631,11 +679,14 @@ function handler(request, response) {
         &sink_ids,
     );
     for sink in sink_ids {
-        let matching = findings.iter()
+        let matching = findings
+            .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
         assert_eq!(matching.len(), 1, "wrong count for {sink}: {findings:#?}");
-        assert!(matching.iter().all(|finding| finding["analysis_complete"] == true));
+        assert!(matching
+            .iter()
+            .all(|finding| finding["analysis_complete"] == true));
     }
 }
 
@@ -657,11 +708,14 @@ function handler(request, response) {
         &sink_ids,
     );
     for sink in sink_ids {
-        let matching = findings.iter()
+        let matching = findings
+            .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
         assert_eq!(matching.len(), 1, "wrong count for {sink}: {findings:#?}");
-        assert!(matching.iter().all(|finding| finding["analysis_complete"] == true));
+        assert!(matching
+            .iter()
+            .all(|finding| finding["analysis_complete"] == true));
     }
 }
 
@@ -683,11 +737,14 @@ function handler(request, response) {
         &sink_ids,
     );
     for sink in sink_ids {
-        let matching = findings.iter()
+        let matching = findings
+            .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
         assert_eq!(matching.len(), 1, "wrong count for {sink}: {findings:#?}");
-        assert!(matching.iter().all(|finding| finding["analysis_complete"] == true));
+        assert!(matching
+            .iter()
+            .all(|finding| finding["analysis_complete"] == true));
     }
 }
 
@@ -710,11 +767,14 @@ function handler(request, response) {
         &sink_ids,
     );
     for sink in sink_ids {
-        let matching = findings.iter()
+        let matching = findings
+            .iter()
             .filter(|finding| finding["sink_rule_id"] == sink)
             .collect::<Vec<_>>();
         assert_eq!(matching.len(), 1, "wrong count for {sink}: {findings:#?}");
-        assert!(matching.iter().all(|finding| finding["analysis_complete"] == true));
+        assert!(matching
+            .iter()
+            .all(|finding| finding["analysis_complete"] == true));
     }
 }
 
@@ -724,8 +784,14 @@ fn assert_rule_counts(findings: &[serde_json::Value], expected: &[(&str, usize)]
             .iter()
             .filter(|finding| finding["sink_rule_id"] == *sink)
             .collect::<Vec<_>>();
-        assert_eq!(matching.len(), *count, "wrong count for {sink}: {findings:#?}");
-        assert!(matching.iter().all(|finding| finding["analysis_complete"] == true));
+        assert_eq!(
+            matching.len(),
+            *count,
+            "wrong count for {sink}: {findings:#?}"
+        );
+        assert!(matching
+            .iter()
+            .all(|finding| finding["analysis_complete"] == true));
     }
 }
 
@@ -814,9 +880,15 @@ function handler(request, response) {
 "#,
         &sink_ids,
     );
-    assert_rule_counts(&findings, &[
-        (sink_ids[0], 1), (sink_ids[1], 1), (sink_ids[2], 2), (sink_ids[3], 1),
-    ]);
+    assert_rule_counts(
+        &findings,
+        &[
+            (sink_ids[0], 1),
+            (sink_ids[1], 1),
+            (sink_ids[2], 2),
+            (sink_ids[3], 1),
+        ],
+    );
 }
 
 #[test]

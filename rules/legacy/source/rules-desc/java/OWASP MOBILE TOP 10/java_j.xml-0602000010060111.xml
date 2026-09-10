@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010060111" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">权限覆盖</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行权限不由用户控制。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行权限不由用户控制。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[该方法通过调用`invoke()`明确指定被授予的权限，从而使得无论用户是否授予程序该权限都将被忽略，之后该权限可能被滥用。  
+  
+**例如**：以下代码要求在使用WebView的同时在Android上使用用户位置的权限，但是无论用户是否授予该权限，程序都使用了用户的位置。通过设置true手动调用回调方法来指定被授予的权限，可以实现此目的：  
+```java
+public void onGeolocationPermissionsShowPrompt(String origin,GeolocationPermissions.Callback callback) {  
+    callback.invoke(origin, true, false);  
+}
+```
+]]></Description>
+			<Advice><![CDATA[默认设置不应该使用该权限，除非用户明确地希望使用该权限。  
+  
+**例如**：以下代码没有明确覆盖用户已经指定的设置。  
+```java
+public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {  
+    if(MyPreferences.getBoolean("SECURITY_ENABLE_GEOLOCATION_INFORMATION", true)) {  
+        WebViewHolder.a(this.a).permissionShowPrompt(origin, callback);  
+    } else {  
+        callback.invoke(origin, false, false);  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="CERT">DRD15-J:Consider privacy concerns when using Geolocation API</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

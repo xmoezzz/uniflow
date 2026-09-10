@@ -1,0 +1,129 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170047" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 并发程序安全</Category>  
+        <Category type="DetailClassChin">A.3.2.15 不要在servlet中泄露会话信息</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：Java servlet提供了一个用于存储会话相关数据的HttpSession类，这些数据被编码在每个web请求中。这个类的使用可以防止跨会话信息泄漏和数据竞争。  
+对于不要在servlet中泄露会话信息的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+public class SampleServlet extends HttpServlet {
+
+    private String lastAddr = "nobody@nowhere.com";
+
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println("<html>");
+
+        String emailAddr = request.getParameter("emailAddr");
+
+        if (emailAddr != null) {
+            out.println("Email Address:");
+            out.println(sanitize(emailAddr));
+            out.println("<br>Previous Address:");
+            out.println(sanitize(lastAddr));
+        }
+        ;
+
+        out.println("<p>");
+        out.print("<form action=\"");
+        out.print("SampleServlet\" ");
+        out.println("method=POST>");
+        out.println("Parameter:");
+        out.println("<input type=text size=20 name=emailAddr>");
+        out.println("<br>");
+        out.println("<input type=submit>");
+        out.println("</form>");
+
+        lastAddr = emailAddr;
+    }
+
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        doGet(request, response);
+    }
+
+    // Filter the specified message string for characters
+    // that are sensitive in HTML.
+    public static String sanitize(String message) {
+        // ...
+    }
+}
+``` 
+这个不符合规范的代码示例创建了一个servlet，它会提示用户输入一个电子邮件地址，然后将地址返回给用户。地址存储在`lastAddr`变量,这是一个实例字段。  
+因为HttpServlet类是单例的,每一个客户访问servlet共享一个`lastAddr`字段。因此,`lastAddr`字段的内容可以是一个不同的客户端先前设置的字段。另外，由于这个代码示例缺少线程安全性，因此，`lastAddr`字段可以在两个客户端同时请求该参数时使用一个陈旧的值，保证对一个不可变对象的共享引用的可见性。  
+**示例2**：  
+```java
+public class SampleServlet extends HttpServlet {
+
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println("<html>");
+
+        String emailAddr = request.getParameter("emailAddr");
+        HttpSession session = request.getSession();
+        Object attr = session.getAttribute("lastAddr");
+        String lastAddr = (attr == null) ? "null" : attr.toString();
+
+        if (emailAddr != null) {
+            out.println("Email Address::");
+            out.println(sanitize(emailAddr));
+            out.println("<br>Previous Email Address::");
+            out.println(sanitize(lastAddr));
+        }
+        ;
+
+        out.println("<p>");
+        out.print("<form action=\"");
+        out.print("SampleServlet\" ");
+        out.println("method=POST>");
+        out.println("Parameter:");
+        out.println("<input type=text size=20 name=emailAddr>");
+        out.println("<br>");
+        out.println("<input type=submit>");
+        out.println("</form>");
+        session.setAttribute("lastAddr", emailAddr);
+    }
+
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        doGet(request, response);
+    }
+
+    // Filter the specified message string for characters
+    // that are sensitive in HTML.
+    public static String sanitize(String message) {
+        // ...
+    }
+}
+```
+上面符合规范的代码中，在HttpSession对象中存储的`lastAddr`参数。servlet机制跟踪会话，为客户机提供会话ID，它由客户端浏览器作为cookie存储。会话中的其它信息，包括`lastAddr`属性，由服务器存储。因此，servlet提供了在同一会话中向servlet提交的最后一个电子邮件地址（避免了其他会话请求的竞争条件）。在这个例子中保存数据的临时变量，不会受到竞争条件的危害。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">488:Exposure of Data Element to Wrong Session</Reference>  
+        <Reference type="CWE">362:Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')</Reference>  
+        <Reference type="CERT">MSC07-J:Prevent multiple instantiations of singleton objects</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 362</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 362</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:New Vulnerabilities Concurrent Data Access [CGX]</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.2 并发程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

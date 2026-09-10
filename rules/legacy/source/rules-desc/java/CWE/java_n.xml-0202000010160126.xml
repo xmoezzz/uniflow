@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010160126" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.14.6 不要序列化内部类实例</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序不能对内部类进行序列化，但对静态成员类的序列化是允许的。   
+2) 原理   
+一个内部类是一个没有显式或隐式声明为静态的嵌套类。对内部类的序列化易出错（包括本地和匿名类）。根据序列化规范的说明:   
+当内部类声明在非静态环境中，并隐含对外部类实例非 transient的引用时，序列化这样的内部类，会导致将它的外部类实例也进行序列化。   
+通过 Java编译器产生的来实现内部类的合成数据成员是与实现相关的，并且会随着编译器的不同而不同，而这些数据成员的不同会破坏兼容性，并且会导致与默认的 serialVersionlHD数值相冲突。赋予本地和匿名内部类的名称同样也是与实现相关的，并且在不同的编辑器之间它们是不同的。   
+因为除了编译期的常量数据成员，内部类不能声明静态数据成员，所以它们不能使用serialPersistentFields机制来设计可序列化的数据成员。   
+因为与外部类相关联的内部类不能存在零参数的构造方法（这样的内部类的构造 方法隐含的接受外包实例作为参数），所以它们不能实现 Externalizable 接口。而   Externalizableinterface 接口要求实现的对象需要通过用 `writeExternal()`和   
+`readExternal()` 方法来对它的状态进行手动保存或者恢复。   
+3) 示例   
+    一个不符合规则的代码示例，该示例中，当内部类被序列化时，包含在外部类的字段也会被序列化。   
+    ```java
+    public class OuterSer implements Serializable {
+        private int rank;
+    
+        class InnerSer implements Serializable {
+            protected String name;
+            // . . .
+        }
+    }
+    ```   
+    对应的符合规定的解决方案一是：OuterSer类特意不实现 Serializable 接口。   
+    ```java
+    public class OuterSer implements Serializable {
+        private int rank;
+    
+        class InnerSer {
+            protected String name;
+            // . . .
+        }
+    }
+    ```   
+    解决方案二是：内部类可以被声明为静态从而防止被序列化。一个静态的内部类也可以实现Serializable。
+    ```java   
+    public class OuterSer implements Serializable {
+        private int rank;
+    
+        static class InnerSer implements Serializable {
+            protected String name;
+            // . . .
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="CERT">SER05-J:Do not serialize instances of inner classes</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.14 序列化</BigClassChin>  
+       
+    </BugInfo>  
+    

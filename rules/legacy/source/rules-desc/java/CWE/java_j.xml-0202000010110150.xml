@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110150" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">Struts 2：系统信息泄露</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Config Browser插件是一个简单的工具，利用它能够查看应用程序在运行时的配置信息。这个插件应该是在开发阶段被使用，并且接入该工具应该被验证限制。调试与配置相关的问题时，该工具非常有用，但其暴露了过多详细信息，可能帮助攻击者映射应用程序和构建应用程序的模型。]]></Description>
+			<Advice><![CDATA[在系统上线之前，应剔除Config Browser插件的部署。检查应用程序是否包含Config Browser插件，可尝试访问以下URL：
+  
+`config-browser/actionName.action`]]></Advice>
+			<References>
+				<Reference type="CWE">497:Common Weakness Enumeration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2014:M1 Weak Server Side Controls</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<Security>yes</Security>
+			<WhiteList>not</WhiteList>
+
+
+
+<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

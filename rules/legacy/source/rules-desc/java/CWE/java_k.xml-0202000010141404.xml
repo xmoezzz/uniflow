@@ -1,0 +1,148 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141404" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 13. 输入输出 (FIO)</Category>  
+        <Category type="DetailClassChin">FIO04-J：在不需要时关闭资源</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[Java的垃圾回收机制可以回收那些没有引用而且没有被释放的内存。然而，垃圾回收不能释放那些非内存资源，例如打开的文件描述和数据库连接。因此，如果不能释放这样的资源会导致资源耗尽攻击。另外，在等待`finalize()`方法释放像Lock或者Semaphone对象的资源时，程序会经历资源枯竭，这种情况是因为Java不能保证什么时候执行`finalize()`方法，而只能保证它在程序结束前某个时刻执行。最后，输出流会引用缓存对象，直至输出流关闭为止，垃圾回收才会收集缓存对象，所以，输出流在使用后应该及时的关闭。  
+依赖`finalize()`方法释放系统资源，或者对使用哪部分程序来负责释放资源有疑问的话，一个程序就会发生资源泄漏。在一个忙碌的系统中，攻击者利用调用`finalize()`方法之前的延时引入Dos攻击。  
+程序员需要在非终结器方法中释放除原始内存之外的资源。  
+风险评估：违反该条准则可能会导致资源耗尽。    
+**不规范的代码样例1**：  
+```java
+public int processFile(String fileName) throws IOException, FileNotFoundException {
+    FileInputStream stream = new FileInputStream(fileName);
+    BufferedReader bufRead = new BufferedReader(new InputStreamReader(stream));
+    String line;
+    while ((line = bufRead.readLine()) != null) {
+        sendLine(line);
+    }
+    return 1;
+}
+```  
+代码打开并使用了一个文件输入流，但没有的显式的关闭这个文件流。  
+**不规范的代码样例2**：  
+```java
+public void getResults(String sqlQuery) {
+    try {
+        Connection conn = getConnection();
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery(sqlQuery);
+        processResults(rs);
+        stmt.close();
+        conn.close();
+    } catch (SQLException e) {
+        /* forward to handler */ 
+    }
+}
+```  
+代码打开并使用了一个数据库连接，使用完后，没有显式的关闭这个连接。这种情况下，资源池耗尽问题会更严重。  
+**不规范的代码样例3**：  
+```java
+public void getResults(String sqlQuery) {
+    try {
+        Connection conn = getConnection();
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery(sqlQuery);
+        processResults(rs);
+    } catch (SQLException e) {
+        /* forward to handler */ } finally {
+        rs.close();
+        stmt.close();
+        conn.close();
+    }
+}
+```  
+代码通过finally来释放数据库连接资源，然而，调用`rs.close()、stmt.close()`时会抛出NullPointerException，导致在这两个方法调用后的代码不能执行。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+采用try-catch-finally语法释放创建的文件流。 
+```java 
+try {
+    final FileInputStream stream = new FileInputStream(fileName);
+    try {
+        final BufferedReader bufRead = new BufferedReader(new InputStreamReader(stream));
+        String line;
+        while ((line = bufRead.readLine()) != null) {
+            sendLine(line);
+        }
+    } finally {
+        if (stream != null) {
+            try {
+                stream.close();
+            } catch (IOException e) {
+                // forward to handler
+            }
+        }
+    }
+} catch (IOException e) {
+    // forward to handler
+}
+```  
+采用Java 7 try-with-resource 语法在try语句结束后，不论其包括的代码是正常执行完毕还是发生异常，都会自动调用资源的Close方法。  
+```java
+try (FileInputStream stream = new FileInputStream(fileName);
+        BufferedReader bufRead = new BufferedReader(new InputStreamReader(stream))) {
+    String line;
+    while ((line = bufRead.readLine()) != null) {
+        sendLine(line);
+    }
+} catch (IOException e) {
+    // forward to handler
+}
+```  
+**规范的代码代码样例2**：  
+```java
+public void getResults(String sqlQuery) {
+    try {
+        Connection conn = getConnection();
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery(sqlQuery);
+        processResults(rs);
+    } catch (SQLException e) {
+        /* forward to handler */
+    } finally {
+        try {
+            if (null != rs)
+                rs.close();
+        } catch (SQLException e) {
+            // 处理异常
+        } finally {
+            try {
+                if (null != stmt)
+                    stmt.close();
+            } catch (SQLException e) {
+                // 处理异常
+            } finally {
+                if (null != conn)
+                    conn.close();
+            }
+        }
+
+    }
+}
+```    
+代码捕获了调用`rs.close()`或者`stmt.close()`时可能会抛出的所有异常，保证后续的关闭其他资源的代码可以正常执行。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">775:Missing Release of File Descriptor or Handle after Effective Lifetime</Reference>  
+        <Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>  
+        <Reference type="CWE">459:Incomplete Cleanup</Reference>  
+        <Reference type="CWE">404:Improper Resource Shutdown or Release</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 404</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

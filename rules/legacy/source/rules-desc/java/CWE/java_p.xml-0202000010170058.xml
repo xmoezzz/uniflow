@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170058" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.4 异常处理安全</Category>  
+        <Category type="DetailClassChin">A.3.4.6 不要抛出RuntimeException、Exception、Throwable</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：方法禁止抛出RuntimeException、Exception、Throwable。抛出RuntimeException会产生微妙的错误，很少有方法能处理潜在的运行异常，例如，一个调用者不能通过检查异常来判断异常抛出的原因，从而不能进行有效的恢复操作。  
+方法RuntimeException、Exception、Throwable可能掩盖其他异常。  
+对于不要抛出RuntimeException、Exception、Throwable的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+boolean isCapitalized(String s) {
+    if (s == null) {
+        throw new RuntimeException("Null String");
+    }
+    if (s.equals("")) {
+        return true;
+    }
+    String first = s.substring(0, 1);
+    String rest = s.substring(1);
+    return (first.equals(first.toUpperCase()) && rest.equals(rest.toLowerCase()));
+}
+```  
+方法可以抛出继承自RuntimeException、Exception的明确异常。  
+**示例2**：  
+抛出明确的NullPointerException()。 
+```java 
+boolean isCapitalized(String s) {
+    if (s == null) {
+        throw new NullPointerException();
+    }
+    if (s.equals("")) {
+        return true;
+    }
+    String first = s.substring(0, 1);
+    String rest = s.substring(1);
+    return (first.equals(first.toUpperCase()) && rest.equals(rest.toLowerCase()));
+}
+```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">397:Declaration of Throws for Generic Exception</Reference>  
+        <Reference type="CERT">ERR07-J:Do not throw RuntimeException, Exception, or Throwable</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.6 方法声明抛出的异常过于宽泛</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.4 异常处理安全</BigClassChin>  
+       
+    </BugInfo>  
+    

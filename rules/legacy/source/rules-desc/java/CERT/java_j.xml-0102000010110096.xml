@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110096" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Android程序：遗留的调试代码</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行为遗留的调试代码。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行为遗留的调试代码。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序中的调试代码会建立一些意想不到的入口，这些入口可能会被攻击者作为“后门”进行利用  
+  
+**例如**：下列Android程序中`setWebContentsDebuggingEnabled`参数为true。  
+```java
+WebView.setWebContentsDebuggingEnabled(true);
+```
+]]></Description>
+			<Advice><![CDATA[系统在发布之前应删除调试代码。
+]]></Advice>
+			<References>
+				<Reference type="CWE">489:Leftover Debug Code</Reference>
+				<Reference type="CERT">ENV06-J:Production code must not contain debugging entry points</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

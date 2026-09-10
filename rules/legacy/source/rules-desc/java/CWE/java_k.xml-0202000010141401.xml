@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141401" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 13. 输入输出 (FIO)</Category>  
+        <Category type="DetailClassChin">FIO01-J：使用合适的访问权限创建文件</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[多用户系统中的文件通常由特定用户拥有，该文件的所有者可以指定系统上哪些其他用户可以访问这些文件的内容。这些文件系统使用权限和权限系统来保护文件的访问。创建文件时，文件访问权限决定了谁可以访问或者操作该文件。当一个程序使用不充分的访问权限创建文件时，攻击者可以在程序修改权限之前读取或修改该文件。因此，必须创建具有访问权限的文件，以防止未经授权的文件访问。  
+**不规范的代码样例1**：  
+`Writer out = new FileWriter("file");`  
+FileOutputStream和FileWriter的构造函数不允许程序员明确指定文件访问权限。在以上代码中，创建的任何文件的访问权限是由具体实现决定的，可能不会阻止未经授权的访问。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：     
+Java 1.6及更早版本缺少在创建文件时指定默认权限的机制。因此，必须使用Java外部的某种机制来避免或解决此问题，例如使用本地代码和Java Native Interface（JNI）。  
+规范的代码样例2(POSIX)：  
+Java SE 7新的I/O类库java.nio提供了用于管理文件访问权限的类。此外，创建文件的许多方法和构造函数都接受一个参数，允许程序指定初始文件权限。  
+例如：以下代码中`Files.newByteChannel()`方法允许创建具有特定权限的文件。该方法与平台无关，但实际的权限是平台特定的。此兼容解决方案为POSIX平台定义了足够的限制性权限。  
+```java
+Path file = new File("file").toPath();
+// Throw exception rather than overwrite existing file
+Set<OpenOption> options = new HashSet<OpenOption>();
+options.add(StandardOpenOption.CREATE_NEW);
+options.add(StandardOpenOption.APPEND);
+// File permissions should be such that only user may read/write file
+Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rw-------");
+FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(perms);
+try (SeekableByteChannel sbc = Files.newByteChannel(file, options, attr)) {
+    // Write data
+}
+```  
+**特例**：  
+FIO01-EX0:当在一个安全和对非受信用户不可读的目录中创建文件时，可以使用默认的访问权限创建。例如整个文件系统是可信的，或者仅受信用户可以访问。安全目录的定义可参考FIO00-J。  
+FIO01-EX1:那些不含有特权信息的文件不需要使用指定的访问权限创建。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">732:Incorrect Permission Assignment for Critical Resource</Reference>  
+        <Reference type="CWE">264:Permissions, Privileges, and Access Controls</Reference>  
+        <Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M8 Security Decisions Via Untrusted Inputs</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 732</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 732</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 732</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

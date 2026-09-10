@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160082" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.9.4 不要基于高层并发对象的内置锁来实现同步</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+与高层的并发对象交互的程序应该仅仅使用由接口提供的锁，而不允许使用内置锁。   
+2) 原理   
+那些实现其中一个或者都实现了在 `java.util.concurrent.locks` 包中 Lock 和 Condition 接口的类，被认为是高层的并发对象。对这样的对象使用内置锁会带来安全问题，尽管看起来代码的功能是正确的。因此，与这些对象交互的那些程序应该仅仅使用由接口提供的锁，而不允许使用内置锁。这个问题通常在代码重构时发生，比如说从使用内置锁重构成使用 `java.util.concurrent` 的动态锁。   
+3) 示例   
+    如下不符合规则的代码示例（重入锁），该示例的 `doSomething()`方法中，基于 ReentrantLock 的内置锁实现同步而不是基于被 ReentrantLock 封装的可重入的互斥锁实现同步。   
+    ```java
+    private final Lock lock = new ReentrantLock();
+    
+    public void doSomething() {
+        synchronized (lock) {
+            // . . .
+        }
+    }
+    ``` 
+        
+    对应的符合规则的解决方案使用`lock()`和`unlock()`方法，这些方法由 Lock 接口提供。   
+    ```java
+    private final Lock lock = new ReentrantLock();
+    
+    public void doSomething() {
+        lock.lock();
+        try {
+            // do something
+        } finally {
+            lock.unlock();
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.9 锁</BigClassChin>  
+       
+    </BugInfo>  
+    

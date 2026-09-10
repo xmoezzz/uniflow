@@ -240,12 +240,12 @@ impl JavaProjectIndex {
 pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
     let index = JavaProjectIndex::from_sources(entries);
     let parser = JavaParser::default();
-    let mut project = Program::empty(Language::Java);
+    let mut project = uniflow_hir::ProgramMerger::new(Language::Java);
     for (path, source) in entries {
         let parsed = parser.parse_file_with_index(path, source, Some(&index))?;
         project.merge(parsed);
     }
-    Ok(project)
+    Ok(project.finish())
 }
 
 impl JavaParser {

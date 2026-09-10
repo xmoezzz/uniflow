@@ -91,13 +91,13 @@ mod tests {
     #[test]
     fn bundled_legacy_jvm_catalogs_have_exact_migrated_counts() {
         let java = legacy_models_for(Language::Java).expect("bundled Java legacy rules");
-        assert_eq!(java.sources.len(), 1_639);
-        assert_eq!(java.sinks.len(), 4_511);
+        assert_eq!(java.sources.len(), 1_643);
+        assert_eq!(java.sinks.len(), 4_515);
         assert_eq!(java.unused_return_sinks.len(), 1);
         assert_eq!(java.sanitizers.len(), 403);
         assert_eq!(java.taint_transforms.len(), 538);
-        assert_eq!(java.propagators.len(), 3_238);
-        assert_eq!(java.metadata.len(), 4_512);
+        assert_eq!(java.propagators.len(), 3_240);
+        assert_eq!(java.metadata.len(), 4_516);
         assert_eq!(java.sink_conditions.len(), 4_512);
         assert_eq!(java.call_conditions.len(), 278);
 

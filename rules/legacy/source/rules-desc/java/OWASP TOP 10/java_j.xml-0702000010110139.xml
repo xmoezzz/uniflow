@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110139" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">Struts1配置错误：类加载器操控漏洞</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Struts框架中默认的ParametersInterceptor拦截器允许访问`class`参数，该参数直接映射到`getClass()`方法，从而导致了攻击者可以控制ClassLoader，并修改ClassLoader中的属性，而根据修改ClassLoader属性的不同，可以衍生出不同的攻击向量。  
+  
+**例如**：在使用Struts1框架开发的一个项目，其中定义了用来处理用户注册的Action类，相关代码片段如下。  
+```java
+public class RegisterAction extends Action {  
+    public ActionForward execute() throws Exception {  
+        UserFormbean bean = (UserFormbean) form;  
+        //处理用户注册的Action类 
+        ...  
+    }  
+}
+```  
+UserFormbean代码片段：  
+```java
+public class UserFormbean extends ActionForm {  
+    private String name, password, email;   
+    // Constructor, getter, setter methods ...  
+}
+```  
+正常情况下，用户注册过程中将填写的注册表单信息提交到的URL地址是：`http://server-host/project/Register.do`。利用类加载器`(ClassLoader)`操控漏洞，攻击者可以在该访问地址后追加传递修改ClassLoader的参数，**例如**：`http://server-host/project/Register.do?class.classLoader.clearReferencesHttpClientKeepAliveThread=false`。
+]]></Description>
+			<Advice><![CDATA[修复方法是：可以在传入参数绑定之前，过滤掉含有恶意代码的请求参数。在Struts 1中存在类`org.apache.struts.util.RequestUtils`，该类用于处理ActionForm的request请求参数，并且`org.apache.struts.util.RequestUtils`类的调用执行发生于参数绑定之前。下面是使用正则表达式来过滤的示例代码片段。  
+```java
+public static final String regex = "(.*\\.|^|.*|\\[('|\"))(c|C) lass(\\.|('|\")]|\\[).*";  
+if (request_parameter.matches(regex)) {  
+    //处理错误的传参  
+    ...  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">470:Common Weakness Enumeration</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,exception</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

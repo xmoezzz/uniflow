@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100016" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：缺少过滤器定义</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行缺少过滤器定义。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[配置文件中，缺少相应过滤器的定义。  
+  
+**例如**：下面代码片段中，缺少TestTwoFilter过滤器的定义。 
+```xml
+<filter>  
+    <filter-name>TestOneFilter</filter-name>      
+    <filter-class>com.qtt.TestFilter</filter-class>  
+</filter>  
+<filter-mapping>      
+    <filter-name>TestTwoFilter</filter-name>      
+    <url-pattern>/html/*</url-pattern>  
+</filter-mapping>      
+<filter-mapping>      
+    <filter-name>TestOneFilter</filter-name>      
+    <url-pattern>/jsp/*</servlet-name>  
+</filter-mapping>
+``` 
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，增加相应的过滤器定义。
+]]></Advice>
+			<References>
+				<Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

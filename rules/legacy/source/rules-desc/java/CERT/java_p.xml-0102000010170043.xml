@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170043" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.2 并发程序安全</Category>  
+        <Category type="DetailClassChin">A.3.2.11 始终在循环中调用wait()和await()方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：`Object.wait()`方法会暂时放弃所拥有的锁，这让其他线程可以有机会得到锁并继续执行。 `Object.wait()`方法通常会在同步代码块及方法中调用。等待的线程只有在它接到通知后才会恢复执行，不管是在调用`wait()`之前还是之后，while循环都是检查等候条件的最好方式。类似Condition接口中的`await()`方法也必须是在循环中调用。违反该条准则可能会导致无限期的阻塞，导致拒绝服务漏洞。  
+对于始终在循环中调用`wait()`和`await()`方法的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+private Vector vector;
+
+public void consumeElement() throws InterruptedException {
+    synchronized (vector) {
+        if (vector.isEmpty()) {
+            vector.wait();
+        }
+        // Resume when condition holds
+    }
+}
+```  
+**示例2**：  
+```java
+private Vector vector;
+
+public void consumeElement() throws InterruptedException {
+    synchronized (vector) {
+        while (vector.isEmpty()) {
+            vector.wait();
+        }
+        // Resume when condition holds
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">THI03-J:Always invoke wait() and await() methods inside a loop</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.2 并发程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

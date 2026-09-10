@@ -161,17 +161,61 @@ impl FlowGraph {
     }
 
     pub fn region_graph_successors_of(&self, node: NodeIndex) -> Vec<NodeIndex> {
-        self.region_graph_successors
-            .get(&node.index())
-            .cloned()
-            .unwrap_or_default()
+        self.region_graph_direct_neighbors(node)
             .into_iter()
             .map(NodeIndex::new)
             .collect()
     }
 
     pub fn region_graph_predecessors_of(&self, node: NodeIndex) -> Vec<NodeIndex> {
-        self.region_graph_predecessors
+        self.region_graph_direct_neighbors(node)
+            .into_iter()
+            .map(NodeIndex::new)
+            .collect()
+    }
+
+    fn region_graph_direct_neighbors(&self, node: NodeIndex) -> Vec<usize> {
+        if let Some(cached) = self
+            .region_graph_direct_neighbors_cache
+            .borrow()
+            .get(&node.index())
+            .cloned()
+        {
+            return cached;
+        }
+        let Some(regions) = self.node_memory_regions.get(&node.index()) else {
+            return Vec::new();
+        };
+        if regions.is_empty() {
+            return Vec::new();
+        }
+        let mut neighbors = self
+            .node_memory_regions
+            .iter()
+            .filter_map(|(&other, other_regions)| {
+                if other == node.index() {
+                    return None;
+                }
+                regions
+                    .iter()
+                    .any(|left| {
+                        other_regions
+                            .iter()
+                            .any(|right| memory_region_related(left, right))
+                    })
+                    .then_some(other)
+            })
+            .collect::<Vec<_>>();
+        neighbors.sort_unstable();
+        neighbors.dedup();
+        self.region_graph_direct_neighbors_cache
+            .borrow_mut()
+            .insert(node.index(), neighbors.clone());
+        neighbors
+    }
+
+    fn region_graph_connectivity_neighbors_of(&self, node: NodeIndex) -> Vec<NodeIndex> {
+        self.region_graph_successors
             .get(&node.index())
             .cloned()
             .unwrap_or_default()
@@ -1439,26 +1483,21 @@ impl FlowGraph {
     }
 
     fn node_matches_structural_call_context(&self, node: NodeIndex, context: &CallContextKey) -> bool {
-        let allowed_funcs = context
-            .callee_funcs
-            .iter()
-            .copied()
-            .map(FunctionId)
-            .chain(context.call_sites.iter().map(|(func, _)| FunctionId(*func)))
-            .collect::<BTreeSet<_>>();
-        let allowed_sites = context.call_sites.iter().copied().collect::<BTreeSet<_>>();
         match &self.graph[node] {
             FlowNode::Value { func, .. }
             | FlowNode::Param { func, .. }
             | FlowNode::Return { func }
             | FlowNode::FieldCell { func, .. }
             | FlowNode::IndexCell { func, .. } => {
-                allowed_funcs.is_empty() || allowed_funcs.contains(func)
+                (context.callee_funcs.is_empty() && context.call_sites.is_empty())
+                    || context.callee_funcs.contains(&func.0)
+                    || context.call_sites.iter().any(|(caller, _)| *caller == func.0)
             }
             FlowNode::CallPort { func, inst, .. }
             | FlowNode::SyntheticSource { func, inst, .. }
             | FlowNode::SyntheticSink { func, inst, .. } => {
-                allowed_sites.is_empty() || allowed_sites.contains(&(func.0, inst.0))
+                context.call_sites.is_empty()
+                    || context.call_sites.contains(&(func.0, inst.0))
             }
         }
     }

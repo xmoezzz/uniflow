@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150443" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不应该禁用LDAP身份验证</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[未经身份验证的LDAP连接可能因为没有访问控制导致LDAP注入。  
+  
+**例如**：下面代码示例中将Context.SECURITY_AUTHENTICATION设为`"none"`，将禁用LDAP身份验证。
+```java
+Hashtable<String, String> env = new Hashtable<String, String>();  
+env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");  
+env.put(Context.PROVIDER_URL, "ldap://localhost:389/o=JNDITutorial");  
+env.put(Context.SECURITY_AUTHENTICATION, "none");   
+DirContext ctx = new InitialDirContext(env);
+```  
+]]></Description>  
+      <Advice><![CDATA[身份验证和访问控制是防止LDAP注入的最后一道防线，不应该禁用它们。  
+  
+**例如**：下面代码示例中将Context.SECURITY_AUTHENTICATION设为`"simple"`，将启用LDAP身份验证。
+```java
+Hashtable<String, String> env = new Hashtable<String, String>();  
+env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");  
+env.put(Context.PROVIDER_URL, "ldap://localhost:389/o=JNDITutorial");  
+env.put(Context.SECURITY_AUTHENTICATION, "simple");  
+env.put(Context.SECURITY_PRINCIPAL, "cn=S. User, ou=NewHires, o=JNDITutorial");  
+env.put(Context.SECURITY_CREDENTIALS, getLDAPPassword());  
+DirContext ctx = new InitialDirContext(env);
+```  
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>security</Tag> 
+    </BugInfo>  
+    

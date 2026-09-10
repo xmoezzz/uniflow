@@ -1,0 +1,195 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141805" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 49. 其他 (MSC)</Category>  
+        <Category type="DetailClassChin">MSC05-J：不要耗尽堆空间</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当程序想要使用更多可获得的堆空间时，Java的 OutofMemoryError 就会发生。这个错误会基于以下原因：  
+内存泄漏（参考规则MSC04-J）  
+一个无限的循环  
+可获得的有限的默认堆内存  
+对常用数据结构（散列表、vector等）的不正确实现  
+不受限制的序列化  
+在ObjectOutputStream中写入大量的对象（参考规则 SER10-J）  
+创建大量的线程  
+解压一个文件（参考规则 IDS04-J）  
+
+其中一个原因与平台相关，并且难以预测。其它的比较容易预测，比如从文件中读取数据。因此，如果一种方式会导致内存耗尽，那么程序不能使用这种方法来接收非受信的输入。  
+**不规范的代码样例1**：  
+```java
+class ReadNames {
+    private Vector<String> names = new Vector<String>();
+    private final InputStreamReader input;
+    private final BufferedReader reader;
+
+    public ReadNames(String filename) throws IOException {
+        this.input = new FileReader(filename);
+        this.reader = new BufferedReader(input);
+    }
+
+    public void addNames() throws IOException {
+        try {
+            String newName;
+            while (((newName = reader.readLine()) != null) && !(newName.equalsIgnoreCase("quit"))) {
+                names.addElement(newName);
+                System.out.println("adding " + newName);
+            }
+        } finally {
+            input.close();
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        if (args.length != 1) {
+            System.out.println("Arguments: [filename]");
+            return;
+        }
+        ReadNames demo = new ReadNames(args[0]);
+        demo.addNames();
+    }
+}
+```
+不合规则的方案从文件中读入行文本，并且把每一行加入到vector中，直到在这一行中遇到"quit"一词。这段代码没有限制需要执行程序的内存空间上限，因此，程序可以通过两种方式很容易的耗尽已有的堆空间。第一种方式是，攻击者可以在文件中提供任意多的行，使得vector一直增长直到内存消耗完为止。第二种方式是，攻击者通过简单的提供一个任意长的行，使得`readLine()`方法将内存消耗完。根据Java API 文档的描述[API 2014], BufferedReader.readLine()方法的描述：  
+>读取文本的一行，认为这一行结束，在遇到以下任意一个符号时，如换行符（‘\n’）、回车符（‘\r’）或者回车换行符。  
+
+任何使用这个方法的代码都容易受到资源耗尽型攻击，因为一个用户可能输入一个任意长度的字符串。  
+**不规范的代码样例2**：  
+```java
+/*
+ * Assuming the heap size as 512 MB (calculated as 1/4 of 2GB RAM = 512MB)
+ * Considering long values being entered (64 bits each, the max number of
+ * elements would be 512MB/64 bits = 67108864)
+ */
+public class ReadNames {
+    // Accepts unknown number of records
+    Vector<Long> names = new Vector<Long>();
+    long newID = 0L;
+    int count = 67108865;
+    int i = 0;
+    InputStreamReader input = new InputStreamReader(System.in);
+    Scanner reader = new Scanner(input);
+
+    public void addNames() {
+        try {
+            do {
+                // Adding unknown number of records to a list
+                // The user can enter more IDs than the heap can support and,
+                // as a result, exhaust the heap. Assume that the record ID
+                // is a 64-bit long value
+                System.out.print("Enter recordID (To quit, enter -1): ");
+                newID = reader.nextLong();
+
+                names.addElement(newID);
+                i++;
+            } while (i < count || newID != -1);
+        } finally {
+            input.close();
+        }
+    }
+
+    public static void main(String[] args) {
+        ReadNames demo = new ReadNames();
+        demo.addNames();
+    }
+}
+```
+在使用并行垃圾回收器的服务器类的机器中，默认的初始化和最大的堆大小遵守Java SE 6 [Sun 2006]的要求：  
+初始化堆大小：高于1/64的机器物理内存或合理的最小值  
+最大的堆大小：小于1/4的物理内存或者1GB内存  
+上面不符合规则的代码示例要求得到比默认值更多的堆内存。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1（限制文件大小）**：  
+```java
+class ReadNames {
+    // ... Other methods and variables
+
+    public static final int fileSizeLimit = 1000000;
+
+    public ReadNames(String filename) throws IOException {
+        long size = Files.size(Paths.get(filename));
+        if (size > fileSizeLimit) {
+            throw new IOException("File too large");
+        } else if (size == 0L) {
+            throw new IOException("File size cannot be determined, possibly too large");
+        }
+        this.input = new FileReader(filename);
+        this.reader = new BufferedReader(input);
+    }
+}
+```    
+这个符合规则的方案对被读入的文件设置了大小的限制，这通过`Files.size()`方法来实现，这个方法是在 Java SE 7 中新出现的。如果一个文件在这个限制范围内，我们认为标准的`readLine()`方法不会耗尽内存，或者也不会被while循环耗尽内存。    
+**规范的代码样例2（有限的输入长度）**：
+```java
+class ReadNames {
+    // ... Other methods and variables
+
+    public static String readLimitedLine(Reader reader, int limit) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < limit; i++) {
+            int c = reader.read();
+            if (c == -1) {
+                return ((sb.length() > 0) ? sb.toString() : null);
+            }
+            if (((char) c == '\n') || ((char) c == '\r')) {
+                break;
+            }
+            sb.append((char) c);
+        }
+        return sb.toString();
+    }
+
+    public static final int lineLengthLimit = 1024;
+    public static final int lineCountLimit = 1000000;
+
+    public void addNames() throws IOException {
+        try {
+            String newName;
+            for (int i = 0; i < lineCountLimit; i++) {
+                newName = readLimitedLine(reader, lineLengthLimit);
+                if (newName == null || newName.equalsIgnoreCase("quit")) {
+                    break;
+                }
+                names.addElement(newName);
+                System.out.println("adding " + newName);
+            }
+        } finally {
+            input.close();
+        }
+    }
+
+}
+```  
+这个符合规则的方案对每一行的长度加入vector的总数量都加以限制。`readLimitedLine()`方法使用一个数值限制，用它来表示在一行中可以存在的所有字符数量。如果一行包含了更多的字符，这一行会被截断，并且字符会被返回到下一次调用。这可以防止攻击者通过提供没有行中断的输入来耗尽内存。  
+**规范的代码样例3**：  
+```java
+// ...  
+int count = 10000000;  
+// ...
+```  
+这个符合规范的简单方案减少了读入的名称的数量。  
+**规范的代码样例4**：  
+通过保证不使用无限循环、不出现内存泄漏并且不保留不需要的对象，可以避免OutOfMemoryError。当预先知道内存需求时，可以使用下面的方法来对内存进行剪裁，以满足要求。  
+`java -Xms<initial heap size> -Xmx<maximum heap size>`  
+  
+**例如**：  
+`java -Xms128m -Xmx512m ReadNames`  
+上面的代码将初始的堆大小设置为128MB，而最大的堆大小设置为512MB。  
+这些设置可以使用命令行下的Java控制台来改变。它们通过应用自身进行调整。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 400</Reference>  
+        <Reference type="CWE">770:Allocation of Resources without Limits or Throttling</Reference>  
+        <Reference type="CWE">400:Uncontrolled Resource Consumption ("Resource Exhaustion")</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

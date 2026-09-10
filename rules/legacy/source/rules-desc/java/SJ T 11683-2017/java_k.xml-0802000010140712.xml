@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010140712" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">Rule 06. 方法 (MET)</Category>  
+        <Category type="DetailClassChin">MET12-J：不要使用析构函数</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[显式的调用`finalize()`并不能直接释放需要释放的资源。尽管Java语言规范中允许外部代码调用对象的`finalize()`方法，但这其实并不是一个好办法。直接调用 `finalize()`意味着要不止一次地调用`finalize()`方法： 第一次将会直接调用，而最后一次调用会在对象回收之后执行。  
+析构函数有太多问题，所以限制它使用在特殊情况中：  
+1）`finalize()`的执行没有固定的时间，这是由JVM所决定的。一个对象在不可达到后，`finalize()`的执行可能会滞后任意长时间。唯一的保证是在对应对象不可达（垃圾回收过程的第一阶段）或在回收对应对象所占资源（垃圾回收过程的第二阶段）后的某个时候，`finalize()`方法会执行。  
+2）在程序停止运行前，JVM可能不会去调用孤立对象的`finalize()`。因此，尝试从`finalize()`方法中更新持久状态会失败，而不会有警告。同样，Java并没有保证`finalize()`方法一定会在进程结束时执行。类似于`System.gc()、System.runFinalization()、System.runFinalizersOnExit()、Runtime.runFinalizersOnExit()`这些方法要么是缺少这样的保证，要么是因为缺乏安全性和存在死锁而废弃。  
+3）Java语言规范12.6.2节“finalize的调用是无序的”：
+>Java语言没有强制调用finalize()方法的次序。终结器可能以不同的次序甚至并发调用finalize()方法，一个可能的结果就是运行慢的finalize()方法会延迟执行队列栈的其他finalize()方法的执行。  
+
+4）在终结过程中抛出的异常如没有捕捉到则会被忽略。  
+5）造成内存泄漏的错误会导致对象被误解为是可达到的，从而JVM不会调用这些对象的`finalize()`方法。  
+6）程序员可能会在`finalize()`方法中无意的重新使用对象引用。在这种情况下，垃圾回收器必须再次判断是否可以释放对象，并且，因为已经执行了`finalize()`方法，所以垃圾回收不会再次调用它。  
+7）垃圾回收器是依赖于内存的可用性与使用情况，而与其他特定资源的缺乏无关。因此，当有足够内存时，一种不足的资源也有可能会被耗尽。  
+8）普遍认为析构函数为垃圾回收提供帮助，而事实上却恰恰相反，析构函数的执行增加了垃圾回收的时间，并带来了空间上的开销。由于析构函数延长了许多对象的生命周期，这干扰了新一代的垃圾回收器的操作。  
+9）析构函数的使用会带来同步化的问题，即使在余下的程序是单线程的情况下。垃圾回收器会从所选择的一个或多个线程中调用`finalize()`方法，当必须使用析构函数时，避免同步访问任何需要清理的数据结构。  
+10）在析构函数中使用锁和其他基于同步的机制会导致死锁或饥饿。存在这种问题的可能性是因为不能保证或控制析构函数调用次序和析构函数运行的线程。  
+**不规范的代码样例1**：  
+```java
+public void doLogic() {
+    try {
+        this.finalize();
+    } catch (Throwable e) {
+        e.printStackTrace();
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[不显式调用方法finalize()。不直接使用的方法包括：  
+```java
+java.lang.System.gc();  
+java.lang.System.runFinalization();  
+java.lang.System.runFinalizersOnExit();  
+java.lang.Runtime.runFinalization();  
+java.lang.Runtime.runFinalizersOnExit();
+```  
+对于`java.lang.Object.finalize()`方法使用，特例：  
+任何覆写了`finalize()`的子类必须明确的调用基类中的终结器方法。如下代码：  
+```java
+protected void finalize() throws Throwable {
+    try {
+        // . . .
+    } finally {
+        super.finalize();
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">586:Explicit Call to Finalize()</Reference>  
+        <Reference type="CWE">568:finalize() Method Without super.finalize()</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.18 调用finalize方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

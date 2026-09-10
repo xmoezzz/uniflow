@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170007" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">5.1 数据清洗</Category>  
+        <Category type="DetailClassChin">A.2.1.1.8 当比较local相关的数据时，指定恰当的local</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：当locale没有明确指定的时候，使用locale相关的方法处理与local相关的数据会产生意想不到的结果。编程语言标识符、协议关键字以及HTML标签通常会指定Locale.ENGLISH作为一个特定的locale。在不同的locale环境中运行程序可能会导致意外的程序行为，甚至允许攻击者绕过输入过滤器。由于这些原因，在比较数据时，如果可能与locale方法相关，则应指定相应的locale。  
+  
+例如下面程序代码：  
+```java
+public class Example {  
+    public static void main(String[] args) {  
+        System.out.println("Title".toUpperCase());  
+    }  
+}
+```  
+在英文locale环境下：  
+`TITLE`  
+然而，大多数语言使用的拉丁字母i的大写形式是I,但土耳其语言环境是个例外：有一个点的i的大写形式也有一个点 `(İ)`， 没有点的ı大写形式没有点 `(I)`。在土耳其locale（API 2006）会产生下面预期之外的结果：  
+`TİTLE`   
+许多程序只使用依赖于locale方法来输出信息，如果locale相关的数据，程序没有显示设置locale,则可以安全地依赖于默认的locale设置。  
+对于指定恰当的local的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：      
+```java
+public static void processTag(String tag) {
+    if (tag.toUpperCase().equals("SCRIPT")) {
+        return;
+    }
+    // Process tag
+}
+```  
+在英语locale中 `"script"` 大写转换成 `"SCRIPT"`，而在土耳其locale环境中， 将`"script"`大写转换成`"SCRİPT"`。   
+**示例2**：  
+```java
+public static void processTag(String tag) {
+    if (tag.toUpperCase(Locale.ENGLISH).equals("SCRIPT")) {
+        return;
+    }
+    // Process tag
+}
+```  
+代码中将locale设置为英文，从而避免意外的情况。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">474:Use of Function with Inconsistent Implementations</Reference>  
+        <Reference type="CERT">STR02-J:Specify an appropriate locale when comparing locale-dependent data</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.2.1 数据清洗</BigClassChin>  
+       
+    </BugInfo>  
+    

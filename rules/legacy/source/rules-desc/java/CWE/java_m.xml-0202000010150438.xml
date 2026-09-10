@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150438" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】应该禁用LDAP反序列化</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[JNDI支持从LDAP目录中反序列化对象，这是不安全的，并且可能导致远程代码执行。当使用配置为允许反序列化的SearchControls执行LDAP搜索查询时，可能会引发问题。  
+  
+**例如**：下面代码示例中SearchControls允许反序列化。  
+```java
+DirContext ctx = new InitialDirContext();  
+...  
+ctx.search(query, filter, new SearchControls(scope, countLimit, timeLimit, attributes,true,deref));
+```
+]]></Description>  
+      <Advice><![CDATA[将SearchControls配置为不允许反序列化。  
+  
+**例如**：下面代码示例中SearchControls不允许反序列化。  
+```java
+DirContext ctx = new InitialDirContext();  
+...  
+ctx.search(query, filter, new SearchControls(scope, countLimit, timeLimit, attributes,false,deref));
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 502</Reference>  
+        <Reference type="CWE">502:Deserialization of Untrusted Data</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>security</Tag> 
+    </BugInfo>  
+    

@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140703" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 06. 方法 (MET)</Category>  
+        <Category type="DetailClassChin">MET03-J：进行安全检测的方法必须声明为private或final</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[恶意子类可以覆写进行安全检测的Nonfinal类的成员方法，并忽略这些检测。从而使安全检测不起作用。因此，这些方法必须声明为private或final来避免覆写。  
+**不规范的代码样例1**：  
+```java
+public void readSensitiveFile() {
+    try {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) { // Check for permission to read file
+            sm.checkRead("/temp/tempFile");
+        }
+        // Access the file
+    } catch (SecurityException se) {
+        // Log exception
+    }
+}
+```  
+这个不符合规范的代码示例允许子类覆写方法`readSensitiveFile()`，并省略了所需的安全检测。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public final void readSensitiveFile() {
+    try {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) { // Check for permission to read file
+            sm.checkRead("/temp/tempFile");
+        }
+        // Access the file
+    } catch (SecurityException se) {
+        // Log exception
+    }
+}
+```  
+这个符合规范的方案将`readSensitiveFile()`声明为final的，从而避免了覆写。  
+**规范的代码样例2**：
+```java
+private void readSensitiveFile() {
+    try {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) { // Check for permission to read file
+            sm.checkRead("/temp/tempFile");
+        }
+        // Access the file
+    } catch (SecurityException se) {
+        // Log exception
+    }
+}
+```  
+这个符合规范的方案将`readSensitiveFile()`声明为private的，从而避免了覆写。  
+**特例**  
+MET03-EX0:声明为final的类不受这条规则的限制，这是因为它们的成员方法是不能被覆写的。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">358:Improperly Implemented Security Check for Standard</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

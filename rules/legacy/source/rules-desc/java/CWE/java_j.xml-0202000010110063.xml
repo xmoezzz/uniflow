@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110063" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">JavaEE程序：直接管理数据库连接</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行直接管理数据库连接。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行直接管理数据库连接。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在JAVA EE程序中直接管理数据库连接。JAVA EE标准要求，应用程序应采用容器的资源管理器工具获取连接资源。  
+  
+**例如**：下面JAVA EE代码片段中，类DatabaseConnection直接打开和管理数据库连接，违反了JAVA EE标准。  
+```java
+public class DatabaseConnection {  
+    private static final String CONNECT_STRING = "jdbc:mysql://localhost:3306/mysqldb";  
+    private Connection conn = null;  
+    public DatabaseConnection() {  
+    }  
+    public void openDatabaseConnection() {  
+        try {  
+            conn = DriverManager.getConnection(CONNECT_STRING);  
+        } catch (SQLException ex) {  
+            ...  
+        }  
+    }  
+    // Member functions for retrieving database connection and accessing database  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[JAVA EE程序应该使用Web容器的资源管理获取数据库连接。  
+  
+**例如**：下面代码片段，通过Web容器获取数据库连接。  
+```java
+public class DatabaseConnection {  
+    private static final String DB_DATASRC_REF = "jdbc:mysql://localhost:3306/mysqldb";  
+    private Connection conn = null;  
+    public DatabaseConnection() {  
+    }  
+    public void openDatabaseConnection() {  
+        try {  
+            InitialContext ctx = new InitialContext();  
+            DataSource datasource = (DataSource) ctx.lookup(DB_DATASRC_REF);  
+            conn = datasource.getConnection();  
+        } catch (NamingException ex) {  
+            ...  
+        } catch (SQLException ex) {  
+            ...  
+        }  
+    }  
+    // Member functions for retrieving database connection and accessing database  
+    ...  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">245:J2EE Bad Practices: Direct Management of Connections</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

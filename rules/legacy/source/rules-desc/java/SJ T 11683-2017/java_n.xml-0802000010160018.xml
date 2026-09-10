@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010160018" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.3.1 不要忽略方法的返回值</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+必须重视方法的返回值。   
+2) 原理   
+通过返回值来判断方法调用成功与否，或者通过返回值来更新本地的对象或数据成员时，若忽略方法的返回值，会产生安全风险，因此必须重视方法调用的返回值。   
+当获取器(getter)方法是以所做的操作命名时，程序员可能无法确认是否有返回值。   
+3) 示例   
+    1.这个不符合规则的代码示例想要删除一个文件，但没有确认这个删除动作是否成功。   
+    ```java
+    public void deleteFile()  {   
+        File someFile=new File ("someFileName.txt“);   
+        //do something with someFile   
+        someFile.delete();   
+    }
+    ```   
+    对应的符合规则的代码示例：对`delete()`方法返回的 boolean 变量进行检查，并且处理了可能出现的错误。   
+    ```java
+    public void deleteFile()  {   
+        File someFile=new File ("someFileName.txt");   
+           //do something with someFile   
+        if (!someFile.delete())  {   
+           //handle failure to delete the file   
+        }   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">754:Improper Check for Unusual or Exceptional Conditions</Reference>  
+        <Reference type="CWE">252:Unchecked Return Value</Reference>  
+        <Reference type="CERT">EXP00-J:Do not ignore values returned by methods</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 754</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.1 忽略方法的返回值</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.12 忽略无副作用方法的返回值</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.3 表达式</BigClassChin>  
+       
+    </BugInfo>  
+    

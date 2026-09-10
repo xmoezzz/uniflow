@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010050010" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">重定向</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序允许未验证的用户输入控制重定向中的URL,攻击通过构建URL，使用户重定向到任意URL，利用这个漏洞可以诱使用户访问某个页面，挂马、密码记录、下载任意文件等，常被用来钓鱼。  
+  
+**例如**：以下Servlet代码会接收前台的url参数，然后Servlet进行一系列业务操作后重定向到该链接，一般情况下这个链接可能是默认的，例如登陆处登陆成功后跳到首页，但是这种情况没有限制用户输入自定义的链接。  
+```java
+public class RedirectServlet extends HttpServlet {  
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws   ServletException,IOException{  
+        ...  
+        String query = request.getQueryString();  
+        if (query.contains("url")) {  
+            String url = request.getParameter("url");  
+            response.sendRedirect(url);  
+        }  
+    }  
+}
+```  
+常见的场景是受害者收到一封电子邮件，指示该用户打开`http://trusted.example.com/ecommerce/redirect.asp?url=www.wilyhacker.com`链接，用户有可能会打开该链接，因为他会认为这个链接将转到可信赖的站点。然而，一旦用户打开该链接，上面的代码会将浏览器重定向至`http://www.wilyhacker.com`。很多用户都被告知，要始终监视通过电子邮件收到的URL，以确保链接指向一个他们所熟知的可信赖站点。尽管如此，如果攻击者对目标URL进行16进制编码：`http://trusted.example.com/ecommerce/redirect.asp?url=%77%69%6C%79%68%61%63%6B%65%72%2E%63%6F%6D`以提高用户辨别URL的难度。更糟糕的是像这样的url通过例如QQ等程序进行传输的时候，这些程序的安全机制是不能识别url参数中的危险链接的。
+]]></Description>
+			<Advice><![CDATA[防止重定向漏洞的方法是创建一份合法URL列表，用户只能从中进行选择，进行重定向操作。
+
+**例如**：以下Servlet代码先对url进行判断，再决定是否重定向到该链接。
+```java
+public class RedirectServlet extends HttpServlet {  
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws   ServletException,IOException{  
+        ...  
+        String query = request.getQueryString();  
+        if (query.contains("url")) {  
+            String url = request.getParameter("url");  
+            if(safeUrls.contains(url)){
+                response.sendRedirect(url);  
+            }
+            ...
+        }  
+    }  
+}
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE">601:URL Redirection to Untrusted Site ('Open Redirect')</Reference>
+				<Reference type="OWASP TOP 10">2013:A10 Unvalidated Redirects and Forwards</Reference>
+				<Reference type="OWASP TOP 10">2010:A10 Unvalidated Redirects and Forwards</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 601</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 601</Reference>
+				<Reference type="GB/T 34944-2017 Java">Web问题:开放重定向</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发重定向漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在重定向漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在重定向漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发重定向漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

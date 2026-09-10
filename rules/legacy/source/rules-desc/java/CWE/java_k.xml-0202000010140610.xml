@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140610" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 05. 面向对象 (OBJ)</Category>  
+        <Category type="DetailClassChin">OBJ10-J：不要使用public static 非final变量</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[客户端代码可以轻易的访问公有静态字段。安全管理器不会对读取或写入这些变量进行检查。此外，在将新值存储到这些字段之前，是不能通过编程的方式进行验证的。  
+多线程场合中，非final的公有静态字段会被不一致的方法修改。  
+不正确的使用公有静态字段，同样会导致安全性问题。如果，当一个字段为一个更通用的类型`（java.lang.Object）`时，非受信代码可以通过恶意的方法来提供一个非期望的子类型。  
+风险评估：对公有的静态字段的未授权修改会导致可预期的行为，并且破坏类的不变性。此外，当那些类装载器在同一个代理链中时，因为静态字段对于被不同类装载器装载的代码是可见的，所以那些字段会被用来在不同的应用域中作为一个隐藏的通信通道而存在。  
+**不规范的代码样例1**：  
+```java
+package org.apache.xpath.compiler;  
+public class FunctionTable {  
+    public static FuncLoader m_functions;  
+}
+```  
+这段代码是从JDK 1.4.2中摘录出来的。它声明了一个包含公有静态字段m_functions的类FunctionTable。  
+攻击者可以使用以下方式来代替FunctionTable：
+```java
+FunctionTable.m_functions = new_table;
+```  
+替换FunctionTable会给攻击者访问XPathContext的机会，而XPathContext会被用来设置评估Xpath表达式的引用点。操作XPathContext会导致XML字段被不一致的方式修改，从而导致不可预期的行为。同样，因为静态变量对于整个Java运行环境来说是全局的，它们可以被不同应用域之间作为一个隐藏的通信通道。  
+这个漏洞在JDK 1.4.2_05中修复。  
+**不规范的代码示样例2**：  
+```java
+class DataSerializer implements Serializable {  
+    public static long serialVersionUID = 1973473122623778747L;  
+    // . . .  
+}
+```  
+代码在一个序列化的类中声明了一个公有静态非final的字段serialVersionUID。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+package org.apache.xpath.compiler;  
+public class FunctionTable {  
+    public static final FuncLoader m_functions;  
+}
+```  
+声明FuncLoader类型的对象m_functions为final的。这样对于多线程的使用是安全的。然而，这样也不能防止攻击者在静态变量（对象类型）初始化之前就间接的得到不正确的值（参考规则：DCL00-J）。另外，即使对象本身是不变的，但被引用的对象的每一个成员都会被修改，如：数组对象本身是static final 的，但，数组内部的每一元素都可以被修改。所以，将public修改为private，以此来防止类外的代码直接访问静态字段。  
+**规范的代码样例2**：  
+按照Java API对于Serializable的说明，需要声明`serialVersionUID` 为private static final。  
+```java
+class DataSerializer implements Serializable {  
+    private static final long serialVersionUID = 1973473122623778747L;  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">500:Public Static Field Not Marked Final</Reference>  
+        <Reference type="CWE">493:Critical Public Variable Without Final Modifier</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

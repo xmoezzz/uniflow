@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150504" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">异常规范</Category>  
+        <Category type="DetailClassChin">【推荐】finally代码块中不要抛出异常</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在finally代码块中抛出异常时会消除从try或catch程序段抛出的任何异常，并影响后续代码的执行  
+  
+**例如**：下面代码中在finally代码块中抛出了异常  
+```java
+public static void doOperation throws IOException{  
+    FileInputStream fis = null;  
+    try{  
+        fis = new FileInputStream("Reader.txt");  
+        //...  
+    }finally {  
+        fis.close();  
+        //...  
+    }  
+}
+```  
+当`Reader.txt`不存在，且程序并未对异常进行捕获时，程序只会抛出finally代码块中产生的NullPointerException，try代码块中产生的FileNotFoundException将不会显示，后续代码将不会执行。
+]]></Description>  
+      <Advice><![CDATA[不应在finally代码块中抛出异常，应直接处理掉可能发生的异常  
+  
+**例如**：下面代码中在finally代码块中处理了异常,其后续代码的执行不会被影响  
+```java
+public static void doOperation throws IOException{  
+    FileInputStream fis = null;  
+    try{  
+        fis = new FileInputStream("Reader.txt");  
+        //...  
+    }finally {  
+        if(fis !=null) {  
+            try {  
+                fis.close();  
+            } catch (IOException e) {  
+                //...  
+            }  
+            //...  
+        }  
+        //...  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="CERT">ERR04-J:Do not exit abruptly from a finally block</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Errors</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>correctness,exception</Tag> 
+    </BugInfo>  
+    

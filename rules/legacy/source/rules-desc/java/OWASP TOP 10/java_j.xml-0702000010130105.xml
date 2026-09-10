@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010130105" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">基于文件的跨区域脚本</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行加载基于文件的跨区域脚本。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行加载基于文件的跨区域脚本。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果加载一个文件可能导致在应用程序上下文中运行不可信赖的脚本，这是很危险的。  
+当满足以下条件时会发生File Based Cross Zone Scripting漏洞：  
+1. 加载一个文件，这可能会允许在您的应用程序中运行脚本。  
+2. 加载的脚本采用与运行的应用程序一样的来源。  
+当满足这两个条件时，可以实现一系列攻击，尤其是当其他各方根据信息是否来自您的应用程序范围内来确定信任时。  
+
+**例1**：以下代码使用Android WebView以便在本地加载文件：  
+```java
+...  
+TestView.loadUrl("file:///android/xxx/xxx/info.html");  
+...
+```  
+以上程序中Android WebView将使用loadUrl方法加载本地文件,以`file://`开头的URL加载的一切内容会被视为来源相同。这样，可能会出现以下几种情况来利用该漏洞：  
+1.本地文件可能受可将脚本注入该文件的攻击者操纵。  
+这将取决于文件权限、文件所在位置，或者文件先保存再加载的竞争条件（可能有供进行修改的时间段）。  
+2.文件可能会调出到外部资源。  
+当加载的文件从外部资源检索脚本时，可能会发生这种情况。
+  
+**例2**：以下代码查看外部数据源，以确定它应该运行的JavaScript。 
+```java 
+<script src="http://www.testweb.com/js/test/test.js"/>  
+```
+在上面的示例中：使用了不安全的协议，这可能会允许恶意操作者修改所生成的脚本。或者，可能会执行其他攻击，以将计算机重新路由到攻击者的站点。  
+3.加载的文件可能包含跨站脚本漏洞。  
+如果所加载的文件能够注入代码，则注入的代码也许能够在您的应用程序上下文中运行。这不一定是注入JavaScript的能力，而仅仅能够注入HTML也可以实现涂改或拒绝服务攻击。
+]]></Description>
+			<Advice><![CDATA[为了避免跨区域脚本攻击，建议设置白名单以保障所加载的文件都是安全可靠的。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A7 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2013:A3 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2010:A2 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2007:A1 Cross Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2004:A4 Cross Site Scripting</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发基于文件的跨区域脚本漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在基于文件的跨区域脚本漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在基于文件的跨区域脚本漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发基于文件的跨区域脚本漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

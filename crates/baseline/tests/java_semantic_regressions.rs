@@ -4,7 +4,9 @@ use uniflow_lang_java::JavaParser;
 use uniflow_parser_core::SourceParser;
 
 fn scan(source: &str) -> Vec<BaselineFinding> {
-    let program = JavaParser::default().parse_file("Regression.java", source).unwrap();
+    let program = JavaParser::default()
+        .parse_file("Regression.java", source)
+        .unwrap();
     builtin_security_pack().unwrap().scan_hir(
         &program,
         &HashMap::from([("Regression.java".to_owned(), source.to_owned())]),
@@ -38,10 +40,15 @@ class Regression {
     }
 }
 "#;
-    let matches = scan(source).into_iter()
+    let matches = scan(source)
+        .into_iter()
         .filter(|f| f.rule_id == "LEGACY-JAVA-AST-null-password")
         .collect::<Vec<_>>();
-    assert_eq!(matches.iter().map(|f| f.line).collect::<Vec<_>>(), [5, 9], "{matches:#?}");
+    assert_eq!(
+        matches.iter().map(|f| f.line).collect::<Vec<_>>(),
+        [5, 9],
+        "{matches:#?}"
+    );
 }
 
 #[test]
@@ -72,8 +79,16 @@ class Regression {
     let findings = scan(source);
     let true_rule = "LEGACY-JAVA-AST-expression_always_true";
     let false_rule = "LEGACY-JAVA-AST-expression_always_false";
-    let true_lines = findings.iter().filter(|f| f.rule_id == true_rule).map(|f| f.line).collect::<Vec<_>>();
-    let false_lines = findings.iter().filter(|f| f.rule_id == false_rule).map(|f| f.line).collect::<Vec<_>>();
+    let true_lines = findings
+        .iter()
+        .filter(|f| f.rule_id == true_rule)
+        .map(|f| f.line)
+        .collect::<Vec<_>>();
+    let false_lines = findings
+        .iter()
+        .filter(|f| f.rule_id == false_rule)
+        .map(|f| f.line)
+        .collect::<Vec<_>>();
     assert_eq!(true_lines, [4, 6, 7, 14, 16, 17, 18], "{findings:#?}");
     assert_eq!(false_lines, [5, 8, 13, 15], "{findings:#?}");
 }
@@ -91,11 +106,18 @@ class Regression {
     }
 }
 "#;
-    let matches = scan(source).into_iter()
+    let matches = scan(source)
+        .into_iter()
         .filter(|f| f.rule_id == "LEGACY-JAVA-AST-overly-board-catch")
         .collect::<Vec<_>>();
-    assert_eq!(matches.iter().map(|f| (f.line, f.column)).collect::<Vec<_>>(),
-        [(6, 9), (8, 9)], "{matches:#?}");
+    assert_eq!(
+        matches
+            .iter()
+            .map(|f| (f.line, f.column))
+            .collect::<Vec<_>>(),
+        [(6, 9), (8, 9)],
+        "{matches:#?}"
+    );
 }
 
 #[test]
@@ -117,21 +139,32 @@ class Regression {
     boolean nonNull(Optional<String> value, Optional<String> other) { return value == other; }
 }
 "#;
-    let findings = scan(source).into_iter()
+    let findings = scan(source)
+        .into_iter()
         .filter(|f| f.rule_id == "LEGACY-JAVA-AST-optional-null")
         .collect::<Vec<_>>();
-    assert_eq!(findings.iter().map(|f| f.line).collect::<Vec<_>>(), [5, 6, 9, 11], "{findings:#?}");
+    assert_eq!(
+        findings.iter().map(|f| f.line).collect::<Vec<_>>(),
+        [5, 6, 9, 11],
+        "{findings:#?}"
+    );
 }
 
 #[test]
 fn java_findings_use_file_coordinates_and_local_types() {
     let source = "// 非 ASCII prefix\npackage sample;\nimport java.io.File;\n\nclass Regression {\n    void run() {\n        File directory = new File(\"tmp\");\n        directory.mkdir();\n        while (ready) {\n            directory.mkdir();\n        }\n        try { work(); } finally {\n            directory.mkdir();\n        }\n    }\n}\n";
-    let matches = scan(source).into_iter()
+    let matches = scan(source)
+        .into_iter()
         .filter(|finding| finding.rule_id == "LEGACY-JAVA-AST-unchecked-return-value")
         .collect::<Vec<_>>();
     assert_eq!(matches.len(), 3, "{matches:#?}");
-    assert_eq!(matches.iter().map(|f| (f.line, f.column)).collect::<Vec<_>>(),
-        [(8, 9), (10, 13), (13, 13)]);
+    assert_eq!(
+        matches
+            .iter()
+            .map(|f| (f.line, f.column))
+            .collect::<Vec<_>>(),
+        [(8, 9), (10, 13), (13, 13)]
+    );
     assert!(matches.iter().all(|f| f.snippet == "directory.mkdir();"));
 }
 
@@ -157,7 +190,8 @@ class Regression {
 "#;
     let findings = scan(source);
     for (rule, line) in [("optional-null", 8), ("string-compare", 11)] {
-        let matches = findings.iter()
+        let matches = findings
+            .iter()
             .filter(|f| f.rule_id == format!("LEGACY-JAVA-AST-{rule}"))
             .collect::<Vec<_>>();
         assert_eq!(matches.len(), 1, "{rule}: {findings:#?}");
@@ -179,7 +213,8 @@ class Regression {
     }
 }
 "#;
-    let matches = scan(source).into_iter()
+    let matches = scan(source)
+        .into_iter()
         .filter(|f| f.rule_id == "LEGACY-JAVA-AST-call-wait-await-method")
         .collect::<Vec<_>>();
     assert_eq!(matches.len(), 2, "{matches:#?}");
@@ -201,9 +236,15 @@ class Regression {
     }
 }
 "#;
-    let findings = scan(source).into_iter()
-        .filter(|f| f.rule_id == "LEGACY-JAVA-AST-error-compare").collect::<Vec<_>>();
-    assert_eq!(findings.iter().map(|f| f.line).collect::<Vec<_>>(), [4, 5, 6, 7], "{findings:#?}");
+    let findings = scan(source)
+        .into_iter()
+        .filter(|f| f.rule_id == "LEGACY-JAVA-AST-error-compare")
+        .collect::<Vec<_>>();
+    assert_eq!(
+        findings.iter().map(|f| f.line).collect::<Vec<_>>(),
+        [4, 5, 6, 7],
+        "{findings:#?}"
+    );
 }
 
 #[test]
@@ -228,9 +269,19 @@ class Regression {
 }
 "#;
     let findings = scan(source);
-    for id in ["LEGACY-JAVA-AST-float-loop-var", "LEGACY-JAVA-AST-float-loop-var-ydt"] {
-        let matches = findings.iter().filter(|f| f.rule_id == id).collect::<Vec<_>>();
-        assert_eq!(matches.iter().map(|f| f.line).collect::<Vec<_>>(), [5, 7, 8, 10], "{id}: {matches:#?}");
+    for id in [
+        "LEGACY-JAVA-AST-float-loop-var",
+        "LEGACY-JAVA-AST-float-loop-var-ydt",
+    ] {
+        let matches = findings
+            .iter()
+            .filter(|f| f.rule_id == id)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matches.iter().map(|f| f.line).collect::<Vec<_>>(),
+            [5, 7, 8, 10],
+            "{id}: {matches:#?}"
+        );
     }
 }
 
@@ -247,7 +298,9 @@ class Regression {
     }
 }
 "#;
-    let findings = scan(source).into_iter().filter(|f|
-        f.rule_id == "LEGACY-JAVA-AST-call-wait-await-method").collect::<Vec<_>>();
+    let findings = scan(source)
+        .into_iter()
+        .filter(|f| f.rule_id == "LEGACY-JAVA-AST-call-wait-await-method")
+        .collect::<Vec<_>>();
     assert_eq!(findings.len(), 2, "{findings:#?}");
 }

@@ -1,0 +1,103 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010160071" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">6.4 错误处理安全</Category>  
+        <Category type="DetailClassChin">C.7.9 不要捕捉NullPointerException或任何它的基类</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序不能捕捉 java.lang.NullPointerException 以及任何它的基类。   
+2) 原理   
+一个运行期间抛出的 NullPointerException 异常表明存在一个对空引用的解引用，这是必须在应用代码中解决的。通过捕捉 NullPointerException 来处理这样的问题，而不对根本的原因进行处理是不合适的。   
+类似，程序不能捕捉 RuntimeException、Exception 或 Throwable。   
+3) 示例   
+    **例 1** 如下不符合规则的代码示例定义了`isName()`方法，这个方法接受一个 String 参数并在字符串是有效名字时返回 true。一个有效名字是由空格隔开的两个大写开头的词组成的。这个方法捕捉了NullPointerException 并返回 false,而不是去检査给出的字符串是否是空引用。   
+    ```java
+    boolean isName(String s) {
+        try {
+            String names[] = s.split("");
+    
+            if (names.length != 2) {
+                return false;
+            }
+            return (isCapitalized(names[0]) && isCapitalized(names[1]));
+        } catch (NullPointerException e) {
+            return false;
+        }
+    }
+    ```   
+    对应的符合规则的解决方案是：明确检测  String 参数是否为空引用，而不是捕捉NullPointerException。
+    ```java    
+    boolean isName(String s) {
+        if (s == null) {
+            return false;
+        }
+        String names[] = s.split("");
+        if (names.length != 2) {
+            return false;
+        }
+        return (isCapitalized(names[0]) && isCapitalized(names[1]));
+    }
+    ```   
+      
+    **例 2**如下不符合规则的代码示例尝试通过捕捉 ArithmeticException 来解决问题。然而，代码仍然捕捉 Exception，从而同时捕捉了预期外的可检査异常和运行期异常。   
+    ```java
+    try (   
+        division (200, 5);   
+        division(200, 0); // Divide by zero    
+    } catch (ArithmeticException ae) {    
+        throw new DivideByZeroException();   
+    } catch (Exception e) {   
+        System.out.println("Exception occurred :" + e.getMessage());   
+    }
+    ```   
+       
+    对应的符合规则的解决方案是：只捕捉具体的预期内的异常(ArithmeticException和 IOException）, 并允许其他异常在调用栈中向上传递。   
+    ```java
+    import java.io.IOException;
+    
+    public class DivideException {
+        public static void main(String[] args) {    
+        try {   
+          division(200, 5);   
+          division(200, 0); // Divide by zero    
+        } catch (ArithmeticException ae) {   
+          // DivideByZeroException extends Exception so is checked    
+          throw new DivideByZeroException();   
+        } catch (IOException ex) {   
+          ExceptionReporter.report(ex);   
+          }
+    
+        public static void division(int totalSum,int totalNumber) throws ArithmeticException, IOException {
+            int average = totalSum / totalNumber;
+            // Additional operations that may throw IOException...
+            System.out.println("Average: " + average);
+        }
+    }
+    ```
+   
+4) 特例   
+**特例 1**：—个 catch 程序段是可以捕捉所有的异常并进行处理的，随后会再重新抛出。例如，在调用栈离开可信任区域前过滤异常中的敏感信息。   
+**特例 2**：当处理任务的线程如线程池中的工作线程或 Swing 事件分派线程通过如 Runable 接口的抽象调用不可信任的代码时，它们是允许捕捉 RuntimeException 的。    
+**特例 3**：需要大量容错能力或要求降低性能运行的系统是允许在适当的抽象层捕捉并 记录类似于Throwable 的普通异常的。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">395:Use of NullPointerException Catch to Detect NULL Pointer Dereference</Reference>  
+        <Reference type="CERT">ERR08-J:Do not catch NullPointerException or any of its ancestors</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.3 捕捉运行时异常</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.7 异常行为</BigClassChin>  
+       
+    </BugInfo>  
+    

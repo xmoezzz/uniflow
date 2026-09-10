@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110046" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">不正确的serialPersistentFields修饰符</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行声明的serialPersistentFields字段修饰符不正确。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行声明的serialPersistentFields字段修饰符不正确。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Java序列化规范指出：正确的使用`serialPersistentFields`，必须将其声明为private static final。  
+  
+**例如**：如下所示代码中将`serialPersistentFields`声明为public  
+```java
+public ObjectStreamField[] serialPersistentFields =      
+{    
+    new ObjectStreamField("name", String.class),     
+    new ObjectStreamField("a", Integer.TYPE)     
+}
+```
+]]></Description>
+			<Advice><![CDATA[正确定义serialPersistentFields的修饰符，将其声明为private static final。  
+  
+**例如**：如下所示代码中将`serialPersistentFields`声明为private static final 
+```java
+private static final ObjectStreamField[] serialPersistentFields =      
+{    
+    new ObjectStreamField("name", String.class),     
+    new ObjectStreamField("a", Integer.TYPE)     
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">485:Insufficient Encapsulation</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

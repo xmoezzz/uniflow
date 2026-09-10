@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010120003" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">异常处理</Category>
+				<Category type="DetailClassChin">捕获NullPointerException</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行将会捕获NullPointerException。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行将会捕获NullPointerException。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序中不应该捕获`NullPointerException`或者任何它的基类。因为捕获`NullPointerException`只可能掩盖潜在的空引用，降低应用性能，并造成难以理解和维护的代码。  
+  
+**例如**：如下代码对空指针异常进行了捕获  
+```java
+String name=null;  
+try {  
+    name=request.getParameter("name");  
+    if(name.equals("admin")){  
+        ...  
+    }  
+}catch(NullPointerException e) { //程序捕获NullPointerException  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，删除捕获`NullPointerException`的代码。
+]]></Advice>
+			<References>
+				<Reference type="CWE">395:Use of NullPointerException Catch to Detect NULL Pointer Dereference</Reference>
+				<Reference type="CERT">ERR08-J:Do not catch NullPointerException or any of its ancestors</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+				<Reference type="SJ/T 11683-2017">6.4.3 捕捉运行时异常</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>exception,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

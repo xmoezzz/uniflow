@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010020023" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">有风险的LDAP查询</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了有风险的LDAP查询。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会进行了有风险的LDAP查询。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[LDAP注入是指客户端发送查询请求时，输入的字符串中含有一些特殊字符，导致修改了LDAP本来的查询结构，从而使得可以访问更多的未授权数据的一种攻击方式。系统中有一些方法存在着一定风险，当方法所需的数据来源于不可信赖的数据源时，可能会导致LDAP注入。  
+  
+**例如**：以下代码动态构造一个LDAP查询，并对其加以执行，该查询为了验证客户端提供的账号密码是否正确,但并未对输入参数做任何过滤。  
+```java
+public static void doLDAPQuery(String userName,String password){  
+    DirContext ctx = new InitialDirContext(env);  
+    String filter = "(&(USER=" + userName+ ")(PASSWORD="+password+"))";  
+    NamingEnumeration employees = ctx.search("ou=People,dc=example,dc=com",filter);  
+    ...   
+}
+```  
+   由于筛选器是通过连接一个常数基本查询串和一个用户输入串动态构造而成的，因此，该查询只在`userName`以及`password`不包含任何LDAP元字符时才能正常运行。如果攻击者为`userName`输入字符串`aaa)(&))`，引入任意字符串作为`password`。则该查询会变成：  
+`(&(USER= aaa)(&)(PASSWORD=Pwd))`  
+LDAP服务器只处理第一个过滤器，即仅查询`(&(USER=aaa)(&))`得到了处理。这个查询永真，因而攻击者无需有效地密码就能获取对系统的访问
+]]></Description>
+			<Advice><![CDATA[LDAP注入的根本原因是攻击者提供了可以改变LDAP查询含义的 LDAP元字符。构造LDAP筛选器时，程序员应清楚哪些字符应作为命令解析，而哪些字符应作为数据解析。为了防止攻击者侵犯程序员的各种预设情况，应使用白名单的方法，确保LDAP查询中由用户控制的数值完全来自于预定的字符集合，应不包含任何LDAP元字符。如果由用户控制的数值范围要求必须包含 LDAP元字符，则应使用相应的编码机制转义这些元字符在LDAP查询中的意义。  
+如`&、!、|、=、<、>、，、+、-、"、'、;`这些字符正常情况下不会用到，如果用户的输入中出现了，需要用反斜杠转义处理。还有些字符如`(、)、\、*、/、NUL`这些字符不仅需要用反斜杠处理，还要将字符变成相应的ASCII码值。  
+**例如**：以下代码片段中使用Spring框架EqualsFilter类来构造一个编码得当的筛选器字符串。不论请求参数中是否存在LDAP元字符，这一字符串都可以保护指令的命令结构。  
+```java
+...  
+DirContext ctx = new InitialDirContext(env);  
+String userName = request.getParameter("UserName");  
+String password= request.getParameter("Password");  
+EqualsFilter nameFilter = new EqualsFilter("USER", userName);  
+EqualsFilter passwordFilter = new EqualsFilter("PASSWORD", password);  
+...  
+NamingEnumeration employees = ctx.search("ou=People,dc=example,dc=com","(&"+nameFilter.toString()+passwordFilter.toString()+")");  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">639:Authorization Bypass Through User-Controlled Key</Reference>
+				<Reference type="CWE">90:Improper Neutralization of Special Elements used in an LDAP Query ('LDAP Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

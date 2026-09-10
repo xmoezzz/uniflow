@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130116" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">assert语句中表达式永远为false</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的assert语句中表达式永远为false。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的assert语句中表达式永远为false。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在assert语句中，当表达式的计算结果为false时，程序将会抛出AssertionError，并终止执行。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，应该修改表达式判断条件或将此代码片段删除。
+]]></Advice>
+			<References>
+				<Reference type="CWE">617:Reachable Assertion</Reference>
+				<Reference type="CWE">570:Expression is Always False</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Programming Language Vulnerabilities Likely Incorrect Expression [KOA]</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

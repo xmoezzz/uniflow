@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010000023" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">使用单个字符字符串获取索引位置</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行中使用单个字符字符串获取索引位置。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中使用单个字符字符串获取索引位置。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[使用单个字符字符串的`indexOf`或`lastIndexOf`方法获取字符索引位置。 
+ 
+**例如**：下列代码中使用单个字符字符串的`indexOf`方法。  
+```java
+String myStr = "Hello World";  
+// ...  
+int pos = myStr.indexOf("W");  // Noncompliant  
+...
+```
+]]></Description>
+			<Advice><![CDATA[可以通过使用char参数的indexOf或lastIndexOf方法来提高性能。  
+
+**例如**：下列代码中使用char参数的`indexOf`方法。  
+```java
+String myStr = "Hello World";  
+// ...  
+int pos = myStr.indexOf('W');  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

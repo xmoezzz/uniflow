@@ -1,0 +1,202 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0502000010160001" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">ISO/IEC TR 24772</Category>  
+        <Category type="SubClassChin">5.2 数据净化</Category>  
+        <Category type="DetailClassChin">C.1.1 净化穿越受信边界的非受信数据</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序必须对传递给命令行解释器或者解析器的所有字符串数据进行净化，以保证解析器处理后或者解释器处理后的字符串是无害的。   
+2) 原理   
+许多程序会接受来自未经验证的用户数据、网络连接以及其它来自于非受信域的不可信数据，然后会将这些不可信数据（经过修改或不经修改）穿过受信边界送到另一个受信域中。通常，这些数据是以字符串的形式出现的，并且会有既定的内部数据结构，这种数据结构必须能够被子系统所解析。同时，必须净化这些数据。因为子系统可能并不具备处理恶意输入信息的能力，而未经净化数据输入很有可能包含注入攻击。   
+一些命令行解释器和解析器会提供自己的数据净化和数据验证的方法。当存在这样的方法时，应当优先使用这些方法。   
+然而，需要注意的是，自定义的净化方法可能会忽略一些特殊的情况，或者会忽略在解析器中所隐含着的那些复杂性。还要注意一种情况是：当有新的功能添加到命令行解释器或者添加到解析器软件时，自定义的处理方法可能并不能得到很好的维护。   
+在JDBC 类库中，提供了能够构建SQL 命令并且处理非受信数据的API。`java.sql.PreparedStatement`类中，可以对输入字符串进行转义，如果使用正确的话，可以防止SQL 注入。   
+通过使用PreparedStatement 类的`set*()`方法，可以进行强类型检查。这样可以减少SQL 注入漏洞，因为自动化例程会正确地转义双引号内的输入数据。需要注意的是，那些将数据插入数据库的查询也会使用PreparedStatement 。   
+3) 示例   
+    **例 1**：在这个不符合规则的代码示例中，系统使用 JDBC 代码来认证用户。密码通过 char 数组传入，建立数据库连接，然后进行哈希编码。   
+    这段代码会出现SQL 注入问题，因为在SQL 语句中，`sqlString` 允许输入未经净化的输入参数。   
+    ```java 
+    class Login {
+        public Connection getConnection() throws SQLException {
+            DriverManager.registerDriver(new com.microsoft.sqlserver.jdbc.SQLServerDriver());
+            String dbConnection = PropertyManager.getProperty("db.connection");
+            // can hold some value like
+            // "jdbc:microsoft:sqlserver://<HOST>:1433,<UID>,<PWD>"
+            return DriverManager.getConnection(dbConnection);
+        }
+    
+        String hashPassword(char[] password) {
+            // create hash of password
+        }
+    
+        public void doPrivilegedAction(String username, char[] password) throws SQLException {
+            Connection connection = getConnection();
+            if (connection == null) {
+                // handle error
+            }
+            try {
+                String pwd = hashPassword(password);
+                String sqlString = "SELECT * FROM db_user WHERE username = '" + username + "’ AND password = '" + pwd
+                        + "’";
+                Statement stmt = connection.createStatement();
+                ResultSet rs = stmt.executeQuery(sqlString);
+                if (!rs.next()) {
+                    throw new SecurityException("User name or password incorrect");
+                }
+                // Authenticated; proceed
+            } finally {
+                try {
+                    connection.close();
+                } catch (SQLException x) {
+                    // forward to handler
+                }
+            }
+        }
+    }  
+    ```
+    对应的符合规则的方案修改了`doPrivilegedAction()` 方法， 使用PreparedStatement 类来代替`java.sql.Statement`。并且这段代码会验证`username`参数的长度，防止如果提交一个长用户名的时候可能会出现的攻击。   
+    ```java
+    public void doPrivilegedAction(String username, char[] password) throws SQLException {
+        Connection connection = getConnection();
+        if (connection == null) {
+            // Handle error
+        }
+        try {
+            String pwd = hashPassword(password);
+            // Ensure that the length of user name is legitimate
+            if (username.length() > 8) {   
+                // Handle error   
+            }  
+            String sqlString = "select * from db_user where username=? and password=?";
+            PreparedStatement stmt = connection.prepareStatement(sqlString);
+            stmt.setString(1, username);
+            stmt.setString(2, pwd);
+            ResultSet rs = stmt.executeQuery();
+            if (!rs.next()) {
+                throw new SecurityException("User name or password incorrect");
+            }
+            // Authenticated, proceed
+        } finally {
+            try {
+                connection.close();
+            } catch (SQLException x) {
+                // forward to handler
+            }
+        }
+    }
+    ```    
+    
+    **例 2**：在下面这段不符合规则的代码示例中，一个客户方法使用简单的字符串链接来创建一个 XML 查询，然后将其发送到服务器。在这时就有可能出现 XML 注入问题，因为这个方法并没有进行任何输入验证。   
+    ```java
+    private void createXMLStream(BufferedOutputStream outStream, String quantity) throws IOException {
+        String xmlString;
+        xmlString = "<item>\n<description>Widget</description>\n" + "<price>500.0</price>\n" + "<quantity>" + quantity
+                + "</quantity></item>";
+        outStream.write(xmlString.getBytes());
+        outStream.flush();
+    }
+    ```   
+    根据特定的数据和接收这些数据的命令解释器或者解析器的情况，必须使用一个适当的方法来净化这些非受信的用户输入。这个符合规则的方案使用白名单来净化输入数据。在这个方案中，处理方法要求输入的数字必须为0 ～ 9。   
+    ```java
+    private void createXMLStream(BufferedOutputStream outStream, String quantity) throws IOException {
+        // Write XML string if quantity contains numbers only.
+        // Blacklisting of invalid characters can be performed
+        // in conjunction.
+        if (!Pattern.matches("[0-9]+", quantity)) {
+            // Format violation
+        }
+        String xmlString = "<item>\n<description>Widget</description>\n" + "<price>500</price>\n" + "<quantity>"
+                + quantity + "</quantity></item>";
+        outStream.write(xmlString.getBytes());
+        outStream.flush();
+    }
+    ```   
+    一个更为通用的检查XML以防止注入的方法是，可以使用文档类型定义（Document TypeDefinition，DTD）或模板（schema）来进行验证。模板必须严格定义，从而防止通过注入的方式将一个合法的XML 文档变成错误的文档。以下是一个用来验证XML 文档片段的合适的模板：   
+    ```xml
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:element name="item">
+            <xs:complexType>
+                <xs:sequence>
+                    <xs:element name="description" type="xs:string" />
+                    <xs:element name="price" type="xs:decimal" />
+                    <xs:element name="quantity" type="xs:integer" />
+                </xs:sequence>
+            </xs:complexType>
+        </xs:element>
+    </xs:schema>
+    ```   
+    在`schema.xsd`文件中可以得到XML 模板。在这个符合规则的方案中，可以采用这个模板来防止XML   
+    注入。它同时需要使用CustomResolver 类来防止XXE 攻击。关于这个类和所谓的XXE 攻击，可以参见如下代码示例中的描述。   
+    ```java
+    private void createXMLStream(BufferedOutputStream outStream, String quantity) throws IOException {
+        String xmlString;
+        xmlString = "<item>\n<description>Widget</description>\n" + "<price>500.0</price>\n" + "<quantity>" + quantity
+                + "</quantity></item>";
+        InputSource xmlStream = new InputSource(new StringReader(xmlString));
+        // Build a validating SAX parser using our schema
+        SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+        DefaultHandler defHandler = new DefaultHandler() {
+            public void warning(SAXParseException s) throws SAXParseException {
+                throw s;
+            }
+    
+            public void error(SAXParseException s) throws SAXParseException {
+                throw s;
+            }
+    
+            public void fatalError(SAXParseException s) throws SAXParseException {
+                throw s;
+            }
+        };
+        StreamSource ss = new StreamSource(new File("schema.xsd"));
+        try {
+            Schema schema = sf.newSchema(ss);
+            SAXParserFactory spf = SAXParserFactory.newInstance();
+            spf.setSchema(schema);
+            SAXParser saxParser = spf.newSAXParser();
+            // To set the custom entity resolver
+            // an XML reader needs to be created
+            XMLReader reader = saxParser.getXMLReader();
+            reader.setEntityResolver(new CustomResolver());
+            saxParser.parse(xmlStream, defHandler);
+        } catch (ParserConfigurationException x) {
+            throw new IOException("Unable to validate XML", x);
+        } catch (SAXException x) {
+            throw new IOException("Invalid quantity", x);
+        }
+        // Our XML is valid, proceed
+        outStream.write(xmlString.getBytes());
+        outStream.flush();
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">564:SQL Injection: Hibernate</Reference>  
+        <Reference type="CWE">89:Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')</Reference>  
+        <Reference type="CERT">IDS00-J:Prevent SQL injection</Reference>  
+        <Reference type="OWASP TOP 10">2017:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:SQL注入</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.1 输入验证与数据净化</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use uniflow_frontend::{
     parse_project_sources_with_options, parse_source_with_options, FrontendOptions,
 };
-use uniflow_hir::{Language, Program};
+use uniflow_hir::{Language, Program, ProgramMerger};
 
 // v8 also separates JavaScript's keyword set from Kotlin/Go/Rust words such as
 // `data`, `go` and `defer`, so older JavaScript HIR must not be reused.
@@ -209,7 +209,7 @@ fn build_per_file(
         })
         .unwrap_or_default();
 
-    let mut merged = Program::empty(language.clone());
+    let mut merged = ProgramMerger::new(language.clone());
     let mut units = Vec::with_capacity(snapshots.len());
     let mut plan = CachePlan::default();
 
@@ -259,7 +259,7 @@ fn build_per_file(
     normalize_plan(&mut plan);
 
     Ok(CachedBuildResult {
-        program: merged,
+        program: merged.finish(),
         cache: ProjectCache {
             version: CACHE_VERSION,
             language,
@@ -387,7 +387,10 @@ mod tests {
         let reused = build_project_with_cache(Language::Java, &files, Some(&restored)).unwrap();
         assert_eq!(reused.plan.reused.len(), 1);
         assert!(reused.plan.reparsed.is_empty());
-        assert_eq!(serde_json::to_value(reused.program).unwrap(), serde_json::to_value(rebuilt.program).unwrap());
+        assert_eq!(
+            serde_json::to_value(reused.program).unwrap(),
+            serde_json::to_value(rebuilt.program).unwrap()
+        );
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -407,11 +410,18 @@ mod tests {
         assert_eq!(rebuilt.plan.reparsed.len(), 2);
         assert!(rebuilt.plan.reused.is_empty());
         assert_eq!(rebuilt.cache.version, CACHE_VERSION);
-        assert_eq!(serde_json::to_value(&rebuilt.program).unwrap(), serde_json::to_value(&first.program).unwrap());
-        let restored = serde_json::from_str(&serde_json::to_string(&rebuilt.cache).unwrap()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&rebuilt.program).unwrap(),
+            serde_json::to_value(&first.program).unwrap()
+        );
+        let restored =
+            serde_json::from_str(&serde_json::to_string(&rebuilt.cache).unwrap()).unwrap();
         let reused = build_project_with_cache(Language::Python, &files, Some(&restored)).unwrap();
         assert_eq!(reused.plan.reused.len(), 2);
-        assert_eq!(serde_json::to_value(&reused.program).unwrap(), serde_json::to_value(&first.program).unwrap());
+        assert_eq!(
+            serde_json::to_value(&reused.program).unwrap(),
+            serde_json::to_value(&first.program).unwrap()
+        );
         fs::remove_dir_all(root).unwrap();
     }
 

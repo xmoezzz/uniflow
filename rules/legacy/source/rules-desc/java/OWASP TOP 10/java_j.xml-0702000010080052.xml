@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010080052" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">不安全的哈希算法：缺少必要加密步骤</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行在hash加密的过程，缺少必要的步骤。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行在hash加密的过程，缺少必要的步骤。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在hash加密的过程，缺少必要的步骤，会削弱所生成hash值的强度。  
+  
+**例如**：下列代码片段中，缺少`MessageDigest.update()`的调用，导致创建不基于任何数据的hash值。  
+```java
+...  
+MessageDigest messageDigest = MessageDigest.getInstance("SHA-512");  
+//messageDigest.update(inputText.getBytes());   //lack of necessary steps  
+byte byteBuffer[] = messageDigest.digest();  
+StringBuilder strHexString = new StringBuilder();    
+for (int i = 0; i < byteBuffer.length; i++) {  
+    String hex = Integer.toHexString(0xff & byteBuffer[i]);    
+    if (hex.length() == 1) {  
+        strHexString.append('0');    
+    }  
+    strHexString.append(hex);    
+}    
+strResult = strHexString.toString();    
+...
+```
+]]></Description>
+			<Advice><![CDATA[在hash加密的过程，执行所有必需的步骤，确保不会削弱所生成hash值的强度。  
+  
+**例如**：下列代码片段中，添加`MessageDigest.update()`的调用。  
+```java
+...  
+MessageDigest messageDigest = MessageDigest.getInstance("SHA-512");   
+messageDigest.update(inputText.getBytes());     
+byte byteBuffer[] = messageDigest.digest();    
+StringBuilder strHexString = new StringBuilder();  
+for (int i = 0; i < byteBuffer.length; i++) {  
+    String hex = Integer.toHexString(0xff & byteBuffer[i]);    
+    if (hex.length() == 1) {  
+        strHexString.append('0');    
+    }  
+    strHexString.append(hex);    
+}    
+strResult = strHexString.toString();    
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">325:Missing Required Cryptographic Step</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

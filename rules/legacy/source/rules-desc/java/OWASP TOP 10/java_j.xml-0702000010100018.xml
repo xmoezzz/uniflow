@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100018" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：缺少Servlet映射</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行缺少Servlet映射。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[web.xml中定义的`<servlet>`没有对应的`<servlet-mapping>`。缺少有效的Servlet映射会阻止用户对未映射的Servlet的所有访问。  
+  
+**例如**：以下代码片段中，缺少MyServlet的Servlet映射。
+```xml
+<web-app xmlns="http://java.sun.com/xml/ns/j2ee"  
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  
+         xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/  
+         web-app_2_4.xsd" version="2.4">  
+    <servlet>  
+        <servlet-name>MyServlet</servlet-name>  
+        <servlet-class>com.cn.MyServlet</servlet-class>  
+    </servlet>  
+</web-app>
+```  
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，增加`<servlet>`对应的`<servlet-mapping>`。
+]]></Advice>
+			<References>
+				<Reference type="CWE">8:J2EE Misconfiguration: Entity Bean Declared Remote</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A8 Failure to Restrict URL Access</Reference>
+				<Reference type="OWASP TOP 10">2007:A10 Failure to Restrict URL Access</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010141802" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 49. 其他 (MSC)</Category>  
+        <Category type="DetailClassChin">MSC02-J：生成强随机数</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[伪随机数生成器(PRNG)使用一个确定的数据算法来生成具有良好统计特性的数字序列。然而，这个生成的数字序列并不具有真正的随机性。PRNG通常起始于一个种子数字，算法使用这个种子来生成输出数值和一个新的种子，这个新种子会用来生成一个数值，然后以此类推。  
+JavaAPI提供了`java.util.Random`类来实现PRNG。这个PRNG是可移植和可重复的。因此，如果两个`java.util.Random`类的实例使用了相同的种子，会在所有的Java实现中生成相同的数值序列。在应用初始化时，或者在每一次系统重启后，种子常常会被重用。在其他情况下，种子会从系统时钟基于当前的时刻获取。攻击者可以通过对有漏洞的目标系统做探查而获取种子数值，然后可以建立一个查找表来对所有的种子值进行估计。  
+因此，`java.util.Random`不能在安全应用或者在对敏感数据进行保护的场合进行使用（如：密码学），应该使用更安全的随机数生成器，比如`java.security.SecureRandom`类。  
+风险评估：可预测的随机数序列在像密码学这样的关键应用中会消弱其安全性。  
+**不规范的代码样例1**：  
+```java
+import java.util.Random;  
+// ...
+Random number = new Random(123L);
+// ...
+for (int i = 0; i < 20; i++) {
+    // Generate another random integer in the range [0, 20]
+    int n = number.nextInt(21);
+    System.out.println(n);
+}
+```  
+**例外**：用于非关键应用中的非敏感数据时，可以使用java.util.Random类来生成随机数。比如，一个游戏或者单元测试中添加随机性。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+import java.security.SecureRandom;  
+import java.security.NoSuchAlgorithmException;  
+// ...  
+public static void main(String args[]) {
+    try {
+        SecureRandom number = SecureRandom.getInstance("SHA1PRNG");
+        // Generate 20 integers 0..20
+        for (int i = 0; i < 20; i++) {
+            System.out.println(number.nextInt(21));
+        }
+    } catch (NoSuchAlgorithmException nsae) {
+        // Forward to handler
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">338:Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)</Reference>  
+        <Reference type="CWE">330:Use of Insufficiently Random Values</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 330</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:不充分的随机数</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

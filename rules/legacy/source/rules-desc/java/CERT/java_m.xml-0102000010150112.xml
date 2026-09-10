@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010150112" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">API误用</Category>  
+        <Category type="DetailClassChin">【强制】不要用Object.equals()比较两个数组</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[数组不会重写父类Object的`equals()`方法，Object中`equals()`方法比较的是数组引用也就是数据的内存地址而不是数组中的内容，当需要比较两数组中的内容是否一致时不要使用`Object.equals()`方法。  
+  
+**例如**：下面代码片段中，不正确的使用`Object.equals()`方法比较两个数组。  
+```java
+public void arrayEqualBad(){  
+    int[] arra1 = new int[20];  
+    int[] arra2 = new int[20];  
+    boolean isEqual = arra1.equals(arra2);  
+ }
+```
+]]></Description>  
+      <Advice><![CDATA[应使用`java.util.Arrays.equals()`方法比较两个数组的内容。   
+  
+**例如**：下面代码片段中，使用`java.util.Arrays.equals()`方法比较两个数组。  
+```java
+public void arrayEqualsGood(){  
+    int[] arra1 = new int[20];  
+    int[] arra2 = new int[20];  
+    boolean isEqual = Arrays.equals(arra1, arra2);  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">754:Improper Check for Unusual or Exceptional Conditions</Reference>  
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="CERT">EXP02-J:Do not use the Object.equals() method to compare two arrays</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 754</Reference>  
+        <Reference type="SJ/T 11683-2017">6.3.4 equals方法的错误使用</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>correctness</Tag> 
+    </BugInfo>  
+    

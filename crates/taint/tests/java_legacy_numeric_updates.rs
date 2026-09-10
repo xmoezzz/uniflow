@@ -15,12 +15,28 @@ fn rules() -> &'static RuleSet {
     RULES.get_or_init(|| {
         let legacy = legacy_models_for(Language::Java).unwrap();
         let rules = RuleSet {
-            metadata: legacy.metadata.into_iter().filter(|r| r.id == SINK).collect(),
+            metadata: legacy
+                .metadata
+                .into_iter()
+                .filter(|r| r.id == SINK)
+                .collect(),
             // Keep every label emitted at the original numeric source site.
-            sources: legacy.sources.into_iter().filter(|r| r.id.starts_with(SOURCE)).collect(),
+            sources: legacy
+                .sources
+                .into_iter()
+                .filter(|r| r.id.starts_with(SOURCE))
+                .collect(),
             sinks: legacy.sinks.into_iter().filter(|r| r.id == SINK).collect(),
-            sink_conditions: legacy.sink_conditions.into_iter().filter(|r| r.sink_rule_id == SINK).collect(),
-            call_conditions: legacy.call_conditions.into_iter().filter(|r| r.rule_id.starts_with(SOURCE) || r.rule_id == SINK).collect(),
+            sink_conditions: legacy
+                .sink_conditions
+                .into_iter()
+                .filter(|r| r.sink_rule_id == SINK)
+                .collect(),
+            call_conditions: legacy
+                .call_conditions
+                .into_iter()
+                .filter(|r| r.rule_id.starts_with(SOURCE) || r.rule_id == SINK)
+                .collect(),
             ..Default::default()
         };
         assert_eq!(rules.sources.len(), 3);
@@ -36,32 +52,71 @@ fn check(body: &str, expected: bool) {
     let ir = lower_program(&hir);
     let graph = build(&ir, rules());
     let findings = analyze(&graph, rules());
-    assert_eq!(!findings.is_empty(), expected, "{source}\n{findings:#?}\n{:#?}", graph.call_meta);
-    assert!(findings.iter().all(|f| f.sink_rule_id == SINK && f.source_rule_id.starts_with(SOURCE)));
+    assert_eq!(
+        !findings.is_empty(),
+        expected,
+        "{source}\n{findings:#?}\n{:#?}",
+        graph.call_meta
+    );
+    assert!(findings
+        .iter()
+        .all(|f| f.sink_rule_id == SINK && f.source_rule_id.starts_with(SOURCE)));
     assert!(findings.iter().all(|f| f.translations.zh_cn.is_some()));
 }
 
 #[test]
 fn original_java_database_access_rule_tracks_numeric_update_results_and_writeback() {
     for update in ["value++", "++value", "value--", "--value"] {
-        check(&format!("int value = request.getContentLength(); statement.setInt(1, {update});"), true);
-        check(&format!("int value = request.getContentLength(); {update}; statement.setInt(1, value);"), true);
-        check(&format!("int value = 1; statement.setInt(1, {update});"), false);
+        check(
+            &format!("int value = request.getContentLength(); statement.setInt(1, {update});"),
+            true,
+        );
+        check(
+            &format!(
+                "int value = request.getContentLength(); {update}; statement.setInt(1, value);"
+            ),
+            true,
+        );
+        check(
+            &format!("int value = 1; statement.setInt(1, {update});"),
+            false,
+        );
     }
 }
 
 #[test]
 fn original_java_database_access_rule_tracks_heap_updates_and_branch_merges() {
-    check("values[0] = request.getContentLength(); statement.setInt(1, values[0]++);", true);
-    check("values[0] = request.getContentLength(); ++values[0]; statement.setInt(1, values[0]);", true);
+    check(
+        "values[0] = request.getContentLength(); statement.setInt(1, values[0]++);",
+        true,
+    );
+    check(
+        "values[0] = request.getContentLength(); ++values[0]; statement.setInt(1, values[0]);",
+        true,
+    );
     check("int value = request.getContentLength(); if (flag) { value++; } else { --value; } statement.setInt(1, value);", true);
-    check("int value = request.getContentLength(); value++; value = 1; statement.setInt(1, value);", false);
+    check(
+        "int value = request.getContentLength(); value++; value = 1; statement.setInt(1, value);",
+        false,
+    );
 }
 
 #[test]
 fn original_java_database_access_rule_distinguishes_updated_array_indices() {
-    check("int i = 0; values[i++] = request.getContentLength(); statement.setInt(1, values[0]);", true);
-    check("int i = 0; values[i++] = request.getContentLength(); statement.setInt(1, values[i]);", false);
-    check("int i = 0; values[++i] = request.getContentLength(); statement.setInt(1, values[1]);", true);
-    check("int i = 0; values[++i] = request.getContentLength(); statement.setInt(1, values[0]);", false);
+    check(
+        "int i = 0; values[i++] = request.getContentLength(); statement.setInt(1, values[0]);",
+        true,
+    );
+    check(
+        "int i = 0; values[i++] = request.getContentLength(); statement.setInt(1, values[i]);",
+        false,
+    );
+    check(
+        "int i = 0; values[++i] = request.getContentLength(); statement.setInt(1, values[1]);",
+        true,
+    );
+    check(
+        "int i = 0; values[++i] = request.getContentLength(); statement.setInt(1, values[0]);",
+        false,
+    );
 }

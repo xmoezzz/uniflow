@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150204" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">密码规范</Category>  
+        <Category type="DetailClassChin">【强制】密钥长度应该足够长</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[加密算法中使用的密钥长度较短，会降低系统安全。  
+  
+**例如**：下面代码片段中，KeyPairGenerator使用RSA加密算法，长度为1024位。  
+```java
+KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("RSA");  
+keyPairGen.initialize(1024);  
+KeyPair keyPair = keyPairGen.generateKeyPair();  
+PublicKey publicKey = (RSAPublicKey) keyPair.getPublic();  
+PrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();  
+byte[] publicKeyData = publicKey.getEncoded();  
+byte[] privateKeyData = privateKey.getEncoded();  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[对于对称加密算法，建议使用长度大于或等于128位的密钥。对于非对称加密算法（如RSA)，建议使用长度大于或等于2048位的密钥。  
+  
+**例如**：下面代码片段中，KeyPairGenerator使用RSA加密算法，长度为2048位。  
+```java
+KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("RSA");  
+keyPairGen.initialize(2048);  
+KeyPair keyPair = keyPairGen.generateKeyPair();  
+PublicKey publicKey = (RSAPublicKey) keyPair.getPublic();  
+PrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();  
+byte[] publicKeyData = publicKey.getEncoded();  
+byte[] privateKeyData = privateKey.getEncoded();  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">326:Inadequate Encryption Strength</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin>Security Features</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>security,password</Tag> 
+    </BugInfo>  
+    

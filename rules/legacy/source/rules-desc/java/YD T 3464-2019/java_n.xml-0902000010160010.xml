@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160010" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">5.2 数据净化</Category>  
+        <Category type="DetailClassChin">C.1.10 如果没有指定适当的locale，不要使用locale相关方法处理与locale相关的数据</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+任何一个程序调用 locale 相关方法时，如果使用非受信数据，必须显式指明使用这些方法的locale。   
+2) 原理   
+当 locale 没有明确指定的时候，使用 locale相关的方法处理与 locale相关的数据会产生意想不到的后果。编程语言的标示符、协议关键字以及 HTML标签通常会指定 Locale.ENGLISH作为一个特定的locale。当改变默认的 locale的时候，很有可能使数据绕过检查，从而改变 locale相关方法的行为。比如，当把一个字符串转换为大写字符时，可认为它是合法的，然而，当把它接着转换回小写字符时，可能就会产生黑名单字符串。   
+3) 示例   
+    这个不符合规则的代码示例中使用了 locale 相关的 `String.toUpperCase()` 方法来将 HTML 标签转换为大写字符。在英文 locale 中，会将`“title”` 转换为`“TITLE”`，在土耳其 locale 中，会将`“title”` 转换为`“T?TLE”`，其中的`“?”`是拉丁文字母`“I”`，它在字符上是有一个点的。   
+    `"title".toUpperCase();`   
+    对应的符合规则的方案显式地将 locale设置为英文，从而避免产生意想不到的问题。   
+    `"title".toUpperCase(Locale.ENGLISH);`   
+    这条规则同样适用于 `String.equalsIgnoreCase()`方法。   
+    另一个符合规则的方案在对字符串数据进行处理之前，把默认的 locale设置为 English。
+    ```java
+    Locale.setDefault(Locale.ENGLISH);   
+    "title".toUpperCase();
+    ```   
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">474:Use of Function with Inconsistent Implementations</Reference>  
+        <Reference type="CERT">STR02-J:Specify an appropriate locale when comparing locale-dependent data</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.1 输入验证与数据净化</BigClassChin>  
+       
+    </BugInfo>  
+    

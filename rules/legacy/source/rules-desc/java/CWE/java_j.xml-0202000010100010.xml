@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100010" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：弱安全限制</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的安全限制较弱。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Web应用程序提供在web.xml中配置对敏感操作或数据的访问权限，有可能没有足够的控制能够防止未经授权的用户进行访问。  
+  
+**例如**：下面配置文件片段中， `<url-pattern>`中含有通配符 (*) 
+```xml
+...  
+<security-constraint>  
+    <web-resource-collection>  
+        <web-resource-name>Protected Area</web-resource-name>  
+        <url-pattern>/myWeb/*</url-pattern>  
+        <http-method>PUT</http-method>  
+        <http-method>GET</http-method>  
+    </web-resource-collection>  
+    <auth-constraint>  
+        <role-name>Create</role-name>  
+    </auth-constraint>  
+</security-constraint>  
+...
+``` 
+]]></Description>
+			<Advice><![CDATA[Web应用程序应该在web.xml中精确配置对敏感操作或数据的访问权限，防止未经授权的用户进行访问。  
+  
+**例如**：下面配置文件片段中，精确配置了`url-pattern`。  
+```xml
+...  
+<security-constraint>  
+    <web-resource-collection>  
+        <web-resource-name>Protected Area</web-resource-name>  
+        <url-pattern>/myWeb/create</url-pattern>  
+    </web-resource-collection>  
+    <auth-constraint>  
+        <role-name>Create</role-name>  
+    </auth-constraint>  
+</security-constraint>  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A7 Missing Function Level Access Control</Reference>
+				<Reference type="OWASP TOP 10">2010:A8 Failure to Restrict URL Access</Reference>
+				<Reference type="OWASP TOP 10">2007:A10 Failure to Restrict URL Access</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

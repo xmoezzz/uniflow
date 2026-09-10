@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010080050" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">不安全的哈希算法：PBE使用的迭代器数值过低</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行PBE使用的迭代器数值过低。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行PBE使用的迭代器数值过低。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果PBE使用的迭代器数值过低，会增加被攻击的可能性。  
+  
+**例如**：下面代码示例中：PBE使用的迭代器数值为50：  
+```java
+final int SALT_COUNT = 50;  
+Key k = stringToKey(key);   
+PBEParameterSpec parameterSpec = new PBEParameterSpec(salt, SALT_COUNT);    
+Cipher cipher = Cipher.getInstance(KEY_PBE);    
+cipher.init(Cipher.ENCRYPT_MODE, k, parameterSpec);
+```
+]]></Description>
+			<Advice><![CDATA[PBE使用PBEParameterSpec时，应使用非常量salt，至少迭代1000次。使用 PBEKeySpec时，应使用非常量salt，至少迭代10000次。  
+  
+**例如**：下面代码示例中：PBE使用的迭代器数值为100,000：  
+```java
+final int SALT_COUNT = 100000;  
+Key k = stringToKey(key);   
+PBEParameterSpec parameterSpec = new PBEParameterSpec(salt, SALT_COUNT);    
+Cipher cipher = Cipher.getInstance(KEY_PBE);    
+cipher.init(Cipher.ENCRYPT_MODE, k, parameterSpec);
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">916:Use of Password Hash With Insufficient Computational Effort</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

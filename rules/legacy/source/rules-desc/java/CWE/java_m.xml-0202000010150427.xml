@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150427" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【强制】不要创建空的ThreadPoolExecutor</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[ThreadPoolExecutor大小设置为0，意味着线程池将没有任何线程，也就不会运行任何程序。  
+  
+**例如**：下列代码中ScheduledThreadPoolExecutor的CorePoolSize设置为0。  
+```java
+public static void init() {  
+    ScheduledThreadPoolExecutor stpe1 = new ScheduledThreadPoolExecutor(0); //构造方法设置CorePoolSize为0  
+    ScheduledThreadPoolExecutor stpe2 = new ScheduledThreadPoolExecutor(10);  
+    stpe2.setCorePoolSize(0); //setCorePoolSize方法设置CorePoolSize为0  
+}  
+...
+]]></Description>  
+      <Advice><![CDATA[不要将ThreadPoolExecutor大小设置为0，当不需要线程池时可以将ThreadPoolExecutor置为null。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness,bad_practice</Tag> 
+    </BugInfo>  
+    

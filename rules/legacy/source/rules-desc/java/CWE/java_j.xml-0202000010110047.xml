@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110047" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">不正确的方法签名</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法的方法签名不正确。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法的方法签名不正确。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序可能希望重写JDK中一些方法，但由于拼写错误或参数列表错误导致无法进行重写。  
+  
+**例如**：下面代码片段中，方法的目的是重写java.lang.System类的`setProperty()`方法。  
+```java
+...  
+public String setProperty(String s1, int int1){  
+    ...  
+}  
+...  
+```
+java.lang.System类的`setProperty()`方法2个参数都是String类型，因此，以上方法没有达到重写的目的。
+]]></Description>
+			<Advice><![CDATA[检查方法的签名，是否存在错误或参数列表错误。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

@@ -64,14 +64,21 @@ fn check(body: &str, expected_sources: &[&str]) {
     actual.sort_unstable();
     let mut expected = expected_sources.to_vec();
     expected.sort_unstable();
-    assert_eq!(actual, expected, "{body}\n{findings:#?}\n{:#?}", graph.call_meta);
+    assert_eq!(
+        actual, expected,
+        "{body}\n{findings:#?}\n{:#?}",
+        graph.call_meta
+    );
 }
 
 #[test]
 fn original_java_check_return_value_reports_only_discarded_results() {
     check("file.mkdir();", &[FILE_SOURCE]);
     check("stream.read();", &[STREAM_SOURCE]);
-    check("file.mkdir(); stream.read();", &[FILE_SOURCE, STREAM_SOURCE]);
+    check(
+        "file.mkdir(); stream.read();",
+        &[FILE_SOURCE, STREAM_SOURCE],
+    );
 
     check("boolean created = file.mkdir(); consume(created);", &[]);
     check("int count = stream.read(); if (count > 0) { return; }", &[]);

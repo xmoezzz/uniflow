@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170051" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 并发程序安全</Category>  
+        <Category type="DetailClassChin">A.3.2.19 不要使用双重检查锁定</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：在程序开发中，有时需要推迟一些高开销的对象初始化操作，并且只有在使用这些对象时才进行初始化，此时开发者可能会采用延迟初始化。但要正确实现线程安全的延迟初始化需要一些技巧，否则容易出现问题，如下面例子所示。  
+对于不要使用双重检查锁定的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+开发人员想通过双重检查锁定来降低同步的开销。示例代码如下：  
+**示例1**：   
+```java
+public class DoubleCheckedLocking {                        //1  
+    private static Instance instance;                      //2  
+    public static Instance getInstance() {                 //3  
+        if (instance == null) {                            //4:first check  
+            synchronized (DoubleCheckedLocking.class) {    //5:lock  
+                 if (instance == null) {                   //6:second check  
+                     instance = new Instance();            //7:problem  
+                 }                                         //8  
+            }                                              //9  
+            return instance;                               //10  
+        }                                                  //11  
+    }  
+}
+```  
+上面代码示例中，使用双重校验锁来实现延迟初始化。在示例3的代码示例中，开发者试图通过检测第一次`instance`不为null，就不需要执行下面的加锁和初始化操作。希望可以大幅降低例2同步方法带来的性能开销。然而，这是一个错误的优化。在线程执行到第4行代码读取到`instance`不为null时，`instance`引用的对象有可能还没有完成初始化。原因如下：  
+第7行（`instance = new Singleton();`）创建一个对象。这一行代码可以分解为如下的三行伪代码：  
+```java
+memory = allocate();   //1：分配对象的内存空间  
+ctorInstance(memory);  //2：初始化对象  
+instance = memory;     //3：设置instance指向刚分配的内存地址  
+```
+上面三行伪代码中的2和3之间，可能会被重排序。2和3之间重排序之后的执行时序如下：
+```java
+memory = allocate();   //1：分配对象的内存空间  
+instance = memory;     //3：设置instance指向刚分配的内存地址  
+                       //注意，此时对象还没有被初始化  
+ctorInstance(memory);  //2：初始化对象  
+```  
+如果需要对实例字段使用线程安全的延迟初始化，需使用基于volatile的延迟初始化的方案。如果需要对静态字段使用线程安全的延迟初始化，基于类初始化的方案。两种方式示例如下。  
+**示例2**：   
+   ```java
+public class SafeDoubleCheckedLocking {  
+    private volatile static Instance instance;  
+    public static Instance getInstance() {  
+        if (instance == null) {  
+            synchronized (SafeDoubleCheckedLocking.class) {  
+                if (instance == null)  
+                    instance = new Instance();//volatile instance  
+            }  
+        }  
+        return instance;  
+    }  
+}
+```  
+基于volatile的双重检查锁定的解决方案。  
+这个解决方案需要JDK5或更高版本，因为从JDK5开始使用新的JSR-133内存模型规范，这个规范增强了volatile的语义。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">667:Improper Locking</Reference>  
+        <Reference type="CWE">609:Double-Checked Locking</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.2 并发程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

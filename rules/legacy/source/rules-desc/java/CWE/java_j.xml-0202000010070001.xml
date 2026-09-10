@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010070001" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">调用System.gc()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行调用了System.gc()。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行调用了System.gc()。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序频繁调用`System.gc()`将会降低系统性能。
+]]></Description>
+			<Advice><![CDATA[程序不应频繁调用`System.gc()`进行垃圾回收，应让Java虚拟机进行内存管理。
+]]></Advice>
+			<References>
+				<Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="SJ/T 11683-2017">6.5.5 调用System.gc方法</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

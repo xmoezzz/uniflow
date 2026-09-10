@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010130139" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">除数为0</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行除数为0。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行除数为0。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序将除数设置为0，将会造成ArithmeticException异常抛出，进而导致应用程序崩溃。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，避免除数为0，防止出现ArithmeticException异常。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="CWE">369:Divide By Zero</Reference>
+				<Reference type="SJ/T 11683-2017">6.3.1 非法计算</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,exception</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

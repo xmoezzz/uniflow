@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010080010" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">不安全的哈希算法：硬编码salt</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用硬编码salt进行加密。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用硬编码salt进行加密。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序加密时所采用的salt如果是硬编码在程序中，不仅所有的项目研发人员都可以查看该salt，而且当项目上线后将无法轻易更改salt值。最危险的是攻击者可以根据该salt的值计算出该应用程序的“彩虹表”，从未获取所加密的信息。  
+  
+**例如**：以下代码使用了硬编码salt。
+```java
+...  
+String salt = "1FAA86C8FF154745A451E6AC1FE59CBC";  
+Encryptor encryptor = JavaEncryptor.getInstance();  
+encryptor.hash(plaintext, salt);  
+...
+```  
+该代码可以正常运行，但是任何有该代码权限的人都能得到这个salt。一旦程序发布，将无法更改salt，攻击者如果得到salt值，将很容易入侵系统。
+]]></Description>
+			<Advice><![CDATA[程序应采用不小于8个字节的随机生成的字符串作为salt。
+]]></Advice>
+			<References>
+				<Reference type="CWE">326:Inadequate Encryption Strength</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

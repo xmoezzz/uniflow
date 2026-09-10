@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010150416" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用已过时的元素</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[随着编程语言的发展和程序的不断迭代，往往会因为某些原因弃用部分函数，或使用新函数替代之前的。如果程序中使用了`@Deprecated`注释的元素或者一些以及废弃的方法，这些元素或者方法可能会带来安全隐患。
+]]></Description>  
+      <Advice><![CDATA[不要使用`@Deprecated`注释的元素或者废弃的方法，使用JDK和程序中所提供的新方法来代替过时的方法。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">477:Use of Obsolete Functions</Reference>  
+        <Reference type="CERT">MET02-J:Do not use deprecated or obsolete classes or methods</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Programming Language Vulnerabilities Dead and Deactivated Code [XYQ]</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

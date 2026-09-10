@@ -5,7 +5,7 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use uniflow_hir::{Language, Program};
+use uniflow_hir::{Language, Program, ProgramMerger};
 use uniflow_lang_c::CParser;
 use uniflow_lang_cpp::CppParser;
 use uniflow_lang_frontends::{
@@ -119,12 +119,12 @@ pub fn parse_project_sources_with_options(
         Language::Java => parse_java_project_sources(&prepared_entries),
         Language::Python => parse_python_project_sources(&prepared_entries),
         Language::C | Language::Cpp => {
-            let mut project = Program::empty(language.clone());
+            let mut project = ProgramMerger::new(language.clone());
             for (path, source) in &prepared_entries {
                 let parsed = parse_prepared_source(language.clone(), path, source)?;
                 project.merge(parsed);
             }
-            Ok(project)
+            Ok(project.finish())
         }
         Language::CSharp
         | Language::ObjC

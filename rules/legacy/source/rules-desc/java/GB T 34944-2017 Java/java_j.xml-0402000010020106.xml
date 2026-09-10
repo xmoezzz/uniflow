@@ -1,0 +1,112 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010020106" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">HTTP响应截断：Cookies</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[HTTP响应截断是由于应用程序未对用户提交的数据进行严格过滤，当用户恶意提交包含CR（回车，即URL编码%0d或r）和LF（换行符，即URL编码%0a或n）的HTTP请求，服务器可能会创建两个 HTTP 响应，攻击者可以控制第二个响应并加载攻击。攻击者可控制响应的内容构造 XSS 攻击，其中响应中包含恶意的 JavaScript 或其它代码在用户的浏览器中执行，也有可能让用户重定向到攻击者控制的Web内容或在用户的主机上执行恶意操作。  
+  
+**例1**：下列代码片段中，程序读取HTTP请求参数AUTHOR_PARAM的值，并将它设置到HTTP响应的Cookie中。  
+```java
+...
+String author = request.getParameter(AUTHOR_PARAM);  
+...   
+Cookie cookie = new Cookie("author", author);  
+cookie.setMaxAge(cookieExpiration);  
+response.addCookie(cookie);
+...
+```  
+正常情况下，如果请求中提交参数是字符串`Jane Smith`，那么包含Cookie的HTTP响应头格式如下：  
+```java
+HTTP/1.1 200 OK  
+...  
+Set-Cookie: author=Jane Smith  
+...
+```  
+但是如果攻击者提交一个恶意字符串，比如`Wiley Hacker\r\nHTTP/1.1 200 OK\r\n...`，那么HTTP应答就会被分割成下面两个响应：  
+```java
+HTTP/1.1 200 OK  
+...  
+Set-Cookie: author=Wiley Hacker  
+HTTP/1.1 200 OK 
+...
+```
+这样第二个响应已完全由攻击者控制，攻击者可以用所需的头文件和正文内容构建该响应实施攻击。  
+**例2**：以下Android代码会从Activity中直接取值，并将其置于一个HTTP响应的cookie头文件中，而该值很可能是受用户控制的。  
+```java
+...  
+CookieManager cookieManager = CookieManager.getInstance();  
+Intent intent = activity.getIntent();  
+String value = intent.getStringExtra("value");  
+cookieManager.setCookie("url", value);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[防止HTTP响应截断攻击的最安全的方法是创建一份安全字符白名单，只接受完全由这些受认可的字符组成的输入出现在HTTP响应头文件中。  
+  
+**例如**：以下代码片段中，验证了`para`的值是否由标准的字母数字字符组成。  
+```java
+...
+String para = request.getParameter(para);  
+if (Pattern.matches("[0-9A-Za-z]+", para)) {  
+    ...   
+    Cookie cookie = new Cookie("para", para);  
+    cookie.setMaxAge(expirationAge);  
+    response.addCookie(cookie);  
+}
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">113:Improper Neutralization of CRLF Sequences in HTTP Headers ('HTTP Response Splitting')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M8 Security Decisions Via Untrusted Inputs</Reference>
+				<Reference type="GB/T 34944-2017 Java">Web问题:HTTP响应拆分</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发HTTP响应截断：Cookies漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在HTTP响应截断：Cookies漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在HTTP响应截断：Cookies漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发HTTP响应截断：Cookies漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

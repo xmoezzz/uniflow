@@ -1,0 +1,114 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010160102" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.12.1 不要使用非线程安全方法来覆写线程安全方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序禁止使用非并发安全的方法来覆写线程安全方法。   
+2) 原理   
+当一个依赖于基类提供线程安全的客户无意中对子类的实例进行操作时，如果使用对并发不安全的方法来覆写线程安全方法，那会导致不恰当的同步。比如，如果子类提供了对并发操作不安全的实现，那么可能会违反一个被覆写的同步方法的合约。这样的覆写很容易造成难以诊断的错误。   
+如果被设计成可继承的类，那么它们所用的锁策略应该要详细记录。随后这些信息可以用于决定适合子类的锁策略。   
+3) 示例   
+    **例 1** 这个不符合规则的代码示例在 Derived 类中使用一个非同步方法覆写了 Base 类中的同步方法   
+    ```java
+    class Base {
+        public synchronized void doSomething() {
+            // ...
+        }
+    }
+    
+    class Derived extends Base {
+        @Override
+        public void doSomething() {
+            // ...
+        }
+    }
+    ```  
+    Base 类中的 `doSomething()`方法可以安全地被多个线程使用，但这并不适用于 Deiced 子类的实例。   
+    对应的符合规则的解决方案是：同步子类中的 `doSomething()`方法。   
+    ```java
+    class Base {
+        public synchronized void doSomething() {
+            // ...
+        }
+    }
+    
+    class Derived extends Base {
+        @Override
+        public synchronized void doSomething() {
+            // ...
+        }
+    }
+    ```    
+    **例 2** 这个不符合规则的代码示例在 Base 类中定义的 `doSomething()`方法使用了一个私有的 final锁对象。   
+    ```java
+    class Base {
+        private final Object lock = new Object();
+    
+        public void doSomething() {
+            synchronized (lock) {
+                // ...
+            }
+        }
+    }
+    
+    class Derived extends Base {
+        Logger logger = // Initialize  
+    
+        @Override
+        public void doSomething() {
+            try {
+                super.doSomething();
+            } finally {
+                logger.log(Level.FINE, "Did something");
+            }
+        }
+    }
+    ``` 
+    多个线程有可能会造成记入日志的条目有着和任务执行不一样的顺序。因此， Derived 类的`doSomething()`方法是非线程安全的，不能安全地被多个线程调用。   
+    对应的符合规则的解决方案是：使用自己的私有 fianl 锁对象来同步子类的 `doSomething()`方法。   
+    ```java
+    class Base {
+        private final Object lock = new Object();
+    
+        public void doSomething() {
+            synchronized (lock) {
+                // ...
+            }
+        }
+    }
+    
+    class Derived extends Base {
+        private final Object lock = new Object();
+    
+        @Override
+        public void doSomething() {
+            synchronized (lock) {
+                try {
+                    super.doSomething();
+                } finally {
+                    logger.log(Level.FINE, "Did something");
+                }
+            }
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">TSM00-J:Do not override thread-safe methods with methods that are not thread-safe</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.12 与线程安全相关的其他规则</BigClassChin>  
+       
+    </BugInfo>  
+    

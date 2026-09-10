@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130010" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">类成员与类同名</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行定义的类成员变量与类同名。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[类成员与类同名，容易导致程序混乱或产生错误的代码。  
+  
+**例如**：下列代码中类成员与类名称相同。  
+```java
+public class User{  
+    private User User;  
+    ...  
+}}
+```
+]]></Description>
+			<Advice><![CDATA[不要使用容易造成混淆的命名。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

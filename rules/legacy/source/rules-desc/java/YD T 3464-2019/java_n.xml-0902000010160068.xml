@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160068" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.4 错误处理安全</Category>  
+        <Category type="DetailClassChin">C.7.6 不要在finally程序段中遗漏可检查异常</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+在 finally 程序段中捕捉并处理可检查异常。   
+2) 原理   
+在 finally 程序段中调用的方法可能会抛出异常。没能捕捉和处理这样的异常会造成整个 try 程序段的非正常终止。这导致了在 try 程序段中抛出异常的丢失，从而阻碍了任何可能的恢复方法去处理这些问题。而且，由于异常改变了程序流程，因此可能不会执行 finally 程序段中在异常抛出后的任何表达式或语句。   
+3) 示例   
+    如下不符合规则的代码示例在 finally 程序段中关闭 reader 对象。程序员错误地假设 finally 程序段中的语句不会抛出异常，因此没能适当地处理可能发生的异常。   
+    ```java
+    public class Operation {
+        public static void doOperation(String some_file) {
+            // ... code to check or set character encoding ...
+            try {
+                BufferedReader reader = new BufferedReader(new FileReader(some_file));
+                try {
+                    // Do operations
+                } finally {
+                    reader.close();
+                    // ... Other cleanup code ...
+                }
+            } catch (IOException x) {
+                // Forward to handler
+            }
+        }
+    }
+    ```   
+       
+    对应的符合规则的解决方案是：将 `close()`放在 finally 程序段中一个独立的 try-catch 程序段里，从而可以处理潜在的 IOException 并防止它的传递。   
+    ```java
+    public class Operation {
+        public static void doOperation(String some_file) {
+            // ... code to check or set character encoding
+            try {
+                BufferedReader reader = new BufferedReader(new FileReader(some_file));
+                try {
+                    // Do operations
+                } finally {
+                    try {
+                        reader.close();
+                    } catch (IOException ie) {
+                        // Forward to handler
+                    }
+                    // ... Other clean-up code ...
+                }
+            } catch (IOException x) {
+                // Forward to handler
+            }
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="CERT">ERR04-J:Do not exit abruptly from a finally block</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.7 异常行为</BigClassChin>  
+       
+    </BugInfo>  
+    

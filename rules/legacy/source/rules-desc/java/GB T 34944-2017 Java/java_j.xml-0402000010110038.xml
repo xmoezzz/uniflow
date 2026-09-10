@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010110038" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">系统信息泄露：不完善的Servlet错误处理</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果Servlet抛出异常，程序未进行捕获，Servlet容器将会把异常信息响应给用户，攻击者可能会利用这些信息制定相应的攻击计划。  
+  
+**例如**：下面代码中方法`println()`如果抛出IOException，由于Servlet容器没有对该类型异常做处理并将其抛出，将会把异常信息响应给用户。  
+```java
+protected void doPost (HttpServletRequest request,HttpServletResponse response)throws IOException {  
+    String username= (String)request.getParameter("username");  
+    ...  
+    out.println("descripse:" + user.getDescripseByName(username));  
+}
+```
+]]></Description>
+			<Advice><![CDATA[建议在所有的顶层Servlet方法上对Throwable异常进行捕获处理。
+]]></Advice>
+			<References>
+				<Reference type="CWE">600:Uncaught Exception in Servlet</Reference>
+				<Reference type="CWE">431:Missing Handler</Reference>
+				<Reference type="CWE">248:Uncaught Exception</Reference>
+				<Reference type="CWE">209:Information Exposure Through an Error Message</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 209</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 209</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:信息通过错误消息泄露</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,exception</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

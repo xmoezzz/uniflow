@@ -1,6 +1,308 @@
 id: cert-c-cpp
 title: CERT C and C++ security baseline
 rules:
+- id: ANZU-ASSIGNMENT-IN-CONDITION
+  title: Assignment in condition expression
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: assignment_in_condition
+  standards: [LEGACY-MSG-2401000010120097, LEGACY-MSG-0601000010140036, LEGACY-MSG-0701000010130041, LEGACY-MSG-0101000010110213, LEGACY-MSG-0101000010110369, LEGACY-MSG-0901000010110369, LEGACY-MSG-0101000010110448, LEGACY-MSG-2801000010180003]
+  message: Assignment in condition expression.
+  translations:
+    zh-CN: { title: 条件表达式中进行了赋值, message: 条件表达式中进行了赋值。 }
+    en: { title: Assignment in condition expression, message: Assignment in condition expression. }
+    zh-TW: { title: 條件運算式中進行了賦值, message: 條件運算式中進行了賦值。 }
+- id: ANZU-FALSE-STATIC-ASSERT
+  title: False constant expression in static assertion
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: false_static_assert
+  standards: [LEGACY-MSG-0101000010110153]
+  message: Test the value of constant expressions using static assertions.
+  translations:
+    zh-CN: { title: 静态断言中的常量表达式为假, message: 使用静态断言测试常数表达式的值。 }
+    en: { title: False constant expression in static assertion, message: Test the value of constant expressions using static assertions. }
+    zh-TW: { title: 靜態斷言中的常數運算式為假, message: 使用靜態斷言測試常數運算式的值。 }
+- id: ANZU-SINGLE-DECLARATION
+  title: Multiple variable declarations in one statement
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: multiple_local_variables
+  standards: [LEGACY-MSG-0101000010110154, LEGACY-MSG-0101000010110436]
+  message: Disallow multiple declarations in a single statement.
+  translations:
+    zh-CN: { title: 单个语句中包含多个变量声明, message: 不允许在单个语句中写多个声明。 }
+    en: { title: Multiple variable declarations in one statement, message: Disallow multiple declarations in a single statement. }
+    zh-TW: { title: 單一陳述式中包含多個變數宣告, message: 不允許在單一陳述式中撰寫多個宣告。 }
+- id: ANZU-POINTER-TYPEDEF
+  title: Typedef applied to a pointer type
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: pointer_typedef
+  standards: [LEGACY-MSG-0101000010110155]
+  message: Typedef is applied to a pointer type.
+  translations:
+    zh-CN: { title: Typedef 应用于指针类型, message: Typedef 应用于指针类型。 }
+    en: { title: Typedef applied to a pointer type, message: Typedef is applied to a pointer type. }
+    zh-TW: { title: Typedef 套用於指標型別, message: Typedef 套用於指標型別。 }
+- id: ANZU-TRIPLE-POINTER
+  title: Pointer nesting exceeds two levels
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: triple_pointer_variable
+  standards: [LEGACY-MSG-0601000010140031, LEGACY-MSG-0701000010130018]
+  message: Prohibit pointers to pointers beyond two levels.
+  translations:
+    zh-CN: { title: 指针嵌套超过两层, message: 禁止嵌套指针超过两层。 }
+    en: { title: Pointer nesting exceeds two levels, message: Prohibit pointers to pointers beyond two levels. }
+    zh-TW: { title: 指標巢狀超過兩層, message: 禁止巢狀指標超過兩層。 }
+- id: ANZU-INCOMPLETE-STRUCT-DECLARATION
+  title: Incomplete structure declaration
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: incomplete_struct_declaration
+  standards: [LEGACY-MSG-0601000010140014]
+  message: Structures must be completely declared.
+  translations:
+    zh-CN: { title: 结构体声明不完整, message: 结构体必须完整声明。 }
+    en: { title: Incomplete structure declaration, message: Structures must be completely declared. }
+    zh-TW: { title: 結構宣告不完整, message: 結構必須完整宣告。 }
+- id: ANZU-DELETE-THIS
+  title: Deleting this object
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: delete_this
+  standards: [LEGACY-MSG-0101000010110395]
+  message: Avoid deleting 'this'.
+  translations:
+    zh-CN: { title: 避免释放 this, message: 避免释放 ‘this’。 }
+    en: { title: Deleting this object, message: Avoid deleting 'this'. }
+    zh-TW: { title: 避免釋放 this, message: 避免釋放 ‘this’。 }
+- id: ANZU-NO-VFORK
+  title: vfork is prohibited
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: vfork_call
+  standards: [LEGACY-MSG-0101000010110293]
+  message: Do not use vfork().
+  translations:
+    zh-CN: { title: 禁止使用 vfork, message: 不要使用 vfork()。 }
+    en: { title: vfork is prohibited, message: Do not use vfork(). }
+    zh-TW: { title: 禁止使用 vfork, message: 不要使用 vfork()。 }
+- id: ANZU-EXPLICIT-CHAR-SIGNEDNESS
+  title: Plain char variable has implementation-defined signedness
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: plain_char_variable
+  standards: [LEGACY-MSG-0601000010140010]
+  message: Character type must be explicitly marked as signed or unsigned.
+  translations:
+    zh-CN: { title: 字符类型需显式标明符号性, message: 字符类型必须显式标记为 signed 或者 unsigned。 }
+    en: { title: Plain char variable has implementation-defined signedness, message: Character type must be explicitly marked as signed or unsigned. }
+    zh-TW: { title: 字元型別需明確標示符號性, message: 字元型別必須明確標示為 signed 或 unsigned。 }
+- id: ANZU-NO-LOGICAL-NOT-ON-CONSTANT
+  title: Logical not applied to a constant expression
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: logical_not_constant
+  standards: [LEGACY-MSG-0601000010140044]
+  message: Applying logical not operation on a constant value is not allowed.
+  translations:
+    zh-CN: { title: 对常量表达式使用逻辑非, message: 不允许将逻辑非操作应用于常量值。 }
+    en: { title: Logical not applied to a constant expression, message: Applying logical not operation on a constant value is not allowed. }
+    zh-TW: { title: 對常數運算式使用邏輯非, message: 不允許將邏輯非運算套用於常數值。 }
+- id: ANZU-EXPLICIT-VOID-PARAMETER-LIST
+  title: Empty function parameter list must use void
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: empty_function_parameters
+  standards: [LEGACY-MSG-0701000010130014, LEGACY-MSG-0101000010110164]
+  message: An empty function parameter list must explicitly specify void.
+  translations:
+    zh-CN: { title: 空参数列表必须显式使用 void, message: 函数的空参数列表需要显式指定 void 参数类型。 }
+    en: { title: Empty function parameter list must use void, message: An empty function parameter list must explicitly specify void. }
+    zh-TW: { title: 空參數列表必須明確使用 void, message: 函式的空參數列表需要明確指定 void 參數型別。 }
+- id: ANZU-INCOMPLETE-ARRAY-VARIABLE
+  title: Array variable has no explicit bound
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: incomplete_array_variable
+  standards: [LEGACY-MSG-0701000010130011, LEGACY-MSG-0101000010110144, LEGACY-MSG-0101000010110410]
+  message: Array is not specified with a size.
+  translations:
+    zh-CN: { title: 数组变量未指定大小, message: 数组没有指定大小。 }
+    en: { title: Array variable has no explicit bound, message: Array is not specified with a size. }
+    zh-TW: { title: 陣列變數未指定大小, message: 陣列未指定大小。 }
+- id: ANZU-NO-PARAMETER-NAMES-IN-PROTOTYPE
+  title: Named parameter in function prototype
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: named_prototype_parameter
+  standards: [LEGACY-MSG-0101000010110323]
+  message: Avoid naming parameters in function prototypes.
+  translations:
+    zh-CN: { title: 函数原型中不应命名参数, message: 避免在函数原型中给参数命名。 }
+    en: { title: Named parameter in function prototype, message: Avoid naming parameters in function prototypes. }
+    zh-TW: { title: 函式原型中不應命名參數, message: 避免在函式原型中為參數命名。 }
+- id: ANZU-NO-TYPEDEF-OF-TYPEDEF
+  title: Typedef type redefined by another typedef
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: typedef_of_typedef
+  standards: [LEGACY-MSG-0701000010130004, LEGACY-MSG-0601000010140011]
+  message: A typedef-defined type must not be redefined.
+  translations:
+    zh-CN: { title: 不应再次 typedef 已定义类型, message: 不得重新定义 typedef 已经定义的类型。 }
+    en: { title: Typedef type redefined by another typedef, message: A typedef-defined type must not be redefined. }
+    zh-TW: { title: 不應再次 typedef 已定義型別, message: 不得重新定義 typedef 已經定義的型別。 }
+- id: ANZU-LIMIT-FUNCTION-PARAMETERS
+  title: Function has more than twenty parameters
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: too_many_function_parameters
+  standards: [LEGACY-MSG-0601000010140017]
+  message: Function parameter count exceeds the recommended maximum of 20.
+  translations:
+    zh-CN: { title: 函数参数超过二十个, message: 函数参数数量超过建议的最大值 20。 }
+    en: { title: Function has more than twenty parameters, message: Function parameter count exceeds the recommended maximum of 20. }
+    zh-TW: { title: 函式參數超過二十個, message: 函式參數數量超過建議的最大值 20。 }
+- id: ANZU-FUNCTION-POINTER-RETURN
+  title: Function returns a function pointer
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: function_pointer_return
+  standards: [LEGACY-MSG-0601000010140032]
+  message: Function declared as pointer type.
+  translations:
+    zh-CN: { title: 函数返回函数指针, message: 函数被声明为指针类型。 }
+    en: { title: Function returns a function pointer, message: Function declared as pointer type. }
+    zh-TW: { title: 函式傳回函式指標, message: 函式被宣告為指標型別。 }
+- id: ANZU-NARROW-STRING-ASCII
+  title: Non-ASCII character in a narrow string literal
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: non_ascii_narrow_string
+  standards: [LEGACY-MSG-0101000010110477, LEGACY-MSG-0901000010110477, LEGACY-MSG-0101000010110276, LEGACY-MSG-0901000010110276]
+  message: Non-ASCII character detected in a non-wide string literal.
+  translations:
+    zh-CN: { title: 窄字符串中包含非 ASCII 字符, message: 在非宽字符串文本中检测到非 ASCII 字符。 }
+    en: { title: Non-ASCII character in a narrow string literal, message: Non-ASCII character detected in a non-wide string literal. }
+    zh-TW: { title: 窄字串中包含非 ASCII 字元, message: 在非寬字串常值中偵測到非 ASCII 字元。 }
+- id: ANZU-SIZED-CHAR-ARRAY-STRING-INIT
+  title: Explicit bound on character array initialized by a string
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: sized_char_array_string_initializer
+  standards: [LEGACY-MSG-0101000010110310, LEGACY-MSG-0101000010110428]
+  message: Do not specify the bound of a character array initialized with a string literal.
+  translations:
+    zh-CN: { title: 字符数组字符串初始化时指定了边界, message: 不要指定用字符串字面量初始化的字符数组的边界。 }
+    en: { title: Explicit bound on character array initialized by a string, message: Do not specify the bound of a character array initialized with a string literal. }
+    zh-TW: { title: 字元陣列以字串初始化時指定了界限, message: 不要指定以字串常值初始化的字元陣列界限。 }
+- id: ANZU-WINDOWS-LOAD-ABSOLUTE-PATH
+  title: Relative path passed to process or library loader
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    callee: '(^|::)(CreateProcess(A|W)?|LoadLibrary(A|W)?)$'
+    min_args: 1
+    string_arg_not_patterns:
+      0: '^(?:/|[A-Za-z]:[\\/]|\\\\)'
+  standards: [LEGACY-MSG-0101000010110308, LEGACY-MSG-0101000010110484]
+  message: Use an absolute path when creating a process or loading a library.
+  translations:
+    zh-CN: { title: 进程或库加载使用了相对路径, message: 创建进程或加载库时应使用绝对路径。 }
+    en: { title: Relative path passed to process or library loader, message: Use an absolute path when creating a process or loading a library. }
+    zh-TW: { title: 程序或程式庫載入使用了相對路徑, message: 建立程序或載入程式庫時應使用絕對路徑。 }
+- id: ANZU-ASSERT-ALWAYS-TRUE
+  title: Assertion is always true
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: constant_true_assert
+  standards: [LEGACY-MSG-0101000010110153, LEGACY-MSG-0101000010110434]
+  message: Assertion will always be true.
+  translations:
+    zh-CN: { title: 断言恒为真, message: 断言总是为 true。 }
+    en: { title: Assertion is always true, message: Assertion will always be true. }
+    zh-TW: { title: 斷言恆為真, message: 斷言總是為 true。 }
+- id: ANZU-ASSERT-ALWAYS-FALSE
+  title: Assertion is always false
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: constant_false_assert
+  standards: [LEGACY-MSG-0101000010110153, LEGACY-MSG-0101000010110434]
+  message: Assertion will always be false.
+  translations:
+    zh-CN: { title: 断言恒为假, message: 断言总是为 false。 }
+    en: { title: Assertion is always false, message: Assertion will always be false. }
+    zh-TW: { title: 斷言恆為假, message: 斷言總是為 false。 }
+- id: ANZU-NO-PROCEDURE-PARAMETERS
+  title: Function pointer used as a parameter
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: function_pointer_parameter
+  standards: [LEGACY-MSG-0601000010140016]
+  message: Avoid defining procedures as parameters, as it can make control flow unclear.
+  translations:
+    zh-CN: { title: 避免将过程作为参数, message: 避免将过程定义为参数，这会使控制流不清晰。 }
+    en: { title: Function pointer used as a parameter, message: Avoid defining procedures as parameters, as it can make control flow unclear. }
+    zh-TW: { title: 避免將程序作為參數, message: 避免將程序定義為參數，這會使控制流程不清楚。 }
+- id: ANZU-CPP-NO-AMBIGUOUS-L-O-VARIABLE
+  title: Ambiguous single-letter variable name
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: ambiguous_cpp_variable
+  standards: [LEGACY-MSG-0601000010140064, LEGACY-MSG-0701000010130097]
+  message: Variable names should not mix uppercase 'O' and digit '0', '1' and lowercase 'l'.
+  translations:
+    zh-CN: { title: 易混淆的单字符变量名, message: 变量名中不能混用大写字母 ‘O’ 和数字 ‘0’，小写字母 ‘l’ 和数字 ‘1’。 }
+    en: { title: Ambiguous single-letter variable name, message: "Variable names should not mix uppercase 'O' and digit '0', '1' and lowercase 'l'." }
+    zh-TW: { title: 易混淆的單字元變數名稱, message: 變數名稱中不能混用大寫字母 ‘O’ 和數字 ‘0’，小寫字母 ‘l’ 和數字 ‘1’。 }
 - id: UF-C-STR-GETS
   title: Use of removed gets function
   languages:
@@ -78,12 +380,20 @@ rules:
   - cpp
   severity: warning
   confidence: medium
-  pattern: \b(?:scanf|fscanf|sscanf)\s*\([^;\n]*%s
+  pattern: ''
+  matcher:
+    c_expression: scanf_unbounded_string
   cwe:
   - CWE-120
   standards:
   - CERT-C-STR31-C
+  - LEGACY-MSG-0201000010120064
+  - LEGACY-MSG-0301000010120064
   message: Add an explicit field width for percent-s conversions.
+  translations:
+    zh-CN: { title: scanf 的字符串转换没有宽度限制, message: 为 scanf 的百分号 s 转换添加明确的字段宽度。 }
+    en: { title: Unbounded percent-s conversion, message: Add an explicit field width for percent-s conversions. }
+    zh-TW: { title: scanf 的字串轉換沒有寬度限制, message: 為 scanf 的百分號 s 轉換新增明確的欄位寬度。 }
 - id: UF-C-TMP-INSECURE
   title: Insecure temporary-file name generation
   languages:
@@ -444,6 +754,1533 @@ rules:
     zh-TW:
       title: 同一巨集中使用了多個字串化或 token 拼接運算子
       message: 在同一巨集中禁止使用多個 # 或 ## 預處理 token。
+- id: ANZU-MACRO-PARAMETER-PARENTHESES
+  title: Macro parameter use is not parenthesized
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: unparenthesized_parameter_use
+  standards: [LEGACY-MSG-0601000010140103, LEGACY-MSG-0701000010130003, LEGACY-MSG-2401000010130003, LEGACY-MSG-0101000010110298, LEGACY-MSG-0901000010110298]
+  message: Parenthesize each macro parameter use unless it is stringified or token-pasted.
+  translations:
+    zh-CN: { title: 宏参数使用缺少括号, message: 除字符串化或 token 拼接外，宏参数的每次使用都必须加括号。 }
+    en: { title: Macro parameter use is not parenthesized, message: Parenthesize each macro parameter use unless it is stringified or token-pasted. }
+    zh-TW: { title: 巨集參數使用缺少括號, message: 除字串化或 token 拼接外，巨集參數的每次使用都必須加括號。 }
+- id: ANZU-MACRO-SEMICOLON-BODY-WRAPPER
+  title: Statement-like macro body is not wrapped
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: semicolon_body_wrapper
+  standards: [LEGACY-MSG-0601000010140008, LEGACY-MSG-0701000010130003, LEGACY-MSG-2401000010130003, LEGACY-MSG-0101000010110299, LEGACY-MSG-0901000010110299]
+  message: Wrap a parameterized macro body containing a semicolon in parentheses or braces.
+  translations:
+    zh-CN: { title: 语句式宏定义体缺少括号, message: 含分号的参数化宏定义体需要使用圆括号或花括号包裹。 }
+    en: { title: Statement-like macro body is not wrapped, message: Wrap a parameterized macro body containing a semicolon in parentheses or braces. }
+    zh-TW: { title: 陳述式巨集定義體缺少括號, message: 含分號的參數化巨集定義體需要使用圓括號或大括號包裹。 }
+- id: ANZU-MACRO-STATEMENT-KEYWORD
+  title: Statement keyword used in macro body
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: statement_keyword
+  standards: [LEGACY-MSG-0601000010140009]
+  message: Do not place control-statement keywords in macro replacement text.
+  translations:
+    zh-CN: { title: 宏定义体使用了语句关键字, message: 不要在宏替换文本中使用控制语句关键字。 }
+    en: { title: Statement keyword used in macro body, message: Do not place control-statement keywords in macro replacement text. }
+    zh-TW: { title: 巨集定義體使用了陳述式關鍵字, message: 不要在巨集替換文字中使用控制陳述式關鍵字。 }
+- id: ANZU-REDEFINED-MACRO
+  title: Macro is redefined without undefining it
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: redefined_macro
+  standards: [LEGACY-MSG-0701000010130002]
+  message: Prevent a macro definition from being replaced before an intervening undef directive.
+  translations:
+    zh-CN: { title: 宏在未取消定义时被重新定义, message: 在没有先使用 undef 指令的情况下，不要重新定义宏。 }
+    en: { title: Macro is redefined without undefining it, message: Prevent a macro definition from being replaced before an intervening undef directive. }
+    zh-TW: { title: 巨集在未取消定義時被重新定義, message: 在沒有先使用 undef 指令的情況下，不要重新定義巨集。 }
+- id: ANZU-MACRO-TYPE-ALIAS
+  title: Macro replacement text defines a type spelling
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: type_only_replacement
+  standards: [LEGACY-MSG-0601000010140099]
+  message: Use a language type alias instead of a macro whose replacement consists only of type tokens.
+  translations:
+    zh-CN: { title: 宏替换文本定义了类型拼写, message: 宏替换文本仅包含类型 token 时，应改用语言提供的类型别名。 }
+    en: { title: Macro replacement text defines a type spelling, message: Use a language type alias instead of a macro whose replacement consists only of type tokens. }
+    zh-TW: { title: 巨集替換文字定義了型別拼寫, message: 巨集替換文字僅包含型別 token 時，應改用語言提供的型別別名。 }
+- id: ANZU-INCLUDE-UNSAFE-CHARACTERS
+  title: Header name contains a prohibited character
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: include_unsafe_characters
+  standards: [LEGACY-MSG-0601000010140104]
+  message: Do not use apostrophes or asterisks in header names.
+  translations:
+    zh-CN: { title: 头文件名包含禁用字符, message: 不要在头文件名中使用单引号或星号。 }
+    en: { title: Header name contains a prohibited character, message: Do not use apostrophes or asterisks in header names. }
+    zh-TW: { title: 標頭檔名包含禁用字元, message: 不要在標頭檔名中使用單引號或星號。 }
+- id: ANZU-INCLUDE-ABSOLUTE-PATH
+  title: Include directive uses an absolute path
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: include_absolute_path
+  standards: [LEGACY-MSG-0601000010140013, LEGACY-MSG-0701000010130022]
+  message: Do not use POSIX-rooted or drive-letter absolute paths in include directives.
+  translations:
+    zh-CN: { title: include 指令使用了绝对路径, message: 不要在 include 指令中使用 POSIX 根路径或盘符绝对路径。 }
+    en: { title: Include directive uses an absolute path, message: Do not use POSIX-rooted or drive-letter absolute paths in include directives. }
+    zh-TW: { title: include 指令使用了絕對路徑, message: 不要在 include 指令中使用 POSIX 根路徑或磁碟機代號絕對路徑。 }
+- id: ANZU-MACRO-KEYWORD-ALIAS
+  title: Macro replacement is a C or C++ keyword
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: single_keyword_replacement
+  standards: [LEGACY-MSG-0601000010140006, LEGACY-MSG-0701000010130001]
+  message: Do not define a macro whose complete replacement is a C or C++ keyword.
+  translations:
+    zh-CN: { title: 宏替换内容是 C/C++ 关键字, message: 不要定义替换内容完全为 C 或 C++ 关键字的宏。 }
+    en: { title: Macro replacement is a C or C++ keyword, message: Do not define a macro whose complete replacement is a C or C++ keyword. }
+    zh-TW: { title: 巨集替換內容是 C/C++ 關鍵字, message: 不要定義替換內容完全為 C 或 C++ 關鍵字的巨集。 }
+- id: ANZU-MACRO-KEYWORD-TO-KEYWORD
+  title: Keyword-named macro expands to another keyword
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_macro: keyword_name_to_keyword_replacement
+  standards: [LEGACY-MSG-0701000010130000]
+  message: Do not redefine a C or C++ keyword as another keyword.
+  translations:
+    zh-CN: { title: 关键字宏被重定义为另一关键字, message: 不要把 C 或 C++ 关键字重定义为另一个关键字。 }
+    en: { title: Keyword-named macro expands to another keyword, message: Do not redefine a C or C++ keyword as another keyword. }
+    zh-TW: { title: 關鍵字巨集被重新定義為另一關鍵字, message: 不要把 C 或 C++ 關鍵字重新定義為另一個關鍵字。 }
+- id: ANZU-TYPEDEF-BUILTIN-KEYWORD
+  title: Typedef aliases a bare built-in keyword type
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: keyword_underlying_typedef
+  standards: [LEGACY-MSG-0701000010130005]
+  message: Do not create a typedef directly from a bare built-in keyword type.
+  translations:
+    zh-CN: { title: typedef 直接别名了内置关键字类型, message: 不要直接为单个内置关键字类型创建 typedef。 }
+    en: { title: Typedef aliases a bare built-in keyword type, message: Do not create a typedef directly from a bare built-in keyword type. }
+    zh-TW: { title: typedef 直接別名了內建關鍵字型別, message: 不要直接為單一內建關鍵字型別建立 typedef。 }
+- id: ANZU-MAIN-SIGNATURE
+  title: Invalid main function signature
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: invalid_main_signature
+  standards: [LEGACY-MSG-0601000010140021]
+  message: Define main as int main(void) or with exactly an int and pointer-type parameter pair.
+  translations:
+    zh-CN: { title: main 函数签名无效, message: 将 main 定义为 int main(void)，或仅带一个 int 参数和一个指针类型参数。 }
+    en: { title: Invalid main function signature, message: Define main as int main(void) or with exactly an int and pointer-type parameter pair. }
+    zh-TW: { title: main 函式簽章無效, message: 將 main 定義為 int main(void)，或僅帶一個 int 參數和一個指標型別參數。 }
+- id: ANZU-LABEL-NAME-COLLISION
+  title: Label name duplicates another declaration
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: label_name_collision
+  standards: [LEGACY-MSG-0601000010140002]
+  message: Label names must not duplicate parameter, local declaration, or local type names in the same function.
+  translations:
+    zh-CN: { title: 标签名与其他声明重名, message: 标签名不得与同一函数中的参数、局部声明或局部类型名称重复。 }
+    en: { title: Label name duplicates another declaration, message: Label names must not duplicate parameter, local declaration, or local type names in the same function. }
+    zh-TW: { title: 標籤名稱與其他宣告同名, message: 標籤名稱不得與同一函式中的參數、區域宣告或區域型別名稱重複。 }
+- id: ANZU-ADJACENT-LABELS
+  title: A label directly labels another label
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: adjacent_labels
+  standards: [LEGACY-MSG-0601000010140003]
+  message: Combine directly adjacent labels into a single label.
+  translations:
+    zh-CN: { title: 多个标签直接相邻, message: 直接相邻的多个标签是冗余的，应合并为一个标签。 }
+    en: { title: A label directly labels another label, message: Combine directly adjacent labels into a single label. }
+    zh-TW: { title: 多個標籤直接相鄰, message: 直接相鄰的多個標籤是多餘的，應合併為一個標籤。 }
+- id: ANZU-ANONYMOUS-NESTED-AGGREGATE
+  title: Anonymous aggregate is defined inside another record
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: anonymous_nested_aggregate_without_typedef
+  standards: [LEGACY-MSG-0701000010130006, LEGACY-MSG-0701000010130007]
+  message: Give nested structure, union, and enumeration definitions an identifier or typedef name.
+  translations:
+    zh-CN: { title: 记录内部定义了匿名聚合类型, message: 为嵌套的结构体、联合体和枚举定义提供标识符或 typedef 名称。 }
+    en: { title: Anonymous aggregate is defined inside another record, message: Give nested structure, union, and enumeration definitions an identifier or typedef name. }
+    zh-TW: { title: 記錄內部定義了匿名聚合型別, message: 為巢狀結構、聯合與列舉定義提供識別字或 typedef 名稱。 }
+- id: ANZU-FUNCTION-NAME-AS-IDENTIFIER
+  title: Function name is reused by a variable or field
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: function_name_as_variable
+  standards: [LEGACY-MSG-0601000010140001, LEGACY-MSG-0701000010130089]
+  message: Do not reuse a function's qualified name for a variable, field, or parameter.
+  translations:
+    zh-CN: { title: 函数名被变量或字段复用, message: 不要将函数的限定名复用于变量、字段或参数。 }
+    en: { title: Function name is reused by a variable or field, message: Do not reuse a function's qualified name for a variable, field, or parameter. }
+    zh-TW: { title: 函式名稱被變數或欄位重複使用, message: 不要將函式的限定名稱重複用於變數、欄位或參數。 }
+- id: ANZU-EMPTY-CONDITIONAL-BRANCH
+  title: Conditional branch has no executable statements
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_style: empty_if_branch
+  standards: [LEGACY-MSG-0601000010140023]
+  message: Replace an empty then or else statement with an explicit implementation.
+  translations:
+    zh-CN: { title: 条件分支没有可执行语句, message: 用明确的实现替换空的 then 或 else 语句。 }
+    en: { title: Conditional branch has no executable statements, message: Replace an empty then or else statement with an explicit implementation. }
+    zh-TW: { title: 條件分支沒有可執行陳述式, message: 以明確的實作取代空的 then 或 else 陳述式。 }
+- id: ANZU-EMPTY-ELSE-BRANCH
+  title: Else branch has no executable statements
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_style: empty_else_branch
+  standards: [LEGACY-MSG-0601000010140025]
+  message: Replace an empty else statement with an explicit implementation.
+  translations:
+    zh-CN: { title: else 分支没有可执行语句, message: 用明确的实现替换空的 else 语句。 }
+    en: { title: Else branch has no executable statements, message: Replace an empty else statement with an explicit implementation. }
+    zh-TW: { title: else 分支沒有可執行陳述式, message: 以明確的實作取代空的 else 陳述式。 }
+- id: ANZU-EMPTY-THEN-SAME-LINE
+  title: Empty then statement is hidden on the condition line
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_style: empty_then_on_condition_line
+  standards: [LEGACY-MSG-0601000010140069, LEGACY-MSG-0701000010130104]
+  message: Put an intentionally empty branch on a separate documented line.
+  translations:
+    zh-CN: { title: 空 then 语句隐藏在条件同行, message: 如果分支有意为空，请将分号放在单独一行并添加说明。 }
+    en: { title: Empty then statement is hidden on the condition line, message: Put an intentionally empty branch on a separate documented line. }
+    zh-TW: { title: 空 then 陳述式隱藏在條件同行, message: 如果分支刻意為空，請將分號放在單獨一行並加入說明。 }
+- id: ANZU-BACKWARD-GOTO
+  title: Goto jumps backward to an earlier label
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: backward_goto
+  standards: [LEGACY-MSG-0701000010130037]
+  message: Do not use goto to jump from a later statement to an earlier label.
+  translations:
+    zh-CN: { title: goto 向后跳转到较早的标签, message: 不要使用 goto 从后面的语句跳转到前面的标签。 }
+    en: { title: Goto jumps backward to an earlier label, message: Do not use goto to jump from a later statement to an earlier label. }
+    zh-TW: { title: goto 向後跳轉到較早的標籤, message: 不要使用 goto 從後面的陳述式跳轉到前面的標籤。 }
+- id: ANZU-NO-ADD-SUBTRACT-ASSIGNMENT
+  title: Addition or subtraction assignment operator used
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: add_or_subtract_assignment
+  standards: [LEGACY-MSG-0601000010140066]
+  message: Avoid using the += and -= compound assignment operators.
+  translations:
+    zh-CN: { title: 使用了加减复合赋值运算符, message: 避免使用 += 和 -= 复合赋值运算符。 }
+    en: { title: Addition or subtraction assignment operator used, message: Avoid using the += and -= compound assignment operators. }
+    zh-TW: { title: 使用了加減複合指定運算子, message: 避免使用 += 和 -= 複合指定運算子。 }
+- id: ANZU-NONVOID-RETURN-USE
+  title: Non-void function lacks a value-returning statement
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: non_void_return_use
+  standards: [LEGACY-MSG-0601000010140072, LEGACY-MSG-0701000010130060, LEGACY-MSG-0101000010110286, LEGACY-MSG-2401000010110286, LEGACY-MSG-2401000010120069]
+  message: A non-void function must contain return statements with values.
+  translations:
+    zh-CN: { title: 非 void 函数缺少带值的 return, message: 非 void 函数必须包含带返回值的 return 语句。 }
+    en: { title: Non-void function lacks a value-returning statement, message: A non-void function must contain return statements with values. }
+    zh-TW: { title: 非 void 函式缺少帶值的 return, message: 非 void 函式必須包含帶回傳值的 return 陳述式。 }
+- id: ANZU-COMMA-OPERATOR
+  title: Comma operator used
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: legacy_comma_operator
+  standards: [LEGACY-MSG-0601000010140052]
+  message: Avoid using the comma operator.
+  translations:
+    zh-CN: { title: 使用了逗号运算符, message: 避免使用逗号运算符。 }
+    en: { title: Comma operator used, message: Avoid using the comma operator. }
+    zh-TW: { title: 使用了逗號運算子, message: 避免使用逗號運算子。 }
+- id: ANZU-RESERVED-NAMESPACE-DECLARATION
+  title: Declaration added to a reserved namespace
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: reserved_namespace_declaration
+  path_pattern: '\.(cpp|h)$'
+  standards: [LEGACY-MSG-0101000010110377]
+  message: Do not modify the standard namespaces std or posix.
+  translations:
+    zh-CN: { title: 在保留命名空间中添加声明, message: 不要修改标准库命名空间 std 或 posix。 }
+    en: { title: Declaration added to a reserved namespace, message: Do not modify the standard namespaces std or posix. }
+    zh-TW: { title: 在保留命名空間中新增宣告, message: 不要修改標準函式庫命名空間 std 或 posix。 }
+- id: ANZU-UNUSED-LABEL
+  title: Unused label detected
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: unused_label
+  standards: [LEGACY-MSG-2401000010120130]
+  message: Remove labels that are not the target of a goto in their function.
+  translations:
+    zh-CN: { title: 检测到未使用的标签, message: 删除在所属函数中没有 goto 跳转到的标签。 }
+    en: { title: Unused label detected, message: Remove labels that are not the target of a goto in their function. }
+    zh-TW: { title: 偵測到未使用的標籤, message: 刪除在所屬函式中沒有 goto 跳轉到的標籤。 }
+- id: ANZU-NORETURN-DIRECT-RETURN
+  title: Noreturn function contains a direct return statement
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: no_return_direct_return
+  standards: [LEGACY-MSG-0101000010110334]
+  message: A function declared noreturn must not directly return to its caller.
+  translations:
+    zh-CN: { title: noreturn 函数包含直接 return, message: 声明为 noreturn 的函数不得直接返回到调用方。 }
+    en: { title: Noreturn function contains a direct return statement, message: A function declared noreturn must not directly return to its caller. }
+    zh-TW: { title: noreturn 函式包含直接 return, message: 宣告為 noreturn 的函式不得直接回傳至呼叫端。 }
+- id: ANZU-THROW-POINTER
+  title: Pointer object thrown as an exception
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: pointer_throw
+  standards: [LEGACY-MSG-0101000010110337]
+  message: Throw exception objects by value and catch them by reference; do not throw pointers.
+  translations:
+    zh-CN: { title: 抛出了指针类型异常, message: 异常对象应按值抛出并按引用捕获；不要抛出指针。 }
+    en: { title: Pointer object thrown as an exception, message: Throw exception objects by value and catch them by reference; do not throw pointers. }
+    zh-TW: { title: 擲回了指標型別例外, message: 例外物件應按值擲回並按參考捕捉；不要擲回指標。 }
+- id: ANZU-BOOLEAN-SWITCH-CONDITION
+  title: Boolean expression used as a switch condition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: boolean_switch_condition
+  standards: [LEGACY-MSG-0701000010130033]
+  message: Do not use a Boolean expression as the controlling condition of a switch statement.
+  translations:
+    zh-CN: { title: switch 使用布尔条件, message: 不要将布尔表达式用作 switch 语句的控制条件。 }
+    en: { title: Boolean expression used as a switch condition, message: Do not use a Boolean expression as the controlling condition of a switch statement. }
+    zh-TW: { title: switch 使用布林條件, message: 不要將布林運算式用作 switch 陳述式的控制條件。 }
+- id: ANZU-GLOBAL-LOOP-CONTROL
+  title: Global variable controls a loop
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: global_loop_control
+  standards: [LEGACY-MSG-0701000010130069]
+  message: A for, while, or do-while loop control variable must be local to the function.
+  translations:
+    zh-CN: { title: 全局变量控制循环, message: for、while 或 do-while 循环的控制变量必须是函数局部变量。 }
+    en: { title: Global variable controls a loop, message: A for, while, or do-while loop control variable must be local to the function. }
+    zh-TW: { title: 全域變數控制迴圈, message: for、while 或 do-while 迴圈的控制變數必須是函式區域變數。 }
+- id: ANZU-LITERAL-LOOP-CONDITION
+  title: Literal used directly as a loop condition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_style: literal_loop_condition
+  standards: [LEGACY-MSG-0601000010140080]
+  message: Use infinite loop statements with caution; do not use a literal directly as a loop condition.
+  translations:
+    zh-CN: { title: 循环条件直接使用字面量, message: 谨慎使用无限循环；不要直接将字面量用作循环条件。 }
+    en: { title: Literal used directly as a loop condition, message: Use infinite loop statements with caution; do not use a literal directly as a loop condition. }
+    zh-TW: { title: 迴圈條件直接使用常值, message: 謹慎使用無限迴圈；不要直接將常值用作迴圈條件。 }
+- id: ANZU-NO-EMPTY-HEADER-FOR-LOOP
+  title: Infinite for loop has an empty header
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_style: empty_header_for_loop
+  standards: [LEGACY-MSG-0701000010130072]
+  message: Express an intentional infinite loop with while (1), not for (;;).
+  translations:
+    zh-CN: { title: 无限 for 循环头为空, message: 有意的无限循环应写为 while (1)，不要使用 for (;;) 。 }
+    en: { title: Infinite for loop has an empty header, message: Express an intentional infinite loop with while (1), not for (;;). }
+    zh-TW: { title: 無限 for 迴圈標頭為空, message: 有意的無限迴圈應寫為 while (1)，不要使用 for (;;) 。 }
+- id: ANZU-INFINITE-LOOP-WITHOUT-BREAK
+  title: Constant-true loop has no break
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_style: infinite_loop_without_break
+  standards: [LEGACY-MSG-0601000010140078]
+  message: Use infinite loop statements with caution and provide an exit when termination is required.
+  translations:
+    zh-CN: { title: 恒真循环中没有 break, message: 谨慎使用无限循环；需要终止时应提供退出路径。 }
+    en: { title: Constant-true loop has no break, message: Use infinite loop statements with caution and provide an exit when termination is required. }
+    zh-TW: { title: 恆真迴圈中沒有 break, message: 謹慎使用無限迴圈；需要終止時應提供離開路徑。 }
+- id: ANZU-FLOATING-FOR-INITIALIZER
+  title: Floating-point loop variable found
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: floating_for_initializer
+  standards: [LEGACY-MSG-0601000010140076, LEGACY-MSG-0701000010130070, LEGACY-MSG-0101000010110239, LEGACY-MSG-0901000010110239]
+  message: Do not use a floating-point variable as the variable initialized by a for loop.
+  translations:
+    zh-CN: { title: 找到浮点循环变量, message: 不要将浮点变量用作 for 循环初始化的循环变量。 }
+    en: { title: Floating-point loop variable found, message: Do not use a floating-point variable as the variable initialized by a for loop. }
+    zh-TW: { title: 找到浮點迴圈變數, message: 不要將浮點變數用作 for 迴圈初始化的迴圈變數。 }
+- id: ANZU-NONLOCAL-FOR-INITIALIZER
+  title: Loop variable is not locally declared
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: non_local_for_initializer
+  standards: [LEGACY-MSG-0601000010140077]
+  message: The variable assigned by a for-loop initializer must be declared locally in the function.
+  translations:
+    zh-CN: { title: 循环变量不是局部声明, message: for 循环初始化器赋值的变量必须在函数内局部声明。 }
+    en: { title: Loop variable is not locally declared, message: The variable assigned by a for-loop initializer must be declared locally in the function. }
+    zh-TW: { title: 迴圈變數不是區域宣告, message: for 迴圈初始化器指定的變數必須在函式內區域宣告。 }
+- id: ANZU-CPP-NO-C-STYLE-CAST
+  title: C-style cast used in C++
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: c_style_cast
+  path_pattern: '\.cpp$'
+  standards: [LEGACY-MSG-0101000010110349]
+  message: Use static_cast, dynamic_cast, const_cast, or reinterpret_cast instead of a C-style cast.
+  translations:
+    zh-CN: { title: C++ 中使用了 C 风格强制转换, message: 使用 static_cast、dynamic_cast、const_cast 或 reinterpret_cast 代替 C 风格强制转换。 }
+    en: { title: C-style cast used in C++, message: Use static_cast, dynamic_cast, const_cast, or reinterpret_cast instead of a C-style cast. }
+    zh-TW: { title: C++ 中使用了 C 風格強制轉換, message: 使用 static_cast、dynamic_cast、const_cast 或 reinterpret_cast 取代 C 風格強制轉換。 }
+- id: ANZU-SIZEOF-ARRAY-PARAMETER
+  title: sizeof applied to an array parameter
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: sizeof_array_parameter
+  standards: [LEGACY-MSG-2801000010180036]
+  message: An array parameter is adjusted to a pointer; sizeof returns the pointer size, not the declared array size.
+  translations:
+    zh-CN: { title: 对数组形参使用 sizeof, message: 数组形参会退化为指针；sizeof 返回的是指针大小，而不是声明的数组大小。 }
+    en: { title: sizeof applied to an array parameter, message: An array parameter is adjusted to a pointer; sizeof returns the pointer size, not the declared array size. }
+    zh-TW: { title: 對陣列參數使用 sizeof, message: 陣列參數會調整為指標；sizeof 回傳的是指標大小，而不是宣告的陣列大小。 }
+- id: ANZU-NO-IN-BAND-ERROR-ADD-ASSIGN
+  title: In-band error result used with addition assignment
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: add_assign_string_operation_result
+  standards: [LEGACY-MSG-0101000010110418, LEGACY-MSG-0901000010110418, LEGACY-MSG-0101000010110486, LEGACY-MSG-0901000010110486]
+  message: Do not combine the return value of a string or read operation with +=; handle its error indicator first.
+  translations:
+    zh-CN: { title: 使用 += 合并带内错误返回值, message: 不要将字符串或读取操作的返回值直接用于 +=；应先处理其错误指示。 }
+    en: { title: In-band error result used with addition assignment, message: Do not combine the return value of a string or read operation with +=; handle its error indicator first. }
+    zh-TW: { title: 使用 += 合併帶內錯誤回傳值, message: 不要將字串或讀取操作的回傳值直接用於 +=；應先處理其錯誤指示。 }
+- id: ANZU-CTYPE-PLAIN-CHAR-ARGUMENT
+  title: Plain char passed to a character classification function
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: ctype_signed_char_argument
+  standards: [LEGACY-MSG-2801000010180030]
+  message: Convert a plain char argument to unsigned char before passing it to a ctype character-processing function.
+  translations:
+    zh-CN: { title: 向字符处理函数传递 plain char, message: 将 plain char 参数转换为 unsigned char 后再传递给 ctype 字符处理函数。 }
+    en: { title: Plain char passed to a character classification function, message: Convert a plain char argument to unsigned char before passing it to a ctype character-processing function. }
+    zh-TW: { title: 向字元處理函式傳遞 plain char, message: 將 plain char 參數轉換為 unsigned char 後再傳遞給 ctype 字元處理函式。 }
+- id: ANZU-ABORT-AFTER-EXIT-REGISTRATION
+  title: assert or abort used after an exit handler is registered
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: abort_after_exit_registration
+  standards: [LEGACY-MSG-0101000010110180, LEGACY-MSG-0901000010110180, LEGACY-MSG-0101000010110447, LEGACY-MSG-0901000010110447]
+  message: Understand that assert() and abort() do not invoke handlers registered by atexit() or at_quick_exit().
+  translations:
+    zh-CN: { title: 注册退出处理器后调用 assert 或 abort, message: 注意 assert() 和 abort() 不会调用通过 atexit() 或 at_quick_exit() 注册的处理器。 }
+    en: { title: assert or abort used after an exit handler is registered, message: Understand that assert() and abort() do not invoke handlers registered by atexit() or at_quick_exit(). }
+    zh-TW: { title: 註冊結束處理器後呼叫 assert 或 abort, message: 注意 assert() 和 abort() 不會呼叫透過 atexit() 或 at_quick_exit() 註冊的處理器。 }
+- id: ANZU-CHARACTER-LITERAL-RELATION
+  title: Character literal used as a relational branch operand
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: relational_character_literal_in_condition
+  standards: [LEGACY-MSG-0101000010110308, LEGACY-MSG-0101000010110484]
+  message: Do not assume portable numeric ordering values for plain character expressions.
+  translations:
+    zh-CN: { title: 分支关系运算直接使用字符字面量, message: 不要假设 plain char 表达式具有可移植的数值顺序。 }
+    en: { title: Character literal used as a relational branch operand, message: Do not assume portable numeric ordering values for plain character expressions. }
+    zh-TW: { title: 分支關係運算直接使用字元常值, message: 不要假設 plain char 運算式具有可攜式數值順序。 }
+- id: ANZU-CPP-NONPRIVATE-DATA-MEMBER
+  title: Class data member is not private
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: non_private_class_field
+  standards: [LEGACY-MSG-0101000010110390]
+  message: Declare class data members private and expose controlled operations instead.
+  translations:
+    zh-CN: { title: 类数据成员不是 private, message: 类数据成员应声明为 private，并通过受控操作访问。 }
+    en: { title: Class data member is not private, message: Declare class data members private and expose controlled operations instead. }
+    zh-TW: { title: 類別資料成員不是 private, message: 類別資料成員應宣告為 private，並透過受控操作存取。 }
+- id: ANZU-CPP-PRIVATE-STATIC-DATA-MEMBER
+  title: Private static class data member declared
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: private_static_data_member
+  standards: [LEGACY-MSG-0101000010110373]
+  message: Do not declare static data members in the private section of a class.
+  translations:
+    zh-CN: { title: 声明了 private 静态类数据成员, message: 不要在类的 private 区段声明静态数据成员。 }
+    en: { title: Private static class data member declared, message: Do not declare static data members in the private section of a class. }
+    zh-TW: { title: 宣告了 private 靜態類別資料成員, message: 不要在類別的 private 區段宣告靜態資料成員。 }
+- id: ANZU-CPP-SINGLE-PARAM-CONSTRUCTOR-EXPLICIT
+  title: Single-parameter constructor is not explicit
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: non_explicit_single_parameter_constructor
+  standards: [LEGACY-MSG-0101000010110399]
+  message: Mark a constructor that has exactly one parameter explicit.
+  translations:
+    zh-CN: { title: 单参数构造函数未声明 explicit, message: 具有一个参数的构造函数应声明为 explicit。 }
+    en: { title: Single-parameter constructor is not explicit, message: Mark a constructor that has exactly one parameter explicit. }
+    zh-TW: { title: 單參數建構函式未宣告 explicit, message: 具有一個參數的建構函式應宣告為 explicit。 }
+- id: ANZU-CPP-POSTFIX-OPERATOR-CONST-RETURN
+  title: Postfix increment or decrement returns a non-const object
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: non_const_postfix_operator_return
+  standards: [LEGACY-MSG-0101000010110332]
+  message: An overloaded postfix increment or decrement operator should return a const object.
+  translations:
+    zh-CN: { title: 后缀自增或自减返回非 const 对象, message: 重载的后缀自增或自减运算符应返回 const 对象。 }
+    en: { title: Postfix increment or decrement returns a non-const object, message: An overloaded postfix increment or decrement operator should return a const object. }
+    zh-TW: { title: 後綴遞增或遞減回傳非 const 物件, message: 多載的後綴遞增或遞減運算子應回傳 const 物件。 }
+- id: ANZU-CPP-PREFER-PREFIX-UPDATE
+  title: Standalone postfix increment or decrement used
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: standalone_postfix_update
+  standards: [LEGACY-MSG-0101000010110354]
+  message: Prefer the prefix form of ++ or -- when the previous value is not used.
+  translations:
+    zh-CN: { title: 使用了独立的后缀自增或自减, message: 不使用原值时优先采用 ++ 或 -- 的前缀形式。 }
+    en: { title: Standalone postfix increment or decrement used, message: Prefer the prefix form of ++ or -- when the previous value is not used. }
+    zh-TW: { title: 使用了獨立的後綴遞增或遞減, message: 不使用原值時優先採用 ++ 或 -- 的前綴形式。 }
+- id: ANZU-CPP-AMBIGUOUS-MULTIPLE-INHERITANCE
+  title: Multiple base classes expose the same member name
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: ambiguous_multiple_inheritance_member
+  standards: [LEGACY-MSG-0101000010110397]
+  message: Resolve member-name ambiguity introduced by multiple inheritance.
+  translations:
+    zh-CN: { title: 多个基类具有相同成员名, message: 消除多重继承引入的成员名称歧义。 }
+    en: { title: Multiple base classes expose the same member name, message: Resolve member-name ambiguity introduced by multiple inheritance. }
+    zh-TW: { title: 多個基底類別具有相同成員名稱, message: 消除多重繼承引入的成員名稱歧義。 }
+- id: ANZU-CPP-PREFER-VECTOR-OVER-ARRAY
+  title: Local std::array used where vector should be considered
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: local_std_array
+  standards: [LEGACY-MSG-0101000010110408]
+  message: Understand when a dynamically sized std::vector is preferable to a fixed std::array.
+  translations:
+    zh-CN: { title: 局部使用 std::array, message: 评估动态大小的 std::vector 是否比固定大小的 std::array 更合适。 }
+    en: { title: Local std::array used where vector should be considered, message: Understand when a dynamically sized std::vector is preferable to a fixed std::array. }
+    zh-TW: { title: 區域使用 std::array, message: 評估動態大小的 std::vector 是否比固定大小的 std::array 更合適。 }
+- id: ANZU-VARIABLE-MATCHES-TYPEDEF
+  title: Variable name matches an earlier typedef name
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: variable_matches_earlier_typedef
+  standards: [LEGACY-MSG-0701000010130092]
+  message: Do not reuse a typedef name for a variable declared later in the translation unit.
+  translations:
+    zh-CN: { title: 变量名与先前 typedef 名称相同, message: 不要将 typedef 名称复用于翻译单元中后续声明的变量。 }
+    en: { title: Variable name matches an earlier typedef name, message: Do not reuse a typedef name for a variable declared later in the translation unit. }
+    zh-TW: { title: 變數名稱與先前 typedef 名稱相同, message: 不要將 typedef 名稱重複用於翻譯單元中後續宣告的變數。 }
+- id: ANZU-ENUMERATOR-VARIABLE-NAME-COLLISION
+  title: Variable name matches an enumerator name
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: variable_enumerator_name_collision
+  standards: [LEGACY-MSG-0701000010130091, LEGACY-MSG-0601000010140091]
+  message: Do not reuse an enumerator name for a variable in the same declaration context or a nested context.
+  translations:
+    zh-CN: { title: 变量名与枚举项名称相同, message: 不要在同一声明上下文或嵌套上下文中将枚举项名称复用于变量。 }
+    en: { title: Variable name matches an enumerator name, message: Do not reuse an enumerator name for a variable in the same declaration context or a nested context. }
+    zh-TW: { title: 變數名稱與列舉項目名稱相同, message: 不要在相同宣告內容或巢狀內容中將列舉項目名稱重複用於變數。 }
+- id: ANZU-ENUM-UNIQUE-VALUES
+  title: Enumeration constants map to duplicate values
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: repeated_enumerator_value
+  standards: [LEGACY-MSG-0101000010110249, LEGACY-MSG-0901000010110249, LEGACY-MSG-0101000010110467, LEGACY-MSG-0901000010110467]
+  message: Ensure enumeration constants map to unique values.
+  translations:
+    zh-CN: { title: 枚举常量映射到重复值, message: 确保枚举常量映射到唯一的值。 }
+    en: { title: Enumeration constants map to duplicate values, message: Ensure enumeration constants map to unique values. }
+    zh-TW: { title: 列舉常數對應到重複值, message: 確保列舉常數對應到唯一的值。 }
+- id: ANZU-ENUM-COMPLETE-INITIALIZATION
+  title: Enumeration elements are initialized inconsistently
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: inconsistent_enum_initialization
+  standards: [LEGACY-MSG-0601000010140084, LEGACY-MSG-0701000010130081]
+  message: Initialize every enumeration element or only the first element.
+  translations:
+    zh-CN: { title: 枚举元素初始化不完整, message: 应初始化全部枚举元素或仅初始化首个元素。 }
+    en: { title: Enumeration elements are initialized inconsistently, message: Initialize every enumeration element or only the first element. }
+    zh-TW: { title: 列舉元素初始化不完整, message: 應初始化全部列舉元素或僅初始化第一個元素。 }
+- id: ANZU-ENUM-COMPATIBLE-COMPARISON
+  title: Incompatible values compared with an enum
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: incompatible_enum_comparison
+  standards: [LEGACY-MSG-0601000010140046]
+  message: Enum types should only be compared with values of the same enum type.
+  translations:
+    zh-CN: { title: 枚举与不兼容值进行比较, message: 枚举类型只能与相同枚举类型的值进行比较。 }
+    en: { title: Incompatible values compared with an enum, message: Enum types should only be compared with values of the same enum type. }
+    zh-TW: { title: 列舉與不相容值進行比較, message: 列舉型別只能與相同列舉型別的值進行比較。 }
+- id: ANZU-ENUM-VALUE-TO-NONENUM
+  title: Non-enum object is assigned an enum value
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: enum_value_assigned_to_non_enum
+  standards: [LEGACY-MSG-0701000010130049]
+  message: Do not assign an enum value to a non-enum object.
+  translations:
+    zh-CN: { title: 非枚举对象被赋予枚举值, message: 不要将枚举值赋给非枚举对象。 }
+    en: { title: Non-enum object is assigned an enum value, message: Do not assign an enum value to a non-enum object. }
+    zh-TW: { title: 非列舉物件被指派列舉值, message: 不要將列舉值指派給非列舉物件。 }
+- id: ANZU-ENUM-CAST-RANGE
+  title: Cast may produce an out-of-range enum value
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: enum_cast_outside_declared_range
+  standards: [LEGACY-MSG-0101000010110365]
+  message: Do not cast to an out-of-range enumeration value.
+  translations:
+    zh-CN: { title: 转换可能产生超出范围的枚举值, message: 不要强制转换为超出范围的枚举值。 }
+    en: { title: Cast may produce an out-of-range enum value, message: Do not cast to an out-of-range enumeration value. }
+    zh-TW: { title: 轉型可能產生超出範圍的列舉值, message: 不要強制轉型為超出範圍的列舉值。 }
+- id: ANZU-ASSIGNMENT-IN-SIZEOF
+  title: Assignment is the direct operand of sizeof
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: direct_assignment_in_sizeof
+  standards: [LEGACY-MSG-0701000010130051]
+  message: It is prohibited to use an assignment as the operand of sizeof.
+  translations:
+    zh-CN: { title: sizeof 的直接操作数是赋值表达式, message: 禁止将赋值表达式用作 sizeof 的操作数。 }
+    en: { title: Assignment is the direct operand of sizeof, message: It is prohibited to use an assignment as the operand of sizeof. }
+    zh-TW: { title: sizeof 的直接運算元是指派運算式, message: 禁止將指派運算式用作 sizeof 的運算元。 }
+- id: ANZU-ALLOC-RESULT-EXPLICIT-CAST
+  title: Memory allocation result is not immediately cast
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: uncast_allocation_call_result
+  standards: [LEGACY-MSG-0101000010110475, LEGACY-MSG-0101000010110264]
+  message: Immediately cast the result of a memory allocation call to the allocated pointer type.
+  translations:
+    zh-CN: { title: 内存分配结果未立即转换, message: 内存分配函数的结果应立即转换到分配类型的指针。 }
+    en: { title: Memory allocation result is not immediately cast, message: Immediately cast the result of a memory allocation call to the allocated pointer type. }
+    zh-TW: { title: 記憶體配置結果未立即轉型, message: 記憶體配置函式的結果應立即轉型到配置型別的指標。 }
+- id: ANZU-BITWISE-BOOLEAN-OPERAND
+  title: Bitwise operator used with a boolean operand
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: bitwise_boolean_operand
+  standards: [LEGACY-MSG-0601000010140050, LEGACY-MSG-0101000010110214, LEGACY-MSG-0601000010140051, LEGACY-MSG-0701000010130042]
+  message: Do not use bitwise operators with boolean operands.
+  translations:
+    zh-CN: { title: 位运算符使用了布尔操作数, message: 不要对布尔操作数使用位运算符。 }
+    en: { title: Bitwise operator used with a boolean operand, message: Do not use bitwise operators with boolean operands. }
+    zh-TW: { title: 位元運算子使用了布林運算元, message: 不要對布林運算元使用位元運算子。 }
+- id: ANZU-BOOL-ADD-SHIFT-UPDATE
+  title: Boolean value used in additive shift or update operation
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: boolean_add_shift_or_update
+  standards: [LEGACY-MSG-0201000010120018, LEGACY-MSG-2401000010120018]
+  message: Do not use boolean values in additive shift or increment/decrement operations.
+  translations:
+    zh-CN: { title: 布尔值参与加减移位或自增减, message: 不要对布尔值执行加减、移位或自增减运算。 }
+    en: { title: Boolean value used in additive shift or update operation, message: Do not use boolean values in additive shift or increment/decrement operations. }
+    zh-TW: { title: 布林值參與加減位移或遞增減, message: 不要對布林值執行加減、位移或遞增減運算。 }
+- id: ANZU-BOOLEAN-ARITHMETIC
+  title: Boolean value used in arithmetic
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: boolean_arithmetic_operand
+  standards: [LEGACY-MSG-0201000010120142]
+  message: Do not use boolean values in arithmetic or increment/decrement operations.
+  translations:
+    zh-CN: { title: 布尔值参与算术运算, message: 不要对布尔值执行算术或自增减运算。 }
+    en: { title: Boolean value used in arithmetic, message: Do not use boolean values in arithmetic or increment/decrement operations. }
+    zh-TW: { title: 布林值參與算術運算, message: 不要對布林值執行算術或遞增減運算。 }
+- id: ANZU-FLOAT-EQUALITY-EITHER-OPERAND
+  title: Floating-point equality comparison
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: floating_equality_either_operand
+  standards: [LEGACY-MSG-0701000010130084, LEGACY-MSG-0601000010140087, LEGACY-MSG-0101000010110236, LEGACY-MSG-0901000010110236, LEGACY-MSG-2401000010110236]
+  message: Do not compare floating-point values for exact equality or inequality.
+  translations:
+    zh-CN: { title: 浮点数相等性比较, message: 不要对浮点值进行精确相等或不等比较。 }
+    en: { title: Floating-point equality comparison, message: Do not compare floating-point values for exact equality or inequality. }
+    zh-TW: { title: 浮點數相等性比較, message: 不要對浮點值進行精確相等或不等比較。 }
+- id: ANZU-C-FLOAT-EQUALITY-LEFT-OPERAND
+  title: Floating-point left operand compared for equality
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: floating_equality_left_operand
+  standards: [LEGACY-MSG-0101000010110236, LEGACY-MSG-0901000010110236, LEGACY-MSG-2401000010110236]
+  message: Apply an explicit precision tolerance when comparing floating-point values.
+  translations:
+    zh-CN: { title: 浮点左操作数进行相等比较, message: 比较浮点值时应使用明确的精度容差。 }
+    en: { title: Floating-point left operand compared for equality, message: Apply an explicit precision tolerance when comparing floating-point values. }
+    zh-TW: { title: 浮點左運算元進行相等比較, message: 比較浮點值時應使用明確的精度容差。 }
+- id: ANZU-UNSIGNED-COMPARED-WITH-ZERO
+  title: Unsigned comparison with zero is tautological
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: unsigned_comparison_with_zero
+  standards: [LEGACY-MSG-0701000010130085, LEGACY-MSG-2401000010120025]
+  message: Do not compare an unsigned integer with zero using a tautological ordering.
+  translations:
+    zh-CN: { title: 无符号数与零的比较恒真或恒假, message: 不要以恒真或恒假的顺序关系比较无符号整数与零。 }
+    en: { title: Unsigned comparison with zero is tautological, message: Do not compare an unsigned integer with zero using a tautological ordering. }
+    zh-TW: { title: 無號數與零的比較恆真或恆假, message: 不要以恆真或恆假的順序關係比較無號整數與零。 }
+- id: ANZU-MIXED-SIGNEDNESS-COMPARISON
+  title: Signed and unsigned integers compared
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: mixed_signedness_comparison
+  standards: [LEGACY-MSG-0701000010130086]
+  message: Avoid comparisons between non-literal signed and unsigned integer operands.
+  translations:
+    zh-CN: { title: 有符号与无符号整数进行比较, message: 避免比较非字面量的有符号与无符号整数操作数。 }
+    en: { title: Signed and unsigned integers compared, message: Avoid comparisons between non-literal signed and unsigned integer operands. }
+    zh-TW: { title: 有號與無號整數進行比較, message: 避免比較非字面值的有號與無號整數運算元。 }
+- id: ANZU-BOOLEAN-RELATIONAL-COMPARISON
+  title: Boolean value used in a relational comparison
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: boolean_relational_comparison
+  standards: [LEGACY-MSG-0701000010130082]
+  message: Do not use boolean operands with relational operators.
+  translations:
+    zh-CN: { title: 布尔值参与关系比较, message: 不要将布尔操作数用于关系运算符。 }
+    en: { title: Boolean value used in a relational comparison, message: Do not use boolean operands with relational operators. }
+    zh-TW: { title: 布林值參與關係比較, message: 不要將布林運算元用於關係運算子。 }
+- id: ANZU-INCOMPLETE-ENUM-SWITCH
+  title: Enum switch is incomplete and has no default
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: incomplete_enum_switch_without_default
+  standards: [LEGACY-MSG-0701000010130035, LEGACY-MSG-0601000010140026, LEGACY-MSG-2801000010180016]
+  message: Cover every enum constant or include a default branch.
+  translations:
+    zh-CN: { title: 枚举 switch 未完整覆盖且没有 default, message: switch 语句必须覆盖所有枚举项或包含 default 分支。 }
+    en: { title: Enum switch is incomplete and has no default, message: Cover every enum constant or include a default branch. }
+    zh-TW: { title: 列舉 switch 未完整覆蓋且沒有 default, message: switch 陳述式必須覆蓋所有列舉項目或包含 default 分支。 }
+- id: ANZU-SUSPICIOUS-CONTROL-SEMICOLON
+  title: Suspicious same-line empty control body
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_style: suspicious_same_line_empty_body
+  standards: [LEGACY-MSG-2401000010120092, LEGACY-MSG-0101000010110370, LEGACY-MSG-0901000010110370]
+  message: A same-line semicolon creates an empty if or loop body.
+  translations:
+    zh-CN: { title: 控制语句同行存在可疑分号, message: 同行分号会形成空的 if 或循环体。 }
+    en: { title: Suspicious same-line empty control body, message: A same-line semicolon creates an empty if or loop body. }
+    zh-TW: { title: 控制陳述式同行存在可疑分號, message: 同行分號會形成空的 if 或迴圈主體。 }
+- id: ANZU-UPDATE-AS-OPERAND
+  title: Increment or decrement used as an operand
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: update_used_as_binary_or_call_operand
+  standards: [LEGACY-MSG-0601000010140067, LEGACY-MSG-0701000010130043]
+  message: Avoid using increment or decrement directly as a binary operand or call argument.
+  translations:
+    zh-CN: { title: 自增或自减被用作操作数, message: 避免将自增或自减直接用作二元操作数或调用实参。 }
+    en: { title: Increment or decrement used as an operand, message: Avoid using increment or decrement directly as a binary operand or call argument. }
+    zh-TW: { title: 遞增或遞減被用作運算元, message: 避免將遞增或遞減直接用作二元運算元或呼叫引數。 }
+- id: ANZU-REDUNDANT-VOID-CALL-CAST
+  title: Redundant void cast around a void call
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: redundant_void_cast_of_void_call
+  standards: [LEGACY-MSG-0701000010130063]
+  message: Remove the redundant void cast from a call that already returns void.
+  translations:
+    zh-CN: { title: void 函数调用外存在冗余 void 转换, message: 已返回 void 的函数调用不需要再转换为 void。 }
+    en: { title: Redundant void cast around a void call, message: Remove the redundant void cast from a call that already returns void. }
+    zh-TW: { title: void 函式呼叫外存在多餘 void 轉型, message: 已回傳 void 的函式呼叫不需要再轉型為 void。 }
+- id: ANZU-NOOP-EXPLICIT-CONVERSION
+  title: Explicit type conversion has no effect
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: no_op_explicit_conversion
+  standards: [LEGACY-MSG-0701000010130078, LEGACY-MSG-0601000010140083]
+  message: Remove an explicit conversion whose canonical source and destination types are identical.
+  translations:
+    zh-CN: { title: 显式类型转换没有效果, message: 删除源类型与目标规范类型相同的显式转换。 }
+    en: { title: Explicit type conversion has no effect, message: Remove an explicit conversion whose canonical source and destination types are identical. }
+    zh-TW: { title: 顯式型別轉換沒有效果, message: 刪除來源型別與目標規範型別相同的顯式轉型。 }
+- id: ANZU-POINTER-INTEGER-EXPLICIT-CAST
+  title: Pointer and integer explicitly converted
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: pointer_integer_explicit_cast
+  standards: [LEGACY-MSG-0101000010110261, LEGACY-MSG-2801000010180009]
+  message: Avoid implementation-defined conversions between pointers and integer types.
+  translations:
+    zh-CN: { title: 指针与整数进行显式转换, message: 避免指针与整数类型之间依赖实现的转换。 }
+    en: { title: Pointer and integer explicitly converted, message: Avoid implementation-defined conversions between pointers and integer types. }
+    zh-TW: { title: 指標與整數進行顯式轉型, message: 避免指標與整數型別之間依賴實作的轉型。 }
+- id: ANZU-FORCED-CSTYLE-POINTER-CAST
+  title: C-style cast forces a non-pointer value to pointer type
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: forced_c_style_pointer_cast
+  standards: [LEGACY-MSG-0601000010140081]
+  message: Avoid forcing a nonzero non-pointer value to pointer type with a C-style cast.
+  translations:
+    zh-CN: { title: C 风格转换将非指针强制转为指针, message: 避免用 C 风格转换将非零非指针值强制转为指针。 }
+    en: { title: C-style cast forces a non-pointer value to pointer type, message: Avoid forcing a nonzero non-pointer value to pointer type with a C-style cast. }
+    zh-TW: { title: C 風格轉型將非指標強制轉為指標, message: 避免用 C 風格轉型將非零非指標值強制轉為指標。 }
+- id: ANZU-UNSAFE-POINTER-TYPE-CAST
+  title: Unsafe pointer type conversion
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: unsafe_pointer_type_cast
+  standards: [LEGACY-MSG-2401000010120140, LEGACY-MSG-2801000010180000]
+  message: Avoid incompatible pointer conversions and non-void pointer/integer conversions.
+  translations:
+    zh-CN: { title: 不安全的指针类型转换, message: 避免不兼容指针转换以及非 void 指针与整数之间的转换。 }
+    en: { title: Unsafe pointer type conversion, message: Avoid incompatible pointer conversions and non-void pointer/integer conversions. }
+    zh-TW: { title: 不安全的指標型別轉型, message: 避免不相容指標轉型以及非 void 指標與整數之間的轉型。 }
+- id: ANZU-CPP-STATIC-RECORD-POINTER-CAST
+  title: static_cast converts between distinct record pointer types
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: static_cast_between_record_pointers
+  standards: [LEGACY-MSG-0101000010110351]
+  message: Prefer dynamic_cast when converting between distinct polymorphic record pointer types.
+  translations:
+    zh-CN: { title: static_cast 在不同类指针间转换, message: 在不同多态类指针间转换时优先考虑 dynamic_cast。 }
+    en: { title: static_cast converts between distinct record pointer types, message: Prefer dynamic_cast when converting between distinct polymorphic record pointer types. }
+    zh-TW: { title: static_cast 在不同類別指標間轉型, message: 在不同多型類別指標間轉型時優先考慮 dynamic_cast。 }
+- id: ANZU-SIDE-EFFECTING-SIZEOF
+  title: Side effect in sizeof operand
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: assignment_or_update_in_sizeof
+  standards: [LEGACY-MSG-0101000010110212]
+  message: Do not rely on side effects in operands to sizeof, _Alignof, or _Generic.
+  translations:
+    zh-CN: { title: sizeof 操作数中包含副作用, message: 请勿依靠 sizeof、_Alignof 或 _Generic 操作中的副作用。 }
+    en: { title: Side effect in sizeof operand, message: Do not rely on side effects in operands to sizeof, _Alignof, or _Generic. }
+    zh-TW: { title: sizeof 運算元中包含副作用, message: 請勿依靠 sizeof、_Alignof 或 _Generic 運算中的副作用。 }
+- id: ANZU-EXPLICIT-CHAR-SIGNEDNESS-STRING
+  title: String literal stored in explicitly signed character storage
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: string_literal_to_signed_or_unsigned_char_storage
+  standards: [LEGACY-MSG-0101000010110482, LEGACY-MSG-0101000010110305]
+  message: Use plain char for characters in the basic character set.
+  translations:
+    zh-CN: { title: 字符串存入显式有符号字符类型, message: 对基本字符集中的字符使用 plain char。 }
+    en: { title: String literal stored in explicitly signed character storage, message: Use plain char for characters in the basic character set. }
+    zh-TW: { title: 字串存入明確帶正負號字元型別, message: 對基本字元集中的字元使用 plain char。 }
+- id: ANZU-SIGNED-ODD-EVEN-REPRESENTATION
+  title: Signed odd-even check assumes integer representation
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: signed_odd_even_representation_assumption
+  standards: [LEGACY-MSG-0101000010110417]
+  message: Do not make assumptions about the representation of signed integers.
+  translations:
+    zh-CN: { title: 奇偶检查假设了有符号整数表示, message: 不要对有符号整数的表示做假设。 }
+    en: { title: Signed odd-even check assumes integer representation, message: Do not make assumptions about the representation of signed integers. }
+    zh-TW: { title: 奇偶檢查假設了帶正負號整數表示, message: 不要對帶正負號整數的表示做假設。 }
+- id: ANZU-ALLOCATION-LENGTH-USE-SIZEOF
+  title: Allocation length uses only constants
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: constant_allocation_length_without_sizeof
+  standards: [LEGACY-MSG-0101000010110191]
+  message: Use sizeof to determine the size of a type or variable.
+  translations:
+    zh-CN: { title: 分配长度仅使用常量, message: 使用 sizeof 来确定类型或变量的大小。 }
+    en: { title: Allocation length uses only constants, message: Use sizeof to determine the size of a type or variable. }
+    zh-TW: { title: 配置長度僅使用常數, message: 使用 sizeof 來確定型別或變數的大小。 }
+- id: ANZU-LOGICAL-NOT-INTEGER-LITERAL
+  title: Logical negation applied directly to an integer literal
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: logical_not_integer_literal
+  standards: [LEGACY-MSG-0701000010130048]
+  message: Avoid logical negation operations on constant values.
+  translations:
+    zh-CN: { title: 对整数字面量进行逻辑非操作, message: 避免对常数值进行逻辑非操作。 }
+    en: { title: Logical negation applied directly to an integer literal, message: Avoid logical negation operations on constant values. }
+    zh-TW: { title: 對整數常值進行邏輯非運算, message: 避免對常數值進行邏輯非運算。 }
+- id: ANZU-STRING-LITERAL-REQUIRES-CONST-CHAR-POINTER
+  title: String literal assigned to mutable char pointer
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: string_literal_assigned_to_mutable_char_pointer
+  standards: [LEGACY-MSG-0101000010110306, LEGACY-MSG-0101000010110483]
+  message: Use pointers to const when referring to string literals.
+  translations:
+    zh-CN: { title: 字符串字面量赋给可修改字符指针, message: 引用字符串字面值时使用指向 const 的指针。 }
+    en: { title: String literal assigned to mutable char pointer, message: Use pointers to const when referring to string literals. }
+    zh-TW: { title: 字串常值指派給可修改字元指標, message: 參照字串常值時使用指向 const 的指標。 }
+- id: ANZU-MIXED-STRING-LITERAL-CONCATENATION
+  title: Narrow and wide string literals concatenated
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: mixed_narrow_and_wide_string_literal
+  standards: [LEGACY-MSG-0101000010110309]
+  message: Do not concatenate different types of string literals.
+  translations:
+    zh-CN: { title: 拼接了不同类型的字符串字面量, message: 不要拼接不同类型的字符串字面值。 }
+    en: { title: Narrow and wide string literals concatenated, message: Do not concatenate different types of string literals. }
+    zh-TW: { title: 串接了不同型別的字串常值, message: 不要串接不同型別的字串常值。 }
+- id: ANZU-CPP-RAW-FUNCTION-POINTER-TYPE
+  title: Function pointer variable declared without a typedef
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: raw_function_pointer_variable
+  standards: [LEGACY-MSG-0101000010110327]
+  message: Use a typedef for function pointer variables to improve code readability.
+  translations:
+    zh-CN: { title: 函数指针变量未使用 typedef, message: 对函数指针变量使用 typedef 以提高代码可读性。 }
+    en: { title: Function pointer variable declared without a typedef, message: Use a typedef for function pointer variables to improve code readability. }
+    zh-TW: { title: 函式指標變數未使用 typedef, message: 對函式指標變數使用 typedef 以提高程式碼可讀性。 }
+- id: ANZU-CHAR-ARRAY-NULL-TERMINATOR
+  title: Fixed character array has no room for null terminator
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: unterminated_fixed_char_array_initializer
+  standards: [LEGACY-MSG-0701000010130100, LEGACY-MSG-0201000010120021, LEGACY-MSG-0301000010120021]
+  message: A character array initialized from a string must leave room for the terminating null character.
+  translations:
+    zh-CN: { title: 字符数组没有终止空字符空间, message: 由字符串初始化的字符数组必须为终止空字符保留空间。 }
+    en: { title: Fixed character array has no room for null terminator, message: A character array initialized from a string must leave room for the terminating null character. }
+    zh-TW: { title: 字元陣列沒有終止空字元空間, message: 由字串初始化的字元陣列必須為終止空字元保留空間。 }
+- id: ANZU-MISUSED-FUNCTION-ADDRESS
+  title: Function address used as an ordinary value
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: misused_function_address
+  standards: [LEGACY-MSG-2401000010120121, LEGACY-MSG-0101000010110198]
+  message: Do not use a function address as an ordinary binary operand or negated condition.
+  translations:
+    zh-CN: { title: 函数地址使用不当, message: 不要将函数地址用作普通二元操作数或取反条件。 }
+    en: { title: Function address used as an ordinary value, message: Do not use a function address as an ordinary binary operand or negated condition. }
+    zh-TW: { title: 函式位址使用不當, message: 不要將函式位址用作一般二元運算元或取反條件。 }
+- id: ANZU-CPP-EQUALITY-LOOP-LARGE-STEP
+  title: Equality termination used with a loop step larger than one
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: equality_loop_with_large_step
+  standards: [LEGACY-MSG-0101000010110372]
+  message: Use a relational inequality to terminate a loop whose counter changes by more than one.
+  translations:
+    zh-CN: { title: 大步长循环使用相等条件终止, message: 对计数器每次变化超过一的循环使用关系不等式终止。 }
+    en: { title: Equality termination used with a loop step larger than one, message: Use a relational inequality to terminate a loop whose counter changes by more than one. }
+    zh-TW: { title: 大步長迴圈使用相等條件終止, message: 對計數器每次變化超過一的迴圈使用關係不等式終止。 }
+- id: ANZU-FUNCTION-POINTER-EXPLICIT-ADDRESS
+  title: Function pointer assignment omits address-of
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: function_address_assignment_without_address_of
+  standards: [LEGACY-MSG-0701000010130019]
+  message: Function pointer assignment must explicitly use the address-of operator.
+  translations:
+    zh-CN: { title: 函数指针赋值省略取地址符, message: 函数指针赋值必须显式使用 & 符号。 }
+    en: { title: Function pointer assignment omits address-of, message: Function pointer assignment must explicitly use the address-of operator. }
+    zh-TW: { title: 函式指標指派省略取位址符, message: 函式指標指派必須明確使用 & 符號。 }
+- id: ANZU-POINTER-PARAMETER-ASSIGNMENT
+  title: Pointer parameter reassigned
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: pointer_parameter_assignment
+  standards: [LEGACY-MSG-0701000010130020]
+  message: Assignment to a pointer parameter is not allowed.
+  translations:
+    zh-CN: { title: 指针参数被重新赋值, message: 禁止赋值给指针参数。 }
+    en: { title: Pointer parameter reassigned, message: Assignment to a pointer parameter is not allowed. }
+    zh-TW: { title: 指標參數被重新指派, message: 禁止指派給指標參數。 }
+- id: ANZU-UNINITIALIZED-POINTER
+  title: Pointer variable is not initialized
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: uninitialized_pointer_variable
+  standards: [LEGACY-MSG-0701000010130026]
+  message: Initialize pointer variables when they are declared.
+  translations:
+    zh-CN: { title: 指针变量未初始化, message: 指针变量声明时必须初始化。 }
+    en: { title: Pointer variable is not initialized, message: Initialize pointer variables when they are declared. }
+    zh-TW: { title: 指標變數未初始化, message: 指標變數宣告時必須初始化。 }
+- id: ANZU-PARAMETER-SHADOWS-GLOBAL
+  title: Parameter shadows a global variable
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: parameter_shadows_global_variable
+  standards: [LEGACY-MSG-0701000010130088, LEGACY-MSG-0601000010140093, LEGACY-MSG-0601000010140094]
+  message: Do not let a function parameter shadow a variable in its immediate global or class owner.
+  translations:
+    zh-CN: { title: 参数隐藏全局变量, message: 不要让函数参数隐藏其直接全局或类作用域中的变量。 }
+    en: { title: Parameter shadows a global variable, message: Do not let a function parameter shadow a variable in its immediate global or class owner. }
+    zh-TW: { title: 參數隱藏全域變數, message: 不要讓函式參數隱藏其直接全域或類別範圍中的變數。 }
+- id: ANZU-LOCAL-SHADOWS-GLOBAL
+  title: Local variable shadows a global variable
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: local_variable_shadows_global_variable
+  standards: [LEGACY-MSG-0701000010130087, LEGACY-MSG-0601000010140092, LEGACY-MSG-0101000010120186, LEGACY-MSG-0901000010120186, LEGACY-MSG-2401000010120186, LEGACY-MSG-0101000010110151, LEGACY-MSG-0901000010110151, LEGACY-MSG-0101000010110432, LEGACY-MSG-0901000010110432]
+  message: Do not let a local variable shadow a global variable or an owning class static variable.
+  translations:
+    zh-CN: { title: 局部变量隐藏全局变量, message: 不要让局部变量隐藏全局变量或所属类的静态变量。 }
+    en: { title: Local variable shadows a global variable, message: Do not let a local variable shadow a global variable or an owning class static variable. }
+    zh-TW: { title: 區域變數隱藏全域變數, message: 不要讓區域變數隱藏全域變數或所屬類別的靜態變數。 }
+- id: ANZU-CPP-CONVERSION-OPERATOR
+  title: User-defined conversion operator
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: class_conversion_operator
+  standards: [LEGACY-MSG-0101000010110391]
+  message: Carefully review user-defined conversion operators in classes.
+  translations:
+    zh-CN: { title: 用户定义转换操作符, message: 谨慎定义并审查类中的转换操作符。 }
+    en: { title: User-defined conversion operator, message: Carefully review user-defined conversion operators in classes. }
+    zh-TW: { title: 使用者定義轉型運算子, message: 謹慎定義並審查類別中的轉型運算子。 }
+- id: ANZU-CPP-VIRTUAL-DEFAULT-ARGUMENT
+  title: Default argument in virtual method
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: default_argument_in_virtual_method
+  standards: [LEGACY-MSG-0101000010110394]
+  message: Virtual functions should not declare default arguments.
+  translations:
+    zh-CN: { title: 虚函数声明默认参数, message: 虚函数不应声明默认参数。 }
+    en: { title: Default argument in virtual method, message: Virtual functions should not declare default arguments. }
+    zh-TW: { title: 虛函式宣告預設參數, message: 虛函式不應宣告預設參數。 }
+- id: ANZU-BUILTIN-LIMIT-MACRO-CONDITION
+  title: Built-in limit macro used in a branch condition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: builtin_limit_macro_in_condition
+  standards: [LEGACY-MSG-2401000010120196]
+  message: Do not use built-in limit value macros directly in branch comparisons.
+  translations:
+    zh-CN: { title: 分支条件使用内置极限值宏, message: 不要在分支比较中直接使用内置极限值宏。 }
+    en: { title: Built-in limit macro used in a branch condition, message: Do not use built-in limit value macros directly in branch comparisons. }
+    zh-TW: { title: 分支條件使用內建極限值巨集, message: 不要在分支比較中直接使用內建極限值巨集。 }
+- id: ANZU-NONASSOCIATIVE-COMPARISON
+  title: Chained relational or equality comparison
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: chained_relational_or_equality
+  standards: [LEGACY-MSG-0101000010110195, LEGACY-MSG-0101000010110451]
+  message: Treat relational and equality operators as nonassociative and split chained comparisons.
+  translations:
+    zh-CN: { title: 链式关系或相等比较, message: 将关系和相等运算符视为不可结合，并拆分链式比较。 }
+    en: { title: Chained relational or equality comparison, message: Treat relational and equality operators as nonassociative and split chained comparisons. }
+    zh-TW: { title: 鏈式關係或相等比較, message: 將關係和相等運算子視為不可結合，並拆分鏈式比較。 }
+- id: ANZU-BITWISE-MIXED-EXPRESSION-PARENTHESES
+  title: Mixed bitwise expression lacks parentheses
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: bitwise_mixed_without_parentheses
+  standards: [LEGACY-MSG-0101000010110185, LEGACY-MSG-0901000010110185, LEGACY-MSG-0101000010110449, LEGACY-MSG-0901000010110449]
+  message: Use parentheses to make the precedence of mixed bitwise expressions explicit.
+  translations:
+    zh-CN: { title: 混合位运算表达式缺少括号, message: 使用括号明确混合位运算表达式的运算优先级。 }
+    en: { title: Mixed bitwise expression lacks parentheses, message: Use parentheses to make the precedence of mixed bitwise expressions explicit. }
+    zh-TW: { title: 混合位元運算運算式缺少括號, message: 使用括號明確混合位元運算運算式的運算優先順序。 }
+- id: ANZU-SHIFT-SMALL-INTEGER
+  title: Shift on an integer type smaller than int
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: shift_on_small_integer
+  standards: [LEGACY-MSG-0101000010110196, LEGACY-MSG-0101000010110452]
+  message: Beware of integer promotion when shifting integer types smaller than int.
+  translations:
+    zh-CN: { title: 对小于 int 的整数类型进行移位, message: 对小于 int 的整数类型进行移位时注意整型提升。 }
+    en: { title: Shift on an integer type smaller than int, message: Beware of integer promotion when shifting integer types smaller than int. }
+    zh-TW: { title: 對小於 int 的整數型別進行位移, message: 對小於 int 的整數型別進行位移時注意整數提升。 }
+- id: ANZU-EOF-CHARACTER-INPUT-COMPARISON
+  title: Incorrect comparison of character input with EOF
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: eof_comparison_on_character_input
+  cwe: [CWE-704]
+  standards: [LEGACY-MSG-0201000010120079, LEGACY-MSG-2401000010120079, LEGACY-MSG-0101000010110229, LEGACY-MSG-2801000010180040]
+  message: Preserve the getchar or getwc result and compare it correctly with EOF or WEOF.
+  translations:
+    zh-CN: { title: 字符输入与 EOF 比较错误, message: 保留 getchar 或 getwc 的结果，并正确地与 EOF 或 WEOF 比较。 }
+    en: { title: Incorrect comparison of character input with EOF, message: Preserve the getchar or getwc result and compare it correctly with EOF or WEOF. }
+    zh-TW: { title: 字元輸入與 EOF 比較錯誤, message: 保留 getchar 或 getwc 的結果，並正確地與 EOF 或 WEOF 比較。 }
+- id: ANZU-MULTIPLE-UNGET-SAME-STREAM
+  title: Multiple character pushbacks on the same stream
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: multiple_unget_same_stream
+  standards: [LEGACY-MSG-0101000010110460, LEGACY-MSG-0101000010110222]
+  message: Do not push back more than one character on the same stream without an intervening read.
+  translations:
+    zh-CN: { title: 同一流上多次回退字符, message: 在两次读取之间，不要向同一流回退多个字符。 }
+    en: { title: Multiple character pushbacks on the same stream, message: Do not push back more than one character on the same stream without an intervening read. }
+    zh-TW: { title: 同一串流上多次回退字元, message: 在兩次讀取之間，不要向同一串流回退多個字元。 }
+- id: ANZU-C-DECLARATION-BEFORE-FIRST-CASE
+  title: Declaration before the first switch case
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: declaration_before_first_switch_case
+  standards: [LEGACY-MSG-0101000010110169]
+  message: Do not declare variables before the first case label in a switch statement.
+  translations:
+    zh-CN: { title: 首个 switch case 前存在声明, message: 不要在 switch 语句的第一个 case 标签之前声明变量。 }
+    en: { title: Declaration before the first switch case, message: Do not declare variables before the first case label in a switch statement. }
+    zh-TW: { title: 第一個 switch case 前存在宣告, message: 不要在 switch 陳述式的第一個 case 標籤之前宣告變數。 }
+- id: ANZU-CPP-RAW-ALLOCATION-FOR-CLASS
+  title: Raw C allocation used for a class object
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: raw_allocation_for_class
+  cwe: [CWE-762]
+  standards: [anzu.CMemFunctionsInCppChecker]
+  message: Use new and delete rather than raw C allocation and deallocation for class objects.
+  translations:
+    zh-CN: { title: 对类对象使用原始 C 内存分配, message: 对类对象使用 new 和 delete，而不是原始 C 内存分配和回收。 }
+    en: { title: Raw C allocation used for a class object, message: Use new and delete rather than raw C allocation and deallocation for class objects. }
+    zh-TW: { title: 對類別物件使用原始 C 記憶體配置, message: 對類別物件使用 new 和 delete，而不是原始 C 記憶體配置和回收。 }
+- id: ANZU-CPP-STD-FIND-ON-SET
+  title: std::find used on std::set
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: std_find_on_set
+  standards: [LEGACY-MSG-0101000010110411]
+  message: Use the std::set find member instead of the linear std::find algorithm.
+  translations:
+    zh-CN: { title: 对 std::set 使用 std::find, message: 使用 std::set 的 find 成员函数，而不是线性的 std::find 算法。 }
+    en: { title: std::find used on std::set, message: Use the std::set find member instead of the linear std::find algorithm. }
+    zh-TW: { title: 對 std::set 使用 std::find, message: 使用 std::set 的 find 成員函式，而不是線性的 std::find 演算法。 }
+- id: ANZU-C-EXIT-HANDLER-NORMAL-RETURN
+  title: Exit handler does not return normally
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: exit_handler_must_return_normally
+  standards: [LEGACY-MSG-0101000010110414, LEGACY-MSG-0901000010110414]
+  message: Exit handlers and the functions they call must return normally.
+  translations:
+    zh-CN: { title: 退出处理程序未正常返回, message: 退出处理程序及其调用的函数必须正常返回。 }
+    en: { title: Exit handler does not return normally, message: Exit handlers and the functions they call must return normally. }
+    zh-TW: { title: 結束處理常式未正常返回, message: 結束處理常式及其呼叫的函式必須正常返回。 }
+- id: ANZU-TIME-T-DIRECT-ARITHMETIC
+  title: Direct arithmetic on time_t
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: direct_time_arithmetic
+  standards: [LEGACY-MSG-0101000010110419, LEGACY-MSG-0101000010110487]
+  message: Do not manipulate time_t values directly with additive arithmetic.
+  translations:
+    zh-CN: { title: 直接对 time_t 进行算术运算, message: 不要使用加减算术直接操作 time_t 值。 }
+    en: { title: Direct arithmetic on time_t, message: Do not manipulate time_t values directly with additive arithmetic. }
+    zh-TW: { title: 直接對 time_t 進行算術運算, message: 不要使用加減算術直接操作 time_t 值。 }
+- id: ANZU-PRINTF-TOO-FEW-ARGUMENTS
+  title: Too few arguments for format string
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: too_few_printf_arguments
+  cwe: [CWE-685]
+  standards: [LEGACY-MSG-0201000010120038, LEGACY-MSG-0201000010120045]
+  message: Supply an argument for every conversion in the printf-family format string.
+  translations:
+    zh-CN: { title: 格式化字符串参数数量不足, message: 为 printf 家族格式字符串中的每个转换说明符提供参数。 }
+    en: { title: Too few arguments for format string, message: Supply an argument for every conversion in the printf-family format string. }
+    zh-TW: { title: 格式化字串參數數量不足, message: 為 printf 家族格式字串中的每個轉換說明符提供參數。 }
+- id: ANZU-PRINTF-STAR-MISSING-ARGUMENT
+  title: Missing argument for star in printf format
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: missing_printf_star_argument
+  cwe: [CWE-685]
+  standards: [LEGACY-MSG-0201000010120050, LEGACY-MSG-0301000010120050]
+  message: Supply both the width or precision argument and the converted value for each star conversion.
+  translations:
+    zh-CN: { title: printf 星号缺少参数, message: 为每个星号转换同时提供宽度或精度参数以及被转换的值。 }
+    en: { title: Missing argument for star in printf format, message: Supply both the width or precision argument and the converted value for each star conversion. }
+    zh-TW: { title: printf 星號缺少參數, message: 為每個星號轉換同時提供寬度或精度參數以及被轉換的值。 }
+- id: ANZU-PRINTF-STAR-NONCONSTANT-ARGUMENT
+  title: Nonconstant integer argument for star in printf format
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: non_constant_printf_star_argument
+  cwe: [CWE-686]
+  standards: [LEGACY-MSG-0201000010120051, LEGACY-MSG-0301000010120051]
+  message: Use a constant integer width or precision argument for each star conversion.
+  translations:
+    zh-CN: { title: printf 星号参数不是常量整数, message: 为每个星号转换使用常量整数宽度或精度参数。 }
+    en: { title: Nonconstant integer argument for star in printf format, message: Use a constant integer width or precision argument for each star conversion. }
+    zh-TW: { title: printf 星號參數不是常數整數, message: 為每個星號轉換使用常數整數寬度或精度參數。 }
+- id: ANZU-FSETPOS-REQUIRES-FGETPOS-VALUE
+  title: fsetpos uses a value not obtained from fgetpos
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: fsetpos_requires_fgetpos_value
+  cwe: [CWE-20]
+  standards: [LEGACY-MSG-0101000010110234, LEGACY-MSG-2801000010180038]
+  message: Only pass position values obtained from fgetpos to fsetpos.
+  translations:
+    zh-CN: { title: fsetpos 使用了非 fgetpos 返回的位置值, message: 只能向 fsetpos 传递从 fgetpos 获得的位置值。 }
+    en: { title: fsetpos uses a value not obtained from fgetpos, message: Only pass position values obtained from fgetpos to fsetpos. }
+    zh-TW: { title: fsetpos 使用了非 fgetpos 傳回的位置值, message: 只能向 fsetpos 傳遞從 fgetpos 取得的位置值。 }
+- id: ANZU-INTERLEAVED-STREAM-IO
+  title: Interleaved stream input and output without positioning
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: interleaved_stream_io_without_positioning
+  cwe: [CWE-664]
+  standards: [LEGACY-MSG-2801000010180025]
+  message: Refresh or reposition a stream before switching between input and output.
+  translations:
+    zh-CN: { title: 未定位即交替进行流输入输出, message: 在输入和输出之间切换前刷新或重新定位流。 }
+    en: { title: Interleaved stream input and output without positioning, message: Refresh or reposition a stream before switching between input and output. }
+    zh-TW: { title: 未定位即交替進行串流輸入輸出, message: 在輸入和輸出之間切換前重新整理或重新定位串流。 }
+- id: ANZU-ALIASED-RESTRICT-ARGUMENTS
+  title: Aliased objects passed to distinct restrict parameters
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: aliased_restrict_arguments
+  cwe: [CWE-628]
+  standards: [LEGACY-MSG-2801000010180031]
+  message: Do not pass pointers to the same object through distinct restrict-qualified parameters.
+  translations:
+    zh-CN: { title: 不同 restrict 参数接收到别名对象, message: 不要通过不同的 restrict 限定参数传递指向同一对象的指针。 }
+    en: { title: Aliased objects passed to distinct restrict parameters, message: Do not pass pointers to the same object through distinct restrict-qualified parameters. }
+    zh-TW: { title: 不同 restrict 參數接收到別名物件, message: 不要透過不同的 restrict 限定參數傳遞指向同一物件的指標。 }
+- id: ANZU-C-READLINK-LENGTH-OUT-OF-BOUNDS
+  title: readlink return value may index beyond the destination
+  languages: [c]
+  severity: error
+  confidence: high
+  matcher:
+    c_expression: readlink_length_out_of_bounds
+  cwe: [CWE-787]
+  standards: [LEGACY-MSG-0101000010110292]
+  message: Bound readlink by the actual destination capacity before using its return value as an index.
+  translations:
+    zh-CN: { title: readlink 返回值可能越过目标缓冲区, message: 按目标缓冲区的实际容量限制 readlink，再将其返回值用作下标。 }
+    en: { title: readlink return value may index beyond the destination, message: Bound readlink by the actual destination capacity before using its return value as an index. }
+    zh-TW: { title: readlink 傳回值可能越過目標緩衝區, message: 按目標緩衝區的實際容量限制 readlink，再將其傳回值用作索引。 }
+- id: ANZU-FILE-OBJECT-COPY
+  title: FILE object is copied
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: file_object_copy
+  cwe: [CWE-664]
+  standards: [LEGACY-MSG-0101000010110230, LEGACY-MSG-2801000010180011]
+  message: Do not copy a non-pointer FILE object.
+  translations:
+    zh-CN: { title: 拷贝 FILE 对象, message: 不要拷贝非指针 FILE 对象。 }
+    en: { title: FILE object is copied, message: Do not copy a non-pointer FILE object. }
+    zh-TW: { title: 複製 FILE 物件, message: 不要複製非指標 FILE 物件。 }
+- id: ANZU-ERRNO-RETURN-TYPE
+  title: Errno code returned from a non-errno_t function
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: errno_return_requires_errno_t
+  cwe: [CWE-704]
+  standards: [LEGACY-MSG-0101000010110159, LEGACY-MSG-0901000010110159, LEGACY-MSG-0101000010110438, LEGACY-MSG-0901000010110438]
+  message: Use errno_t as the return type of a function that returns errno codes.
+  translations:
+    zh-CN: { title: 非 errno_t 函数返回 errno 错误码, message: 返回 errno 错误码的函数应使用 errno_t 返回类型。 }
+    en: { title: Errno code returned from a non-errno_t function, message: Use errno_t as the return type of a function that returns errno codes. }
+    zh-TW: { title: 非 errno_t 函式傳回 errno 錯誤碼, message: 傳回 errno 錯誤碼的函式應使用 errno_t 傳回型別。 }
+- id: ANZU-ERRNO-RESULT-PROTOCOL
+  title: Errno-setting function called without first clearing errno
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: errno_result_protocol
+  cwe: [CWE-252]
+  standards: [LEGACY-MSG-0101000010110182, LEGACY-MSG-2801000010180023]
+  message: Set errno to zero before calling a function that may set it, then inspect errno only for that call's result.
+  translations:
+    zh-CN: { title: 调用可能设置 errno 的函数前未清零 errno, message: 调用可能设置 errno 的函数前先将 errno 置零，并且只针对该次调用的结果检查 errno。 }
+    en: { title: Errno-setting function called without first clearing errno, message: "Set errno to zero before calling a function that may set it, then inspect errno only for that call's result." }
+    zh-TW: { title: 呼叫可能設定 errno 的函式前未清零 errno, message: 呼叫可能設定 errno 的函式前先將 errno 設為零，並且只針對該次呼叫的結果檢查 errno。 }
+- id: ANZU-WRITE-STRING-LITERAL
+  title: Attempt to modify string literal storage
+  languages: [c, cpp]
+  severity: error
+  confidence: high
+  matcher:
+    c_expression: write_to_string_literal
+  cwe: [CWE-758]
+  standards: [LEGACY-MSG-0101000010110311, LEGACY-MSG-2801000010180026]
+  message: Do not write through a pointer that refers to string literal storage.
+  translations:
+    zh-CN: { title: 尝试修改字符串字面量存储区, message: 不要通过指向字符串字面量存储区的指针进行写入。 }
+    en: { title: Attempt to modify string literal storage, message: Do not write through a pointer that refers to string literal storage. }
+    zh-TW: { title: 嘗試修改字串常值儲存區, message: 不要透過指向字串常值儲存區的指標進行寫入。 }
+- id: ANZU-WRITE-CONST-STORAGE
+  title: Write through discarded const qualification
+  languages: [c, cpp]
+  severity: error
+  confidence: high
+  matcher:
+    c_expression: write_through_const_storage
+  cwe: [CWE-758]
+  standards: [LEGACY-MSG-0101000010110188, LEGACY-MSG-0901000010110188, LEGACY-MSG-0101000010110209]
+  message: Do not modify a const-qualified object or write through a pointer after discarding its const qualification.
+  translations:
+    zh-CN: { title: 通过丢弃 const 限定写入, message: 不要修改 const 限定对象，也不要在丢弃 const 限定后通过指针写入。 }
+    en: { title: Write through discarded const qualification, message: Do not modify a const-qualified object or write through a pointer after discarding its const qualification. }
+    zh-TW: { title: 透過捨棄 const 限定寫入, message: 不要修改 const 限定物件，也不要在捨棄 const 限定後透過指標寫入。 }
+- id: ANZU-SIGNED-CHAR-PROMOTION
+  title: Signed character converted directly to a wider integer
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: signed_char_promotion_assignment
+  cwe: [CWE-194]
+  standards: [LEGACY-MSG-0101000010110313]
+  message: Cast a signed character to unsigned char before converting it to a wider integer type.
+  translations:
+    zh-CN: { title: 有符号字符直接转换为更宽的整数, message: 转换为更宽的整数类型前，先将有符号字符转换为 unsigned char。 }
+    en: { title: Signed character converted directly to a wider integer, message: Cast a signed character to unsigned char before converting it to a wider integer type. }
+    zh-TW: { title: 有號字元直接轉換為更寬的整數, message: 轉換為更寬的整數型別前，先將有號字元轉換為 unsigned char。 }
+- id: ANZU-CTYPE-SIGNED-CHAR-ARGUMENT
+  title: Signed character passed to a character-handling function
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: ctype_explicit_signed_char_argument
+  cwe: [CWE-194]
+  standards: [LEGACY-MSG-0101000010110314]
+  message: Convert a signed character argument to unsigned char before calling a character-handling function.
+  translations:
+    zh-CN: { title: 向字符处理函数传入有符号字符, message: 调用字符处理函数前，将有符号字符参数转换为 unsigned char。 }
+    en: { title: Signed character passed to a character-handling function, message: Convert a signed character argument to unsigned char before calling a character-handling function. }
+    zh-TW: { title: 向字元處理函式傳入有號字元, message: 呼叫字元處理函式前，將有號字元參數轉換為 unsigned char。 }
+- id: ANZU-VLA-INVALID-SENTINEL-SIZE
+  title: Variable-length array has the invalid maximum sentinel size
+  languages: [c]
+  severity: error
+  confidence: high
+  matcher:
+    c_expression: variable_array_invalid_sentinel_size
+  cwe: [CWE-129]
+  standards: [LEGACY-MSG-0101000010110324, LEGACY-MSG-0901000010110324]
+  message: Ensure a variable-length array size cannot evaluate to the invalid 0x7fffffff sentinel.
+  translations:
+    zh-CN: { title: 可变长度数组使用无效的最大哨兵长度, message: 确保可变长度数组的大小不会求值为无效的 0x7fffffff 哨兵值。 }
+    en: { title: Variable-length array has the invalid maximum sentinel size, message: Ensure a variable-length array size cannot evaluate to the invalid 0x7fffffff sentinel. }
+    zh-TW: { title: 可變長度陣列使用無效的最大哨兵長度, message: 確保可變長度陣列的大小不會求值為無效的 0x7fffffff 哨兵值。 }
 - id: ANZU-MACRO-TRAILING-SEMICOLON
   title: Macro definition ends with a semicolon
   languages: [c]
@@ -580,7 +2417,13 @@ rules:
   - CWE-134
   standards:
   - CERT-C-FIO30-C
+  - LEGACY-MSG-0201000010120059
+  - LEGACY-MSG-0301000010120059
   message: Use a constant format string and pass data through format arguments.
+  translations:
+    zh-CN: { title: 格式字符串不是字符串字面值, message: 格式字符串必须是字符串字面值。 }
+    en: { title: Potentially nonliteral format string, message: Format strings must be string literals. }
+    zh-TW: { title: 格式字串不是字串常值, message: 格式字串必須是字串常值。 }
 - id: UF-C-FPRINTF-NONLITERAL
   title: Potentially nonliteral stream format string
   languages:
@@ -588,17 +2431,26 @@ rules:
   - cpp
   severity: warning
   confidence: high
-  pattern: \b(?:fprintf|snprintf|sprintf)\s*\(
+  pattern: ''
   matcher:
-    callee: (^|::)(fprintf|snprintf|sprintf)$
-    min_args: 2
-    non_literal_args:
-    - 1
+    call_alternatives:
+    - callee: (^|::)(fprintf|sprintf)$
+      min_args: 2
+      non_literal_args: [1]
+    - callee: (^|::)snprintf$
+      min_args: 3
+      non_literal_args: [2]
   cwe:
   - CWE-134
   standards:
   - CERT-C-FIO30-C
+  - LEGACY-MSG-0201000010120059
+  - LEGACY-MSG-0301000010120059
   message: Use a constant format string.
+  translations:
+    zh-CN: { title: 流格式字符串不是字符串字面值, message: 格式字符串必须是字符串字面值。 }
+    en: { title: Potentially nonliteral stream format string, message: Format strings must be string literals. }
+    zh-TW: { title: 串流格式字串不是字串常值, message: 格式字串必須是字串常值。 }
 - id: UF-C-CONV-ATOI
   title: Numeric conversion without error reporting
   languages:
@@ -1445,6 +3297,19 @@ rules:
   standards:
   - CERT-CPP-ERR
   message: Handle, translate, or explicitly document discarded exceptions.
+- id: ANZU-FUNCTION-OVER-200-LINES
+  title: Function exceeds 200 lines
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: function_over200_lines
+  standards: [LEGACY-MSG-0601000010140022]
+  message: The function exceeds the maximum allowed 200 lines.
+  translations:
+    zh-CN: { title: 函数超过 200 行, message: 函数超过了允许的最大行数 200。 }
+    en: { title: Function exceeds 200 lines, message: The function exceeds the maximum allowed 200 lines. }
+    zh-TW: { title: 函式超過 200 行, message: 函式超過允許的最大行數 200。 }
 - id: UF-CPP-REINTERPRET-CAST
   title: reinterpret_cast bypasses type safety
   languages:
@@ -1457,3 +3322,716 @@ rules:
   standards:
   - CERT-CPP-EXP
   message: Review the cast for alignment, lifetime, provenance, and representation safety.
+- id: ANZU-CPP-DESTRUCTOR-DEALLOCATION-NOEXCEPT
+  title: Destructor or deallocation function may throw
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_style: cpp_destructor_or_deallocation_must_be_noexcept
+  standards: [LEGACY-MSG-0101000010110335]
+  message: Destructors and deallocation functions must be declared noexcept.
+  translations:
+    zh-CN: { title: 析构或回收函数可能抛出异常, message: 析构函数和回收函数必须声明为 noexcept。 }
+    en: { title: Destructor or deallocation function may throw, message: Destructors and deallocation functions must be declared noexcept. }
+    zh-TW: { title: 解構或回收函式可能擲出例外, message: 解構函式和回收函式必須宣告為 noexcept。 }
+- id: ANZU-NULL-CHAR-TRAITS-LENGTH
+  title: Null pointer passed to char_traits::length
+  languages: [cpp]
+  severity: error
+  confidence: high
+  matcher:
+    c_expression: null_char_traits_length_argument
+  standards: [LEGACY-MSG-0101000010110380]
+  message: Null pointer passed to char_traits::length.
+  translations:
+    zh-CN: { title: char_traits::length 接收到空指针, message: 将空指针传递给 char_traits::length。 }
+    en: { title: Null pointer passed to char_traits::length, message: Null pointer passed to char_traits::length. }
+    zh-TW: { title: char_traits::length 接收到空指標, message: 將空指標傳遞給 char_traits::length。 }
+- id: ANZU-DISABLE-FUNCTION-ATOX
+  title: Prohibited A-to-number conversion function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^(atoi|atol|atoll)$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0101000010110246, LEGACY-MSG-0101000010110465]
+  message: Do not use atoi, atol, or atoll.
+  translations:
+    zh-CN: { title: 禁用 A-to-number 转换函数, message: 禁止使用 atoi、atol 或 atoll。 }
+    en: { title: Prohibited A-to-number conversion function, message: "Do not use atoi, atol, or atoll." }
+    zh-TW: { title: 禁用 A-to-number 轉換函式, message: 禁止使用 atoi、atol 或 atoll。 }
+- id: ANZU-DISABLE-FUNCTION-XTOA
+  title: Prohibited number-to-A conversion function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^itoa$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120084]
+  message: Do not use itoa.
+  translations:
+    zh-CN: { title: 禁用 number-to-A 转换函数, message: 禁止使用 itoa。 }
+    en: { title: Prohibited number-to-A conversion function, message: Do not use itoa. }
+    zh-TW: { title: 禁用 number-to-A 轉換函式, message: 禁止使用 itoa。 }
+- id: ANZU-DISABLE-FUNCTION-ISBADWRITEPTR
+  title: Prohibited IsBadWritePtr function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^IsBadWritePtr$', min_args: 2, max_args: 2, forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120083]
+  message: Do not use IsBadWritePtr.
+  translations:
+    zh-CN: { title: 禁用 IsBadWritePtr 函数, message: 禁止使用 IsBadWritePtr。 }
+    en: { title: Prohibited IsBadWritePtr function, message: Do not use IsBadWritePtr. }
+    zh-TW: { title: 禁用 IsBadWritePtr 函式, message: 禁止使用 IsBadWritePtr。 }
+- id: ANZU-DISABLE-FUNCTION-ALLOCA
+  title: Prohibited stack allocation function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^(_?alloca)$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120080]
+  message: Do not use alloca or _alloca.
+  translations:
+    zh-CN: { title: 禁用栈分配函数, message: 禁止使用 alloca 或 _alloca。 }
+    en: { title: Prohibited stack allocation function, message: Do not use alloca or _alloca. }
+    zh-TW: { title: 禁用堆疊配置函式, message: 禁止使用 alloca 或 _alloca。 }
+- id: ANZU-DISABLE-FUNCTION-GETS
+  title: Prohibited gets function
+  languages: *id001
+  severity: error
+  confidence: high
+  matcher: { callee: '^gets$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0701000010130054, LEGACY-MSG-0201000010120082, LEGACY-MSG-0301000010120082]
+  message: Do not use gets.
+  translations:
+    zh-CN: { title: 禁用 gets 函数, message: 禁止使用 gets。 }
+    en: { title: Prohibited gets function, message: Do not use gets. }
+    zh-TW: { title: 禁用 gets 函式, message: 禁止使用 gets。 }
+- id: ANZU-DISABLE-FUNCTION-STD-TERM
+  title: Prohibited standard termination function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^std(?:\.|::)(terminate|abort|_Exit)$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0101000010110341]
+  message: Do not invoke the listed std termination functions directly.
+  translations:
+    zh-CN: { title: 禁用标准终止函数, message: 禁止直接调用列出的 std 终止函数。 }
+    en: { title: Prohibited standard termination function, message: Do not invoke the listed std termination functions directly. }
+    zh-TW: { title: 禁用標準終止函式, message: 禁止直接呼叫列出的 std 終止函式。 }
+- id: ANZU-DISABLE-FUNCTION-THREAD-KILL
+  title: Prohibited pthread_kill function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^pthread_kill$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0101000010110317]
+  message: Do not use pthread_kill.
+  translations:
+    zh-CN: { title: 禁用 pthread_kill 函数, message: 禁止使用 pthread_kill。 }
+    en: { title: Prohibited pthread_kill function, message: Do not use pthread_kill. }
+    zh-TW: { title: 禁用 pthread_kill 函式, message: 禁止使用 pthread_kill。 }
+- id: ANZU-DISABLE-FUNCTION-TERMINATE
+  title: Prohibited platform termination function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^(TerminateThread|TerminateProcess)$', min_args: 2, max_args: 2, forbids_receiver: true }
+  standards: [LEGACY-MSG-0101000010110320]
+  message: Do not use TerminateThread or TerminateProcess.
+  translations:
+    zh-CN: { title: 禁用平台终止函数, message: 禁止使用 TerminateThread 或 TerminateProcess。 }
+    en: { title: Prohibited platform termination function, message: Do not use TerminateThread or TerminateProcess. }
+    zh-TW: { title: 禁用平台終止函式, message: 禁止使用 TerminateThread 或 TerminateProcess。 }
+- id: ANZU-DISABLE-FUNCTION-SYSTEM
+  title: Prohibited system function
+  languages: *id001
+  severity: error
+  confidence: high
+  matcher: { callee: '^system$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0101000010110174]
+  message: Do not use system.
+  translations:
+    zh-CN: { title: 禁用 system 函数, message: 禁止使用 system。 }
+    en: { title: Prohibited system function, message: Do not use system. }
+    zh-TW: { title: 禁用 system 函式, message: 禁止使用 system。 }
+- id: ANZU-DISABLE-FUNCTION-JMP
+  title: Prohibited nonlocal jump function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^(longjmp|setjmp)$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0601000010140105, LEGACY-MSG-0701000010130038, LEGACY-MSG-0101000010110342]
+  message: Do not use setjmp or longjmp.
+  translations:
+    zh-CN: { title: 禁用非局部跳转函数, message: 禁止使用 setjmp 或 longjmp。 }
+    en: { title: Prohibited nonlocal jump function, message: Do not use setjmp or longjmp. }
+    zh-TW: { title: 禁用非區域跳躍函式, message: 禁止使用 setjmp 或 longjmp。 }
+- id: ANZU-DISABLE-FUNCTION-EXIT
+  title: Prohibited abrupt-exit function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^(exit|abort)$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0601000010140063]
+  message: Do not use exit or abort.
+  translations:
+    zh-CN: { title: 禁用异常退出函数, message: 禁止使用 exit 或 abort。 }
+    en: { title: Prohibited abrupt-exit function, message: Do not use exit or abort. }
+    zh-TW: { title: 禁用異常結束函式, message: 禁止使用 exit 或 abort。 }
+- id: ANZU-DISABLE-FUNCTION-CHAR-TO-OEM
+  title: Prohibited CharToOem function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^CharToOem(A|W)?$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120085]
+  message: Do not use CharToOem, CharToOemA, or CharToOemW.
+  translations:
+    zh-CN: { title: 禁用 CharToOem 函数, message: 禁止使用 CharToOem、CharToOemA 或 CharToOemW。 }
+    en: { title: Prohibited CharToOem function, message: "Do not use CharToOem, CharToOemA, or CharToOemW." }
+    zh-TW: { title: 禁用 CharToOem 函式, message: 禁止使用 CharToOem、CharToOemA 或 CharToOemW。 }
+- id: ANZU-DISABLE-FUNCTION-PATH
+  title: Prohibited path composition function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^_(splitpath|makepath)$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120086]
+  message: Do not use _splitpath or _makepath.
+  translations:
+    zh-CN: { title: 禁用路径组合函数, message: 禁止使用 _splitpath 或 _makepath。 }
+    en: { title: Prohibited path composition function, message: Do not use _splitpath or _makepath. }
+    zh-TW: { title: 禁用路徑組合函式, message: 禁止使用 _splitpath 或 _makepath。 }
+- id: ANZU-DISABLE-FUNCTION-SCANF
+  title: Prohibited scanf function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^scanf$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120087, LEGACY-MSG-0301000010120087]
+  message: Do not use scanf.
+  translations:
+    zh-CN: { title: 禁用 scanf 函数, message: 禁止使用 scanf。 }
+    en: { title: Prohibited scanf function, message: Do not use scanf. }
+    zh-TW: { title: 禁用 scanf 函式, message: 禁止使用 scanf。 }
+- id: ANZU-DISABLE-FUNCTION-STRTOK
+  title: Prohibited strtok function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^strtok$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120089]
+  message: Do not use strtok.
+  translations:
+    zh-CN: { title: 禁用 strtok 函数, message: 禁止使用 strtok。 }
+    en: { title: Prohibited strtok function, message: Do not use strtok. }
+    zh-TW: { title: 禁用 strtok 函式, message: 禁止使用 strtok。 }
+- id: ANZU-DISABLE-FUNCTION-CHANGE-WINDOW-MESSAGE-FILTER
+  title: Prohibited ChangeWindowMessageFilter function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^ChangeWindowMessageFilter$', min_args: 2, max_args: 2, forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120090, LEGACY-MSG-0301000010120090]
+  message: Do not use ChangeWindowMessageFilter.
+  translations:
+    zh-CN: { title: 禁用 ChangeWindowMessageFilter 函数, message: 禁止使用 ChangeWindowMessageFilter。 }
+    en: { title: Prohibited ChangeWindowMessageFilter function, message: Do not use ChangeWindowMessageFilter. }
+    zh-TW: { title: 禁用 ChangeWindowMessageFilter 函式, message: 禁止使用 ChangeWindowMessageFilter。 }
+- id: ANZU-DISABLE-FUNCTION-EXEC
+  title: Prohibited execlp function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^execlp$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120113, LEGACY-MSG-0301000010120113]
+  message: Do not use execlp.
+  translations:
+    zh-CN: { title: 禁用 execlp 函数, message: 禁止使用 execlp。 }
+    en: { title: Prohibited execlp function, message: Do not use execlp. }
+    zh-TW: { title: 禁用 execlp 函式, message: 禁止使用 execlp。 }
+- id: ANZU-DISABLE-FUNCTION-SET-ID
+  title: Prohibited effective-ID function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^set(euid|egid)$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120117, LEGACY-MSG-0301000010120117, LEGACY-MSG-1501000010120117, LEGACY-MSG-1601000010120117, LEGACY-MSG-1701000010120117]
+  message: Do not use seteuid or setegid.
+  translations:
+    zh-CN: { title: 禁用有效 ID 函数, message: 禁止使用 seteuid 或 setegid。 }
+    en: { title: Prohibited effective-ID function, message: Do not use seteuid or setegid. }
+    zh-TW: { title: 禁用有效 ID 函式, message: 禁止使用 seteuid 或 setegid。 }
+- id: ANZU-DISABLE-FUNCTION-GETLOGIN
+  title: Prohibited getlogin function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^getlogin$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120118, LEGACY-MSG-0301000010120118]
+  message: Do not use getlogin.
+  translations:
+    zh-CN: { title: 禁用 getlogin 函数, message: 禁止使用 getlogin。 }
+    en: { title: Prohibited getlogin function, message: Do not use getlogin. }
+    zh-TW: { title: 禁用 getlogin 函式, message: 禁止使用 getlogin。 }
+- id: ANZU-DISABLE-FUNCTION-MEMCPY
+  title: Prohibited memcpy function
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { callee: '^memcpy$', forbids_receiver: true }
+  standards: [LEGACY-MSG-0201000010120173, LEGACY-MSG-0301000010120173]
+  message: Do not use memcpy.
+  translations:
+    zh-CN: { title: 禁用 memcpy 函数, message: 禁止使用 memcpy。 }
+    en: { title: Prohibited memcpy function, message: Do not use memcpy. }
+    zh-TW: { title: 禁用 memcpy 函式, message: 禁止使用 memcpy。 }
+- id: ANZU-INVALID-PRINTF-FORMAT-SPECIFIER
+  title: Illegal printf format specifier
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: invalid_printf_format_specifier
+  standards: [LEGACY-MSG-0201000010120046]
+  message: The literal format string contains an illegal format specifier.
+  translations:
+    zh-CN: { title: 非法的 printf 格式说明符, message: 字面量格式字符串包含非法的格式说明符。 }
+    en: { title: Illegal printf format specifier, message: The literal format string contains an illegal format specifier. }
+    zh-TW: { title: 非法的 printf 格式說明符, message: 字面量格式字串包含非法的格式說明符。 }
+- id: ANZU-UNICODE-OUTPUT-BUFFER-SIZE
+  title: Inconsistent Unicode output buffer and size
+  languages: *id001
+  severity: error
+  confidence: high
+  matcher: { c_expression: unicode_output_buffer_size_mismatch }
+  standards: [LEGACY-MSG-0201000010120071]
+  message: Output buffer is NULL but its size is not 0.
+  translations:
+    zh-CN: { title: Unicode 输出缓冲区与大小不一致, message: 输出缓冲区为空，但其大小不是 0。 }
+    en: { title: Inconsistent Unicode output buffer and size, message: Output buffer is NULL but its size is not 0. }
+    zh-TW: { title: Unicode 輸出緩衝區與大小不一致, message: 輸出緩衝區為空，但其大小不是 0。 }
+- id: ANZU-UNICODE-INPUT-OUTPUT-ALIAS
+  title: Unicode input and output buffers alias
+  languages: *id001
+  severity: error
+  confidence: high
+  matcher: { c_expression: unicode_input_output_aliasing }
+  standards: [LEGACY-MSG-0201000010120071]
+  message: Input and output buffer pointers are the same.
+  translations:
+    zh-CN: { title: Unicode 输入输出缓冲区重叠, message: 输入和输出缓冲区指针相同。 }
+    en: { title: Unicode input and output buffers alias, message: Input and output buffer pointers are the same. }
+    zh-TW: { title: Unicode 輸入輸出緩衝區重疊, message: 輸入和輸出緩衝區指標相同。 }
+- id: ANZU-EMPTY-CASE-STATEMENT
+  title: Case statement without executable statements
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_style: empty_case_statement }
+  standards: [LEGACY-MSG-0601000010140030]
+  message: Case statement without executable statements.
+  translations:
+    zh-CN: { title: Case 语句没有可执行语句, message: Case 语句中没有可执行的语句。 }
+    en: { title: Case statement without executable statements, message: Case statement without executable statements. }
+    zh-TW: { title: Case 陳述式沒有可執行陳述式, message: Case 陳述式中沒有可執行的陳述式。 }
+- id: ANZU-CASE-INSENSITIVE-LOCAL-REDECLARATION
+  title: Variable names differ only by case
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: case_insensitive_local_redeclaration }
+  standards: [LEGACY-MSG-0701000010130094]
+  message: Variable names in active lexical scopes should not differ only by case.
+  translations:
+    zh-CN: { title: 变量名仅以大小写区分, message: 活动词法作用域中的变量名不能只用大小写来区分。 }
+    en: { title: Variable names differ only by case, message: Variable names in active lexical scopes should not differ only by case. }
+    zh-TW: { title: 變數名稱僅以大小寫區分, message: 有效詞法作用域中的變數名稱不能只用大小寫來區分。 }
+- id: ANZU-CONFUSING-NAME-LOWER-L-ONE
+  title: Variable names confuse lowercase l and digit 1
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: confusing_lower_l_and_one_names }
+  standards: [LEGACY-MSG-0701000010130095]
+  message: Variable names in the same declaration context should not differ only by lowercase l and digit 1.
+  translations:
+    zh-CN: { title: 变量名混淆小写 l 和数字 1, message: 同一声明上下文中的变量名不能仅以小写 l 和数字 1 区分。 }
+    en: { title: Variable names confuse lowercase l and digit 1, message: Variable names in the same declaration context should not differ only by lowercase l and digit 1. }
+    zh-TW: { title: 變數名稱混淆小寫 l 和數字 1, message: 同一宣告上下文中的變數名稱不能僅以小寫 l 和數字 1 區分。 }
+- id: ANZU-CONFUSING-NAME-UPPER-O-ZERO
+  title: Variable names confuse uppercase O and digit 0
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: confusing_upper_o_and_zero_names }
+  standards: [LEGACY-MSG-0701000010130096]
+  message: Variable names in the same declaration context should not differ only by uppercase O and digit 0.
+  translations:
+    zh-CN: { title: 变量名混淆大写 O 和数字 0, message: 同一声明上下文中的变量名不能仅以大写 O 和数字 0 区分。 }
+    en: { title: Variable names confuse uppercase O and digit 0, message: Variable names in the same declaration context should not differ only by uppercase O and digit 0. }
+    zh-TW: { title: 變數名稱混淆大寫 O 和數字 0, message: 同一宣告上下文中的變數名稱不能僅以大寫 O 和數字 0 區分。 }
+- id: ANZU-VISUALLY-CONFUSING-VARIABLE-NAMES
+  title: Visually confusing variable names
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: visually_confusing_variable_names }
+  standards: [LEGACY-MSG-0101000010110152, LEGACY-MSG-0901000010110152, LEGACY-MSG-0101000010110433, LEGACY-MSG-0901000010110433]
+  message: Variable names in the same declaration context differ only by visually confusable characters.
+  translations:
+    zh-CN: { title: 变量名在视觉上容易混淆, message: 同一声明上下文中的变量名仅以视觉易混淆字符区分。 }
+    en: { title: Visually confusing variable names, message: Variable names in the same declaration context differ only by visually confusable characters. }
+    zh-TW: { title: 變數名稱在視覺上容易混淆, message: 同一宣告上下文中的變數名稱僅以視覺易混淆字元區分。 }
+- id: ANZU-SIGNED-BIT-FIELD-WIDTH
+  title: Signed bit-field width is too small
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: signed_bit_field_width_at_most_one }
+  standards: [LEGACY-MSG-0701000010130021]
+  message: Signed bit-field width must be greater than 1.
+  translations:
+    zh-CN: { title: 有符号位域宽度过小, message: 有符号位域宽度必须大于 1。 }
+    en: { title: Signed bit-field width is too small, message: Signed bit-field width must be greater than 1. }
+    zh-TW: { title: 有符號位元欄寬度過小, message: 有符號位元欄寬度必須大於 1。 }
+- id: ANZU-PLAIN-CHAR-ARITHMETIC-OPERAND
+  title: Plain char used in arithmetic
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: plain_char_arithmetic_operand }
+  standards: [LEGACY-MSG-0701000010130013]
+  message: Character variables used for numerical calculations must be explicitly signed or unsigned.
+  translations:
+    zh-CN: { title: 普通 char 参与算术运算, message: 用于数值计算的字符变量必须显式定义为 signed 或 unsigned。 }
+    en: { title: Plain char used in arithmetic, message: Character variables used for numerical calculations must be explicitly signed or unsigned. }
+    zh-TW: { title: 普通 char 參與算術運算, message: 用於數值計算的字元變數必須明確定義為 signed 或 unsigned。 }
+- id: ANZU-DOUBLE-TO-FLOAT-NONLITERAL-ASSIGNMENT
+  title: Double value assigned to float without an explicit cast
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: double_to_float_nonliteral_assignment }
+  standards: [LEGACY-MSG-0701000010130075]
+  message: Double value assigned to float without an explicit cast.
+  translations:
+    zh-CN: { title: double 值隐式赋给 float, message: 赋给 float 类型的 double 值没有显式强制转换。 }
+    en: { title: Double value assigned to float without an explicit cast, message: Double value assigned to float without an explicit cast. }
+    zh-TW: { title: double 值隱式指定給 float, message: 指定給 float 型別的 double 值沒有明確強制轉型。 }
+- id: ANZU-FLOATING-TO-INTEGER-INITIALIZATION
+  title: Floating-point value initializes an integer
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: floating_to_integer_initialization }
+  standards: [LEGACY-MSG-0701000010130039, LEGACY-MSG-0701000010130073, LEGACY-MSG-0201000010120091]
+  message: A floating-point value initializes an integer variable without an explicit integer cast.
+  translations:
+    zh-CN: { title: 浮点值初始化整数, message: 浮点值在没有显式整数转换的情况下初始化整数变量。 }
+    en: { title: Floating-point value initializes an integer, message: A floating-point value initializes an integer variable without an explicit integer cast. }
+    zh-TW: { title: 浮點值初始化整數, message: 浮點值在沒有明確整數轉型的情況下初始化整數變數。 }
+- id: ANZU-FLOATING-TO-INTEGER-ASSIGNMENT
+  title: Floating-point value assigned to an integer
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: floating_to_integer_assignment }
+  standards: [LEGACY-MSG-0701000010130039]
+  message: A floating-point value is assigned to an integer variable without an explicit integer cast.
+  translations:
+    zh-CN: { title: 浮点值赋给整数, message: 浮点值在没有显式整数转换的情况下赋给整数变量。 }
+    en: { title: Floating-point value assigned to an integer, message: A floating-point value is assigned to an integer variable without an explicit integer cast. }
+    zh-TW: { title: 浮點值指定給整數, message: 浮點值在沒有明確整數轉型的情況下指定給整數變數。 }
+- id: ANZU-INTEGER-TO-PLAIN-CHAR-ASSIGNMENT
+  title: Numeric integer value assigned to plain char
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: integer_to_plain_char_assignment }
+  standards: [LEGACY-MSG-0101000010110247, LEGACY-MSG-0901000010110247, LEGACY-MSG-0101000010110466, LEGACY-MSG-0901000010110466]
+  message: Use only explicitly signed or unsigned char types for numeric values.
+  translations:
+    zh-CN: { title: 数值赋给普通 char, message: 仅使用显式的 signed 或 unsigned char 类型保存数值。 }
+    en: { title: Numeric integer value assigned to plain char, message: Use only explicitly signed or unsigned char types for numeric values. }
+    zh-TW: { title: 數值指定給普通 char, message: 僅使用明確的 signed 或 unsigned char 型別儲存數值。 }
+- id: ANZU-INTEGER-ARITHMETIC-TO-FLOATING-ASSIGNMENT
+  title: Integer arithmetic assigned to floating point
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: integer_arithmetic_to_floating_assignment }
+  standards: [LEGACY-MSG-0101000010110237]
+  message: Convert integer operands to floating point before floating-point assignment.
+  translations:
+    zh-CN: { title: 整数算术结果赋给浮点数, message: 在浮点赋值前将整数操作数转换为浮点数。 }
+    en: { title: Integer arithmetic assigned to floating point, message: Convert integer operands to floating point before floating-point assignment. }
+    zh-TW: { title: 整數算術結果指定給浮點數, message: 在浮點指定前將整數運算元轉換為浮點數。 }
+- id: ANZU-WIDER-INTEGER-TARGET-BINARY-EXPRESSION
+  title: Integer expression is not evaluated at the wider target size
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: wider_integer_target_from_binary_expression }
+  standards: [LEGACY-MSG-0101000010110256, LEGACY-MSG-0101000010110474]
+  message: Evaluate integer expressions in a larger size before assigning them to that size.
+  translations:
+    zh-CN: { title: 整数表达式未按更宽目标类型求值, message: 在赋给更宽类型之前，应先按该宽度计算整数表达式。 }
+    en: { title: Integer expression is not evaluated at the wider target size, message: Evaluate integer expressions in a larger size before assigning them to that size. }
+    zh-TW: { title: 整數運算式未依較寬目標型別求值, message: 在指定給較寬型別之前，應先依該寬度計算整數運算式。 }
+- id: ANZU-NONZERO-INTEGER-POINTER-CAST-ASSIGNMENT
+  title: Pointer assignment uses a nonzero integer cast
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: nonzero_integer_explicit_pointer_cast_assignment }
+  standards: [LEGACY-MSG-0601000010140082]
+  message: Do not assign an explicitly pointer-cast nonzero integer value.
+  translations:
+    zh-CN: { title: 指针赋值使用非零整数转换, message: 不要把显式转换为指针的非零整数用于赋值。 }
+    en: { title: Pointer assignment uses a nonzero integer cast, message: Do not assign an explicitly pointer-cast nonzero integer value. }
+    zh-TW: { title: 指標指定使用非零整數轉型, message: 不要把明確轉型為指標的非零整數用於指定。 }
+- id: ANZU-STANDARD-LIBRARY-FUNCTION-REDEFINITION
+  title: Standard library function is redefined
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_declaration: standard_library_function_redefinition }
+  standards: [LEGACY-MSG-0701000010130056, LEGACY-MSG-2801000010180041]
+  message: Redefining a standard library function can lead to undefined behavior.
+  translations:
+    zh-CN: { title: 重定义标准库函数, message: 覆盖标准库函数会导致未定义行为。 }
+    en: { title: Standard library function is redefined, message: Redefining a standard library function can lead to undefined behavior. }
+    zh-TW: { title: 重新定義標準函式庫函式, message: 覆寫標準函式庫函式可能導致未定義行為。 }
+- id: ANZU-NEGATED-COMPARISON-IF-CONDITION
+  title: Comparison is negated as a whole
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: negated_comparison_if_condition }
+  standards: [LEGACY-MSG-0601000010140090]
+  message: Express the inverse comparison directly instead of negating the whole comparison.
+  translations:
+    zh-CN: { title: 整体否定比较表达式, message: 直接使用反向比较，而不是否定整个比较表达式。 }
+    en: { title: Comparison is negated as a whole, message: Express the inverse comparison directly instead of negating the whole comparison. }
+    zh-TW: { title: 整體否定比較運算式, message: 直接使用反向比較，而不是否定整個比較運算式。 }
+- id: ANZU-C-IF-CONDITION-MUST-BE-INTEGER
+  title: C if condition is not an integer expression
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: c_if_non_integer_condition }
+  standards: [LEGACY-MSG-0601000010140088]
+  message: In C, use an integer expression as the if condition.
+  translations:
+    zh-CN: { title: C 的 if 条件不是整数表达式, message: 在 C 中，应使用整数表达式作为 if 条件。 }
+    en: { title: C if condition is not an integer expression, message: In C, use an integer expression as the if condition. }
+    zh-TW: { title: C 的 if 條件不是整數運算式, message: 在 C 中，應使用整數運算式作為 if 條件。 }
+- id: ANZU-CPP-IF-NUMERIC-CONDITION-MUST-BE-BOOL
+  title: C++ numeric if condition is not boolean
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: cpp_if_numeric_non_boolean_condition }
+  standards: [LEGACY-MSG-0601000010140088]
+  message: In C++, convert numeric and enumeration if conditions explicitly to bool.
+  translations:
+    zh-CN: { title: C++ 数值 if 条件不是布尔值, message: 在 C++ 中，应将数值和枚举 if 条件显式转换为 bool。 }
+    en: { title: C++ numeric if condition is not boolean, message: In C++, convert numeric and enumeration if conditions explicitly to bool. }
+    zh-TW: { title: C++ 數值 if 條件不是布林值, message: 在 C++ 中，應將數值和列舉 if 條件明確轉型為 bool。 }
+- id: ANZU-C-BOOLEAN-SWITCH-CONDITION
+  title: C switch condition has Boolean type
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: c_boolean_switch_condition }
+  standards: [LEGACY-MSG-0601000010140089]
+  message: A C switch controlling expression should not have Boolean type.
+  translations:
+    zh-CN: { title: C switch 条件为布尔类型, message: C switch 的控制表达式不应为布尔类型。 }
+    en: { title: C switch condition has Boolean type, message: A C switch controlling expression should not have Boolean type. }
+    zh-TW: { title: C switch 條件為布林型別, message: C switch 的控制運算式不應為布林型別。 }
+- id: ANZU-CPP-BOOLEAN-SWITCH-CONDITION
+  title: C++ switch condition has Boolean type
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: cpp_boolean_switch_condition }
+  standards: [LEGACY-MSG-0601000010140089]
+  message: A C++ switch controlling expression should not have Boolean type.
+  translations:
+    zh-CN: { title: C++ switch 条件为布尔类型, message: C++ switch 的控制表达式不应为布尔类型。 }
+    en: { title: C++ switch condition has Boolean type, message: A C++ switch controlling expression should not have Boolean type. }
+    zh-TW: { title: C++ switch 條件為布林型別, message: C++ switch 的控制運算式不應為布林型別。 }
+- id: ANZU-INNER-BLOCK-VARIABLE-REDEFINITION
+  title: Variable is redefined in an inner block
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: inner_block_variable_redefinition }
+  standards: [LEGACY-MSG-0601000010140095, LEGACY-MSG-0601000010140100, LEGACY-MSG-0701000010130093, LEGACY-MSG-0101000010120186, LEGACY-MSG-0901000010120186, LEGACY-MSG-2401000010120186, LEGACY-MSG-0101000010110151, LEGACY-MSG-0901000010110151]
+  message: Do not redefine an active outer variable in an inner block.
+  translations:
+    zh-CN: { title: 内部块重新定义变量, message: 禁止在内部块中重新定义仍然有效的外层变量。 }
+    en: { title: Variable is redefined in an inner block, message: Do not redefine an active outer variable in an inner block. }
+    zh-TW: { title: 內部區塊重新定義變數, message: 禁止在內部區塊中重新定義仍然有效的外層變數。 }
+- id: ANZU-PTHREAD-MUTEX-NORMAL-TYPE
+  title: PTHREAD_MUTEX_NORMAL mutex type is used
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: pthread_mutex_normal_type }
+  standards: [LEGACY-MSG-0101000010110290]
+  message: Avoid using PTHREAD_MUTEX_NORMAL mutex locks.
+  translations:
+    zh-CN: { title: 使用 PTHREAD_MUTEX_NORMAL 互斥锁类型, message: 避免使用 PTHREAD_MUTEX_NORMAL 类型的互斥锁。 }
+    en: { title: PTHREAD_MUTEX_NORMAL mutex type is used, message: Avoid using PTHREAD_MUTEX_NORMAL mutex locks. }
+    zh-TW: { title: 使用 PTHREAD_MUTEX_NORMAL 互斥鎖型別, message: 避免使用 PTHREAD_MUTEX_NORMAL 型別的互斥鎖。 }
+- id: ANZU-RECURSIVE-CALL-IN-LOCAL-INITIALIZER
+  title: Function recursively reenters during local initialization
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: recursive_call_in_local_initializer }
+  standards: [LEGACY-MSG-0101000010110333]
+  message: Do not recursively reenter a function during local object initialization.
+  translations:
+    zh-CN: { title: 局部初始化期间递归重入函数, message: 在局部对象初始化期间不要递归调用当前函数。 }
+    en: { title: Function recursively reenters during local initialization, message: Do not recursively reenter a function during local object initialization. }
+    zh-TW: { title: 區域初始化期間遞迴重入函式, message: 在區域物件初始化期間不要遞迴呼叫目前函式。 }
+- id: ANZU-MIXED-SHIFT-AND-ARITHMETIC-VARIABLE
+  title: Same variable is used in shift and arithmetic operations
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: mixed_shift_and_arithmetic_variable }
+  standards: [LEGACY-MSG-0101000010110472, LEGACY-MSG-0901000010110472, LEGACY-MSG-0101000010110253, LEGACY-MSG-0901000010110253]
+  message: Avoid performing shift and arithmetic operations on the same data in one expression.
+  translations:
+    zh-CN: { title: 同一变量混用位移和算术运算, message: 避免在同一表达式中对相同数据执行位移和算术运算。 }
+    en: { title: Same variable is used in shift and arithmetic operations, message: Avoid performing shift and arithmetic operations on the same data in one expression. }
+    zh-TW: { title: 同一變數混用位移和算術運算, message: 避免在同一運算式中對相同資料執行位移和算術運算。 }
+- id: ANZU-NEGATIVE-SHIFT-COUNT
+  title: Negative shift count
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: negative_shift_count }
+  standards: [LEGACY-MSG-0701000010130045]
+  message: Do not use a negative shift count.
+  translations:
+    zh-CN: { title: 负移位数, message: 不要使用负的移位数。 }
+    en: { title: Negative shift count, message: Do not use a negative shift count. }
+    zh-TW: { title: 負移位數, message: 不要使用負的移位數。 }
+- id: ANZU-SHIFT-COUNT-EXCEEDS-PROMOTED-WIDTH
+  title: Shift count exceeds the promoted type width
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: shift_count_exceeds_promoted_width }
+  standards: [LEGACY-MSG-0701000010130044, LEGACY-MSG-0601000010140039, LEGACY-MSG-0101000010110260, LEGACY-MSG-0901000010110260]
+  message: Shift count must be less than the promoted left operand type width.
+  translations:
+    zh-CN: { title: 移位数超过提升后类型宽度, message: 移位数必须小于提升后的左操作数类型位宽。 }
+    en: { title: Shift count exceeds the promoted type width, message: Shift count must be less than the promoted left operand type width. }
+    zh-TW: { title: 移位數超過提升後型別寬度, message: 移位數必須小於提升後的左運算元型別位元寬度。 }
+- id: ANZU-NONCONSTANT-SIGNED-SHIFT
+  title: Nonconstant signed integer is shifted
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: nonconstant_signed_shift }
+  standards: [LEGACY-MSG-0601000010140038, LEGACY-MSG-0601000010140045, LEGACY-MSG-0101000010110470, LEGACY-MSG-0901000010110470, LEGACY-MSG-0101000010110252, LEGACY-MSG-0901000010110252]
+  message: Avoid shifting a nonconstant signed integer expression.
+  translations:
+    zh-CN: { title: 移位非常量有符号整数, message: 避免对非常量有符号整数表达式进行移位。 }
+    en: { title: Nonconstant signed integer is shifted, message: Avoid shifting a nonconstant signed integer expression. }
+    zh-TW: { title: 移位非常數有符號整數, message: 避免對非常數有符號整數運算式進行移位。 }
+- id: ANZU-POSSIBLY-NEGATIVE-SIGNED-TO-UNSIGNED-ASSIGNMENT
+  title: Possibly negative signed value assigned to unsigned
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: possibly_negative_signed_to_unsigned_assignment }
+  standards: [LEGACY-MSG-0701000010130099, LEGACY-MSG-0601000010140040]
+  message: Do not assign a signed value that may be negative to an unsigned variable.
+  translations:
+    zh-CN: { title: 可能为负的有符号值赋给无符号变量, message: 不要将可能为负的有符号值赋给无符号变量。 }
+    en: { title: Possibly negative signed value assigned to unsigned, message: Do not assign a signed value that may be negative to an unsigned variable. }
+    zh-TW: { title: 可能為負的有符號值指定給無符號變數, message: 不要將可能為負的有符號值指定給無符號變數。 }
+- id: ANZU-NONCONSTANT-INTEGER-NARROWING-ASSIGNMENT
+  title: Nonconstant integer value is narrowed on assignment
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: nonconstant_integer_narrowing_assignment }
+  standards: [LEGACY-MSG-0701000010130074]
+  message: A nonconstant integer value is too wide for the assignment target.
+  translations:
+    zh-CN: { title: 非常量整数赋值发生窄化, message: 非常量整数值的宽度超过赋值目标。 }
+    en: { title: Nonconstant integer value is narrowed on assignment, message: A nonconstant integer value is too wide for the assignment target. }
+    zh-TW: { title: 非常數整數指定發生窄化, message: 非常數整數值的寬度超過指定目標。 }
+- id: ANZU-IMPLICIT-INTEGER-NARROWING-MAY-OVERFLOW
+  title: Implicit integer narrowing may overflow
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: implicit_integer_narrowing_may_overflow }
+  standards: [LEGACY-MSG-0101000010110257, LEGACY-MSG-0901000010110257, LEGACY-MSG-2401000010110257, LEGACY-MSG-0101000010110243, LEGACY-MSG-0901000010110243, LEGACY-MSG-0101000010110463, LEGACY-MSG-0901000010110463, LEGACY-MSG-2401000010120139]
+  message: An implicitly narrowed integer value may not fit the target type.
+  translations:
+    zh-CN: { title: 隐式整数窄化可能溢出, message: 隐式窄化的整数值可能无法放入目标类型。 }
+    en: { title: Implicit integer narrowing may overflow, message: An implicitly narrowed integer value may not fit the target type. }
+    zh-TW: { title: 隱式整數窄化可能溢位, message: 隱式窄化的整數值可能無法放入目標型別。 }
+- id: ANZU-EXPLICIT-INTEGER-NARROWING-MAY-OVERFLOW
+  title: Explicit integer narrowing may overflow
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: explicit_integer_narrowing_may_overflow }
+  standards: [LEGACY-MSG-0101000010110257, LEGACY-MSG-0901000010110257, LEGACY-MSG-2401000010110257, LEGACY-MSG-0101000010110243, LEGACY-MSG-0901000010110243, LEGACY-MSG-0101000010110463, LEGACY-MSG-0901000010110463]
+  message: An explicitly narrowed integer value may not fit the cast target type.
+  translations:
+    zh-CN: { title: 显式整数窄化可能溢出, message: 显式窄化的整数值可能无法放入转换目标类型。 }
+    en: { title: Explicit integer narrowing may overflow, message: An explicitly narrowed integer value may not fit the cast target type. }
+    zh-TW: { title: 明確整數窄化可能溢位, message: 明確窄化的整數值可能無法放入轉型目標型別。 }
+- id: ANZU-INCONSISTENT-NUMERIC-ASSIGNMENT-TYPE
+  title: Assigned numeric value is inconsistent with the variable type
+  languages: *id001
+  severity: warning
+  confidence: high
+  matcher: { c_expression: inconsistent_numeric_assignment_type }
+  standards: [LEGACY-MSG-0601000010140043]
+  message: Do not assign a value whose numeric category or constant range is inconsistent with the variable type.
+  translations:
+    zh-CN: { title: 数值与变量类型不一致, message: 禁止赋入数值类别或常量范围与变量类型不一致的值。 }
+    en: { title: Assigned numeric value is inconsistent with the variable type, message: Do not assign a value whose numeric category or constant range is inconsistent with the variable type. }
+    zh-TW: { title: 數值與變數型別不一致, message: 禁止指定數值類別或常數範圍與變數型別不一致的值。 }
+- id: ANZU-HARDCODED-CRYPTO-KEY
+  title: Hardcoded cryptographic key
+  languages: *id001
+  severity: error
+  confidence: high
+  matcher: { c_expression: hardcoded_crypto_key }
+  cwe: [CWE-321]
+  standards: [LEGACY-MSG-0201000010120144, LEGACY-MSG-0301000010120144, LEGACY-MSG-0401000010120144, LEGACY-MSG-0501000010120144, LEGACY-MSG-1201000010120144, LEGACY-MSG-1301000010120144, LEGACY-MSG-1401000010120144, LEGACY-MSG-1501000010120144, LEGACY-MSG-1601000010120144, LEGACY-MSG-1701000010120144, LEGACY-MSG-1801000010120144, LEGACY-MSG-1901000010120144, LEGACY-MSG-2001000010120144, LEGACY-MSG-2101000010120144, LEGACY-MSG-2201000010120144, LEGACY-MSG-2301000010120144, LEGACY-MSG-2501000010120144, LEGACY-MSG-2601000010120144, LEGACY-MSG-2701000010120144]
+  message: Hardcoded encryption keys can lead to potential security issues.
+  translations:
+    zh-CN: { title: 硬编码加密密钥, message: 硬编码的加密密钥可能导致潜在的安全问题。 }
+    en: { title: Hardcoded cryptographic key, message: Hardcoded encryption keys can lead to potential security issues. }
+    zh-TW: { title: 硬編碼加密金鑰, message: 硬編碼的加密金鑰可能導致潛在的安全問題。 }
+- id: ANZU-WEAK-OPENSSL-CRYPTO
+  title: Weak OpenSSL encryption or digest function
+  languages: *id001
+  severity: error
+  confidence: high
+  matcher: { c_expression: weak_open_ssl_crypto }
+  cwe: [CWE-327, CWE-328]
+  standards: [LEGACY-MSG-0201000010120119, LEGACY-MSG-0301000010120119, LEGACY-MSG-0501000010120119]
+  message: Do not use weak encryption algorithms or hash functions.
+  translations:
+    zh-CN: { title: 使用弱加密或哈希函数, message: 请勿使用弱加密算法或哈希函数。 }
+    en: { title: Weak OpenSSL encryption or digest function, message: Do not use weak encryption algorithms or hash functions. }
+    zh-TW: { title: 使用弱加密或雜湊函式, message: 請勿使用弱加密演算法或雜湊函式。 }

@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160054" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.6.5 不要增加被覆写方法和被隐藏方法的可访问性</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序只能在必要的时候对方法进行覆写，并且必须尽可能地将方法声明为 final以避免恶意扩展。如果不能将方法声明为 final的，程序必须防止增加被覆写方法的可访问性。   
+2) 原理   
+如果增加了被覆写方法和被隐藏方法的可访问性，恶意子类将拥有这些受限制的方法比预计中更大的访问权限。覆写或隐藏方法的访问修饰符必须提供最少和被覆写或被隐藏方法一样的可访问性。   
+3) 示例   
+    这个不符合规则的代码示例：演示了恶意子类 Sub 如何覆写基类中的方法`doLogic()`,并增加了覆写方法的可访问性。因为基类 Super 定义方法`doLogic()`为 protected 的，这允许子类 Sub 定义该 方法为public 的，从而增加了`doLogic()`的可访问性。因此，任何 Sub 的使用者都可以调用此方法。   
+    ```java
+    class Super {
+        protected void doLogic() {
+            System.out.println("Super invoked");
+        }
+    
+        public class Sub extends Super {
+            public void doLogic() {
+                System.out.println("Sub invoked");
+                // Do sensitive operations
+            }
+        }
+    }
+    ```    
+       
+    对应的符合规定的解决方案是：将方法`doLogic()`声明为 final，这避免恶意覆写。   
+    ```java
+    class Super {   
+        protected final void doLogic() { // declare as final System.out.println("Super invoked");   
+           // Do sensitive operations   
+        }   
+    }   
+    ```  
+4) 特例   
+对于实现了`java.lang.Cloneable`接口的类，应该将方法 `Object.clone()`的可访问性从 protected 增加为 public。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">487:Reliance on Package-level Scope</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.6 方法</BigClassChin>  
+       
+    </BugInfo>  
+    

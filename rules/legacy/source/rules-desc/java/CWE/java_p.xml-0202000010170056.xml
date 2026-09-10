@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170056" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.4 异常处理安全</Category>  
+        <Category type="DetailClassChin">A.3.4.4 不要在finally块中非正常退出</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：不要在finally块中使用return、break、continue或throw语句。当程序进入带有finally块的try块时，不管try块代码（或catch块代码）是否完成执行，finally程序块总是会执行的。造成finally块程序非正常终止的语句也会导致整个try块非正常终止，从而消除了从try或者catch块抛出的任何异常。  
+对于不要在finally块中非正常退出的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+class TryFinally {
+    private static boolean doLogic() {
+        try {
+            throw new IllegalStateException();
+        } finally {
+            System.out.println("logic done");
+            return true;
+        }
+    }
+}
+```  
+finally块中只能存在不会异常终止程序的语句。  
+**示例2**：   
+```java
+class TryFinally {
+    private static boolean doLogic() {
+        try {
+            throw new IllegalStateException();
+        } finally {
+            System.out.println("logic done");
+        }
+    }
+}
+```  
+在finally块中不返回，仅打印`logic done`。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">584:Return Inside Finally Block</Reference>  
+        <Reference type="CERT">ERR04-J:Do not exit abruptly from a finally block</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.2 finally语句块中包含return语句</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.4 异常处理安全</BigClassChin>  
+       
+    </BugInfo>  
+    

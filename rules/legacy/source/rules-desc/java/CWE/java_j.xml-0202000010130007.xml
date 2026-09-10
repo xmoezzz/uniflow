@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130007" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">未使用的方法</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法未被使用。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法未被使用。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[未使用的方法在程序中没有起到任何作用，是程序中的死代码或者是被注释掉的调试代码。这些死代码会增加代码的阅读、理解和维护难度。  
+  
+**例如**：如下代码中MyClass类中的`unusedMethod()`方法从未使用过
+```java
+public class MyClass {  
+    private String unusedMethod(){  
+        return "myclass";  
+    }  
+    public static void main(String[] args) {  
+        System.out.println("UnusedMethod");  
+    }  
+}
+```  
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，如果确定程序中的死代码没有作用，应该将其删除。
+]]></Advice>
+			<References>
+				<Reference type="CWE">561:Dead Code</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

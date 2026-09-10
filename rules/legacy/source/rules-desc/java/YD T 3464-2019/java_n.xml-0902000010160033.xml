@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160033" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.4.10 不要使用浮点变量作为循环计数器</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+绝对不能使用浮点变量作为循环计数器。   
+2) 原理   
+有限精度的 IEEE 754 浮点类型不能表达：   
+•  精确的分数。   
+•  精确的小数，即使是可以用少量数字就可以表达的小数。   
+•  大数值的数字。这意味着在允许的精度内，对大浮点数值的增量可能并不会改变其实际数值。   
+使用浮点变量作为循环计数器会导致意外的行为。   
+3) 示例   
+    如下不符合规则的代码示例使用一个浮点变量作为循环计数器。小数 0.1 不能精确地用 float 甚至double 来表达。   
+    ```java
+    for (float x = 0.1f; x <= 1.0f; x += 0.1f) {   
+        System.out.printIn(x);   
+    }
+    ```   
+       
+    对应的符合规则的解决方案是：使用整数作为循环计数器，并由此得到期望的浮点数值。   
+    ```java
+    for (int count = 1; count <= 10; count += 1) {   
+        float x = count/10.Of;   
+        System.out.println(x);   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">NUM09-J:Do not use floating-point variables as loop counters</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.4 数值类型与运算</BigClassChin>  
+       
+    </BugInfo>  
+    

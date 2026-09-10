@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110044" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">使用==或!=比较字符串</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用==或!=比较字符串。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用==或!=比较字符串。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序中使用==或!=比较两个字符串是否相等，其实比较的是两个对象在内存中的地址值，而不是字符串的值。  
+  
+**例如**：下面代码片段中，将request中获取的参数值与"admin"使用==做比较，`dosomething()`方法将永远不会被执行。  
+```java
+...  
+String username = (String)request.getAttribute("usernamae");  
+if(username=="admin"){  
+    dosomething();  
+}  
+...
+```
+]]></Description>
+			<Advice><![CDATA[程序中应采用`equals()`方法来对字符串进行比较，而不是通过==或!=运算符的方式来操作。
+]]></Advice>
+			<References>
+				<Reference type="CWE">597:Use of Wrong Operator in String Comparison</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.11 使用"=="运算符比较字符串</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

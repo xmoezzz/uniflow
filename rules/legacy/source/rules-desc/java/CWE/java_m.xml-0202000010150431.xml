@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150431" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【强制】Optional不应该可能为null</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[Optional在某种意义上是Java8提供的为了解决null安全问题的一个API，而将Optional与null进行比较，或者返回的Optional可能为null都是不准确的做法。  
+  
+**例如**：下列代码中使用`getOptional`返回值可能为null，而且与null进行了对比。 
+```java
+public void doSomething () {  
+    Optional<String> optional = getOptional();  
+    if (optional != null) {    
+        ...  
+    }  
+}  
+public Optional<String> getOptional() {  
+    ...  
+    return null;   
+}
+``` 
+]]></Description>  
+      <Advice><![CDATA[准确的使用Optional可以提高代码简洁性，并且可以避免空指针异常的出现。  
+  
+**例如**：下列代码中使用getOptional返回值为`Optional.empty()`，通过`ifPresent`方法来判断值是否为空。 
+```java
+public void doSomething () {  
+    Optional<String> optional = getOptional();  
+    optional.ifPresent(...);  
+}  
+public Optional<String> getOptional() {  
+    ...  
+    return Optional.empty();   
+}
+``` 
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness</Tag> 
+    </BugInfo>  
+    

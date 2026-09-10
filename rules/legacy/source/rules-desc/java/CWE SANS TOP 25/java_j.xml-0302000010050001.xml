@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010050001" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">导入危险文件</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行有可能导入危险文件。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行有可能导入危险文件。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序开发人员一般会把重复使用的函数或页面写到单个文件中，需要使用某个函数或页面时直接调用此文件，而无需再次编写，而将未经验证的用户输入控制JSP中动态包含的文件，可能会导致恶意代码的执行。   
+  
+**例如**：以下代码片段中，从HTTP请求中获取模板名称，并将该名称包含的文件导入到JSP页面中。  
+```java
+...  
+<jsp:include page="<%= (String)request.getParameter(\"template\")%>"/>  
+...  
+```
+在以上代码中，攻击者可以通过提供给`template`一个例如`WEB-INF\web.xml`的参数使程序包含系统敏感文件以达到任意文件读取。
+]]></Description>
+			<Advice><![CDATA[如果JSP中动态包含的文件要用到用户提交的数据，应当对用户的输入进行严格的校验。如创建一份合法包含文件列表，仅允许用户从该列表中进行选择，过滤用户的输入或者限制导入运行制定文件夹下的文件
+]]></Advice>
+			<References>
+				<Reference type="CWE">829:Inclusion of Functionality from Untrusted Control Sphere</Reference>
+				<Reference type="CWE">98:Improper Control of Filename for Include/Require Statement in PHP Program ('PHP Remote File Inclusion')</Reference>
+				<Reference type="CWE">94:Improper Control of Generation of Code ('Code Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A3 Malicious File Execution</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 94</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 829</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 98</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 94</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发导入危险文件漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在导入危险文件漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在导入危险文件漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发导入危险文件漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -31,7 +31,7 @@
     {
       "language": "java",
       "file": "java-taint.yml",
-      "sha256": "f45d1928a60a1bd358035382cd7d9eb3086496eb5df2dccb9a2f0147e7ba1abe",
+      "sha256": "5c572ed454de9f140223d907c312c089257cc01dd5bad4c30cbc3755e63dbd85",
       "metadata_report": "java-taint-metadata-report.json",
       "sources": 1639,
       "sinks": 4511,
@@ -41,6 +41,19 @@
       "propagators": 3238,
       "sink_conditions": 4512,
       "call_conditions": 278,
+      "deferred_features": 0
+    },
+    {
+      "language": "java-supplement",
+      "file": "java-taint-supplement.yml",
+      "sha256": "33ca4faf72ebf03a9e90878bb895965c7c157361e425c594755c3b07e1e53e97",
+      "sources": 4,
+      "sinks": 4,
+      "sanitizers": 0,
+      "taint_transforms": 0,
+      "propagators": 2,
+      "sink_conditions": 0,
+      "call_conditions": 0,
       "deferred_features": 0
     },
     {

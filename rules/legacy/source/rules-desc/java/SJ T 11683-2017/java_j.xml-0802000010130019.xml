@@ -1,0 +1,108 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010130019" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">资源管理</Category>
+				<Category type="DetailClassChin">资源未释放：Sockets</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行Sockets没有释放。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行Sockets没有释放。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序创建或分配Socket后，不进行合理释放，将会降低系统性能。攻击者可能会通过耗尽资源池的方式发起拒绝服务攻击。  
+  
+**例如**：下面代码片段中，创建了一个套接字socket对象，未进行合理释放。  
+```java
+public void getSocket(String host,int port){  
+    try {  
+        Socket socket = new Socket(host,port);  
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));  
+        while(reader.readLine()!=null){  
+            ...  
+        }  
+    } catch (UnknownHostException e) {  
+        e.printStackTrace();  
+    } catch (IOException e) {  
+        e.printStackTrace();  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[程序不应依赖于虚拟机的`finalize()`方法来自动回收Socket资源，而需要手动在finally代码块中做Socket资源的释放操作。  
+  
+**例如**：下面代码片段中，使用完之前创建的socket套接字资源后，在finally代码块中进行了释放。  
+```java
+public void getSocket(String host,int port){  
+    Socket socket = null;  
+    try {  
+        socket = new Socket(host,port);  
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));  
+        while(reader.readLine()!=null){  
+            ...  
+        }  
+    } catch (UnknownHostException e) {  
+        e.printStackTrace();  
+    } catch (IOException e) {  
+        e.printStackTrace();  
+    }finally{  
+        if(socket!=null){  
+            try {  
+                socket.close();  
+            } catch (IOException e) {  
+                e.printStackTrace();  
+            }  
+        }  
+    }  
+ }
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>
+				<Reference type="CWE">459:Incomplete Cleanup</Reference>
+				<Reference type="CWE">404:Improper Resource Shutdown or Release</Reference>
+				<Reference type="CERT">FIO04-J:Close resources when they are no longer needed</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 404</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.持有Sockets资源"/>
+					<CodeFragment id="2" name="2.持有Sockets资源的关联资源"/>
+					<CodeFragment id="3" name="3.Sockets资源被资源池持有"/>
+					<CodeFragment id="4" name="4.Sockets资源被返回函数外"/>
+					<CodeFragment id="5" name="5.Sockets资源已关闭"/>
+					<CodeFragment id="6" name="6.Sockets资源的关联资源已关闭"/>
+					<CodeFragment id="7" name="7.Sockets资源未关闭"/>
+					<CodeFragment id="8" name="8.Sockets资源的关联资源未关闭"/>
+					<CodeFragment id="9" name="9.触发Sockets资源未释放"/>
+					<CodeFragment id="10" name="10.程序执行正常"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="申请关联资源"/>
+					<Relationship fromId="1" toId="3" name="资源被放入资源池中"/>
+					<Relationship fromId="1" toId="4" name="资源通过函数返回值返回"/>
+					<Relationship fromId="1" toId="5" name="关闭资源"/>
+					<Relationship fromId="1" toId="7" name="作用域结束"/>
+					<Relationship fromId="2" toId="6" name="关闭关联资源"/>
+					<Relationship fromId="2" toId="8" name="作用域结束"/>
+					<Relationship fromId="3" toId="10" name="作用域结束"/>
+					<Relationship fromId="4" toId="10" name="作用域结束"/>
+					<Relationship fromId="5" toId="10" name="作用域结束"/>
+					<Relationship fromId="6" toId="10" name="作用域结束"/>
+					<Relationship fromId="7" toId="9" name="执行"/>
+					<Relationship fromId="8" toId="9" name="执行"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130120" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">重定向之后执行额外代码</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行重定向语句之后执行额外代码。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行重定向语句之后执行额外代码。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[若程序在重定向之后存在额外的代码，当程序发送一个重定向到另一个位置时，程序并不会在重定向时停止执行，相反，它将会执行重定向后的所有代码。攻击者可能利用这个漏洞对系统进行恶意访问。  
+  
+**例如**：以下代码本意是当访问者IP不在白名单中时，将会执行重定向。但是在重定向之后仍然执行了额外的代码，导致白名单的检测毫无意义。  
+```java
+public class RedirectServlet extends HttpServlet {  
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws  ServletException,IOException{  
+        String ip = request.getRemoteAddr();  
+        if (!whitelist.contains(ip)) {  
+            response.sendRedirect(errorPageURL);  
+        }  
+        ...  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，在重定向之后终止程序，重新整理重定向之后的代码
+]]></Advice>
+			<References>
+				<Reference type="CWE">698:Execution After Redirect (EAR)</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

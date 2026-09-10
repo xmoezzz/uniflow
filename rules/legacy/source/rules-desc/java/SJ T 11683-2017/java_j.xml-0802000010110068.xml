@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010110068" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">使用浮点数进行精确计算</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用浮点数进行精确计算。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用浮点数进行精确计算。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Java中浮点数采用的是IEEE 754标准，所以在精确计算中使用浮点类型会发生精度缺失从而产生不正确的数值。  
+  
+**例如**：下面代码输出为false和0.060000000000000005  
+```java
+...  
+public static void main(String[] args){  
+    double a = 0.05 + 0.01;  
+    System.out.println(a == 0.06);  
+    System.out.println(a);  
+}  
+...
+```
+]]></Description>
+			<Advice><![CDATA[程序中避免使用浮点数进行精确计算，可以考虑采用整数类型或用于精确表达小数的BigDecimal类型替代。
+]]></Advice>
+			<References>
+				<Reference type="CERT">NUM04-J:Do not use floating-point numbers if precise computation is required</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.6 浮点数的相等或不等比较</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

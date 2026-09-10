@@ -77,7 +77,7 @@ fn generated_taint_catalog_hashes_and_completion_flags_match_manifest() {
     let manifest: LegacyModelManifest =
         serde_json::from_str(include_str!("../../../rules/legacy/manifest.json"))
             .expect("parse legacy model manifest");
-    assert_eq!(manifest.catalogs.len(), 8);
+    assert_eq!(manifest.catalogs.len(), 9);
     for catalog in manifest.catalogs {
         assert!(!catalog.language.is_empty());
         assert!(
@@ -138,7 +138,7 @@ fn ignores_rules_for_other_languages() {
 #[test]
 fn bundles_every_repository_legacy_source_asset() {
     let assets = bundled_legacy_raw_assets();
-    assert_eq!(assets.len(), 1_858);
+    assert_eq!(assets.len(), 3_978);
     for required in [
         "ast/c/c/number-literal-suffix-must-be-upper-case.yaml",
         "ast/csharp/SCS0002.yml",
@@ -151,6 +151,9 @@ fn bundles_every_repository_legacy_source_asset() {
         "semgrep/swift/lang/crypto/insecure-random.yaml",
         "sql/ComparisonWithNull.md",
         "clang-checkers/Checkers/DisableGotoChecker.cpp",
+        "rules-desc/java.yaml",
+        "rules-desc/java/CERT/java_j.xml-0102000010020001.xml",
+        "rules-desc/java/YD T 3464-2019/java_n.xml-0902000010160020.xml",
     ] {
         assert!(
             assets
@@ -159,6 +162,18 @@ fn bundles_every_repository_legacy_source_asset() {
             "missing bundled legacy asset {required}"
         );
     }
+
+    let java_descriptions = assets
+        .iter()
+        .filter(|asset| {
+            asset.path.starts_with("rules-desc/java/") && asset.path.ends_with(".xml")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(java_descriptions.len(), 2_119);
+    assert!(java_descriptions.iter().all(|asset| {
+        !asset.bytes.is_empty()
+            && asset.bytes.windows(b"<BugInfo".len()).any(|part| part == b"<BugInfo")
+    }));
 }
 
 #[test]
@@ -252,8 +267,15 @@ fn java_ast_knowledge_metadata_audit_preserves_source_gaps_and_completes_present
         .as_array()
         .is_some_and(|ids| !ids.is_empty()));
     assert!(java.iter().all(|rule| {
-        rule.translations.en.as_ref().is_some_and(|text| !text.message.is_empty())
-            && rule.translations.zh_tw.as_ref().is_some_and(|text| !text.message.is_empty())
+        rule.translations
+            .en
+            .as_ref()
+            .is_some_and(|text| !text.message.is_empty())
+            && rule
+                .translations
+                .zh_tw
+                .as_ref()
+                .is_some_and(|text| !text.message.is_empty())
     }));
     let known = java
         .iter()
@@ -566,7 +588,10 @@ fn semgrep_migration_inventory_tracks_search_and_taint_rules() {
             .native_rule_id
             .or(rule.native_taint_rule_id)
             .expect("migrated Semgrep native id");
-        if !rule.testcase.unwrap().ends_with("native_compatibility_model")
+        if !rule
+            .testcase
+            .unwrap()
+            .ends_with("native_compatibility_model")
             && !rule.testcase.unwrap().contains("ruby_semgrep_taint.rs::")
         {
             assert!(

@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100006" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：过多的Servlet映射</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行存在过多的Servlet映射。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[多个URL模式映射到单个Servlet上，通常表明程序的结构较差。
+]]></Description>
+			<Advice><![CDATA[将执行多个功能的Servlet分解成多个单独的Servlet，每个Servlet都对应自己的URL映射和单独的功能。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

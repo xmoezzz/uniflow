@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110107" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">不安全的文件操作模式</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用了不安全的文件操作模式。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用了不安全的文件操作模式。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Android应用程序有四种文件存储模式，其中`MODE_WORLD_READABLE`操作模式表示当前文件可以被其他应用读取，`MODE_WORLD_WRITEABLE`操作模式表示当前文件可以被其他文件写入。所以使用这两种文件操作模式存储在Android内部存储中的数据可供设备上的所有应用程序进行访问。很容易引起应用程序的安全漏洞，如数据损坏、敏感信息泄露等。
+]]></Description>
+			<Advice><![CDATA[由于`MODE_WORLD_READABLE`和`MODE_WORLD_WRITEABLE`两种文件操作模式过于危险，已在Android 4.2版本中被废弃。
+]]></Advice>
+			<References>
+				<Reference type="CWE">359:Exposure of Private Information ('Privacy Violation')</Reference>
+				<Reference type="CERT">DRD11:Ensure that sensitive data is kept secure,DRD12:Do not trust data that is world writable</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M2 Insecure Data Storage</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

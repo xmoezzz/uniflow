@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160091" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.10.1 不要调用 Thread_run()</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序应禁止直接调用 `Thread.run()`方法。   
+2) 原理   
+调用 `Thread.start()`方法标志着 Java 运行库开始执行线程的`run()`方法，但直接调用一个 Thread 对象的`run()`方法是不正确的。如果直接调用 Thread 对象的`run()`方 法，`run()`方法中的语句是由当前线程而不是由新创建的线程来执行的，而且当 Thread 对象是通过实例化一个没有覆写`run()`方法的 Thread 子类来创建，而不是用 Runnable 对象来创建时，任何对子类中`run()`方法的调用都会调用 `Thread.run()`，这个方法不会做任何操作。因此，程序禁止直接调用 `Thread.run()`方法。   
+3) 示例   
+    一个不符合规则的代码示例，该示例在当前线程中直接调用`run()`。   
+    ```java
+    public final class Foo implements Runnable {
+        @Override
+        public void run() {
+            // . . .
+        }
+    
+        public static void main(String[] args) {
+            Foo foo = new Foo();
+            new Thread(foo).run();
+        }
+    }
+    ```  
+    这里假设`run()`会启动新线程是错误的，因为这个新创建的线程并不会开始执行。因此，`run()`方法中的语句是由当前线程而不是新线程来执行的。   
+       
+    对应符合规则的解决方案中，正确地使用`start()`方法来通知 Java 运行库开始执行新线程。   
+    ```java
+    public final class Foo implements Runnable {
+        @Override
+        public void run() {
+            // . . .
+        }
+    
+        public static void main(String[] args) {
+            Foo foo = new Foo();
+            new Thread(foo).start();
+        }
+    }  
+    ```
+4) 特例   
+1、在进行单元测试时，可以直接调用`run()`方法的。注意，这个方法不能用来测试那些在多线程场景中应用的类。   
+2、在运行系统中，与启动新线程有关的代码是可以直接调用 Thread 对象的`run()`方法的。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">572:Call to Thread run() instead of start()</Reference>  
+        <Reference type="CERT">THI00-J:Do not invoke Thread.run()</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">6.8.3 显式调用Thread.run方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.10 线程 API</BigClassChin>  
+       
+    </BugInfo>  
+    

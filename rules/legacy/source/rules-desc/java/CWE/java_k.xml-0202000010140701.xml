@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140701" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 06. 方法 (MET)</Category>  
+        <Category type="DetailClassChin">MET01-J：不要使用断言验证方法参数</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[依据Java语言规范的14.10节“断言”：  
+>断言不应该被用于public方法的参数检验。参数检验通常是方法合同的一部分，并且无论断言是否有效，都必须维持合同。  
+
+使用断言来验证方法参数的另一个问题是：错误的参数会导致对应的执行异常（如：IllegalArgumentException, IndexOutOfBoundsExceptio或 NullPointerException），断言失败并不会抛出一个适当的异常。  
+风险评估：没有对参数进行验证会导致不一致的运算、执行异常、甚至是控制流漏洞。  
+**不规范的代码样例1**：  
+断言中条件检验是可行的，但是，如果禁用断言时，不会执行检验代码。  
+```java
+public static int getAbsAdd(int x, int y) {
+    assert x != Integer.MIN_VALUE;
+    assert y != Integer.MIN_VALUE;
+    int absX = Math.abs(x);
+    int absY = Math.abs(y);
+    assert (absX <= Integer.MAX_VALUE - absY);
+    return absX + absY;
+}
+```
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+对于int参数的有效范围校验，采用Integer.MIN_VALUE和Integer.MIN_VALUE与参数进行比较。  
+```java
+public static int getAbsAdd(int x, int y) {
+    if (x == Integer.MIN_VALUE || y == Integer.MIN_VALUE) {
+        throw new IllegalArgumentException();
+    }
+    int absX = Math.abs(x);
+    int absY = Math.abs(y);
+    if (absX > Integer.MAX_VALUE - absY) {
+        throw new IllegalArgumentException();
+    }
+    return absX + absY;
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">617:Reachable Assertion</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

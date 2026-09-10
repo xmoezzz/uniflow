@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010160015" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.2.1 防止类的初始化循环</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+对类进行的初始化，必须避免类的初始化循环。   
+2) 原理   
+类初始化包括：执行该类的 static 静态初始化方法和初始化该类中的静态数据成员（类变量）。   
+一个静态数据成员的出现会触发类的初始化。一个静态数据成员可能会依赖于其他类的初始化，这样可能形成一个初始化循环。   
+一般来说，程序，特别是对安全敏感的程序，必须消除所有类的初始化循环。   
+3) 示例   
+    1.这个不符合规则的代码示例，存在一个涉及多个类的类初始化循环。   
+    Cycle 类声明了一个 private static final 类变量，这个变量在创建 Cycle对象时初始化。静态的初始化方法只调用一次，调用在第一次使用静态类变量或者在第一次调用构造函数前发生。   
+    ```java
+    public class Cycle {
+        private final int balance;
+        private static final Cycle c = new Cycle();
+        // Random deposit
+        private static final int deposit = (int) (Math.random() * 100);
+    
+        public Cycle() {
+            balance = deposit - 10; // Subtract processing fee
+        }
+    
+        public static void main(String[] args) {
+            System.out.println("The account balance is: " + c.balance);
+        }
+    }
+    ```   
+    对应的符合规则的代码示例：通过改变 Cycle类的初始化次序，使得对数据成员的初始化不会形成依赖循环。对 c 的初始化，在编码上处于对 `deposit` 初始化之后，因而它会在 `deposit` 被完全初始化之后初始化。   
+    ```java
+    public class Cycle {
+        private final int balance;
+        // Random deposit
+        private static final int deposit = (int) (Math.random() * 100);
+        // Inserted after initialization of required fields
+        private static final Cycle c = new Cycle();
+
+        public Cycle() {
+            balance = deposit - 10; // Subtract processing fee
+        }
+
+        public static void main(String[] args) {
+            System.out.println("The account balance is: " + c.balance);
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">367:Time-of-check Time-of-use (TOCTOU) Race Condition</Reference>  
+        <Reference type="CWE">362:Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')</Reference>  
+        <Reference type="CERT">DCL00-J:Prevent class initialization cycles</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 362</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 362</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.2 声明和初始化</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010170019" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">GB/T 34944-2017</Category>  
+        <Category type="SubClassChin">5.3 访问控制</Category>  
+        <Category type="DetailClassChin">A.2.3.1.2 避免使用DNS名称作为安全性的依据</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：程序中采用DNS名称进行安全认证，但DNS名称是容易被攻击者进行欺骗的。  
+对避免使用DNS名称作为安全性的依据的情况，示例1给出了不规范用法（java语言）示例。  
+**示例1**：  
+```java
+String ip = request.getRemoteAddr();  
+InetAddress inetAddress = InetAddress.getByName(ip);  
+if (inetAddress.getCanonicalHostName().endsWith("demo.com")) {  
+    //Verification passed  
+}
+```  
+以上代码片段中，如果发生DNS欺骗，会绕过安全验证。  
+不要依赖DNS名称进行安全认证。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">807:Reliance on Untrusted Inputs in a Security Decision</Reference>  
+        <Reference type="CWE">558:Use of getlogin() in Multithreaded Application</Reference>  
+        <Reference type="CWE">292:Trusting Self-reported DNS Name</Reference>  
+        <Reference type="CWE">247:Reliance on DNS Lookups in a Security Decision</Reference>  
+        <Reference type="OWASP TOP 10">2017:A2 Broken Authentication</Reference>  
+        <Reference type="OWASP TOP 10">2013:A2 Broken Authentication and Session Management</Reference>  
+        <Reference type="OWASP TOP 10">2010:A3 Broken Authentication and Session Management</Reference>  
+        <Reference type="OWASP TOP 10">2007:A7 Broken Authentication and Session Management</Reference>  
+        <Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 807</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 807</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:安全关键的行为依赖反向域名解析</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.3 访问控制</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010070026" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">文件泄露：JavaEE</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[通过用户输入构造服务的重定向路径，攻击者可以下载应用程序的执行文件（包括应用程序的类和jar包）或查看服务器中受保护目录下的文件。    
+  
+**例如**：在下面的代码片段中，程序接收不可信赖的数据，并在未验证的情况下，将它的内容作为服务端的转发路径。    
+```java
+...   
+String path = request.getParameter("path");  
+request.getRequestDispatcher(path).forward(request, response);  
+...
+```  
+在攻击者提供的请求参数与某个敏感文件位置相匹配的URL时，攻击者将能够查看该文件内容。例如：使用`http://www.yourcorp.com/webApp/logic?returnURL=WEB-INF/applicationContext.xml`可以查看应用程序的`applicationContext.xml`文件。一旦攻击者掌握了`applicationContext.xml`的信息，便能够定位和下载`applicationContext.xml`中引用的其他配置文件，甚至类文件或jar包等，获得与应用程序相关的敏感信息。
+]]></Description>
+			<Advice><![CDATA[避免用户能够构造输入来重定向服务器资源，当不能完全避免时，应该对非受信用户的输入做验证；或者创建一份安全字符串列表，限制用户只能输入该列表中的数据。
+**例如**：在下面的代码片段中，程序接收不可信赖的数据，先判断其值是否合理，再将它的内容作为服务端的转发路径。    
+```java
+...   
+String path = request.getParameter("path");  
+//判断路径是否合理
+if(isSafePath(path)){
+    request.getRequestDispatcher(path).forward(request, response);  
+}
+...
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE">552:Files or Directories Accessible to External Parties</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发文件泄露：JavaEE漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在文件泄露：JavaEE漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在文件泄露：JavaEE漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发文件泄露：JavaEE漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

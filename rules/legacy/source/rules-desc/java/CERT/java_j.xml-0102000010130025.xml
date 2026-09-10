@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010130025" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">ESAPI禁止的方法</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用了ESAPI禁止的方法。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用了ESAPI禁止的方法。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[此方法已经被OWASP ESAPI禁止。ESAPI安全编码指南包含一个禁止的API列表，如下：  
+```java
+001 System.out.println()  
+002 Throwable.printStackTrace()  
+003 Runtime.exec()  
+004 Session.getId()  
+005 ServletRequest.getUserPrincipal()  
+006 ServletRequest.isUserInRole()  
+007 Session.invalidate()  
+008 Math.Random.*  
+009 File.createTempFile()  
+010 ServletResponse.setContentType()  
+011 ServletResponse.sendRedirect()  
+012 RequestDispatcher.forward()  
+013 ServletResponse.addHeader()  
+014 ServletResponse.addCookie()  
+015 ServletRequest.isSecure()  
+016 Properties.*  
+017 ServletContext.log()  
+018 java.security and javax.crypto  
+019 java.net.URLEncoder/Decoder  
+020 Statement.execute  
+021 ServletResponse.encodeURL  
+022 ServletResponse.encodeRedirectURL
+```
+]]></Description>
+			<Advice><![CDATA[ESAPI安全编码指南包含一个禁止的API列表。对于这些API，ESAPI中提供了更为安全的替代函数。
+]]></Advice>
+			<References>
+				<Reference type="CWE">676:Use of Potentially Dangerous Function</Reference>
+				<Reference type="CERT">MET02-J:Do not use deprecated or obsolete classes or methods</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 676</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

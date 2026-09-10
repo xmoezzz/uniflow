@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010070015" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">错误的clone()重写</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+中的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法错误的重写。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在clone方法错误的重写。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序重写`clone()`方法未调用`super.clone()`来获取新对象，那么子类的`clone()`方法将会返回一个错误的对象类型。
+]]></Description>
+			<Advice><![CDATA[重写`clone()`方法应首先调用`super.clone()`。
+]]></Advice>
+			<References>
+				<Reference type="CWE">580:clone() Method Without super.clone()</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

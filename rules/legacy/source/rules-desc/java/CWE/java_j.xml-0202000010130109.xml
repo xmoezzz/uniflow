@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130109" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">错误的比较操作符</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了错误的比较。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了错误的比较。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序意图赋值但是使用了错误的比较操作符。  
+  
+**例如**：以下代码中`numIsZero == (number == 0)`错误的使用了比较操作符。  
+```java
+private void useConfusedOperator(int number)  
+{  
+    boolean numIsZero = false;  
+    if((numIsZero == (number == 0)) == true)  
+    {  
+        ...  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，使用正确的赋值操作符  
+  
+**例如**：以下代码中`numIsZero = (number == 0)`正确的使用了赋值操作符。 
+```java
+private void useConfusedOperator(int number)  {  
+    boolean numIsZero = false;  
+    if((numIsZero = (number == 0)) == true)  
+    {  
+        ...  
+    }  
+}
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE">482:Comparing instead of Assigning</Reference>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010110039" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">系统信息泄露：过于宽泛的SQL日志记录</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[日志中记录SQL查询信息可能会泄露系统信息或危及用户隐私数据。  
+  
+**例如**：在log4j.properties中如下配置  
+```java
+...  
+log4j.appender.stdout=org.apache.log4j.ConsoleAppender  
+log4j.appender.stdout.Target=System.out  
+log4j.appender.stdout.layout=org.apache.log4j.PatternLayout  
+log4j.appender.stdout.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n  
+# Log everything. Good for troubleshooting  
+log4j.logger.org.
+hibernate=INFO  #过于宽泛的SQL日志记录  
+# Log all JDBC parameters  
+log4j.logger.org.hibernate.
+type=ALL
+```
+]]></Description>
+			<Advice><![CDATA[建议程序日志中避免记录过多SQL查询，以防止泄露系统信息。
+]]></Advice>
+			<References>
+				<Reference type="CWE">497:Exposure of System Data to an Unauthorized Control Sphere</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:信息通过服务器日志文件泄露</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,log</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

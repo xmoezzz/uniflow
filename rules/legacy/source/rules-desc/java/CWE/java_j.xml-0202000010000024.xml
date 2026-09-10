@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010000024" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Optional没有在调用isPresent()后访问值</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行中Optional没有在调用isPresent()后访问值。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中Optional没有在调用isPresent()后访问值。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Optional方法中包含的值可以使用`get()`方法访问，但是如果没有值，它会抛出一个NoSuchElementException异常。  
+**例如**：下列代码中Optional在调用`get()`方法前未调用`isPresent()`判断。  
+```java
+Optional<String> value = this.getOptionalValue();  
+// ...        
+String stringValue = value.get(); // Noncompliant
+```
+]]></Description>
+			<Advice><![CDATA[应该总是在调用Optional的`get()`方法之前调用`isPresent()`方法。
+  
+**例如**：下列代码中Optional在调用`get()`方法前调用`isPresent()`判断。
+```java 
+Optional<String> value = this.getOptionalValue();  
+// ...        
+if (value.isPresent()) {  
+  String stringValue = value.get();  
+}
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 476</Reference>
+				<Reference type="CWE">476:NULL Pointer Dereference</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

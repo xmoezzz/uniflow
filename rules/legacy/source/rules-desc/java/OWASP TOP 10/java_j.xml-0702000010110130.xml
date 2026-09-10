@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110130" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">HTTP响应缓存泄露</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[所有 HTTP(S)响应进行缓存时，会在不安全的共享存储空间中来存储它们，并且不会加密，如果HTTP(S)响应中包含敏感数据，则可能会导致泄露敏感信息。  
+  
+**例如**：下面代码片段中，在共享存储空间中存储 HTTP(S)响应缓存。  
+```java
+File httpCacheDir = new File(context.getExternalCacheDir(), "https");  
+long httpCacheSize = 20 * 1024 * 1024;  
+HttpResponseCache.install(httpCacheDir, httpCacheSize);
+```
+]]></Description>
+			<Advice><![CDATA[不要在共享存储空间中存储HTTP(S)响应缓存。
+]]></Advice>
+			<References>
+				<Reference type="CWE">522:Insufficiently Protected Credentials</Reference>
+				<Reference type="CWE">313:Cleartext Storage in a File or on Disk</Reference>
+				<Reference type="CWE">312:Cleartext Storage of Sensitive Information</Reference>
+				<Reference type="CWE">311:Missing Encryption of Sensitive Data</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M2 Insecure Data Storage</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 311</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 311</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发HTTP响应缓存泄露漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在HTTP响应缓存泄露漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在HTTP响应缓存泄露漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发HTTP响应缓存泄露漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

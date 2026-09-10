@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010110090" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">类循环初始化</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行类循环初始化。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行类循环初始化。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[对类进行的初始化包括执行该类的static静态初始化方法和初始化该类中的静态数据成员（类变量）。换句话说，一个静态数据成员的出现会触发类的初始化，然而，一个静态数据成员可能会依赖于其他类的初始化，这样可能形成一个初始化循环。在Java类执行初始化后，会先为类中声明的静态字段调用初始值设定项，然后再调用类的构造函数。因此，向其分配的构造函数会先于其他代码被调用，如果此构造函数依赖于其他要初始化的字段或变量，这可能会导致对象仅部分完成初始化，或使用错误的值为对象执行初始化。  
+  
+**例1**：以下代码存在一个涉及多个类的类初始化循环。  
+```java
+public class Cycle {  
+    private final int balance;  
+    private static final Cycle c = new Cycle();  
+    private static final int deposit = (int) (Math.random() * 100);  
+    public Cycle() {  
+        balance = deposit - 10;  
+    }  
+   public static void main(String[] args) {  
+       System.out.println("The account balance is :" + c.balance);  
+   }  
+}
+```  
+Cycle类声明了一个private static final类变量，这个变量会在创建Cycle对象的时候进行初始化。静态的初始化方法可以保证只调用一次，而这次调用是在第一次使用静态类变量或者在第一次调用构造函数之前发生。程序员希望通过在`deposit`中减去10来计算balance，然而，对类变量c的初始化在`deposit`变量初始化之前发生，因为在编码上，它在`deposit`域的初始化之前出现。因此，当对变量c进行静态初始化时，Cycle类的构造函数会读取`deposit`的数值，这个`deposit`数值会是0而不是一个随机数，因此最会输出结果为-10。  
+**例2**：以下类声明了相互依赖的静态字段。  
+```java
+class A {  
+    public static final int a = B.b + 1;  
+    //...  
+}  
+class B {  
+    public static final int b = A.a + 1;  
+    //...  
+}
+```  
+因为对这些类的初始化次序是可变的，所以导致的结果是，会计算出不同的A.a和B.b的值。当先初始化A类时，A.a的值是2，B.b的值是1。当先初始化B类时，这两个值取值相反。
+]]></Description>
+			<Advice><![CDATA[由于初始循环较为复杂，因此解决该问题比较困难。有时，最佳解决方法可能是重新构建某些类，以消除对静态字段的需要。  
+  
+**例1**：以下代码更改了Cycle的初始化次序，所以对数据成员的初始化是不会造成任何依赖循环的。特别是对c的初始化，因为在编码上处于对`deposit`初始化之后发生，因而它会在`deposit`被完全初始化之后进行初始化。  
+```java
+public class Cycle {  
+    private final int balance;  
+    private static final int deposit = (int) (Math.random() * 100);  
+    private static final Cycle c = new Cycle();  
+    public Cycle() {  
+        balance = deposit - 10;  
+    }  
+    public static void main(String[] args) {  
+        System.out.println("The account balance is :" + c.balance);  
+    }  
+}
+```   
+当涉及许多字段的时候，并不容易发现这样的初始化循环。因此，确保控制流不产生这样的循环是非常重要的。 尽管这个方案可以防止初始化循环，但它也依赖于声明次序，因此也是脆弱的。程序的维护者可能不知道这种声明的次序必须被保持来保证程序的正确性。因而，这种依赖必须在代码的文档中清楚地说明。  
+**例2**：以下代码通过消除其中一个依赖来打破类间的循环。  
+```java
+class A {  
+    public static final int a = 2;  
+    //...  
+}  
+class B {  
+    public static final int b = A.a + 1;  
+    //...  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">367:Time-of-check Time-of-use (TOCTOU) Race Condition</Reference>
+				<Reference type="CWE">362:Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')</Reference>
+				<Reference type="CERT">DCL00-J:Prevent class initialization cycles</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 362</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 362</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

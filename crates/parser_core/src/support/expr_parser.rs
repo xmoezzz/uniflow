@@ -78,6 +78,16 @@ impl<'a> Pg<'a> {
     /// captures so lowering can materialize the closure environment.
     fn try_lambda_expression(&mut self) -> anyhow::Result<Option<Expr>> {
         let start = self.cur.pos;
+        // Lambda probing sits on the hot path for every expression.  Do the
+        // token-only check before cloning the lexical scope: ordinary
+        // expressions overwhelmingly are not closures, and copying every
+        // scope layer here made large files approach quadratic parse time as
+        // more locals came into scope.
+        let kind = self.lambda_start_kind();
+        let Some(kind) = kind else {
+            return Ok(None);
+        };
+
         let saved_scope = self.sc.save();
         let outer = self
             .sc
@@ -85,11 +95,6 @@ impl<'a> Pg<'a> {
             .into_iter()
             .filter_map(|name| self.sc.get(&name).map(|symbol| (symbol, name)))
             .collect::<std::collections::HashMap<_, _>>();
-
-        let kind = self.lambda_start_kind();
-        let Some(kind) = kind else {
-            return Ok(None);
-        };
 
         self.sc.push();
         let params_result = match kind {
@@ -290,7 +295,11 @@ impl<'a> Pg<'a> {
         if self.cur.at_kw("async") && self.cur.peek(1).kind == TokKind::Ident && arrow_after(2) {
             return Some(LambdaStart::SingleParam { async_prefix: true });
         }
-        if self.cur.at("(") {
+        // Only languages with a parenthesized arrow-lambda surface need the
+        // balanced look-ahead.  In particular Rust closures use pipes, so
+        // scanning to the matching `)` for every parenthesized Rust expression
+        // is pure overhead and becomes quadratic for deeply nested code.
+        if !self.d.ops.lambda_arrows.is_empty() && self.cur.at("(") {
             if let Some(after) = self.token_after_balanced(self.cur.pos, "(", ")") {
                 if self.d.ops.lambda_arrows.iter().any(|arrow| {
                     self.cur
@@ -305,7 +314,10 @@ impl<'a> Pg<'a> {
                 }
             }
         }
-        if self.cur.at_kw("async") && self.cur.peek(1).text == "(" {
+        if !self.d.ops.lambda_arrows.is_empty()
+            && self.cur.at_kw("async")
+            && self.cur.peek(1).text == "("
+        {
             if let Some(after) = self.token_after_balanced(self.cur.pos + 1, "(", ")") {
                 if self.d.ops.lambda_arrows.iter().any(|arrow| {
                     self.cur

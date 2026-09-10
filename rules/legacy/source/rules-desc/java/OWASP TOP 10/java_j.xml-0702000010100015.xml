@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100015" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：缺少错误配置信息</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行缺少错误配置信息。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Web应用程序的默认错误页面包含程序的敏感信息。Web应用程序应该为`4xx`（如404）错误、`5xx`（如503）错误、`java.lang.Throwable`异常等请求的响应码定义一个具体的错误处理页面，防止攻击者挖掘应用程序容器内置的错误响应信息。
+]]></Description>
+			<Advice><![CDATA[应用程序应该在web.xml中配置默认的错误页面。  
+  
+**例如**：下面代码片段中，定义了相应的错误页面。 
+```xml
+<error-page>  
+    <error-code>403</error-code>  
+    <location>/common/403.jsp</location>  
+</error-page>  
+<error-page>  
+    <error-code>404</error-code>  
+    <location>/common/404.jsp</location>  
+</error-page>  
+<error-page>  
+    <error-code>500</error-code>  
+    <location>/common/500.jsp</location>  
+</error-page>  
+<error-page>  
+    <exception-type>java.lang.Throwable</exception-type>  
+    <location>/common/error.jsp</location>  
+</error-page>
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE">7:J2EE Misconfiguration: Missing Custom Error Page</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:信息通过错误消息泄露</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,exception</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

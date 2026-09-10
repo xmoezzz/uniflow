@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110030" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">不安全的信息传输</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了不安全的信息传输。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了不安全的信息传输。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序使用HTTP、FTP等协议进行通信，未对通信信息进行加密和验证，可能会受到危害，尤其是移动设备利用WiFi连接不安全的、公共的无线网络。  
+  
+**例如**：下面代码片段中表示将使用HTTP进行连接，传递的敏感信息容易被攻击者窃取。  
+```java
+...  
+HttpHost httppost = HttpHost(inetAddress,port,"http");  
+...
+```
+]]></Description>
+			<Advice><![CDATA[程序应尽可能基于HTTPS等安全协议与服务器进行通信，尤其是进行敏感信息的传递。
+]]></Advice>
+			<References>
+				<Reference type="CWE">523:Unprotected Transport of Credentials</Reference>
+				<Reference type="CWE">311:Missing Encryption of Sensitive Data</Reference>
+				<Reference type="CERT">MSC00-J:Use SSLSocket rather than Socket for secure data exchange</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 311</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 311</Reference>
+				<Reference type="GB/T 34944-2017 Java">安全功能:敏感信息明文传输</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发不安全的信息传输漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在不安全的信息传输漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在不安全的信息传输漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发不安全的信息传输漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

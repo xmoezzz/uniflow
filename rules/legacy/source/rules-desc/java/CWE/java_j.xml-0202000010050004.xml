@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010050004" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">有风险的资源使用</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行有可能发生拒绝服务。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行有可能发生拒绝服务。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[拒绝服务是攻击者通过消耗应用资源，以致程序崩溃使得其他用户无法继续正常使用的一种攻击方式。  
+  
+**例1**：下面代码片段中，解压文件前，未检查文件大小，攻击者可以通过提供一个超大文件来占用系统的计算资源从而实施DOS攻击。  
+```java
+static final int SIZE= 512;  
+...  
+public static void unZip(BufferedInputStream bin){  
+    BufferedOutputStream  bop= null;  
+    ZipInputStream zi = new ZipInputStream(bin);  
+    ZipEntry  zentry;  
+    while ((zentry= zi.getNextEntry()) != null) {  
+        int count;  
+        byte data[] = new byte[SIZE];  
+        FileOutputStream fos = new FileOutputStream(zentry.getName());  
+        bop= new BufferedOutputStream(fos, SIZE);  
+        while ((count = zi.read(data, 0, SIZE)) != -1) {  
+            bop.write(data, 0, count);  
+        }  
+        bop.flush();  
+        bop.close();  
+    }  
+    zi.close();  
+}
+```  
+**例2**：下面使用了`waitFor`方法，意味着直到该进程结束才能继续执行后续代码，不正确的处理输入输出流有可能发生死锁，导致程序持续浪费资源甚至崩溃。  
+`process.waitFor();`
+]]></Description>
+			<Advice><![CDATA[拒绝服务攻击是一种滥用资源性的攻击。从代码角度来考虑，对于涉及到需要占用系统资源的外部数据而言，代码逻辑中应该包含严格校验，防止无限制的输入。另外，谨慎使用线程阻塞的API，防止浪费系统资源或发生系统崩溃。  
+  
+**例如**：下面代码片段中，对解压文件进行验证，超过50M，将抛出异常。  
+```java
+static final int MAX= 0x3200000; // 50MB  
+// ...  
+// write the files to the disk, but only if file is not insanely big  
+if (entry.getSize() > MAX) {  
+    throw new IllegalStateException("File to be unzipped is huge.");  
+}  
+if (entry.getSize() == -1) {  
+    throw new IllegalStateException("File to be unzipped might be huge.");  
+}  
+FileOutputStream fos = new FileOutputStream(entry.getName());  
+bop = new BufferedOutputStream(fos, SIZE);  
+while ((count = zis.read(data, 0, SIZE)) != -1) {  
+    bop.write(data, 0, count);  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

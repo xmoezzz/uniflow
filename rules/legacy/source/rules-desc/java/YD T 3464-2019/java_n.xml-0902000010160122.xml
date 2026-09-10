@@ -1,0 +1,115 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160122" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin"/>  
+        <Category type="DetailClassChin">C.14.2 不要偏离序列化方法的正确签名</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+Java 的序列化机制不能让编译器识别出方法的不正确的签名，不要偏离序列化方法的正确签名。   
+2) 原理   
+那些需要在对象序列化和反序列化中进行特殊处理的类必须要使用以下的方法签名来实现特殊的方法:   
+```java
+private void writeObject(java.io.ObjectOutputStream out) throws IOException;  
+private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException;  
+private void readObjectNoData() throws ObjectStreamException;
+```  
+对于任何序列化类，这些方法要声明为私有的序列化的类同样也会实现 `readResolve()`和`writeReplace()`方法。根据序列化规范中对 `readResolve()`和 `writeReplace()`的方法描述： (1)对序列化和外部化类而言，`readResolve`方法允许一个类去替换/解析对象，这个对象在其返回给调用者之前从流程中读取。通过实现`readResolve`方法，一个类可以直接控制被反序列化的实例的类型和实例本身。(2) 对序列化和外部化类而言，`writeReplace`方法允许一个对象的类在对象写入之前在流中提名自身的替代。通过实现`writeReplace`方法，一个类可以直接控制被序列化的实例的类型和实例本身。   
+不像其它的接口，Serializable 没有定义需要的接口方法签名。接口仅允许公有的字段和方法，而 `readObject()`、`readObjectNoData()`和 `writeObject()`必须要声明为私有。同样，Serializable不能防止 `readResolve()`和 `writeReplace()`接口被声明为静态的、公有的或者私有的。   
+3) 示例   
+    1、一个不符合规则的代码示例（`readObject()`、`writeObject()`)，该示例展示了一个 Ser 类，该类使用私有的构造函数，意味着该类的外部代码不能创建这个类的实例。这个类实现了 java.io.Serializable接口并且定义了公有的 `readObject()`和 `writeObject()`方法。因此，非受信代码可以通过使用 `readObject()`来得到重组对象，并且可以使用 `writeObject()`来写入流。   
+    ```java
+    public class Ser implements Serializable {
+        private final long serialVersionUID = 123456789;
+    
+        private Ser() {
+            // initialize
+        }
+    
+        public static void writeObject(final ObjectOutputStream stream) throws IOException {
+            stream.defaultWriteObject();
+        }
+    
+        public static void readObject(final ObjectInputStream stream) throws IOException, ClassNotFoundException {
+            stream.defaultReadObject();
+        }
+    }
+    ```   
+    同样，忽略 static 关键字并不会让这个示例代码安全。JVM 不会发现这两个方法，导致不能使用自定义的序列化格式。   
+    对应符合规定的解决方案是：将 `readObject()`和 `writeObject()`声明为私有方法，并且通过将其声明为非静态来限制它们的可访问性。   
+    ```java
+    private void writeObject(final ObjectOutputStream stream) throws IOException {
+        stream.defaultWriteObject();
+    }
+    
+    private void readObject(final ObjectInputStream stream) throws IOException, ClassNotFoundException {
+        stream.defaultReadObject();
+    }
+    ```  
+    另一个符合规定的解决方案是在消除 static 关键字的同时，将这两个方法声明为 protected，使其可以被子类继承。   
+    ```java
+    class Extendable implements Serializable {
+        protected Object readResolve() {
+            // ...
+        }
+        
+        protected Object writeReplace() {
+            // ...
+        }
+    }
+    ```  
+    减少可访问性同样可以防止对这两个方法的恶性覆写。   
+    2、另一个不符合规则的代码示例（`readResolve()`、`writeReplace()`)，该示例将`readResolve()`和`writeReplace()`方法声明为私有。   
+    ```java
+    class Extendable implements Serializable {
+        private Object readResolve() {
+            // ...
+        }
+        
+        private Object writeReplace() {
+            // ...
+        }
+    }
+    ```
+    或者将 `readResolve()`和 `writeReplace()`方法声明为静态的。   
+    ```java
+    class Extendable implements Serializable {
+        protected static Object readResolve() {
+            // ...
+        }
+        
+        protected static Object writeReplace() {
+            // ...
+        }
+    }
+    ```
+    对应符合规则的解决方案是：在消除 static 关键字的同时，将这两个方法声明为 protected,使其可以被子类继承。   
+    ```java
+    class Extendable implements Serializable {
+        protected Object readResolve() {
+            // ...
+        }
+        
+        protected Object writeReplace() {
+            // ...
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 502</Reference>  
+        <Reference type="CWE">502:Deserialization of Untrusted Data</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.14 序列化</BigClassChin>  
+       
+    </BugInfo>  
+    

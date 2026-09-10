@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160016" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.2.2 不要重用Java 标准库的已经公开的标识</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+不要重用 Java 标准库中已经使用过的公共标识、公共工具类、接口或者包。   
+2) 原理   
+定义一个类，使用和公开类相同的名字，这个自定义的类会遮蔽原来的公开类，从而导致不可预期的程序行为。   
+使用定义良好的 import 语句可以解决该问题，但容易产生错误。在 Java 包含的 import 引用路径中，如果在预期的类出现之前出现了一个自定义的类，就不会再进一步搜索，这样就会使用错误的类。   
+3) 示例   
+    1.这个不符合规则的代码示例实现了一个类，这个类重用了`java.util.Vector`的类名称。它在`isEmpty()`中使用了一个不同的条件判断，尝试通过重写`java.util.Vector`中对应的方法来达到与遗留代码接口的目的。如果维护者混淆了这个`isEmpty()`和 `java.util.Vector. isEmpty()`，就会出现不可预知行为。   
+    ```java
+    class Vector {
+        private int val = 1;
+    
+        public boolean isEmpty() {
+            if (val == 1) { // compares with 1 instead of 0
+                return true;
+            } else {
+                return false;
+            }
+        }
+        // other functionality is same as java.util.Vector
+    }
+    
+    // import java.util.Vector; omitted
+    public class VectorUser {
+        public static void main(String[] args) {
+            Vector v = new Vector();
+            if (v.isEmpty()) {
+                System.out.println("Vector is empty");
+            }
+        }
+    }
+    ```   
+       
+    对应的符合规则的代码示例：为定义的类使用不同的名字。   
+    ```java
+    class MyVector {   
+        // other code   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.2 声明和初始化</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,289 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140708" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 06. 方法 (MET)</Category>  
+        <Category type="DetailClassChin">MET08-J：确保比较等同的对象能得到相等的结果</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[通过组合或继承可以创建用于封装已有类的一个新类并加入一个或多个字段。当一个类用这种方式来扩展另一个类时，子类等同性的概念可能包括也可能不包括它的新字段。也就是说，当比较两个子类对象是否相等时，子类等同性的概念可能包括也可能不包括它的新字段。也就是说，当比较两个子类对象是否等同时，有时它们各自的字段必须一样，有时却不需要。根据子类等同的概念，子类可能会覆写`equals`。而且，这个方法必须符合Java语言规范指定的`equals()`的常规合约[JSL 2005]。  
+一个对象是同时以它的标识（内存中的位置）和它的状态（实际的数据）作为特征的。操作符`==`只是比较两个对象的标识（核对引用是否指向相同的对象）；在`java.lang.Object`中定义的`euqals()`方法可以被覆写并用来比较对象的状态。如果一个类定义了`equals()`方法，则意味着这个方法会比较状态。当一个类没有自定义的`equals()`方法（在该类中没有定义也没有从基类继承而来），则使用从Object继承的默认的`Object.euqals()`的实现只是比较对象的引用，这可能会产生预期外的结果。  
+`equals()`方法适用于对象，而不适用于基础数据类型。  
+枚举的类型有一组固定的不同的数值，这些数值有可能用` == `比较而不用`equals()` 方法。要注意的是，枚举类型提供的`equals()`方法的内部实现使用了` == `操作符，这是默认的，并且不能被覆写。一般来说，如果子类同时继承了`equals()`的实现并且不要求额外的功能的话，不需要覆写`equals()`方法。  
+Java语言规范指定的`equals()`通常合约用法有5点要求：  
+1）方法是自反的：对于任何引用x,`x.equals(x)`必须返回true。  
+2）方法是对称的：对于任何引用x和y，`x.equals(y)`必须返回true,当且仅当`y.equals(x)`返回true。  
+3）方法是可传递的：对于任何引用x、y、和z，如果`x.equals(y)`返回true并且`y.equals(z)`返回true,则`x.equals(z)`返回true。  
+4）方法是一致的：只要用在`equals()`中比较的对象信息没有发生变化，对于任何引用x和y，多次调用`x.equals(y)`总是返回true或总是返回false。  
+5）对于任何非空的引用x,`x.equals(null)`必须返回false。  
+注意，在覆写`equals()`方法时不要违反这些要求。  
+**不规范的代码样例1（对称性）**：  
+```java
+public final class CaseInsensitiveString {
+    private String s;
+
+    public CaseInsensitiveString(String s) {
+        if (s == null) {
+            throw new NullPointerException();
+        }
+        this.s = s;
+    }
+
+    // This method violates symmetry
+    public boolean equals(Object o) {
+        if (o instanceof CaseInsensitiveString) {
+            return s.equalsIgnoreCase(((CaseInsensitiveString) o).s);
+        }
+
+        if (o instanceof String) {
+            return s.equalsIgnoreCase((String) o);
+        }
+        return false;
+    }
+
+    // Comply with MET09-J
+    public int hashCode() {
+        /* ... */
+    }
+
+    public static void main(String[] args) {
+        CaseInsensitiveString cis = new CaseInsensitiveString("Java");
+        String s = "java";
+        System.out.println(cis.equals(s)); // Returns true
+        System.out.println(s.equals(cis)); // Returns false
+    }
+}
+```  
+这个不符合规范的代码示例定义了一个 CaseInsensitiveString 类，类中包含了一个String,并覆写了`equals()`方法。CaseInsensitiveString类知道普通的字符串，但String类对大小写不敏感的字符串没有任何概念。因此，方法`CaseInsensitiveString.equals()`不应该尝试与String类的对象进行互操作。  
+**不规范的代码样例2（可传递性）**：  
+```java
+public class Card {
+    private final int number;
+
+    public Card(int number) {
+        this.number = number;
+    }
+
+    public boolean equals(Object o) {
+        if (!(o instanceof Card)) {
+            return false;
+        }
+
+        Card c = (Card) o;
+        return c.number == number;
+    }
+
+    public int hashCode() {
+        /* ... */}
+
+}
+
+class XCard extends Card {
+    private String type;
+
+    public XCard(int number, String type) {
+        super(number);
+        this.type = type;
+    }
+
+    public boolean equals(Object o) {
+        if (!(o instanceof Card)) {
+            return false;
+        }
+
+        // Normal Card, do not compare type
+        if (!(o instanceof XCard)) {
+            return o.equals(this);
+        }
+
+        // It is an XCard, compare type as well
+        XCard xc = (XCard) o;
+        return super.equals(o) && xc.type == type;
+    }
+
+    public int hashCode() {
+        /* ... */}
+
+    public static void main(String[] args) {
+        XCard p1 = new XCard(1, "type1");
+        Card p2 = new Card(1);
+        XCard p3 = new XCard(1, "type2");
+        System.out.println(p1.equals(p2)); // Returns true
+        System.out.println(p2.equals(p3)); // Returns true
+        System.out.println(p1.equals(p3)); // Returns false
+                                           // violating transitivity
+    }
+}
+```  
+这个不符合规则的代码示例中：p1和p2比较的结果是相等的，p2和p3比较的结果是相等的，但p1和p3比较的结果却是不相等的。这违反了可传递性的要求。  
+**不规范的代码样例3（一致性）**：  
+```java
+public class Filter {
+    public static void main(String[] args) throws MalformedURLException {
+        final URL allowed = new URL("`http://mailwebsite.`com");
+        if (!allowed.equals(new URL(args[0]))) {
+            throw new SecurityException("Access Denied");
+        }
+        // Else proceed
+    }
+}
+```  
+统一资源定位器（URL）指定了资源的地址和访问资源的方法。根据Java API中 URL 类的文档[API 2006]的描述：  
+如果两个URL对象有相同的协议、引用、等价的主机、主机端口、相同的文件及文件片段，则这两个URL是相等的。  
+在以下的情况中，认为两个主机是等同的：当能够将两个主机的名字解析成相同的IP地址时；或者当其中的一个主机名字不能解析时，两个主机名在不考虑大小写时是相同的；或两个主机名都等于null。  
+对于HTTP的虚拟主机来说，为`equals()`方法定义的行为是不一致的。  
+虚拟主机允许一个网络服务器可以在一台电脑上处理多个网站，并有时会共享相同的IP地址。遗憾的是，在设计URL类的时候并没有考虑到这种技术。因此，当两个完全不同的URL被解析成相同的IP地址时，URL类认为它们是相等的。  
+另一个对URL对象使用`equals()`方法带来的风险是该方法在有网络连接和没有网络连接时使用的逻辑是不同的。当连接到Internet时，`equals()`方法遵循Java API中描述的步骤，当没有网络连接时，该方法对两个URL进行字符串比较。从而，`URL.equals()`方法违反了对equals()一致性的要求。  
+设想一个应用允许组织内的一名员工可以访问`http://mailwebsite.com`来获得外部邮件服务。这个应用被设计成暂时的防火墙来拒绝其它网站的访问。然而，如果一个非法网站`http://illegitimatewebsite.com`与合法网站共享一台主机而有着相同的IP地址，则一个有经验的或恶意的用户仍然能够访问这个禁止的网站。更糟糕的是，一个攻击者可以尝试注册多个网站（为了钓鱼攻击的目的），直至一个网站在同一主机上成功注册，而使得防火墙失效。  
+**不规范的代码样例4（java.security.Key）**：
+```java  
+private static boolean keysEqual(Key key1, Key key2) {
+    if (key1.equals(key2)) {
+        return true;
+    }
+    return false;
+}
+```
+`java.lang.Object.equals()`方法默认是不能比较组合对象的，如密钥。大多数Key类没有提供`equals`方法来覆写Object中的默认实现。在这种情况下，组合对象的元素必须单独进行比较来保证正确性。  
+这个不符合规则的代码示例使用方法`equals()`比较两个密钥，即使两个实例逻辑上代表同一个密钥时，这一比较还是可能会返回false。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public final class CaseInsensitiveString {
+    private String s;
+
+    public CaseInsensitiveString(String s) {
+        if (s == null) {
+            throw new NullPointerException();
+        }
+        this.s = s;
+    }
+
+    public boolean equals(Object o) {
+        return o instanceof CaseInsensitiveString && ((CaseInsensitiveString) o).s.equalsIgnoreCase(s);
+    }
+
+    public int hashCode() {
+        /* ... */
+    }
+
+    public static void main(String[] args) {
+        CaseInsensitiveString cis = new CaseInsensitiveString("Java");
+        String s = "java";
+        System.out.println(cis.equals(s)); // Returns false now
+        System.out.println(s.equals(cis)); // Returns false now
+    }
+}
+```  
+在这个符合规范的方案中，方法`CaseInsensitiveString.equals` 简化成只对`CaseInsensitiveString`类的实例进行操作，从而保持了对称性。  
+**规范的代码样例2**：  
+```java
+class XCard {
+    private String type;
+    private Card card; // Composition
+
+    public XCard(int number, String type) {
+        card = new Card(number);
+        this.type = type;
+    }
+
+    public Card viewCard() {
+        return card;
+    }
+
+    public boolean equals(Object o) {
+        if (!(o instanceof XCard)) {
+            return false;
+        }
+
+        XCard cp = (XCard) o;
+        return cp.card.equals(card) && cp.type.equals(type);
+    }
+
+    public int hashCode() {
+        /* ... */}
+
+    public static void main(String[] args) {
+        XCard p1 = new XCard(1, "type1");
+        Card p2 = new Card(1);
+        XCard p3 = new XCard(1, "type2");
+        XCard p4 = new XCard(1, "type1");
+        System.out.println(p1.equals(p2)); // Prints false
+        System.out.println(p2.equals(p3)); // Prints false
+        System.out.println(p1.equals(p3)); // Prints false
+        System.out.println(p1.equals(p4)); // Prints true
+    }
+}
+```  
+这个符合规范的方案使用合成而不是继承，在XCard类中增加了一个private的成员card，并提供了一个public的`viewCard()`方法。  
+**规范的代码样例3（字符串）**：  
+```java
+public class Filter {
+    public static void main(String[] args) throws MalformedURLException {
+        final URL allowed = new URL("http://mailwebsite.com");
+        if (!allowed.toString().equals(new URL(args[0]).toString())) {
+            throw new SecurityException("Access Denied");
+        }
+        // Else proceed
+    }
+}
+```  
+
+上面符合规范的方案比较了两个URL的字符串表达式，从而避免了使用`URL.equals()`的隐患。   
+**规范的代码样例4（URI.equals()）**： 
+```java 
+public class Filter {
+    public static void main(String[] args) throws MalformedURLException, URISyntaxException {
+        final URI allowed = new URI("http://mailwebsite.com");
+        if (!allowed.equals(new URI(args[0]))) {
+            throw new SecurityException("Access Denied");
+        }
+        // Else proceed
+    }
+}
+```  
+统一资源定位符（URI）包含了一个字符串来定位资源:这是一个比URL范围更广的概念。`java.net.URI`类提供了基于字符串的`equals()`和`hashCode()`方法用来满足`Object.equals()`和`Object.hashCode()`方法大体上的合约；它们不会调用主机名解析而且不会受网络连接的影响。URI还提供URL所没有处理标准化的方法。并且，`URL.toURI()`和`URI.toURL()`方法可以方便地在这两个类之间进行转换。程序应该尽可能使用URI而不是URL。根据Java API[API 2006]URI类的文档的描述：  
+>一个URI可以是绝对的或是相对的。一个URI字符串是根据一般的语法而不会考虑用指定的纲要来进行解析的。不会有主机的查找，并且不会创建基于纲要的流句柄。  
+
+这个符合规范的方案使用一个URI而不是URL的对象。因为进行的比较会失败，所以这个过滤器恰当地拦截`http://mailwebsite.com`有着不同字符的网站。  
+**规范的代码样例4（java.security.Key）**：
+```java  
+private static boolean keysEqual(Key key1, Key key2) {
+    if (key1.equals(key2)) {
+        return true;
+    }
+
+    if (Arrays.equals(key1.getEncoded(), key2.getEncoded())) {
+        return true;
+    }
+
+    // More code for different types of keys here.
+    // For example, the following code can check if
+    // an RSAPrivateKey and an RSAPrivateCrtKey are equal:
+    if ((key1 instanceof RSAPrivateKey) && (key2 instanceof RSAPrivateKey)) {
+
+        if ((((RSAKey) key1).getModulus().equals(((RSAKey) key2).getModulus())) && (((RSAPrivateKey) key1)
+                .getPrivateExponent().equals(((RSAPrivateKey) key2).getPrivateExponent()))) {
+            return true;
+        }
+    }
+    return false;
+}
+```  
+这个符合规范的方案使用`equals()`方法作为最初的测试，然后比较编码后的密钥来完成独立于密钥提供者的操作。例如：这个方案能够判断一个RSAPrivateKey 和 RSAPrivateCrtKey是否代表等同的私钥[Sun 2006]。  
+**特例**  
+MET08-EX0：当没有比较不兼容的类型时，可以不遵守这条规则的要求。一些Java平台库中的类会添加成员来扩展可实例化的类。例如：`java.sql.Timestamp`扩展了`java.util.Date`，并加入了一个nanoseconds成员。Timestamp 的`equals()`实现违反了对称性，如果Timestamp和Date对象用于同一集合中或混杂在一起时，该方法可能导致奇怪的行为[Bloch 2008]。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">697:Insufficient Comparison</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

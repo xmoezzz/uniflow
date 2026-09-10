@@ -6,7 +6,7 @@ use anyhow::{bail, Result};
 use regex::Regex;
 use uniflow_hir::{
     CallExpr, CallTarget, Class, CppValueSemantics, Expr, Import, Item, LValue, Language,
-    LiteralKind, Param, ParamKind, Program, Span, Stmt, SymbolKind,
+    LiteralKind, Param, ParamKind, Program, ProgramMerger, Span, Stmt, SymbolKind,
 };
 use uniflow_parser_core::{
     parse_program_with, BlockStyle, ExprOps, InterpStyle, Keywords, LangDescriptor, LangHooks,
@@ -68,17 +68,18 @@ fn add_commonjs_imports(program: &mut Program, source: &str) {
         r#"(?m)\b(?:const|let|var)\s*\{([^}]*)\}\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"#,
     )
     .expect("valid CommonJS destructuring regex");
-    let mut add = |path: String, alias: String| {
-        if !module.imports.iter().any(|import| {
-            import.path == path && import.alias.as_deref() == Some(alias.as_str())
-        }) {
-            module.imports.push(Import {
-                path,
-                alias: Some(alias),
-                span: Span::default(),
-            });
-        }
-    };
+    let mut add =
+        |path: String, alias: String| {
+            if !module.imports.iter().any(|import| {
+                import.path == path && import.alias.as_deref() == Some(alias.as_str())
+            }) {
+                module.imports.push(Import {
+                    path,
+                    alias: Some(alias),
+                    span: Span::default(),
+                });
+            }
+        };
     for captures in binding.captures_iter(source) {
         let package = captures[2].to_string();
         let path = captures
@@ -98,8 +99,12 @@ fn add_commonjs_imports(program: &mut Program, source: &str) {
                 .split_once(':')
                 .map(|(imported, local)| (imported.trim(), local.trim()))
                 .unwrap_or((entry, entry));
-            if imported.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
-                && local.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
+            if imported
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
+                && local
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
             {
                 add(format!("{package}.{imported}"), local.to_string());
             }
@@ -111,11 +116,11 @@ pub fn parse_project_sources(language: Language, entries: &[(String, String)]) -
     if entries.is_empty() {
         bail!("no supported source files found");
     }
-    let mut project = Program::empty(language.clone());
+    let mut project = ProgramMerger::new(language.clone());
     for (path, source) in entries {
         project.merge(parse_file(language.clone(), path, source)?);
     }
-    Ok(project)
+    Ok(project.finish())
 }
 
 struct FrontendHooks {
@@ -796,7 +801,15 @@ pub fn descriptor(language: Language) -> Option<LangDescriptor> {
             ..LangDescriptor::new(language)
         },
         Language::Php | Language::Ruby | Language::Shell => script(language),
-        Language::Rust => newline_braces(language, &["fn"]),
+        Language::Rust => {
+            let mut descriptor = newline_braces(language, &["fn"]);
+            // Rust closures are `|args| ...` / `move |args| ...`; they never
+            // use the generic `(...) => ...` syntax.  Keeping `=>` enabled here
+            // forces the expression parser to scan every parenthesized Rust
+            // expression looking for an arrow that cannot form a closure.
+            descriptor.ops.lambda_arrows = &[];
+            descriptor
+        }
         _ => return None,
     })
 }
@@ -965,6 +978,32 @@ mod tests {
                 "no function carrier for {path}: {program:#?}"
             );
         }
+    }
+
+    #[test]
+    fn rust_descriptor_skips_arrow_lambda_probes_and_keeps_pipe_closures() {
+        let descriptor = descriptor(Language::Rust).expect("Rust descriptor");
+        assert!(
+            descriptor.ops.lambda_arrows.is_empty(),
+            "Rust must not scan parenthesized expressions for arrow lambdas"
+        );
+
+        // Grow the lexical scope with many ordinary expressions before a real
+        // closure.  Lambda probing must stay cheap as that scope grows, while
+        // the eventual pipe closure must still see and capture the outer value.
+        let mut source = String::from("fn run(prefix) { ");
+        for index in 0..512 {
+            source.push_str(&format!("let v{index} = prefix + {index}; "));
+        }
+        source.push_str("let value = (prefix + 1); let cb = |x| prefix + x; return cb; }");
+        let program = parse_file(Language::Rust, "lambda_probe.rs", &source)
+            .expect("Rust source should parse");
+        let Some(Expr::Lambda { params, captures, .. }) = first_lambda(&program) else {
+            panic!("expected Rust pipe closure: {program:#?}");
+        };
+        assert_eq!(params.len(), 1);
+        assert_eq!(captures.len(), 1);
+        assert_eq!(captures[0].name, "prefix");
     }
 
     #[test]
@@ -1492,10 +1531,15 @@ mod tests {
 "#,
         )
         .expect("JavaScript handler should parse");
-        let Expr::Lambda { body, .. } = first_lambda(&program).expect("assigned handler lambda") else {
+        let Expr::Lambda { body, .. } = first_lambda(&program).expect("assigned handler lambda")
+        else {
             unreachable!()
         };
-        assert_eq!(body.stmts.len(), 3, "nested map ended lambda early: {program:#?}");
+        assert_eq!(
+            body.stmts.len(),
+            3,
+            "nested map ended lambda early: {program:#?}"
+        );
         let top = program.modules[0]
             .items
             .iter()
@@ -1504,7 +1548,11 @@ mod tests {
                 _ => None,
             })
             .expect("top-level carrier");
-        assert_eq!(top.body.stmts.len(), 1, "lambda statements escaped into module scope");
+        assert_eq!(
+            top.body.stmts.len(),
+            1,
+            "lambda statements escaped into module scope"
+        );
     }
 
     #[test]
@@ -1755,7 +1803,11 @@ mod tests {
             })
             .expect("controller function");
         assert_eq!(
-            function.params.iter().map(|param| param.name.as_str()).collect::<Vec<_>>(),
+            function
+                .params
+                .iter()
+                .map(|param| param.name.as_str())
+                .collect::<Vec<_>>(),
             ["$scope", "$sce"]
         );
         assert!(function.body.stmts.iter().any(|stmt| {
@@ -1784,9 +1836,12 @@ function execute(input) { cp.spawn("sh", [input]); spawn("sh", [input]); runSync
             ("spawn", "child_process.spawn"),
             ("runSync", "child_process.spawnSync"),
         ] {
-            assert!(imports.iter().any(|import| {
-                import.alias.as_deref() == Some(alias) && import.path == path
-            }), "missing {alias} -> {path}: {imports:#?}");
+            assert!(
+                imports.iter().any(|import| {
+                    import.alias.as_deref() == Some(alias) && import.path == path
+                }),
+                "missing {alias} -> {path}: {imports:#?}"
+            );
         }
     }
 }

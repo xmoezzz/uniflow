@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010060201" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">有风险的反序列化</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了有风险的反序列化。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了有风险的反序列化。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[某些协议如RMI和JMX会在传输层后台使用Java序列化。当远程调用这些方法时，应用程序会在服务器上对参数进行反序列化，此时攻击者可以注入恶意对象。  
+  
+**例1**：下列代码是public的RMI接口的示例，其包含的方法具有一个或多个参数。  
+```java
+public interface MyWebService extends Remote {  
+    public Object doSomething (Object arg0) throws RemoteException;  
+    ...  
+}
+```  
+**例2**：JMX MBeans也使用 Java序列化传输调用参数。在下面的示例中：MyManagedBean中的方法将会暴露给客户端。  
+```java
+MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();   
+ObjectName name = new ObjectName("com.example:type=MyManagedBean");   
+MyManagedBean myManagedBean = new MyManagedBean();   
+mBeanServer.registerMBean(myManagedBean, name);
+```  
+而一些类如RedisTemplate使用默认的序列化器存在着不足，攻击者可以注入恶意对象，从而使反序列化产生非预期的对象，非预期的对象有可能带来意想不到的结果。  
+**例3**：下列代码是直接返回RedisTemplate，未对RedisTemplate设置序列化器。
+```java
+public RedisTemplate<Object, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory)  
+        throws UnknownHostException {  
+    RedisTemplate<Object, Object> template = new RedisTemplate<Object, Object>();  
+    template.setConnectionFactory(redisConnectionFactory);  
+    return template;  
+}
+```  
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，确定是否需要使用RMI和JMX等存在反序列化问题的协议，对于一些序列化器要设定可选择策略，以避免产生Java反序列化漏洞。  
+  
+**例如**：以下代码对RedisTemplate设置了序列化器`Jackson2JsonRedisSerializer`。  
+```java
+public RedisTemplate<Object, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory)  
+        throws UnknownHostException {  
+    RedisTemplate<Object, Object> template = new RedisTemplate<Object, Object>();  
+    template.setConnectionFactory(redisConnectionFactory);  
+    Jackson2JsonRedisSerializer jacksonSeial = new Jackson2JsonRedisSerializer(Object.class);  
+    ObjectMapper om = new ObjectMapper();  
+    om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);  
+    om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);  
+    jacksonSeial.setObjectMapper(om);  
+    template.setValueSerializer(jacksonSeial);  
+    template.setKeySerializer(new StringRedisSerializer());  
+    template.setHashKeySerializer(new StringRedisSerializer());  
+    template.setHashValueSerializer(jacksonSeial);  
+    template.afterPropertiesSet();  
+    return template;  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 502</Reference>
+				<Reference type="CWE">502:Deserialization of Untrusted Data</Reference>
+				<Reference type="OWASP TOP 10">2017:A8 Insecure Deserialization</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

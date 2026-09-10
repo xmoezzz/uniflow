@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0502000010080003" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">ISO/IEC TR 24772</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">空密码</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的密码为空。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的密码为空。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序中使用了空的密码值，系统安全性将会受到威胁。
+]]></Description>
+			<Advice><![CDATA[程序中所需密码应从配置文件中获取经过加密的密码值。
+]]></Advice>
+			<References>
+				<Reference type="CWE">798:Use of Hard-coded Credentials</Reference>
+				<Reference type="CWE">259:Use of Hard-coded Password</Reference>
+				<Reference type="CERT">MSC03-J:Never hard code sensitive information</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 798</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 798</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 798</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 259</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Hard-coded Password [XYP]</Reference>
+				<Reference type="GB/T 34944-2017 Java">安全功能:口令硬编码</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

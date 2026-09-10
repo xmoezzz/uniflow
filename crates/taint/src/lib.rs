@@ -113,6 +113,9 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
             if !kind_can_transform_to(rules, &source.kind, &sink.kind) {
                 continue;
             }
+            if !source_event_can_reach_sink(flow, source.node, sink.node) {
+                continue;
+            }
             // A forward demand summary tells us which nodes may be influenced by the source.  A
             // sink-specific backward summary removes nodes that cannot contribute to this sink.
             // The witness search is therefore constrained to the bidirectional demand slice,
@@ -215,6 +218,74 @@ fn collect_candidate_sinks(flow: &FlowGraph, forward_nodes: &HashSet<usize>) -> 
             _ => None,
         })
         .collect()
+}
+
+fn source_event_can_reach_sink(
+    flow: &FlowGraph,
+    source_node: NodeIndex,
+    sink_node: NodeIndex,
+) -> bool {
+    let FlowNode::SyntheticSource {
+        func: source_func,
+        inst: source_inst,
+        ..
+    } = flow.graph[source_node]
+    else {
+        return true;
+    };
+    let FlowNode::SyntheticSink {
+        func: sink_func,
+        inst: sink_inst,
+        ..
+    } = flow.graph[sink_node]
+    else {
+        return true;
+    };
+    if source_func != sink_func {
+        return true;
+    }
+    let Some(&(source_block, source_position)) = flow
+        .inst_control_positions
+        .get(&(source_func, source_inst))
+    else {
+        return true;
+    };
+    let Some(&(sink_block, sink_position)) =
+        flow.inst_control_positions.get(&(sink_func, sink_inst))
+    else {
+        return true;
+    };
+    if source_block == sink_block && source_position <= sink_position {
+        return true;
+    }
+
+    // Start at successors rather than at source_block. For a later source and
+    // earlier sink in the same block, only a real CFG cycle makes the sink
+    // reachable in a subsequent iteration.
+    let mut pending = flow
+        .block_successors
+        .get(&(source_func, source_block))
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .collect::<VecDeque<_>>();
+    let mut visited = HashSet::new();
+    while let Some(block) = pending.pop_front() {
+        if block == sink_block {
+            return true;
+        }
+        if !visited.insert(block) {
+            continue;
+        }
+        pending.extend(
+            flow.block_successors
+                .get(&(source_func, block))
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
+    }
+    false
 }
 
 fn sink_condition_matches(
@@ -437,20 +508,40 @@ pub fn pretty_findings(findings: &[TaintFinding]) -> String {
 fn collect_source_seeds(flow: &FlowGraph) -> Vec<SourceSeed> {
     let mut colocated = HashMap::<(u32, u32, Port), Vec<String>>::new();
     for idx in &flow.synthetic_sources {
-        if let FlowNode::SyntheticSource { func, inst, kind, out, .. } = &flow.graph[*idx] {
-            colocated.entry((func.0, inst.0, out.clone())).or_default()
+        if let FlowNode::SyntheticSource {
+            func,
+            inst,
+            kind,
+            out,
+            ..
+        } = &flow.graph[*idx]
+        {
+            colocated
+                .entry((func.0, inst.0, out.clone()))
+                .or_default()
                 .push(normalize_kind(kind).to_string());
         }
     }
-    for labels in colocated.values_mut() { labels.sort(); labels.dedup(); }
+    for labels in colocated.values_mut() {
+        labels.sort();
+        labels.dedup();
+    }
     flow.synthetic_sources
         .iter()
         .filter_map(|idx| match &flow.graph[*idx] {
-            FlowNode::SyntheticSource { func, inst, rule_id, kind, out } => Some(SourceSeed {
+            FlowNode::SyntheticSource {
+                func,
+                inst,
+                rule_id,
+                kind,
+                out,
+            } => Some(SourceSeed {
                 node: *idx,
                 rule_id: rule_id.clone(),
                 kind: kind.clone(),
-                labels: colocated.get(&(func.0, inst.0, out.clone())).cloned()
+                labels: colocated
+                    .get(&(func.0, inst.0, out.clone()))
+                    .cloned()
                     .unwrap_or_else(|| vec![normalize_kind(kind).to_string()]),
             }),
             _ => None,
@@ -784,9 +875,10 @@ fn build_receiver_side_labels(
             language_matches(&rule.language, &flow.language)
                 && rule.matcher.matches_call(&call_info)
                 && rules.call_condition_matches(&rule.id, &call_info)
-                && rule.flows.iter().any(|spec| {
-                    spec.from == Port::Receiver && spec.to == Port::Return
-                })
+                && rule
+                    .flows
+                    .iter()
+                    .any(|spec| spec.from == Port::Receiver && spec.to == Port::Return)
         });
         if !transfers_receiver_to_return {
             continue;
@@ -818,7 +910,8 @@ fn labels_for_keys(
 
 fn side_state_keys(flow: &FlowGraph, node: NodeIndex) -> Vec<String> {
     fn collect_value_key(flow: &FlowGraph, node: NodeIndex, keys: &mut BTreeSet<String>) {
-        if let FlowNode::Value { func, value } | FlowNode::Param { func, value, .. } = flow.graph[node]
+        if let FlowNode::Value { func, value } | FlowNode::Param { func, value, .. } =
+            flow.graph[node]
         {
             let root = flow
                 .object_identity_roots
@@ -833,13 +926,22 @@ fn side_state_keys(flow: &FlowGraph, node: NodeIndex) -> Vec<String> {
 
     let mut keys = BTreeSet::new();
     collect_value_key(flow, node, &mut keys);
-    for edge in flow.graph.edges_directed(node, petgraph::Direction::Incoming) {
-        if matches!(edge.weight().kind, EdgeKind::ValueToCallPort | EdgeKind::CallPortToValue) {
+    for edge in flow
+        .graph
+        .edges_directed(node, petgraph::Direction::Incoming)
+    {
+        if matches!(
+            edge.weight().kind,
+            EdgeKind::ValueToCallPort | EdgeKind::CallPortToValue
+        ) {
             collect_value_key(flow, edge.source(), &mut keys);
         }
     }
     for edge in flow.graph.edges(node) {
-        if matches!(edge.weight().kind, EdgeKind::ValueToCallPort | EdgeKind::CallPortToValue) {
+        if matches!(
+            edge.weight().kind,
+            EdgeKind::ValueToCallPort | EdgeKind::CallPortToValue
+        ) {
             collect_value_key(flow, edge.target(), &mut keys);
         }
     }
@@ -847,7 +949,11 @@ fn side_state_keys(flow: &FlowGraph, node: NodeIndex) -> Vec<String> {
     // region. Never write a security state onto that whole set. Use a single
     // abstract object only when no concrete SSA identity is available.
     if keys.is_empty() {
-        match flow.node_points_to_object_ids.get(&node.index()).map(Vec::as_slice) {
+        match flow
+            .node_points_to_object_ids
+            .get(&node.index())
+            .map(Vec::as_slice)
+        {
             Some([id]) => {
                 keys.insert(format!("object:{id}"));
             }
@@ -894,16 +1000,13 @@ fn transformed_labels(
     let mut result = labels.iter().cloned().collect::<BTreeSet<_>>();
     for edge in applicable {
         result.retain(|label| {
-            !edge
-                .remove_kinds
-                .iter()
-                .any(|removed| {
-                    if edge.remove_compatible {
-                        kind_compatible(label, removed)
-                    } else {
-                        normalize_kind(label) == normalize_kind(removed)
-                    }
-                })
+            !edge.remove_kinds.iter().any(|removed| {
+                if edge.remove_compatible {
+                    kind_compatible(label, removed)
+                } else {
+                    normalize_kind(label) == normalize_kind(removed)
+                }
+            })
         });
         result.extend(
             edge.add_kinds
@@ -930,9 +1033,10 @@ fn kind_can_transform_to(rules: &RuleSet, source_kind: &str, sink_kind: &str) ->
         changed = false;
         for transform in &rules.taint_transforms {
             let applies = transform.remove_kinds.is_empty()
-                || transform.remove_kinds.iter().any(|removed| {
-                    reachable.iter().any(|kind| kind_compatible(kind, removed))
-                });
+                || transform
+                    .remove_kinds
+                    .iter()
+                    .any(|removed| reachable.iter().any(|kind| kind_compatible(kind, removed)));
             if applies {
                 for added in &transform.add_kinds {
                     changed |= reachable.insert(normalize_kind(added).to_string());
@@ -1334,17 +1438,37 @@ def hello(name):
     #[test]
     fn colocated_source_rules_supply_all_labels_to_sink_conditions() {
         let source_rule = |id: &str, kind: &str| SourceRule {
-            id: id.to_string(), language: Some(Language::JavaScript),
-            matcher: ApiMatcher { exact: Some("input".to_string()), ..Default::default() },
-            out: Port::Return, kind: kind.to_string(),
+            id: id.to_string(),
+            language: Some(Language::JavaScript),
+            matcher: ApiMatcher {
+                exact: Some("input".to_string()),
+                ..Default::default()
+            },
+            out: Port::Return,
+            kind: kind.to_string(),
         };
         let rules = RuleSet {
-            sources: vec![source_rule("source-alpha", "alpha"), source_rule("source-beta", "beta")],
-            sinks: vec![SinkRule { id: "combined-sink".to_string(), language: Some(Language::JavaScript),
-                matcher: ApiMatcher { exact: Some("sink".to_string()), ..Default::default() },
-                inputs: vec![Port::Arg(0)], kind: "generic".to_string() }],
-            sink_conditions: vec![SinkConditionRule { sink_rule_id: "combined-sink".to_string(),
-                condition: TaintCondition::All(vec![TaintCondition::HasKind("alpha".to_string()), TaintCondition::HasKind("beta".to_string())]) }],
+            sources: vec![
+                source_rule("source-alpha", "alpha"),
+                source_rule("source-beta", "beta"),
+            ],
+            sinks: vec![SinkRule {
+                id: "combined-sink".to_string(),
+                language: Some(Language::JavaScript),
+                matcher: ApiMatcher {
+                    exact: Some("sink".to_string()),
+                    ..Default::default()
+                },
+                inputs: vec![Port::Arg(0)],
+                kind: "generic".to_string(),
+            }],
+            sink_conditions: vec![SinkConditionRule {
+                sink_rule_id: "combined-sink".to_string(),
+                condition: TaintCondition::All(vec![
+                    TaintCondition::HasKind("alpha".to_string()),
+                    TaintCondition::HasKind("beta".to_string()),
+                ]),
+            }],
             ..Default::default()
         };
         rules.validate().unwrap();
@@ -1352,7 +1476,9 @@ def hello(name):
         let graph = build(&lower_program(&hir), &rules);
         let findings = analyze(&graph, &rules);
         assert_eq!(findings.len(), 2, "{findings:#?}");
-        assert!(findings.iter().all(|finding| finding.sink_rule_id == "combined-sink"));
+        assert!(findings
+            .iter()
+            .all(|finding| finding.sink_rule_id == "combined-sink"));
 
         let mut split = rules.clone();
         split.sources[1].matcher.exact = Some("other_input".to_string());

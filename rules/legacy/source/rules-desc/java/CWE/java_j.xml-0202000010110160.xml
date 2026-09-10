@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110160" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">自定义权限的保护级别为signature或signatureOrSystem</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行自定义权限的保护级别为signature或signatureOrSystem。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行自定义权限的保护级别为signature或signatureOrSystem。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在Android 5.0之前，如果恶意应用程序和当前应用程序都声明了相同名称的自定义权限，且恶意应用程序权限定义为normal并第一个安装，即使当前应用程序权限定义为signature或signatureOrSystem，恶意应用程序也可以访问权限保护的组件。  
+  
+**例如**：下面是声明为具有signature保护级别的自定义权限示例。  
+```java
+<permission android:name="com.permission.act"  
+    android:icon="@mipmap/ic_launcher"  
+    android:label="testpermission"  
+    android:protectionLevel="signature">   
+</permission>
+<provider
+	android:name="Provider"
+	...
+	android:permission="com.permission.act">
+</provider>
+```
+]]></Description>
+			<Advice><![CDATA[设置程序最小适配版本为Android 5.0及更高版本，Android 5.0及更高版本仅允许使用相同签名密钥签名的应用程序定义相同的`<permission>`元素。如果用户尝试安装定义了与`<permission>`其他已安装应用程序相同的元素的应用程序，并且两个应用程序未使用相同的签名密钥进行签名，则第二个应用程序的安装将失败并显示INSTALL_FAILED_DUPLICATE_PERMISSION错误。
+  
+**例如**：下面声明定义minSdkVersion为21。  
+```java
+<manifest>
+  <uses-sdk android:minSdkVersion="21" />
+  ...
+</manifest>
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

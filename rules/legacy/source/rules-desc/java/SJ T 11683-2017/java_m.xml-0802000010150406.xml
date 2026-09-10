@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010150406" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">日志规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用系统输出流记录日志</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[使用System.out或System.err进行程序日志输出，会导致程序的运行状况难以监控。  
+  
+**例如**：下列代码中使用System.out进行程序日志输出。  
+```java
+...  
+System.out.println(log);  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[建议使用日志记录工具代替System.out或System.err记录程序日志。  
+  
+**例如**：下列代码中使用Log4j工具类进行程序日志输出。  
+```java
+...  
+logger.info(log);  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.5.6 使用system.err或system.out方法输出日志</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Encapsulation</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>log,bad_practice</Tag> 
+    </BugInfo>  
+    

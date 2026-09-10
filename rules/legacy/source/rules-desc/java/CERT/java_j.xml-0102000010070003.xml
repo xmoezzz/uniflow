@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010070003" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">错误的finalize()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行错误的重写finalize()。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行错误的重写finalize()。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序中重写的`finalize()`方法没有调用`super.finalize()`。
+]]></Description>
+			<Advice><![CDATA[在重写的`finalize()`方法时应调用`super.finalize()`。
+]]></Advice>
+			<References>
+				<Reference type="CWE">568:finalize() Method Without super.finalize()</Reference>
+				<Reference type="CERT">MET12-J:Do not use finalizers</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.17 finalize方法未调用父类的finalize方法</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

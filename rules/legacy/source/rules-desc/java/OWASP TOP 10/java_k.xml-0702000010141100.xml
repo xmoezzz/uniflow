@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010141100" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">Rule 10. 线程API (THI)</Category>  
+        <Category type="DetailClassChin">THI00-J：不要调用Thread.run()</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[`Thread.start()`是以通知Java虚拟机调用该线程的`run()`方法的方式来启动线程，`start()`方法的结果是两个线程并发运行，当前线程（从调用返回给`start()`方法）和另一个线程（执行其`run()`方法）。  
+`Thread.run()`方法是在当前线程中执行`run()`方法，而不是创建一个新的线程执行，程序中依然只有主线程这一个线程，其程序执行路径还是只有一条，还是要顺序执行，还是要等待`run()`方法体执行完毕后才可继续执行下面的代码。  
+**不规范的代码样例1**：  
+```java
+public final class Foo implements Runnable {
+    @Override
+    public void run() {
+        // . . .
+    }
+
+    public static void main(String[] args) {
+        Foo foo = new Foo();
+        new Thread(foo).run();
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public final class Foo implements Runnable {
+    @Override
+    public void run() {
+        // . . .
+    }
+
+    public static void main(String[] args) {
+        Foo foo = new Foo();
+        new Thread(foo).start();
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">572:Call to Thread run() instead of start()</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">6.8.3 显式调用Thread.run方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

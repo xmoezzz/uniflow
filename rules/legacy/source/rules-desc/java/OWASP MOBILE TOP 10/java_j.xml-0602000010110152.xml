@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010110152" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">Spring远程服务</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行将普通的业务类转换为Spring远程服务。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行将普通的业务类转换为Spring远程服务。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Spring可将任何Spring托管的 bean转换为可通过 RMI、HTTP、Burlap、Hessian 和 JMX等协议暴露给外部的对象。远程Spring bean公共方法都支持外部调用，客户端与Web服务之间传递的数据都是明文形式，本身不提供任何保密性或完整性保证。  
+  
+**例如**：下列xml中将普通的业务类HelloService转换为Spring远程服务。  
+```
+<bean class="org.springframework.remoting.httpinvoker.HttpInvokerServiceExporter" 
+          p:service-ref="HelloService"
+          p:serviceInterface="com.test.HelloService">
+</bean>
+```
+]]></Description>
+			<Advice><![CDATA[使用Spring Security或其他方式为远程服务提供 authentication、授权、保密性和完整性。]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2014:M1 Weak Server Side Controls</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<Security>yes</Security>
+			<WhiteList>not</WhiteList>
+
+
+
+<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

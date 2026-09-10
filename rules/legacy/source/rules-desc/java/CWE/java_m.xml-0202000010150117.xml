@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150117" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">API误用</Category>  
+        <Category type="DetailClassChin">【强制】不要使用BigDecimal(double)</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[使用`BigDecimal(double)`构造BigDecimal，可能获得不是所期望的值。  
+  
+**例如**：在下面的代码片段中，传递给构造函数的值看起来是0.1，但是并不完全等于0.1，实际上最后生成的BigDecimal为`0.1000000000000000000005111512312827021181583404541015625`。  
+```java
+...  
+BigDecimal bigDecimal = new BigDecimal(0.1);  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[应该使用`BigDecimal.valueOf(double)`，它将转化为字符串再进行转换，或使用字符串参数的构造函数。  
+  
+**例1**：在下面的代码片段中，程序使用`valueOf`方法进行转换。  
+```java
+...  
+BigDecimal bigDecimal = BigDecimal.valueOf(0.1);  
+...
+```  
+**例2**：在下面的代码片段中，程序使用字符串参数的构造函数进行转换。  
+```java
+...  
+BigDecimal bigDecimal = new BigDecimal("0.1");  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

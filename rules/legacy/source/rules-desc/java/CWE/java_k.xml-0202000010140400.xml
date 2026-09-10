@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140400" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 02. 表达式 (EXP)</Category>  
+        <Category type="DetailClassChin">EXP00-J：不要忽略方法返回值</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[方法返回值通常可以知道方法的执行结果，如果忽略了方法返回值，就难以知道方法的执行结果，特别是调用该方法的代码中没有进行适当处理，可能会导致不可预期的结果，尤其是方法执行类似权限校验的操作，甚至会导致安全风险。所以，程序必须重视方法的返回值。  
+**不规范的代码样例1**：  
+```java
+public void deleteFile() {
+    File someFile = new File("someFileName.txt");
+    // do something with someFile
+    someFile.delete();
+}
+```  
+代码中调用了`File.delete()`方法用来删除一个文件，但是不确认文件是否删除成功。  
+**不规范的代码样例2**：  
+```java
+public class Replace {
+    public static void main(String[] args) {
+        String original = "insecure";
+        original.replace('i', '9');
+        System.out.println(original);
+    }
+}
+```  
+这段代码忽略了`String.replace()`方法的返回值，`String.replace()`方法不会修改当前的字符串，而是返回一个新的字符串引用，新的字符串引用才是修改后的数据。
+]]></Description>  
+      <Advice><![CDATA[对方法的返回值进行检查。  
+**规范的代码样例1**：  
+```java
+public void deleteFile() {
+    File someFile = new File("someFileName.txt");
+    // do something with someFile
+    if (!someFile.delete()) {
+        // handle failure to delete the f ile
+    }
+}
+```  
+代码对`delete()`方法的boolean返回值进行检查，并且对没有删除成功的情况进行处理。  
+**规范的代码样例2**：  
+```java
+public class Replace {
+    public static void main(String[] args) {
+        String original = "insecure";
+        String originalNew = original.replace('i', '9');
+        System.out.println(originalNew);
+    }
+}
+```  
+代码将`String.replace()`方法的返回值赋值给了一个新的字符串`originalNew`。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">754:Improper Check for Unusual or Exceptional Conditions</Reference>  
+        <Reference type="CWE">252:Unchecked Return Value</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 754</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.1 忽略方法的返回值</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.12 忽略无副作用方法的返回值</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

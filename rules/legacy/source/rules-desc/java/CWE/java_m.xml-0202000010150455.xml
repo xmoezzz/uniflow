@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150455" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】transient修饰的变量所在类应该可序列化</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[用transient关键字标记的成员变量不参与序列化过程，而当变量所在类不可序列化时，transient的修饰毫无意义。  
+  
+**例如**：下面代码示例中，transient修饰的`name`所在类User不可序列化。  
+```java
+public class User{  
+    transient private String name;  
+    private int age;  
+    ...  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[检查代码逻辑，将transient标识符移除或将变量所在类继承Serializable接口。  
+  
+**例如**：下面代码示例中，transient修饰的`name`所在类User可序列化。  
+```java
+public class User implements Serializable{  
+    transient private String name;  
+    private int age;  
+    ...  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness</Tag> 
+    </BugInfo>  
+    

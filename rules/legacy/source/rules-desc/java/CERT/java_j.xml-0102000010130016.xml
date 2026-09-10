@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010130016" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">冗余的null检查</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了冗余的null检查。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了冗余的null检查。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序对一个引用的变量进行了null检查，但是在这之前，程序中已经对该变量进行了null检查，或是对该变量进行了一些可能会引发null异常的操作(取值、转换)。  
+  
+**例如**：如下代码先调用字符串string的`length()`方法，此时如果string如果为null就已经会抛出空指针的异常，所以之后对string是否为null的判断完全是多余的。  
+```java
+...  
+System.out.println(string.length());  
+if(string!=null){  
+...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，删除不必要的null检查代码。
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 476</Reference>
+				<Reference type="CWE">476:NULL Pointer Dereference</Reference>
+				<Reference type="CERT">EXP01-J:Never dereference null pointers</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments>
+					<CodeFragment id="1" name="1.对变量进行解引用、成员访问或方法调用"/>
+					<CodeFragment id="2" name="2.判断变量是否为null"/>
+					<CodeFragment id="3" name="3.触发冗余的null检查漏洞"/>
+				</CodeFragments>
+				<Relationships>
+					<Relationship fromId="1" toId="2" name="进入分支语句"/>
+					<Relationship fromId="2" toId="3" name="执行完毕"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

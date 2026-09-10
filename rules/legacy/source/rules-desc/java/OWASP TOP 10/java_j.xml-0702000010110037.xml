@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110037" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">系统信息泄露：JSP页面中的HTML注释</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[JSP页面中的HTML注释所包含的任何信息都有可能帮助攻击者了解系统并制定相应的攻击方案。  
+  
+**例如**：下面是嵌入到JSP中的一段HTML注释，该注释将包含在动态生成的Web页面中，攻击者可能会利用这些注释信息制定相应的攻击计划。  
+```java
+<!-- 
+FIXME: calling this with more than 30 args kills the JDBC server -->  
+...
+<form id="form1 " action="" method="post">
+```  
+]]></Description>
+			<Advice><![CDATA[在JSP页面中建议使用JSP注释代替HTML注释。  
+  
+**例如**：下面代码片段中，使用JSP注释取代HTML注释。
+```java  
+<%-- 
+FIXME: calling this with more than 30 args kills the JDBC server --%>  
+...
+<form id="form1 " action="" method="post">
+```  
+]]></Advice>
+			<References>
+				<Reference type="CWE">615:Information Exposure Through Comments</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

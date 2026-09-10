@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010020020" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">有风险的SQL查询</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了有风险的SQL查询。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了有风险的SQL查询。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[SQL注入是一种数据库攻击手段。攻击者通过向应用程序提交恶意代码来改变原SQL语句的含义，进而执行任意SQL命令，达到入侵数据库乃至操作系统的目的。系统中有一些方法存在着一定风险，当方法所需的数据来源于不可信赖的数据源时，可能会导致SQL注入。  
+  
+**例如**：下面代码片段中，动态构造并执行了一个SQL查询来认证用户。  
+```java
+public void doPrivilegedAction(String username, char[] password) throws SQLException {   
+    Connection connection = getConnection();   
+    if (connection == null) {   
+        // handle error   
+    }   
+    try {   
+        String pwd = hashPassword(password);   
+        String sqlString = "SELECT * FROM db_user WHERE username = '" + username + "' AND password = '" + pwd + "'";   
+        Statement stmt = connection.createStatement();   
+        ResultSet rs = stmt.executeQuery(sqlString);   
+        if (!rs.next()) {   
+            throw new SecurityException( "User name or password incorrect");   
+        }   
+        // Authenticated; proceed   
+    } finally {   
+        try {   
+            connection.close();   
+        } catch (SQLException x) {   
+            // forward to handler   
+        }   
+    }   
+}
+```  
+如果攻击者能够替代`username`和`password`中的任意字符串，它们可以使用下面的关于`username`的字符串进行SQL注入。  
+`validuser' OR '1'='1`   
+当其注入到命令时，命令就会变成：  
+`SELECT * FROM db_user WHERE username='validuser' OR '1'='1' AND password=''`   
+同样，攻击者可以为password提供如下字符串。  
+`' OR '1'='1`   
+当其注入到命令时，命令就会变成：  
+`SELECT * FROM db_user WHERE username='' AND password='' OR '1'='1'`
+]]></Description>
+			<Advice><![CDATA[常见的修复方法：  
+1. 使用预编译处理输入参数：要防御SQL注入，用户的输入就不能直接嵌套在SQL语句中。使用参数化的语句，用户的输入就被限制与一个参数当中。
+2. 输入验证：检查用户输入的合法性，以确保输入内容是正规数据。在客户端和服务器端都要进行数据检查，之所以要执行服务器端验证，是因为客户端的校验往往只是减轻服务器的压力和提高对用户的友好度，攻击者完全有可能通过抓包修改参数或者是获得网页的源代码后，修改验证合法性的脚本（或直接删除），然后将非法内容通过修改后的表单提交给服务器等手段绕过客户端的校验。因此，要保验证处理，唯一的办法就是在服务端也做验证。但是这些方法很容易出现由于过滤不严，导致恶意攻击者可能绕过这些过滤的情况发生，所以需要慎重使用。
+3. 错误消息处理：防范SQL注入，还要避免出现一些详细的错误信息，攻击者往往会利用给这些报错信息来判断后台SQL的拼接方式，甚至是直接利用给这些报错，将数据库中的数据通过报错信息显示出来。
+4. 加密处理：将用户登录名称、密码等数据加密保存。加密用户输入的数据，然后再将它与数据库中保存的数据比较，这相当与对用户输入的数据进行了“消毒”处理，用户输入的数据不再对数据库有任何特殊的意义，从而也就防止了攻击者注入SQL命令。
+**例如**：以下代码片段使用`java.sql.PreparedStatement`代替`java.sql.Statement`，`java.sql.PreparedStatement`类型的对象可以对输入参数做预编译处理，这样有效防止了SQL注入。  
+```java
+public void doPrivilegedAction(String username, char[] password) throws SQLException {  
+    Connection connection = getConnection();  
+    if (connection == null) {  
+        // Handle error  
+    }  
+    try {  
+        String pwd = hashPassword(password);  
+        // Ensure that the length of user name is legitimate  
+        if ((username.length() > 8) {  
+            // Handle error  
+        }  
+        String sqlString = "select * from db_user where username=? and password=?";  
+        PreparedStatement stmt = connection.prepareStatement(sqlString);  
+        stmt.setString(1, username);  
+        stmt.setString(2, pwd);  
+        ResultSet rs = stmt.executeQuery();  
+        if (!rs.next()) {  
+            throw new SecurityException("User name or password incorrect");  
+        }  
+        // Authenticated, proceed  
+    } finally {  
+        try {  
+            connection.close();  
+        } catch (SQLException x) {  
+            // forward to handler  
+        }  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">89:Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')</Reference>
+				<Reference type="CERT">IDS00-J:Prevent SQL injection</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:SQL注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

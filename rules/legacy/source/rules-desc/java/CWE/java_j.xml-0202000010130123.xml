@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130123" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">在Cookie中明文存储敏感信息</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行在Cookie中明文存储敏感信息。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行在Cookie中明文存储敏感信息。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序将敏感信息明文存储到cookie中，攻击者可以使用一些工具查看cookie并读取敏感信息。即使信息以一种非人类可读的方式编码，某些技术也可以决定使用哪种编码，然后解码信息。  
+  
+**例如**：下列代码将敏感信息明文存储到cookie中：  
+```java
+...  
+response.addCookie(new Cookie("password", password);  
+...
+```  
+因为帐户ID是明文的，所以如果用户的计算机被攻击者入侵，用户的帐户信息就会被暴露出来。
+]]></Description>
+			<Advice><![CDATA[在敏感信息明文存储到cookie之前，对敏感信息进行加密处理。  
+  
+**例如**：以下代码使用KeyGenerator来生成密钥：  
+```java
+...  
+MessageDigest messageDigest = MessageDigest.getInstance("SHA-512");   
+messageDigest.update(inputText.getBytes());     
+byte byteBuffer[] = messageDigest.digest();    
+StringBuilder strHexString = new StringBuilder();  
+for (int i = 0; i < byteBuffer.length; i++) {  
+    String hex = Integer.toHexString(0xff & byteBuffer[i]);    
+    if (hex.length() == 1) {  
+        strHexString.append('0');    
+    }  
+    strHexString.append(hex);    
+}    
+password = strHexString.toString();    
+response.addCookie(new Cookie("userAccountID", password);  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">315:Cleartext Storage of Sensitive Information in a Cookie</Reference>
+				<Reference type="CWE">312:Cleartext Storage of Sensitive Information</Reference>
+				<Reference type="CWE">311:Missing Encryption of Sensitive Data</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 311</Reference>
+				<Reference type="GB/T 34944-2017 Java">安全功能:Cookie中的敏感信息明文存储</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password,bad_practice</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发在Cookie中明文存储敏感信息漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在在Cookie中明文存储敏感信息漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在在Cookie中明文存储敏感信息漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发在Cookie中明文存储敏感信息漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

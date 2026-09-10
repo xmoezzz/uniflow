@@ -68,7 +68,11 @@ fn fallback_constructor_candidates(rule: &Value, source: &str) -> Vec<Candidate>
         && rule
             .get("languages")
             .and_then(Value::as_sequence)
-            .is_some_and(|languages| languages.iter().any(|language| language.as_str() == Some("ruby")))
+            .is_some_and(|languages| {
+                languages
+                    .iter()
+                    .any(|language| language.as_str() == Some("ruby"))
+            })
     {
         let method = Regex::new(r"\.([A-Za-z_$][A-Za-z0-9_$!?]*)\s*\(").unwrap();
         let names = patterns
@@ -77,10 +81,7 @@ fn fallback_constructor_candidates(rule: &Value, source: &str) -> Vec<Candidate>
             .map(|capture| capture[1].to_string())
             .collect::<BTreeSet<_>>();
         for name in names {
-            let Ok(regex) = Regex::new(&format!(
-                r"\.{}(?:\s*\(|\s+)",
-                regex::escape(&name)
-            )) else {
+            let Ok(regex) = Regex::new(&format!(r"\.{}(?:\s*\(|\s+)", regex::escape(&name))) else {
                 continue;
             };
             candidates.extend(regex.find_iter(source).map(|matched| Candidate {
@@ -118,7 +119,10 @@ struct Candidate {
 fn has_positive_pattern(value: &Value) -> bool {
     value.get("pattern").and_then(Value::as_str).is_some()
         || value.get("pattern-regex").and_then(Value::as_str).is_some()
-        || value.get("pattern-inside").and_then(Value::as_str).is_some()
+        || value
+            .get("pattern-inside")
+            .and_then(Value::as_str)
+            .is_some()
         || value
             .get("pattern-either")
             .and_then(Value::as_sequence)
@@ -164,26 +168,37 @@ fn evaluate(value: &Value, source: &str) -> Vec<Candidate> {
         .find(|entry| entry.get("pattern").is_some() || entry.get("pattern-regex").is_some())
         .copied()
         .or_else(|| {
-            positive.iter().rev().find(|entry| {
-                entry
-                    .get("pattern-either")
-                    .and_then(Value::as_sequence)
-                    .is_some_and(|alternatives| {
-                        alternatives.iter().any(|alternative| {
-                            alternative.get("pattern").is_some()
-                                || alternative.get("pattern-regex").is_some()
+            positive
+                .iter()
+                .rev()
+                .find(|entry| {
+                    entry
+                        .get("pattern-either")
+                        .and_then(Value::as_sequence)
+                        .is_some_and(|alternatives| {
+                            alternatives.iter().any(|alternative| {
+                                alternative.get("pattern").is_some()
+                                    || alternative.get("pattern-regex").is_some()
+                            })
                         })
-                    })
-            }).copied()
+                })
+                .copied()
         })
         .or_else(|| positive.last().copied())
-        .or_else(|| patterns.iter().find(|entry| entry.get("pattern-inside").is_some()))
+        .or_else(|| {
+            patterns
+                .iter()
+                .find(|entry| entry.get("pattern-inside").is_some())
+        })
     else {
         return Vec::new();
     };
     let mut candidates = evaluate(focus, source);
 
-    for required in patterns.iter().filter_map(|entry| entry.get("pattern-inside")) {
+    for required in patterns
+        .iter()
+        .filter_map(|entry| entry.get("pattern-inside"))
+    {
         let Some(pattern) = required.as_str() else {
             continue;
         };
@@ -231,22 +246,21 @@ fn evaluate(value: &Value, source: &str) -> Vec<Candidate> {
 
 fn candidate_reuses_assigned_symbol(candidate: Candidate, source: &str) -> bool {
     let text = &source[candidate.start.min(source.len())..candidate.end.min(source.len())];
-    let assignments = text.split(';').filter(|part| part.contains('=')).collect::<Vec<_>>();
+    let assignments = text
+        .split(';')
+        .filter(|part| part.contains('='))
+        .collect::<Vec<_>>();
     let (Some(first), Some(last)) = (assignments.first(), assignments.last()) else {
         return false;
     };
-    let lhs = first
-        .split_once('=')
-        .map(|(lhs, _)| lhs)
-        .and_then(|lhs| {
-            lhs.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'))
-                .filter(|token| !token.is_empty())
-                .next_back()
-        });
+    let lhs = first.split_once('=').map(|(lhs, _)| lhs).and_then(|lhs| {
+        lhs.split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'))
+            .filter(|token| !token.is_empty())
+            .next_back()
+    });
     let rhs = last.split_once('=').map(|(_, rhs)| rhs).unwrap_or_default();
     lhs.is_some_and(|lhs| {
-        Regex::new(&format!(r"\b{}\b", regex::escape(lhs)))
-            .is_ok_and(|regex| regex.is_match(rhs))
+        Regex::new(&format!(r"\b{}\b", regex::escape(lhs))).is_ok_and(|regex| regex.is_match(rhs))
     })
 }
 
@@ -256,7 +270,9 @@ fn excluded_by_local_scope(candidate: Candidate, pattern: &str, source: &str) ->
         .map_or(0, |offset| offset + 1);
     let line_end = source[candidate.end.min(source.len())..]
         .find('\n')
-        .map_or(source.len(), |offset| candidate.end.min(source.len()) + offset);
+        .map_or(source.len(), |offset| {
+            candidate.end.min(source.len()) + offset
+        });
     let context_start = if pattern.contains('\n') {
         let mut start = line_start;
         for _ in 0..12 {
@@ -272,7 +288,8 @@ fn excluded_by_local_scope(candidate: Candidate, pattern: &str, source: &str) ->
     };
     if pattern.contains("= \"...\"") || pattern.contains("= '...'") {
         let context = &source[context_start..line_end];
-        let candidate_text = &source[candidate.start.min(source.len())..candidate.end.min(source.len())];
+        let candidate_text =
+            &source[candidate.start.min(source.len())..candidate.end.min(source.len())];
         let assignment = Regex::new(
             r#"(?m)\b(?:var|let|const)?\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:"[^"\n]*"|'[^'\n]*')"#,
         )
@@ -343,10 +360,8 @@ fn object_pattern_candidates(pattern: &str, source: &str) -> Vec<Candidate> {
         .captures_iter(pattern)
         .map(|capture| capture[1].to_string())
         .collect::<Vec<_>>();
-    let string_regex = Regex::new(
-        r#"(?m)\b([A-Za-z_$][A-Za-z0-9_$]*)\s*:\s*(?:"([^"]*)"|'([^']*)')"#,
-    )
-    .unwrap();
+    let string_regex =
+        Regex::new(r#"(?m)\b([A-Za-z_$][A-Za-z0-9_$]*)\s*:\s*(?:"([^"]*)"|'([^']*)')"#).unwrap();
     let strings = string_regex
         .captures_iter(pattern)
         .map(|capture| {
@@ -437,13 +452,24 @@ fn translate_pattern(pattern: &str) -> String {
             continue;
         }
         if chars[index..].starts_with(&['<', '.', '.', '.']) {
-            out.push_str(if nesting_depth > 0 { r"[^;\n]*?" } else { ".*?" });
+            out.push_str(if nesting_depth > 0 {
+                r"[^;\n]*?"
+            } else {
+                ".*?"
+            });
             index += 4;
             continue;
         }
         if chars[index..].starts_with(&['.', '.', '.', '>']) {
-            out.push_str(if nesting_depth > 0 { r"[^;\n]*?" } else { ".*?" });
-            if !chars[..index].windows(4).any(|window| window == ['<', '.', '.', '.']) {
+            out.push_str(if nesting_depth > 0 {
+                r"[^;\n]*?"
+            } else {
+                ".*?"
+            });
+            if !chars[..index]
+                .windows(4)
+                .any(|window| window == ['<', '.', '.', '.'])
+            {
                 out.push('>');
             }
             index += 4;
@@ -465,7 +491,11 @@ fn translate_pattern(pattern: &str) -> String {
             }
         }
         if chars[index..].starts_with(&['.', '.', '.']) {
-            out.push_str(if nesting_depth > 0 { r"[^;\n]*?" } else { ".*?" });
+            out.push_str(if nesting_depth > 0 {
+                r"[^;\n]*?"
+            } else {
+                ".*?"
+            });
             index += 3;
             continue;
         }
@@ -520,7 +550,11 @@ fn translate_pattern(pattern: &str) -> String {
             if quote == '`' && body.contains("${") {
                 out.push_str(r"`[^`\n]*\$\{[^}\n]+\}[^`\n]*`");
             } else if body.starts_with("=~/") {
-                let marker = if body.contains(":action") { ":action" } else { "" };
+                let marker = if body.contains(":action") {
+                    ":action"
+                } else {
+                    ""
+                };
                 let marker = regex::escape(marker);
                 out.push_str(&format!(
                     r#"(?:"[^"\n]*{marker}[^"\n]*"|'[^'\n]*{marker}[^'\n]*')"#
@@ -536,7 +570,7 @@ fn translate_pattern(pattern: &str) -> String {
                 let mut suffix_start = variable + 1;
                 while suffix_start < body.len()
                     && body.as_bytes()[suffix_start].is_ascii_alphanumeric()
-                        || suffix_start < body.len() && body.as_bytes()[suffix_start] == b'_'
+                    || suffix_start < body.len() && body.as_bytes()[suffix_start] == b'_'
                 {
                     suffix_start += 1;
                 }
@@ -632,12 +666,22 @@ fn path_matches(rule: &Value, path: &str) -> bool {
     let included = paths
         .get("include")
         .and_then(Value::as_sequence)
-        .map(|patterns| patterns.iter().filter_map(Value::as_str).any(|glob| glob_matches(glob, path)))
+        .map(|patterns| {
+            patterns
+                .iter()
+                .filter_map(Value::as_str)
+                .any(|glob| glob_matches(glob, path))
+        })
         .unwrap_or(true);
     let excluded = paths
         .get("exclude")
         .and_then(Value::as_sequence)
-        .is_some_and(|patterns| patterns.iter().filter_map(Value::as_str).any(|glob| glob_matches(glob, path)));
+        .is_some_and(|patterns| {
+            patterns
+                .iter()
+                .filter_map(Value::as_str)
+                .any(|glob| glob_matches(glob, path))
+        });
     included && !excluded
 }
 
@@ -711,23 +755,16 @@ patterns:
         let scopes = semantic_scope_candidates("<script ...>", source);
         assert!(!candidates.is_empty());
         assert!(!scopes.is_empty());
-        assert!(scopes
-            .iter()
-            .any(|scope| scope.start <= candidates[0].start && scope.end >= candidates[0].end),
+        assert!(
+            scopes
+                .iter()
+                .any(|scope| scope.start <= candidates[0].start && scope.end >= candidates[0].end),
             "candidates={candidates:?} scopes={scopes:?} candidate_regex={} scope_regex={}",
             translate_pattern("<% ... >"),
             translate_pattern("<script ...>")
         );
         assert!(!evaluate(&parsed, source).is_empty());
-        assert_eq!(
-            matching_offsets(
-                rule,
-                "views/index.ejs",
-                source,
-            )
-            .len(),
-            1
-        );
+        assert_eq!(matching_offsets(rule, "views/index.ejs", source,).len(), 1);
     }
 
     #[test]
@@ -849,10 +886,7 @@ patterns:
             !evaluate(&parsed, source).is_empty(),
             "render={:?} scope={:?}",
             semantic_candidates("render :$TEXT", source),
-            semantic_scope_candidates(
-                "class $CONTROLLER < $BIGCONTROLLER\n...\nend\n",
-                source
-            )
+            semantic_scope_candidates("class $CONTROLLER < $BIGCONTROLLER\n...\nend\n", source)
         );
     }
 

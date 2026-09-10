@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150445" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不应该使用临时文件创建文件夹</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[使用文件`File.createTempFile`作为创建临时目录的第一步，会导致竞态条件，并且本质上是不可靠和不安全的。  
+  
+**例如**：下面代码示例中使用`createTempFile`生成临时文件，将其删除再使用`mkdir`方法创建文件夹。  
+```java
+...  
+File tempDir = File.createTempFile("", ".");  
+tempDir.delete();  
+tempDir.mkdir();   
+...
+```
+]]></Description>  
+      <Advice><![CDATA[使用`Files.createTempDir`或者Guava的类似方法`Files.createTempDir`来创建临时文件夹。  
+  
+**例如**：下面代码示例中使用了`Files.createTempDir`来创建临时文件夹。  
+```java
+...  
+Path tempPath = Files.createTempDirectory("");  
+File tempDir = tempPath.toFile();  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness</Tag> 
+    </BugInfo>  
+    

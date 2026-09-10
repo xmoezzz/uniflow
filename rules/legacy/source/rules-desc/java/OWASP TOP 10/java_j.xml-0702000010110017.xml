@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110017" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：重复的验证表单</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中定义了同名的表单验证。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[同名的多个表单验证暗示着验证逻辑可能已经过时。如果两个表单验证具有相同的名称，struts校验器会任意选择一个来进行输入验证，而放弃另外一个。这可能不是程序员所期望的，暗示着验证逻辑没有得到维护，也暗示着可能存在其他更难察觉的验证错误。  
+  
+**例如**：下面配置文件的片段中存在同名的两个表单验证。 
+```xml
+<form-validation>  
+    <formset>  
+        <form name="ProjectForm">  
+        ...   
+        </form>  
+        <form name="ProjectForm">  
+        ...  
+        </form>  
+    </formset>  
+</form-validation> 
+``` 
+验证逻辑的维护至关重要，验证逻辑必须与应用程序的其余部分保持同步。输入检查是例如SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。缺少输入验证或者输入验证不完整都可能导致程序易于被以上攻击手段攻击。
+]]></Description>
+			<Advice><![CDATA[修改具有同名的表单验证，维护程序的验证逻辑。
+]]></Advice>
+			<References>
+				<Reference type="CWE">102:Struts: Duplicate Validation Forms</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

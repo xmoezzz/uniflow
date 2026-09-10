@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160094" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.10.4 始终在循环中调用wait()和await()方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   		  
+程序必须在`wait()`方法返回后检查等候条件。不管是在调用`wait()`之前还是之后，while 循环都是检查等候条件的最好方式。   
+2) 原理   
+`Object.wait()`方法会暂时地放弃所拥有的锁，以让其他线程有机会可得到锁并继续执行。`Object.wait()`方法通常在同步代码块及方法中被调用。等待的线程只有在它接到通知后才会恢复执行，这通常是其他线程调用 `notify()`或 `notifyAll()`方法的结果。`wait()`方法必须在检查等候条件是否为真的循环中进行调用。    
+在使用 wait/notify 机制时，需要同时考虑安全性和灵活性问题。安全性属性要求所有的对象在多线程环境中要维持状态的一致性。灵活性属性要求每一个操作或方法调用在完成前不会被中断。   
+为确保活性属性，程序在调用 `wait()`方法之前必须对 while 循环的条件进行检测。这个提前的测试检查了是否会有另一个线程已经满足了等候条件并发出了一个通知。在通知已经发出后调用 `wait()`方法会导致无限期的阻塞。   
+为保证安全性，程序必须在 `wait()`方法返回之后对 while 循环的条件进行检测。虽然 `wait()`的目的是不限时地拦阻线程直至收到通知，还是必须将它放在 while 循环中来避免以下的漏洞：   
+• 中间的线程——在通知发出和收到通知的线程恢复执行的间隙中，第三个线程可能会获取共享对象的锁。这个线程可能会改变对象的状态，使其不一致。这就是 TOCTOU 竞争冒险。   
+• 恶意通知——在等候条件为假时可能会收到一个随机或恶意的通知。这样的通知会取消 `wait()`的作用。   
+• 误送的通知——收到 `notifyAll()`信号后没有指定线程的执行顺序。因此，一个无关的线 程可能可以开始执行并发现已经满足 T 它的等候条件。这造成了这个线程恢复执行，但 实际上它是应该处于睡眠状态的。   
+• 虚假唤醒——某些 Java 虚拟机实现容易收到虚假唤醒的影响，这会导致等待中的线程在没有通知时也会被唤醒。   
+基于上述原因，程序必须在 `wait()`方法返回后检查等候条件。不管是在调用 `wait()`之前还是之后，while 循环都是检查等候条件的最好方式。   
+3) 示例   
+    如下不符合规则的代码示例，该示例在传统的 if 程序段中调用`wait()`方法，没有检査接到通知后的后置条件。如果通知是意外或恶意的，线程将会过早地被唤醒。   
+    ```java
+    synchronized (object) {
+        if (<condition does not hold>) {
+            object.wait();
+        }
+        // Proceed when condition holds
+    }
+    ```
+    对应的符合规则的解决方案是通过在 while 循环中调用`wait()`方法，从而在`wait()`调用的前后都对条件进行检査。   
+    ```java
+    synchronized (object) {
+        while (<condition does not hold>) {
+            object.wait();
+        }
+        // Proceed when condition holds
+    }
+    ```   
+    `java.util.concurrent.locks.Condition.await()`方法的调用也必须放置在类似的循环中。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">THI03-J:Always invoke wait() and await() methods inside a loop</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.10 线程 API</BigClassChin>  
+       
+    </BugInfo>  
+    

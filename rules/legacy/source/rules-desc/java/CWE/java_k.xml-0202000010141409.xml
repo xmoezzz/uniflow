@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141409" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 13. 输入输出 (FIO)</Category>  
+        <Category type="DetailClassChin">FIO09-J：不要使用write()方法输出超过0~255的整数</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在`java.io.OutputStream`中定义的`write()`方法，将一个类型为int的值做为参数，而这个参数必须在0~255之间。因为一个类型为int的数值会超出这个范围，该方法会将数值的高位部分截去。  
+风险评估：违反该条准则可能会导致数据被截断。    
+**不符合规范的样例1**：  
+```java
+class ConsoleWrite {
+    public static void main(String[] args) {
+        // Any input value > 255 will result in unexpected output
+        System.out.write(Integer.valueOf(args[0]));
+        System.out.flush();
+    }
+}
+```  
+代码没有对参数进行数值的验证，任何不在0~255之间的数值都会被截断。
+]]></Description>  
+      <Advice><![CDATA[对`write()`方法的参数进行数值0~255的检查。或可采用DataOutputStream类中的`writeInt()`方法，该方法可以输出int类型可表示的所有数值。  
+**规范的代码样例1**：  
+```java
+class FileWrite {
+    public static void main(String[] args) throws NumberFormatException, IOException {
+        // Perform range checking
+        int value = Integer.valueOf(args[0]);
+        if (value < 0 || value > 255) {
+            throw new ArithmeticException("Value is out of range");
+        }
+        System.out.write(value);
+        System.out.flush();
+    }
+}
+```
+**规范的代码样例2**：  
+```java
+class FileWrite {
+    public static void main(String[] args) throws NumberFormatException, IOException {
+        DataOutputStream dos = new DataOutputStream(System.out);
+        dos.writeInt(Integer.valueOf(args[0].toString()));
+        System.out.flush();
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">252:Unchecked Return Value</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

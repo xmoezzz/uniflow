@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010050025" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">有风险的动态库加载</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行可能加载被用户控制的库。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行可能加载被用户控制的库。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[加载动态链接库时没有指定绝对路径，这样可能会导致加载攻击者提供的恶意代码库。  
+  
+**例如**：下面代码中，如果参数`libraryName`是用户可控的，那么程序可能会加载攻击者提供的恶意代码库。  
+```java
+public static void loadLibrary(String libraryName){  
+    System.load(libraryName);  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[不允许用户控制由程序加载库时所需要的传入参数，若难以避免会包含用户输入的话，那么可以为用户提供一个预先设定的、安全的输入集合来进行选择输入。
+]]></Advice>
+			<References>
+				<Reference type="CWE">114:Process Control</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:进程控制</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

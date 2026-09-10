@@ -19,7 +19,11 @@ fn regex_witness(pattern: &str) -> String {
             HirKind::Empty | HirKind::Look(_) => {}
             HirKind::Literal(literal) => output.extend_from_slice(&literal.0),
             HirKind::Class(Class::Unicode(class)) => {
-                let character = class.iter().next().expect("non-empty Unicode class").start();
+                let character = class
+                    .iter()
+                    .next()
+                    .expect("non-empty Unicode class")
+                    .start();
                 let mut bytes = [0; 4];
                 output.extend_from_slice(character.encode_utf8(&mut bytes).as_bytes());
             }

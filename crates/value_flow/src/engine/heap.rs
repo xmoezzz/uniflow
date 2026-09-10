@@ -1036,6 +1036,57 @@ fn alias_equivalent_cells(fg: &FlowGraph, cell: NodeIndex) -> Vec<NodeIndex> {
     out
 }
 
+fn cell_store_connectivity_adjacency(fg: &FlowGraph) -> HashMap<usize, Vec<NodeIndex>> {
+    let cells = all_cell_nodes(fg);
+    let mut neighbors = cells
+        .iter()
+        .map(|cell| (cell.index(), Vec::new()))
+        .collect::<HashMap<_, _>>();
+
+    // `cell_may_alias` is symmetric. Evaluate each unordered cell pair once
+    // and reuse the result for the whole transitive-store fixed point instead
+    // of rescanning every cell from every BFS node.
+    for (offset, left) in cells.iter().copied().enumerate() {
+        for right in cells.iter().copied().skip(offset + 1) {
+            if fg.cell_may_alias(left, right) {
+                neighbors.entry(left.index()).or_default().push(right);
+                neighbors.entry(right.index()).or_default().push(left);
+            }
+        }
+    }
+
+    // Actual/formal heap-cell bridges are traversed in both directions by the
+    // legacy transitive query, so they belong to the same undirected
+    // connectivity index as may-alias edges.
+    for edge in fg.graph.edge_references() {
+        if !matches!(
+            edge.weight().kind,
+            EdgeKind::ActualToFormal | EdgeKind::FormalToActual
+        ) {
+            continue;
+        }
+        let source = edge.source();
+        let target = edge.target();
+        if !matches!(
+            fg.graph[source],
+            FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }
+        ) || !matches!(
+            fg.graph[target],
+            FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }
+        ) {
+            continue;
+        }
+        neighbors.entry(source.index()).or_default().push(target);
+        neighbors.entry(target.index()).or_default().push(source);
+    }
+
+    for adjacent in neighbors.values_mut() {
+        adjacent.sort_unstable_by_key(|node| node.index());
+        adjacent.dedup_by_key(|node| node.index());
+    }
+    neighbors
+}
+
 fn cell_projected_values(fg: &FlowGraph, cell: NodeIndex) -> Vec<(FunctionId, ValueId)> {
     let mut out = Vec::new();
     let mut visited_cells = HashSet::new();
@@ -1191,17 +1242,10 @@ fn visible_direct_cell_store_records_before_edge(
 
 fn all_transitive_cell_store_records(fg: &FlowGraph) -> HashMap<usize, BTreeSet<DetailedStoreRecord>> {
     let cells = all_cell_nodes(fg);
+    let neighbors = cell_store_connectivity_adjacency(fg);
     let seeds = cells.iter().map(|cell| (cell.index(), direct_cell_store_records(fg, *cell).into_iter().collect())).collect();
     propagate_symmetric_labels(cells.into_iter(), seeds, |cell| {
-        let mut neighbors = alias_equivalent_cells(fg, cell);
-        for direction in [petgraph::Direction::Outgoing, petgraph::Direction::Incoming] {
-            for edge in fg.graph.edges_directed(cell, direction) {
-                if !matches!(edge.weight().kind, EdgeKind::ActualToFormal | EdgeKind::FormalToActual) { continue; }
-                let next = if direction == petgraph::Direction::Outgoing { edge.target() } else { edge.source() };
-                if matches!(fg.graph[next], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }) { neighbors.push(next); }
-            }
-        }
-        neighbors
+        neighbors.get(&cell.index()).cloned().unwrap_or_default()
     })
 }
 

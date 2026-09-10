@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140709" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 06. 方法 (MET)</Category>  
+        <Category type="DetailClassChin">MET09-J：声明了equals()方法的类必须声明hashCode()方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[覆写了`Object.equals()`方法的类必须同时覆写`Object.hashCode()`方法。两个对象用`equals()`方法进行比较并得到相同的结果时，这两个对象调用`hashCode()`方法时必须产生一样的整数结果。  
+**不规范的代码样例1**：  
+```java
+public final class CaseInsensitiveString {
+    private String s;
+
+    public CaseInsensitiveString(String s) {
+        if (s == null) {
+            throw new NullPointerException();
+        }
+        this.s = s;
+    }
+
+    // This method violates symmetry
+    public boolean equals(Object o) {
+        if (o instanceof CaseInsensitiveString) {
+            return s.equalsIgnoreCase(((CaseInsensitiveString) o).s);
+        }
+        if (o instanceof String) {
+            return s.equalsIgnoreCase((String) o);
+        }
+        return false;
+    }
+
+    public static void main(String[] args) {
+        Map<CreditCard, String> m = new HashMap<CreditCard, String>();
+        m.put(new CreditCard(100), "4111111111111111");
+        System.out.println(m.get(new CreditCard(100)));
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public final class CaseInsensitiveString {
+    private String s;
+
+    public CaseInsensitiveString(String s) {
+        if (s == null) {
+            throw new NullPointerException();
+        }
+        this.s = s;
+    }
+
+    // This method violates symmetry
+    public boolean equals(Object o) {
+        if (o instanceof CaseInsensitiveString) {
+            return s.equalsIgnoreCase(((CaseInsensitiveString) o).s);
+        }
+        if (o instanceof String) {
+            return s.equalsIgnoreCase((String) o);
+        }
+        return false;
+    }
+
+    public int hashCode() {
+        int result = 17;
+        result = 31 * result + number;
+        return result;
+    }
+
+    public static void main(String[] args) {
+        Map<CreditCard, String> m = new HashMap<CreditCard, String>();
+        m.put(new CreditCard(100), "4111111111111111");
+        System.out.println(m.get(new CreditCard(100)));
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">581:Object Model Violation: Just One of Equals and Hashcode Defined</Reference>  
+        <Reference type="SJ/T 11683-2017">6.5.8 类定义了equals方法但是没有定义hashCode方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

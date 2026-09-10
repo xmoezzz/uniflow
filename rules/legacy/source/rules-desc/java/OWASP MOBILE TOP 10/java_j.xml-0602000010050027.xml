@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010050027" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">OGNL表达式注入：二次执行</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[攻击者可以控制某个OGNL表达式，可以影响转换结果，再将此结果作为OGNL表达式，从而达到间接控制 OGNL表达式，注入任意 OGNL表达式。  
+  
+**例如**：以下是Struts2的S2-029漏洞中执行代码片段，`this.name`为Struts2标签名称属性。当`name`属性被攻击者控制，第一次进行OGNL执行将会生成特定的字符串，并传入`findValue`作为OGNL表达式，将会导致任意代码执行。  
+```java
+...  
+String name = this.findString(this.name, "name", "Resource bundle name is required. Example: foo or foo_en");  
+ResourceBundle bundle = (ResourceBundle) findValue("getTexts('" + name + "')");  
+...
+```
+]]></Description>
+			<Advice><![CDATA[程序对非受信的用户输入数据进行净化，过滤删除不安全的字符，从而防止OGNL表达式注入。
+]]></Advice>
+			<References>
+				<Reference type="CWE">95:Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')</Reference>
+				<Reference type="CWE">94:Improper Control of Generation of Code ('Code Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 94</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 94</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发OGNL表达式注入：二次执行漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在OGNL表达式注入：二次执行漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在OGNL表达式注入：二次执行漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发OGNL表达式注入：二次执行漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

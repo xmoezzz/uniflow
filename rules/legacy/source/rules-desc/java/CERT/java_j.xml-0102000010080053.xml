@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010080053" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">不安全的哈希算法：硬编码PBE Salt</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用了硬编码PBE Salt。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用了硬编码PBE Salt。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[采用硬编码处理`salt`不仅使所有项目开发人员都可以查看该`salt`，而且一旦将该代码投入到生产中，将无法轻易更改该`salt`。攻击者可以根据该`salt`的值计算出该应用程序的“彩虹表”，并能轻松地确定Hash值。  
+  
+**例如**：以下代码使用了硬编码`salt`。 
+```java
+...  
+byte[] salt = new byte[]{50, 33, 64, 36, 40, 53, 35, 64, 53, 51, 50, 64, 37, 35, 36, 50, 53, 51, 108, 53, 35, 64, 36};  
+PBEParameterSpec defParams = new PBEParameterSpec(salt, iterationCount);  
+...
+```  
+该代码可以正常运行，但是任何有该代码权限的人都能得到这个`salt`。一旦程序发布，将无法更改`salt`，攻击者如果得到`salt`值，将很容易入侵系统。
+]]></Description>
+			<Advice><![CDATA[salt值始终不能为硬编码。通常情况下，应该对密码加以模糊化，并在外部资源中进行管理。在系统中采用明文的形式存储salt，会造成任何有充分权限的人读取和误用salt。  
+  
+**例如**：以下代码使用由系统管理员配置的`salt`变量。  
+```java
+public void test(int iterationCount, byte[] salt) {  
+    //...  
+    PBEParameterSpec defParams = new PBEParameterSpec(salt, iterationCount);  
+    //...  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">760:Use of a One-Way Hash with a Predictable Salt</Reference>
+				<Reference type="CERT">MSC03-J:Never hard code sensitive information</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

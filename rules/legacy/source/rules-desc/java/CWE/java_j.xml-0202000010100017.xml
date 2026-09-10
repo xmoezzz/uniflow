@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100017" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：缺少安全角色</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行缺少安全角色。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[`<auth-constraint>`中定义的`<role-name>`中缺少`<security-role>`。  
+  
+**例如**：如下配置文件中指定了`role-name`但并未在`security-role`中对其进行定义  
+```xml
+<security-constraint>    
+    <web-resource-collection>  
+        <web-resource-name>Protected Resource</web-resource-name>  
+        <url-pattern>/protected/*</url-pattern>  
+    </web-resource-collection>  
+    <auth-constraint>  
+        <role-name>user</role-name>  
+    </auth-constraint>  
+</security-constraint>
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，增加`<security-role>`的配置。
+]]></Advice>
+			<References>
+				<Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150434" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】SSL连接时主机名验证功能不应该禁用</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[采用SSL进行连接时，使用`AllowAllHostnameVerifier()`和`SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER`将会关闭主机名验证功能。这相当于信任所有证书。HostnameVerifier是用于主机名验证的接口,若重写`verify`方法只返回true，意味着信任所有主机名。  
+  
+**例1**：下列代码SSLSocketFactory调用`setHostnameVerifier`方法，将`SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER`作为参数，将会关闭主机名验证功能。  
+```java
+...  
+KeyStore store = KeyStore.getInstance(KeyStore.getDefaultType());    
+store.load(null, null);    
+SSLSocketFactory sf = new SSLSocketFactory(store);    
+sf.setHostnameVerifier(`SSLSocketFactory.`ALLOW_ALL_HOSTNAME_VERIFIER);    
+HttpParams params = new BasicHttpParams();    
+HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);    
+HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);    
+SchemeRegistry registry = new SchemeRegistry();    
+registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));    
+registry.register(new Scheme("https", sf, 443));    
+ClientConnectionManager ccm = new ThreadSafeClientConnManager(params, registry);    
+... 
+```
+**例2**：下列代码重写HostnameVerifier接口的`verify`方法，方法内只有个一个返回值为true的return语句，意味着主机名验证毫无意义。  
+```java
+...  
+HostnameVerifier hostnameVerifier = new HostnameVerifier() {  
+    @Override  
+    public boolean verify(String requestedHost, SSLSession remoteServerSession) {  
+        return true;   
+    }  
+};  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[采用SSL连接时，不应放弃主机名验证。可考虑采用StrictHostnameVerifer建立服务器身份和安全SSL连接以及正确的重写`verify`方法。  
+  
+**例1**：下列代码SSLSocketFactory调用`setHostnameVerifier`方法，将`SSLSocketFactory.STRICT_HOSTNAME_VERIFIER` 作为参数，将会开启严格匹配模式。  
+```java
+...  
+KeyStore store = KeyStore.getInstance(KeyStore.getDefaultType());    
+store.load(null, null);    
+SSLSocketFactory sf = new SSLSocketFactory(store);    
+sf.setHostnameVerifier(SSLSocketFactory.STRICT_HOSTNAME_VERIFIER);    
+HttpParams params = new BasicHttpParams();    
+HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);    
+HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);    
+SchemeRegistry registry = new SchemeRegistry();    
+registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));    
+registry.register(new Scheme("https", sf, 443));    
+ClientConnectionManager ccm = new ThreadSafeClientConnManager(params, registry);    
+...
+``` 
+**例2**：下列代码正确的重写HostnameVerifier接口的`verify`方法，没有忽略主机名验证。  
+```java
+...  
+HostnameVerifier hostnameVerifier = new HostnameVerifier() {  
+    @Override  
+    public boolean verify(String requestedHost, SSLSession remoteServerSession) {  
+        return requestedHost.equalsIgnoreCase(remoteServerSession.getPeerHost());   
+    }  
+};  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">297:Improper Validation of Certificate with Host Mismatch</Reference>  
+        <Reference type="CERT">DRD19-J:Properly verify server certificate on SSL/TLS</Reference>  
+        <Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>  
+        <Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M3 Insufficient Transport Layer Protection</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin>Security Features</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>security,correctness</Tag> 
+    </BugInfo>  
+    

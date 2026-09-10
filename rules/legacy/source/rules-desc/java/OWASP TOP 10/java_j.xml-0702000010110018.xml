@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110018" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：错误验证方法</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法中进行了错误的定义。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法进行了错误的定义。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[该表单的验证方法`validate()`未调用父类的验证方法`super.validate()`，这将导致校验框架无法对照校验表单来校验表单中的内容。换言之，针对某个特定的表单，校验框架失效。输入检查是例如SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。对表单来说，校验框架失效会使应用程序完全暴露在各种攻击之下。
+]]></Description>
+			<Advice><![CDATA[为表单定义一个验证方法`validate()`需要覆盖父类的验证方法`super.validate()`。struts校验框架使用表单的`validate()`方法，对照那些在相关校验表单中定义的约束条件来检测表单属性的内容，`validate()`是struts校验框架的一部分。
+]]></Advice>
+			<References>
+				<Reference type="CWE">103:Struts: Incomplete validate() Method Definition</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

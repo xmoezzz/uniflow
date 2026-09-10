@@ -4,17 +4,30 @@ mod tests {
         let mut graph = super::FlowGraph::default();
         for value in 0..6 {
             let value = uniflow_ir::ValueId(value);
-            let node = graph.graph.add_node(super::FlowNode::Value { func: uniflow_ir::FunctionId(0), value });
-            graph.values.insert((uniflow_ir::FunctionId(0), value), node);
+            let node = graph.graph.add_node(super::FlowNode::Value {
+                func: uniflow_ir::FunctionId(0),
+                value,
+            });
+            graph
+                .values
+                .insert((uniflow_ir::FunctionId(0), value), node);
         }
         graph
     }
 
     fn last_call_targets(graph: &super::FlowGraph, function: &uniflow_ir::Function) -> Vec<String> {
-        let call = function.blocks.iter().flat_map(|block| &block.insts)
-            .filter(|inst| matches!(inst.kind, uniflow_ir::InstKind::Call(_))).last()
+        let call = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .filter(|inst| matches!(inst.kind, uniflow_ir::InstKind::Call(_)))
+            .last()
             .expect("callback call");
-        graph.resolved_internal_targets.get(&(function.id, call.id)).cloned().unwrap_or_default()
+        graph
+            .resolved_internal_targets
+            .get(&(function.id, call.id))
+            .cloned()
+            .unwrap_or_default()
     }
 
     #[test]
@@ -24,15 +37,32 @@ mod tests {
         let cell = super::ensure_index_cell(&mut graph, F(0), V(0), "*");
         let mut edges = Vec::new();
         for value in [V(1), V(2)] {
-            graph.value_memory_regions.insert((F(0), value), vec!["mem:shared".into()]);
+            graph
+                .value_memory_regions
+                .insert((F(0), value), vec!["mem:shared".into()]);
             graph.value_types.insert((F(0), value), "String".into());
             let source = graph.values[&(F(0), value)];
-            edges.push(graph.graph.add_edge(source, cell, super::FlowEdge { kind: super::EdgeKind::StoreIndex }).index());
+            edges.push(
+                graph
+                    .graph
+                    .add_edge(
+                        source,
+                        cell,
+                        super::FlowEdge {
+                            kind: super::EdgeKind::StoreIndex,
+                        },
+                    )
+                    .index(),
+            );
         }
         assert!(!super::cell_allows_strong_update(&graph, cell));
         let records = super::visible_direct_cell_store_records_before_edge(&graph, cell, None);
-        assert_eq!(records.iter().map(|r| r.2).collect::<Vec<_>>(), [V(1), V(2)]);
-        let earlier = super::visible_direct_cell_store_records_before_edge(&graph, cell, Some(edges[1]));
+        assert_eq!(
+            records.iter().map(|r| r.2).collect::<Vec<_>>(),
+            [V(1), V(2)]
+        );
+        let earlier =
+            super::visible_direct_cell_store_records_before_edge(&graph, cell, Some(edges[1]));
         assert_eq!(earlier.iter().map(|r| r.2).collect::<Vec<_>>(), [V(1)]);
     }
 
@@ -42,19 +72,43 @@ mod tests {
         use uniflow_rules::Port;
         let mut graph = heap_fixture();
         graph.language = uniflow_hir::Language::Java;
-        graph.value_types.insert((F(0), V(1)), "java.net.URL".into());
-        let call = CallInst { dst: Some(V(1)), callee: Callee::Static("java.net.URL".into()), receiver: None,
-            args: vec![V(0)], arg_names: vec![None] };
+        graph
+            .value_types
+            .insert((F(0), V(1)), "java.net.URL".into());
+        let call = CallInst {
+            dst: Some(V(1)),
+            callee: Callee::Static("java.net.URL".into()),
+            receiver: None,
+            args: vec![V(0)],
+            arg_names: vec![None],
+        };
         super::connect_call_value_ports(&mut graph, F(0), InstId(0), &call);
-        let receiver = super::get_or_create_call_port(&mut graph, F(0), InstId(0), Port::Receiver,
-            Some("java.net.URL.init^".into()));
+        let receiver = super::get_or_create_call_port(
+            &mut graph,
+            F(0),
+            InstId(0),
+            Port::Receiver,
+            Some("java.net.URL.init^".into()),
+        );
         assert_eq!(receiver, graph.call_ports[&(F(0), InstId(0), Port::Return)]);
-        assert!(graph.graph.contains_edge(receiver, graph.values[&(F(0), V(1))]));
+        assert!(graph
+            .graph
+            .contains_edge(receiver, graph.values[&(F(0), V(1))]));
 
-        let ordinary = super::get_or_create_call_port(&mut graph, F(0), InstId(1), Port::Receiver,
-            Some("java.net.URL.openStream".into()));
-        let returned = super::get_or_create_call_port(&mut graph, F(0), InstId(1), Port::Return,
-            Some("java.net.URL.openStream".into()));
+        let ordinary = super::get_or_create_call_port(
+            &mut graph,
+            F(0),
+            InstId(1),
+            Port::Receiver,
+            Some("java.net.URL.openStream".into()),
+        );
+        let returned = super::get_or_create_call_port(
+            &mut graph,
+            F(0),
+            InstId(1),
+            Port::Return,
+            Some("java.net.URL.openStream".into()),
+        );
         assert_ne!(ordinary, returned);
     }
 
@@ -63,17 +117,33 @@ mod tests {
         use uniflow_ir::{CallInst, Callee, FunctionId as F, ValueId as V};
         let mut graph = heap_fixture();
         graph.language = uniflow_hir::Language::Java;
-        graph.value_types.insert((F(0), V(1)), "java.net.URL".into());
+        graph
+            .value_types
+            .insert((F(0), V(1)), "java.net.URL".into());
 
-        let constructor = CallInst { dst: Some(V(1)), callee: Callee::Static("java.net.URL".into()),
-            receiver: None, args: vec![V(0)], arg_names: vec![None] };
-        assert_eq!(super::normalized_static_callee_name(&graph, F(0), &constructor).as_deref(),
-            Some("java.net.URL.init^"));
+        let constructor = CallInst {
+            dst: Some(V(1)),
+            callee: Callee::Static("java.net.URL".into()),
+            receiver: None,
+            args: vec![V(0)],
+            arg_names: vec![None],
+        };
+        assert_eq!(
+            super::normalized_static_callee_name(&graph, F(0), &constructor).as_deref(),
+            Some("java.net.URL.init^")
+        );
 
-        let factory = CallInst { dst: Some(V(1)), callee: Callee::Static("java.net.URL.create".into()),
-            receiver: None, args: vec![V(0)], arg_names: vec![None] };
-        assert_eq!(super::normalized_static_callee_name(&graph, F(0), &factory).as_deref(),
-            Some("java.net.URL.create"));
+        let factory = CallInst {
+            dst: Some(V(1)),
+            callee: Callee::Static("java.net.URL.create".into()),
+            receiver: None,
+            args: vec![V(0)],
+            arg_names: vec![None],
+        };
+        assert_eq!(
+            super::normalized_static_callee_name(&graph, F(0), &factory).as_deref(),
+            Some("java.net.URL.create")
+        );
     }
 
     #[test]
@@ -103,29 +173,81 @@ mod tests {
     fn heap_bridge_preserves_precise_slots_and_does_not_invent_scalar_containers() {
         use uniflow_ir::{FunctionId as F, ValueId as V};
         let mut graph = heap_fixture();
-        super::bridge_nested_heap_values(&mut graph, F(0), V(0), F(0), V(3), &mut Default::default());
+        super::bridge_nested_heap_values(
+            &mut graph,
+            F(0),
+            V(0),
+            F(0),
+            V(3),
+            &mut Default::default(),
+        );
         assert!(graph.index_cells.is_empty());
         for (key, stored, loaded) in [("0", V(1), V(4)), ("1", V(2), V(5))] {
             let actual = super::ensure_index_cell(&mut graph, F(0), V(0), key);
             let formal = super::ensure_index_cell(&mut graph, F(0), V(3), key);
-            graph.graph.add_edge(graph.values[&(F(0), stored)], actual, super::FlowEdge { kind: super::EdgeKind::StoreIndex });
-            graph.graph.add_edge(formal, graph.values[&(F(0), loaded)], super::FlowEdge { kind: super::EdgeKind::LoadIndex });
+            graph.graph.add_edge(
+                graph.values[&(F(0), stored)],
+                actual,
+                super::FlowEdge {
+                    kind: super::EdgeKind::StoreIndex,
+                },
+            );
+            graph.graph.add_edge(
+                formal,
+                graph.values[&(F(0), loaded)],
+                super::FlowEdge {
+                    kind: super::EdgeKind::LoadIndex,
+                },
+            );
         }
-        super::bridge_nested_heap_values(&mut graph, F(0), V(0), F(0), V(3), &mut Default::default());
+        super::bridge_nested_heap_values(
+            &mut graph,
+            F(0),
+            V(0),
+            F(0),
+            V(3),
+            &mut Default::default(),
+        );
         assert_eq!(graph.index_cells.len(), 4);
         assert!(graph.index_cells.keys().all(|(_, _, key)| key != "*"));
-        assert!(graph.graph.contains_edge(graph.values[&(F(0), V(1))], graph.values[&(F(0), V(4))]));
-        assert!(!graph.graph.contains_edge(graph.values[&(F(0), V(1))], graph.values[&(F(0), V(5))]));
+        assert!(graph
+            .graph
+            .contains_edge(graph.values[&(F(0), V(1))], graph.values[&(F(0), V(4))]));
+        assert!(!graph
+            .graph
+            .contains_edge(graph.values[&(F(0), V(1))], graph.values[&(F(0), V(5))]));
         let count = graph.graph.node_count();
-        assert!(super::existing_cells_for_relative_path_from_value(&graph, F(0), V(0), "index:0.field:missing").is_empty());
+        assert!(super::existing_cells_for_relative_path_from_value(
+            &graph,
+            F(0),
+            V(0),
+            "index:0.field:missing"
+        )
+        .is_empty());
         assert_eq!(graph.graph.node_count(), count);
         let edges = graph.graph.edge_count();
-        super::bridge_nested_heap_values(&mut graph, F(0), V(0), F(0), V(3), &mut Default::default());
-        assert_eq!(graph.graph.edge_count(), edges, "repeated bridges must not duplicate edges");
+        super::bridge_nested_heap_values(
+            &mut graph,
+            F(0),
+            V(0),
+            F(0),
+            V(3),
+            &mut Default::default(),
+        );
+        assert_eq!(
+            graph.graph.edge_count(),
+            edges,
+            "repeated bridges must not duplicate edges"
+        );
         let batched = super::all_transitive_cell_store_records(&graph);
         for cell in super::all_cell_nodes(&graph) {
-            let direct = super::transitive_cell_store_records(&graph, cell).into_iter().collect::<std::collections::BTreeSet<_>>();
-            assert_eq!(batched.get(&cell.index()).cloned().unwrap_or_default(), direct);
+            let direct = super::transitive_cell_store_records(&graph, cell)
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>();
+            assert_eq!(
+                batched.get(&cell.index()).cloned().unwrap_or_default(),
+                direct
+            );
         }
     }
 
@@ -140,8 +262,12 @@ mod tests {
         let field = super::ensure_field_cell(&mut graph, F(0), V(0), "callback");
         let other = super::ensure_field_cell(&mut graph, F(0), V(0), "other");
         for cell in [first, second, wildcard, field, other] {
-            graph.cell_memory_regions.insert(cell.index(), vec!["mem:shared".into()]);
-            graph.cell_points_to_object_ids.insert(cell.index(), vec![1, 2]);
+            graph
+                .cell_memory_regions
+                .insert(cell.index(), vec!["mem:shared".into()]);
+            graph
+                .cell_points_to_object_ids
+                .insert(cell.index(), vec![1, 2]);
         }
         assert!(!graph.cell_may_alias(first, second));
         assert!(!graph.cell_may_alias(field, other));
@@ -149,7 +275,129 @@ mod tests {
         assert!(graph.cell_may_alias(first, wildcard));
         assert!(!super::alias_equivalent_cells(&graph, first).contains(&second));
         graph.language = uniflow_hir::Language::C;
-        assert!(graph.cell_may_alias(field, other), "native union overlap cannot be rejected by field name alone");
+        assert!(
+            graph.cell_may_alias(field, other),
+            "native union overlap cannot be rejected by field name alone"
+        );
+    }
+
+    #[test]
+    fn cell_store_connectivity_index_matches_alias_and_bridge_contract() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+        let mut graph = heap_fixture();
+        graph.language = uniflow_hir::Language::Python;
+        let zero = super::ensure_index_cell(&mut graph, F(0), V(0), "0");
+        let one = super::ensure_index_cell(&mut graph, F(0), V(0), "1");
+        let wildcard = super::ensure_index_cell(&mut graph, F(0), V(0), "*");
+        let field = super::ensure_field_cell(&mut graph, F(0), V(0), "value");
+        let bridge = super::ensure_field_cell(&mut graph, F(0), V(1), "value");
+
+        graph.graph.add_edge(
+            field,
+            bridge,
+            super::FlowEdge {
+                kind: super::EdgeKind::ActualToFormal,
+            },
+        );
+
+        let adjacency = super::cell_store_connectivity_adjacency(&graph);
+        for cell in super::all_cell_nodes(&graph) {
+            let indexed = adjacency.get(&cell.index()).cloned().unwrap_or_default();
+            let indexed = indexed.into_iter().collect::<std::collections::BTreeSet<_>>();
+            let mut expected = super::alias_equivalent_cells(&graph, cell)
+                .into_iter()
+                .filter(|candidate| *candidate != cell)
+                .collect::<std::collections::BTreeSet<_>>();
+            for direction in [petgraph::Direction::Outgoing, petgraph::Direction::Incoming] {
+                for edge in graph.graph.edges_directed(cell, direction) {
+                    if !matches!(
+                        edge.weight().kind,
+                        super::EdgeKind::ActualToFormal | super::EdgeKind::FormalToActual
+                    ) {
+                        continue;
+                    }
+                    let next = if direction == petgraph::Direction::Outgoing {
+                        edge.target()
+                    } else {
+                        edge.source()
+                    };
+                    if matches!(
+                        graph.graph[next],
+                        super::FlowNode::FieldCell { .. } | super::FlowNode::IndexCell { .. }
+                    ) {
+                        expected.insert(next);
+                    }
+                }
+            }
+            assert_eq!(indexed, expected, "cell {}", cell.index());
+        }
+
+        assert!(!adjacency[&zero.index()].contains(&one));
+        assert!(adjacency[&zero.index()].contains(&wildcard));
+        assert!(adjacency[&field.index()].contains(&bridge));
+    }
+
+    #[test]
+    fn cell_object_id_index_matches_overlap_scan_contract() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+        let mut graph = heap_fixture();
+        let first = super::ensure_index_cell(&mut graph, F(0), V(0), "0");
+        let second = super::ensure_index_cell(&mut graph, F(0), V(0), "1");
+        let field = super::ensure_field_cell(&mut graph, F(0), V(1), "value");
+        graph
+            .cell_points_to_object_ids
+            .insert(first.index(), vec![7, 11]);
+        graph
+            .cell_points_to_object_ids
+            .insert(second.index(), vec![9]);
+        graph
+            .cell_points_to_object_ids
+            .insert(field.index(), vec![7, 9]);
+        graph.cell_points_to_object_ids.insert(
+            graph.values[&(F(0), V(2))].index(),
+            vec![7, 9, 11],
+        );
+
+        let mut index = super::cell_candidates_by_object_id(&graph);
+        assert!(!super::cell_object_id_query_prefers_scan(&index, &[7]));
+        for object_ids in [
+            Vec::<u32>::new(),
+            vec![7],
+            vec![9, 7],
+            vec![11, 11],
+            vec![42],
+            vec![42, 9],
+        ] {
+            assert_eq!(
+                super::cell_candidates_for_object_ids_indexed(&mut index, &object_ids),
+                super::cell_candidates_for_object_ids(&graph, &object_ids),
+                "object ids {object_ids:?}"
+            );
+        }
+
+        let high_overlap_object_ids = vec![7; 9];
+        assert!(super::cell_object_id_query_prefers_scan(
+            &index,
+            &high_overlap_object_ids
+        ));
+        assert_eq!(
+            super::cell_candidates_for_object_ids_indexed(
+                &mut index,
+                &high_overlap_object_ids
+            ),
+            super::cell_candidates_for_object_ids(&graph, &high_overlap_object_ids)
+        );
+
+        let mut large_object_ids = (100..132).collect::<Vec<_>>();
+        large_object_ids.push(9);
+        assert!(super::cell_object_id_query_prefers_scan(
+            &index,
+            &large_object_ids
+        ));
+        assert_eq!(
+            super::cell_candidates_for_object_ids_indexed(&mut index, &large_object_ids),
+            super::cell_candidates_for_object_ids(&graph, &large_object_ids)
+        );
     }
 
     #[test]
@@ -161,19 +409,45 @@ mod tests {
         for (key, value, name) in [("0", V(1), "repo.noop"), ("1", V(2), "repo.load")] {
             let cell = super::ensure_index_cell(&mut graph, F(0), V(0), key);
             graph.value_types.insert((F(0), value), name.into());
-            graph.value_points_to_object_ids.insert((F(0), value), vec![1, 2, 3]);
-            graph.graph.add_edge(graph.values[&(F(0), value)], cell, super::FlowEdge { kind: super::EdgeKind::StoreIndex });
+            graph
+                .value_points_to_object_ids
+                .insert((F(0), value), vec![1, 2, 3]);
+            graph.graph.add_edge(
+                graph.values[&(F(0), value)],
+                cell,
+                super::FlowEdge {
+                    kind: super::EdgeKind::StoreIndex,
+                },
+            );
         }
-        super::connect_returned_path_projection(&mut graph, F(0), V(0), &[super::ProjectionStep::Index("0".into())], V(4));
-        assert_eq!(super::explicit_local_callee_names(&graph, F(0), V(4)), ["repo.noop"]);
-        graph.graph.add_edge(graph.values[&(F(0), V(2))], graph.values[&(F(0), V(4))], super::FlowEdge { kind: super::EdgeKind::Phi });
-        assert_eq!(super::explicit_local_callee_names(&graph, F(0), V(4)), ["repo.load", "repo.noop"]);
+        super::connect_returned_path_projection(
+            &mut graph,
+            F(0),
+            V(0),
+            &[super::ProjectionStep::Index("0".into())],
+            V(4),
+        );
+        assert_eq!(
+            super::explicit_local_callee_names(&graph, F(0), V(4)),
+            ["repo.noop"]
+        );
+        graph.graph.add_edge(
+            graph.values[&(F(0), V(2))],
+            graph.values[&(F(0), V(4))],
+            super::FlowEdge {
+                kind: super::EdgeKind::Phi,
+            },
+        );
+        assert_eq!(
+            super::explicit_local_callee_names(&graph, F(0), V(4)),
+            ["repo.load", "repo.noop"]
+        );
     }
 
     #[test]
     fn symmetric_label_components_match_iterative_union_fixed_point() {
-        use std::collections::{BTreeSet, HashMap};
         use petgraph::graph::NodeIndex;
+        use std::collections::{BTreeSet, HashMap};
         for seed in 0..32 {
             let mut adjacency = vec![Vec::new(); 12];
             for a in 0..12 {
@@ -184,22 +458,31 @@ mod tests {
                     }
                 }
             }
-            let seeds = (0..12).filter(|n| (n + seed) % 3 == 0)
-                .map(|n| (n, BTreeSet::from([format!("label-{n}")]))).collect::<HashMap<_, _>>();
+            let seeds = (0..12)
+                .filter(|n| (n + seed) % 3 == 0)
+                .map(|n| (n, BTreeSet::from([format!("label-{n}")])))
+                .collect::<HashMap<_, _>>();
             let mut reference = seeds.clone();
             loop {
                 let previous = reference.clone();
                 for (n, neighbors) in adjacency.iter().enumerate() {
                     for neighbor in neighbors {
                         if let Some(labels) = previous.get(&neighbor.index()) {
-                            reference.entry(n).or_default().extend(labels.iter().cloned());
+                            reference
+                                .entry(n)
+                                .or_default()
+                                .extend(labels.iter().cloned());
                         }
                     }
                 }
-                if reference == previous { break; }
+                if reference == previous {
+                    break;
+                }
             }
-            let actual = super::propagate_symmetric_labels((0..12).map(NodeIndex::new), seeds,
-                |node| adjacency[node.index()].clone());
+            let actual =
+                super::propagate_symmetric_labels((0..12).map(NodeIndex::new), seeds, |node| {
+                    adjacency[node.index()].clone()
+                });
             assert_eq!(actual, reference, "seed {seed}");
         }
     }
@@ -217,21 +500,35 @@ mod tests {
     fn bounded_shape_paths_preserve_recursive_fields_and_share_suffix_work() {
         let mut graph = heap_fixture();
         graph.object_graph_successors.insert(0, vec![0, 1, 2]);
-        graph.object_graph_labels.insert((0, 0), "field:next".into());
-        graph.object_graph_labels.insert((0, 1), "field:item".into());
-        graph.object_graph_labels.insert((0, 2), "field:item".into());
+        graph
+            .object_graph_labels
+            .insert((0, 0), "field:next".into());
+        graph
+            .object_graph_labels
+            .insert((0, 1), "field:item".into());
+        graph
+            .object_graph_labels
+            .insert((0, 2), "field:item".into());
         graph.object_graph_successors.insert(1, vec![3]);
         graph.object_graph_successors.insert(2, vec![3]);
-        graph.object_graph_labels.insert((1, 3), "field:value".into());
-        graph.object_graph_labels.insert((2, 3), "field:value".into());
+        graph
+            .object_graph_labels
+            .insert((1, 3), "field:value".into());
+        graph
+            .object_graph_labels
+            .insert((2, 3), "field:value".into());
         let mut cache = Default::default();
-        let paths = super::object_shape_suffixes(&graph, petgraph::graph::NodeIndex::new(0), 4, &mut cache);
+        let paths =
+            super::object_shape_suffixes(&graph, petgraph::graph::NodeIndex::new(0), 4, &mut cache);
         assert!(paths.contains("field:next.field:next.field:next.field:next"));
         assert!(paths.contains("field:item.field:value"));
         assert!(!paths.contains("field:next.field:next.field:next.field:next.field:next"));
         assert!(cache.len() <= graph.graph.node_count() * 4);
         let size = cache.len();
-        assert_eq!(super::object_shape_suffixes(&graph, petgraph::graph::NodeIndex::new(0), 4, &mut cache), paths);
+        assert_eq!(
+            super::object_shape_suffixes(&graph, petgraph::graph::NodeIndex::new(0), 4, &mut cache),
+            paths
+        );
         assert_eq!(cache.len(), size);
     }
 
@@ -240,8 +537,14 @@ mod tests {
         for length in [0, 1, 3, 8, 32, 100] {
             for offset in 0..20 {
                 let left = (0..length).map(|n| (n * 7) % 23).collect::<Vec<_>>();
-                let right = (0..length).rev().map(|n| (n * 3) % 19 + offset).collect::<Vec<_>>();
-                assert_eq!(super::sets_overlap(&left, &right), left.iter().any(|v| right.contains(v)));
+                let right = (0..length)
+                    .rev()
+                    .map(|n| (n * 3) % 19 + offset)
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    super::sets_overlap(&left, &right),
+                    left.iter().any(|v| right.contains(v))
+                );
             }
         }
     }
@@ -256,11 +559,15 @@ mod tests {
         graph.abstract_object_seed_nodes.insert(0, vec![7]);
         graph.abstract_object_seed_nodes.insert(2, vec![9]);
         let allowed = std::collections::HashSet::from([0, 2]);
-        let ids = super::compute_points_to_object_ids_fixpoint_for_allowed_nodes(&mut graph, Some(&allowed));
+        let ids = super::compute_points_to_object_ids_fixpoint_for_allowed_nodes(
+            &mut graph,
+            Some(&allowed),
+        );
         assert_eq!(ids[&0], [7]);
         assert_eq!(ids[&2], [9]);
         assert!(!ids.contains_key(&1));
-        let joined = super::compute_points_to_object_ids_fixpoint_for_allowed_nodes(&mut graph, None);
+        let joined =
+            super::compute_points_to_object_ids_fixpoint_for_allowed_nodes(&mut graph, None);
         assert_eq!(joined[&0], [7, 9]);
         assert_eq!(joined[&2], [7, 9]);
     }
@@ -269,12 +576,20 @@ mod tests {
         let mut function = uniflow_ir::sample_java_sql_program().functions.remove(0);
         function.params = vec![uniflow_ir::ValueId(0)];
         function.locals = (1..10).map(uniflow_ir::ValueId).collect();
-        function.value_types = (1..10).map(|n| (uniflow_ir::ValueId(n), "int".to_string())).collect();
+        function.value_types = (1..10)
+            .map(|n| (uniflow_ir::ValueId(n), "int".to_string()))
+            .collect();
         function.blocks = vec![uniflow_ir::BasicBlock {
             id: uniflow_ir::BlockId(0),
-            insts: kinds.into_iter().enumerate().map(|(n, kind)| uniflow_ir::Instruction {
-                id: uniflow_ir::InstId(n as u32), kind, span: Default::default(),
-            }).collect(),
+            insts: kinds
+                .into_iter()
+                .enumerate()
+                .map(|(n, kind)| uniflow_ir::Instruction {
+                    id: uniflow_ir::InstId(n as u32),
+                    kind,
+                    span: Default::default(),
+                })
+                .collect(),
             term: uniflow_ir::Terminator::Return(None),
         }];
         function
@@ -284,14 +599,31 @@ mod tests {
     fn numeric_step_literals_wrap_at_declared_width_without_aliasing() {
         use uniflow_ir::{InstKind::*, ValueId as V};
         for (ty, initial, increment, expected) in [
-            ("byte", 127, true, -128), ("short", -32768, false, 32767),
-            ("char", 0, false, 65535), ("int", 2147483647, true, -2147483648),
-            ("long", i64::MAX, true, i64::MIN), ("java.lang.Integer", 1, true, 2),
+            ("byte", 127, true, -128),
+            ("short", -32768, false, 32767),
+            ("char", 0, false, 65535),
+            ("int", 2147483647, true, -2147483648),
+            ("long", i64::MAX, true, i64::MIN),
+            ("java.lang.Integer", 1, true, 2),
         ] {
-            let mut function = numeric_fixture(vec![ConstInt { dst: V(1), value: initial },
-                NumericStep { dst: V(2), src: V(1), increment }, Copy { dst: V(3), src: V(2) }]);
+            let mut function = numeric_fixture(vec![
+                ConstInt {
+                    dst: V(1),
+                    value: initial,
+                },
+                NumericStep {
+                    dst: V(2),
+                    src: V(1),
+                    increment,
+                },
+                Copy {
+                    dst: V(3),
+                    src: V(2),
+                },
+            ]);
             function.value_types.insert(V(2), ty.to_string());
-            let literals = super::compute_literal_index_keys(&function, &uniflow_hir::Language::Java);
+            let literals =
+                super::compute_literal_index_keys(&function, &uniflow_hir::Language::Java);
             assert_eq!(literals.get(&V(1)), Some(&initial.to_string()));
             assert_eq!(literals.get(&V(2)), Some(&expected.to_string()), "{ty}");
             assert_eq!(literals.get(&V(3)), Some(&expected.to_string()));
@@ -300,30 +632,59 @@ mod tests {
             assert_eq!(aliases[&V(2)], aliases[&V(3)]);
         }
         assert_eq!(super::numeric_step_literal(1, true, None), None);
-        assert_eq!(super::numeric_step_literal(16777216, true, Some("float")), None);
+        assert_eq!(
+            super::numeric_step_literal(16777216, true, Some("float")),
+            None
+        );
     }
 
     #[test]
     fn numeric_loop_phi_converges_and_unknown_input_never_becomes_literal() {
         use uniflow_ir::{InstKind::*, ValueId as V};
-        let function = numeric_fixture(vec![ConstInt { dst: V(1), value: 0 },
-            Phi { dst: V(2), inputs: vec![V(1), V(3)] },
-            NumericStep { dst: V(3), src: V(2), increment: true },
-            Copy { dst: V(4), src: V(2) },
-            Phi { dst: V(5), inputs: vec![V(1), V(0)] }]);
+        let function = numeric_fixture(vec![
+            ConstInt {
+                dst: V(1),
+                value: 0,
+            },
+            Phi {
+                dst: V(2),
+                inputs: vec![V(1), V(3)],
+            },
+            NumericStep {
+                dst: V(3),
+                src: V(2),
+                increment: true,
+            },
+            Copy {
+                dst: V(4),
+                src: V(2),
+            },
+            Phi {
+                dst: V(5),
+                inputs: vec![V(1), V(0)],
+            },
+        ]);
         let literals = super::compute_literal_index_keys(&function, &uniflow_hir::Language::Java);
         assert_eq!(literals.get(&V(1)).map(String::as_str), Some("0"));
-        for value in [V(2), V(3), V(4), V(5)] { assert!(!literals.contains_key(&value)); }
+        for value in [V(2), V(3), V(4), V(5)] {
+            assert!(!literals.contains_key(&value));
+        }
         let mut reordered = function;
         reordered.blocks[0].insts.reverse();
-        assert_eq!(super::compute_literal_index_keys(&reordered, &uniflow_hir::Language::Java), literals);
+        assert_eq!(
+            super::compute_literal_index_keys(&reordered, &uniflow_hir::Language::Java),
+            literals
+        );
     }
 
     #[test]
     fn javascript_require_results_preserve_module_provenance_through_copies_and_fields() {
         use uniflow_ir::{CallInst, Callee, InstKind::*, ValueId as V};
         let function = numeric_fixture(vec![
-            ConstString { dst: V(1), value: "fs".into() },
+            ConstString {
+                dst: V(1),
+                value: "fs".into(),
+            },
             Call(CallInst {
                 dst: Some(V(2)),
                 callee: Callee::Static("require".into()),
@@ -331,8 +692,15 @@ mod tests {
                 args: vec![V(1)],
                 arg_names: vec![None],
             }),
-            Copy { dst: V(3), src: V(2) },
-            LoadField { dst: V(4), base: V(3), field: "promises".into() },
+            Copy {
+                dst: V(3),
+                src: V(2),
+            },
+            LoadField {
+                dst: V(4),
+                base: V(3),
+                field: "promises".into(),
+            },
             Call(CallInst {
                 dst: Some(V(5)),
                 callee: Callee::Static("createClient".into()),
@@ -340,29 +708,51 @@ mod tests {
                 args: vec![],
                 arg_names: vec![],
             }),
-            Copy { dst: V(6), src: V(5) },
+            Copy {
+                dst: V(6),
+                src: V(5),
+            },
         ]);
-        let literals = super::compute_literal_index_keys(
-            &function,
-            &uniflow_hir::Language::JavaScript,
+        let literals =
+            super::compute_literal_index_keys(&function, &uniflow_hir::Language::JavaScript);
+        assert_eq!(
+            literals.get(&V(2)).map(String::as_str),
+            Some("<external-symbol:fs>")
         );
-        assert_eq!(literals.get(&V(2)).map(String::as_str), Some("<external-symbol:fs>"));
-        assert_eq!(literals.get(&V(3)).map(String::as_str), Some("<external-symbol:fs>"));
-        assert_eq!(literals.get(&V(4)).map(String::as_str), Some("<external-symbol:fs.promises>"));
-        assert_eq!(literals.get(&V(5)).map(String::as_str), Some("<external-symbol:fs.createClient>"));
-        assert_eq!(literals.get(&V(6)).map(String::as_str), Some("<external-symbol:fs.createClient>"));
-        assert!(!super::compute_literal_index_keys(
-            &function,
-            &uniflow_hir::Language::Java,
-        ).contains_key(&V(2)));
+        assert_eq!(
+            literals.get(&V(3)).map(String::as_str),
+            Some("<external-symbol:fs>")
+        );
+        assert_eq!(
+            literals.get(&V(4)).map(String::as_str),
+            Some("<external-symbol:fs.promises>")
+        );
+        assert_eq!(
+            literals.get(&V(5)).map(String::as_str),
+            Some("<external-symbol:fs.createClient>")
+        );
+        assert_eq!(
+            literals.get(&V(6)).map(String::as_str),
+            Some("<external-symbol:fs.createClient>")
+        );
+        assert!(
+            !super::compute_literal_index_keys(&function, &uniflow_hir::Language::Java,)
+                .contains_key(&V(2))
+        );
     }
 
     #[test]
     fn javascript_composition_results_preserve_static_descriptors() {
         use uniflow_ir::{CallInst, Callee, InstKind::*, ValueId as V};
         let function = numeric_fixture(vec![
-            ConstString { dst: V(1), value: "payload".into() },
-            ConstString { dst: V(2), value: "noent true __uniflow.dynamic__".into() },
+            ConstString {
+                dst: V(1),
+                value: "payload".into(),
+            },
+            ConstString {
+                dst: V(2),
+                value: "noent true __uniflow.dynamic__".into(),
+            },
             Call(CallInst {
                 dst: Some(V(3)),
                 callee: Callee::Static("__uniflow.compose.map".into()),
@@ -371,10 +761,8 @@ mod tests {
                 arg_names: vec![None, None],
             }),
         ]);
-        let literals = super::compute_literal_index_keys(
-            &function,
-            &uniflow_hir::Language::JavaScript,
-        );
+        let literals =
+            super::compute_literal_index_keys(&function, &uniflow_hir::Language::JavaScript);
         assert_eq!(
             literals.get(&V(3)).map(String::as_str),
             Some("noent true __uniflow.dynamic__")
@@ -385,30 +773,130 @@ mod tests {
     fn region_adjacency_union_matches_pairwise_contract() {
         let mut graph = super::FlowGraph::default();
         let patterns = [
-            vec!["mem:a", "mem:shared"], vec!["mem:a.field", "mem:shared"],
-            vec!["mem:a.other"], vec!["mem:ab"], vec!["mem:a[0]"],
-            vec!["mem:a.field.child"], vec!["mem:ab.field"], vec![],
+            vec!["mem:a", "mem:shared"],
+            vec!["mem:a.field", "mem:shared"],
+            vec!["mem:a.other"],
+            vec!["mem:ab"],
+            vec!["mem:a[0]"],
+            vec!["mem:a.field.child"],
+            vec!["mem:ab.field"],
+            vec!["mem:a[0].field"],
+            vec!["mem:a[0].field.child"],
+            vec!["mem:a[0]ish"],
+            vec!["mem:a.fieldish"],
+            vec!["mem:unicode.字段[0].值"],
+            vec!["mem:unicode.字段[0]"],
+            vec![],
         ];
-        for index in 0..64 {
+        for index in 0..112 {
             let node = graph.graph.add_node(super::FlowNode::Value {
-                func: uniflow_ir::FunctionId(0), value: uniflow_ir::ValueId(index),
+                func: uniflow_ir::FunctionId(0),
+                value: uniflow_ir::ValueId(index),
             });
-            graph.node_memory_regions.insert(node.index(), patterns[index as usize % patterns.len()]
-                .iter().map(|value| value.to_string()).collect());
+            graph.node_memory_regions.insert(
+                node.index(),
+                patterns[index as usize % patterns.len()]
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect(),
+            );
         }
         super::materialize_region_graph_adjacency(&mut graph);
         for left in graph.graph.node_indices() {
-            let expected = graph.graph.node_indices().filter(|right| left != *right
-                && graph.node_memory_regions[&left.index()].iter().any(|left_region|
-                    graph.node_memory_regions[&right.index()].iter().any(|right_region|
-                        super::memory_region_related(left_region, right_region))))
-                .map(|node| node.index()).collect::<Vec<_>>();
-            assert_eq!(graph.region_graph_successors.get(&left.index()).cloned().unwrap_or_default(), expected);
-            assert_eq!(graph.region_graph_predecessors.get(&left.index()).cloned().unwrap_or_default(), expected);
+            let expected = graph
+                .graph
+                .node_indices()
+                .filter(|right| {
+                    left != *right
+                        && graph.node_memory_regions[&left.index()]
+                            .iter()
+                            .any(|left_region| {
+                                graph.node_memory_regions[&right.index()].iter().any(
+                                    |right_region| {
+                                        super::memory_region_related(left_region, right_region)
+                                    },
+                                )
+                            })
+                })
+                .map(|node| node.index())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                graph
+                    .region_graph_successors_of(left)
+                    .into_iter()
+                    .map(|node| node.index())
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            assert_eq!(
+                graph
+                    .region_graph_predecessors_of(left)
+                    .into_iter()
+                    .map(|node| node.index())
+                    .collect::<Vec<_>>(),
+                expected
+            );
+
+            // The materialized backbone may omit a direct logical edge, but
+            // it must preserve reachability for every such relation because
+            // the build-time propagation solvers operate on components.
+            let mut reached = std::collections::HashSet::new();
+            let mut pending = vec![left.index()];
+            reached.insert(left.index());
+            while let Some(current) = pending.pop() {
+                for &next in graph
+                    .region_graph_successors
+                    .get(&current)
+                    .into_iter()
+                    .flatten()
+                {
+                    if reached.insert(next) {
+                        pending.push(next);
+                    }
+                }
+            }
+            for expected_neighbor in expected {
+                assert!(
+                    reached.contains(&expected_neighbor),
+                    "logical neighbor {expected_neighbor} is disconnected from {}",
+                    left.index()
+                );
+            }
         }
         let expected = graph.region_graph_successors.clone();
         super::materialize_region_graph_adjacency(&mut graph);
         assert_eq!(graph.region_graph_successors, expected);
+    }
+
+    #[test]
+    fn region_adjacency_common_region_stays_linear() {
+        let mut graph = super::FlowGraph::default();
+        for index in 0..256 {
+            let node = graph.graph.add_node(super::FlowNode::Value {
+                func: uniflow_ir::FunctionId(0),
+                value: uniflow_ir::ValueId(index),
+            });
+            graph
+                .node_memory_regions
+                .insert(node.index(), vec!["mem:shared".to_string()]);
+        }
+
+        super::materialize_region_graph_adjacency(&mut graph);
+
+        let materialized_edges = graph
+            .region_graph_successors
+            .values()
+            .map(Vec::len)
+            .sum::<usize>();
+        // The symmetric star stores both directions of each of its 255
+        // undirected links: 510 entries instead of the 65,280-entry clique.
+        assert_eq!(materialized_edges, 510);
+        assert_eq!(
+            graph
+                .region_graph_successors_of(petgraph::graph::NodeIndex::new(0))
+                .len(),
+            255
+        );
     }
 
     use super::{
@@ -1053,7 +1541,11 @@ def handle(cmd):
                     .cloned()
             })
             .unwrap_or_default();
-        assert_eq!(resolved, ["repo.noop"], "dynamic callback must select only slot 0");
+        assert_eq!(
+            resolved,
+            ["repo.noop"],
+            "dynamic callback must select only slot 0"
+        );
         assert!(!resolved.iter().any(|name| name == "repo.load"));
     }
 
@@ -3481,12 +3973,32 @@ def handle():
         assert_eq!(reads.len(), 2);
         for (read_index, read) in reads.iter().enumerate() {
             for (store_index, store) in stores.iter().enumerate() {
-                assert_eq!(graph.demand_reaches_value(function.id, *read, function.id, *store,
-                    SparseDirection::Backward, 8, 128), read_index == store_index,
-                    "read {read_index}, store {store_index}");
-                assert_eq!(graph.demand_reaches_value(function.id, *store, function.id, *read,
-                    SparseDirection::Forward, 8, 128), read_index == store_index,
-                    "store {store_index}, read {read_index}");
+                assert_eq!(
+                    graph.demand_reaches_value(
+                        function.id,
+                        *read,
+                        function.id,
+                        *store,
+                        SparseDirection::Backward,
+                        8,
+                        128
+                    ),
+                    read_index == store_index,
+                    "read {read_index}, store {store_index}"
+                );
+                assert_eq!(
+                    graph.demand_reaches_value(
+                        function.id,
+                        *store,
+                        function.id,
+                        *read,
+                        SparseDirection::Forward,
+                        8,
+                        128
+                    ),
+                    read_index == store_index,
+                    "store {store_index}, read {read_index}"
+                );
             }
         }
     }
@@ -3591,6 +4103,49 @@ def handle(repo):
             .callee_funcs
             .iter()
             .any(|func| *func == service_echo.id.0));
+    }
+
+    #[test]
+    fn structural_call_context_matches_caller_callee_and_exact_call_site_without_set_materialization() {
+        use uniflow_ir::{FunctionId as F, InstId, ValueId as V};
+        use uniflow_rules::Port;
+
+        let mut fg = super::FlowGraph::default();
+        let caller_value = fg.graph.add_node(super::FlowNode::Value {
+            func: F(1),
+            value: V(0),
+        });
+        let callee_value = fg.graph.add_node(super::FlowNode::Value {
+            func: F(2),
+            value: V(0),
+        });
+        let unrelated_value = fg.graph.add_node(super::FlowNode::Value {
+            func: F(3),
+            value: V(0),
+        });
+        let selected_call = fg.graph.add_node(super::FlowNode::CallPort {
+            func: F(1),
+            inst: InstId(10),
+            port: Port::Arg(0),
+            callee_name: Some("selected".into()),
+        });
+        let other_call = fg.graph.add_node(super::FlowNode::CallPort {
+            func: F(1),
+            inst: InstId(11),
+            port: Port::Arg(0),
+            callee_name: Some("other".into()),
+        });
+        let context = super::CallContextKey {
+            callee_funcs: vec![2],
+            call_sites: vec![(1, 10)],
+            ..Default::default()
+        };
+
+        assert!(fg.node_matches_structural_call_context(caller_value, &context));
+        assert!(fg.node_matches_structural_call_context(callee_value, &context));
+        assert!(!fg.node_matches_structural_call_context(unrelated_value, &context));
+        assert!(fg.node_matches_structural_call_context(selected_call, &context));
+        assert!(!fg.node_matches_structural_call_context(other_call, &context));
     }
 
     #[test]

@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010090010" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">基于可重用对象进行同步</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行中基于可重用对象进行同步。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中基于可重用对象进行同步。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[基于可能被重用的对象（如基础数据类型）进行同步，会导致死锁和不确定的行为。  
+  
+**例如**：下面代码片段中锁定了一个final的字符串对象。  
+```java
+private static final String lock = "LOCK";  
+public void doSomething() {  
+    synchronized (lock) {  
+        // ...  
+    }  
+}
+```  
+当程序中创建一个新的字符串对象为`LOCK`时，虚拟机会使用`equals`方法判断栈中是否存在该值的字符串，如果存在将返回这个字符串的地址给新的字符串对象，这将导致新的字符串对象控制了字符串锁对象。
+]]></Description>
+			<Advice><![CDATA[程序中应使用private、final的Object对象作为锁对象。  
+  
+**例如**：以下代码使用了private、final的Object对象作为锁对象。  
+```java
+private final Object lock = new Object();  
+public void doSomething() {  
+    synchronized (lock) {  
+        // ...  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CERT">LCK01-J:Do not synchronize on objects than may be reused</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>concurrency,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

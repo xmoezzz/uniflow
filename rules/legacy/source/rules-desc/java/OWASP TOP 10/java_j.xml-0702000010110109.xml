@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110109" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">资源管理</Category>
+				<Category type="DetailClassChin">释放后使用：Camera</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行Camera在释放后使用。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行Camera在释放后使用。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序释放了Camera对象后，在未重新获取Camera对象的情况下，试图再使用该对象，将会抛出异常。如果未捕获该异常，可能会导致程序崩溃。  
+  
+**例如**：下面代码片段的功能是切换打开、关闭照相机预览，触发一次CameraButtonListener监听器，照相机预览停止，并释放照相机资源，当再一次触发CameraButtonListener监听器时，程序将调用之前释放的Camera对象，导致出现程序异常。  
+```java
+public class ReuseCameraActivity extends Activity {  
+    private Camera camera;  
+    ...  
+    private class CameraButtonListener implements OnClickListener {  
+        public void onClick(View view) {  
+            if (toggle) {  
+                camera.stopPreview();  
+                camera.release();  
+            }else {  
+                camera.startPreview();  
+            }  
+            toggle = !toggle;  
+        }  
+    }  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，确保程序未调用释放后的Camera对象。
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 416</Reference>
+				<Reference type="CWE">416:Use After Free</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.2 使用已释放的资源</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,exception</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

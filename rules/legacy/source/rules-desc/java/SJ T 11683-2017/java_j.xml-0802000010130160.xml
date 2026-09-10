@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010130160" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">错误的参数顺序</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的方法调用参数顺序错误。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行方法调用参数顺序错误。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[调用方法时，使用错误的参数顺序可能导致应用程序以意想不到的方式运行。  
+    **例如**：下面代码片段中，copy方法定义了src参数为第一个，而dest为第二个，最后调用时却将dest作为第一个参数。  
+```java
+public static void main(String[] args) throws Exception {  
+    Object src = null;  
+    Object dest = null;  
+    ...  
+    copy(dest, src);  
+}  
+public static void copy(Object src,Object dest) {  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，正确的进行方法调用，明确参数顺序。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="SJ/T 11683-2017">6.5.9 实参顺序与形参顺序不一致</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

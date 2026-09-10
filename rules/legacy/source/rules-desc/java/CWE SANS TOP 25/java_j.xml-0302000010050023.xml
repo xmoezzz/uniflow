@@ -1,0 +1,152 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010050023" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">有风险的XML外部实体解析</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了有风险的XML外部实体解析。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了有风险的XML外部实体解析。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[XML外部实体注入漏洞也就是我们常说的XXE漏洞。XML作为一种使用较为广泛的数据传输格式，很多应用程序都包含有处理XML数据的代码，默认情况下，许多过时的或配置不当的XML处理器都会对外部实体进行引用。如果攻击者可以上传XML文档或者在XML文档中添加恶意内容，通过易受攻击的代码、依赖项或集成，就能够攻击包含缺陷的XML处理器。XXE漏洞的出现和开发语言无关，只要是应用程序中对XML数据做了解析，而这些数据又受用户控制，那么应用程序都可能受到XXE攻击。  
+  
+**例1**：下面是使用Java原生的SAX解析器对XML文件进行解析时的代码片段。  
+```java
+private static void receiveXMLStream(InputStream inStream){  
+    SAXParserFactory factory = SAXParserFactory.newInstance();  
+    SAXParser saxParser;  
+    try {  
+        saxParser = factory.newSAXParser();  
+        saxParser.parse(inStream,new DefaultHandler());  
+        ...  
+    } catch (ParserConfigurationException e) {  
+        ...  
+    } catch (SAXException e) {  
+        ...  
+    } catch (IOException e) {  
+        ...  
+    }  
+}
+```  
+**例2**：下面是使用Java原生的DOM解析器对XML文件进行解析时的代码片段。  
+```java
+private static void receiveXMLStream(InputStream stream){  
+    DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();  
+    DocumentBuilder documentBuilder;  
+    try {  
+        documentBuilder = documentBuilderFactory.newDocumentBuilder();  
+        documentBuilder.parse(stream);  
+        ...  
+    } catch (ParserConfigurationException e) {  
+        ...  
+    } catch (SAXException e) {  
+        ...  
+    } catch (IOException e) {  
+        ...  
+    }     
+}
+```  
+当文件输入流中包含不可信的数据源时，例如输入的XML文件中包含以下内容，  
+```xml
+<?xml version="1.0"?>  
+<!DOCTYPE foo SYSTEM "file:/dev/tty">  
+<foo>bar</foo>  
+...  
+```
+SAX解析器和DOM解析器都会尝试访问在SYSTEM属性中标识的URL，这意味着它将读取本地/dev/tty文件的内容。在POSIX系统中，读取这个文件会导致程序阻塞，直到可以通过计算机控制台得到输入数据为止。这样，攻击者可以利用这个恶意的XML文件来使系统挂起，从而程序受到XML外部实体注入攻击。
+]]></Description>
+			<Advice><![CDATA[对于使用Java原生DOM、SAX和DOM4J有以下两种修复方法（这里以DocumentBuilderFactory类型的对象为例）：  
+1.禁用DTD（doctypes），这样可以阻止几乎所有的XML实体攻击。 
+```java 
+//仅限Xerces 2  -  http://xerces.apache.org/xerces2-j/features.html#disallow-doctype-decl  
+documentBuilderFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);  
+```
+2.如果无法完全禁用DTD，可以采用以下操作一起使用。  
+(1)禁用外部通用实体和参数实体（根据实际使用的jar包）  
+```java
+// Xerces 1  -  http://xerces.apache.org/xerces-j/features.#external-general-entities和http://xerces.apache.org/xerces-j/features.html#external-parameter-entities  
+// Xerces 2  -  http://xerces.apache.org/xerces2-j/features.#external-general-entities和http://xerces.apache.org/xerces2-j/features.html#external-parameter-entities  
+// JDK7 +  -  http://xml.org/sax/features/external-general-entities和http://xml.org/sax/features/external-parameter-entities    
+documentBuilderFactory.setFeature("http://xml.org/sax/features/external-general-entities",false);  
+documentBuilderFactory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);  
+```
+(2)禁用外部DTD  
+```java
+documentBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd",false);  
+```
+(3)设置 XInclude 处理的状态为false,禁止实体扩展引用  
+```java
+documentBuilderFactory.setXIncludeAware(false);  
+documentBuilderFactory.setExpandEntityReferences(false);
+```   
+上述设置功能的方法`setFeature`也可以换成`setAttribute`，`setAttribute`方法用于用户在底层设置特定属性，使用方法和效果是一样的。同时，以上处理还需要保证Java 7 Update 67，Java 8 Update 20或更高版本，因为DocumentBuilderFactory和SAXParserFactory的上述对策在早期Java版本中会被破坏。
+也可以从其他类上着手防范XXE漏洞，如XMLInputFactory、TransformerFactory、Validator、SchemaFactory、SAXTransformerFactory。但这些类都是调用了XMLConstants中的属性，故需要支持JAXP1.5。
+使用StAX解析XML文件时，可使用下面方法进行防范(这里以XMLInputFactory类型的对象为例子，其他类型的防护方式类似)：
+//这将完全禁用该工厂的DTD   
+xmlInputFactory.setProperty(XMLInputFactory.SUPPORT_DTD,false);   
+//禁用外部实体  
+xmlInputFactory.setProperty("javax.xml.stream.isSupportingExternalEntities",false);
+```
+示例1还有一种修复方案是，定义一个`CustomResolver`类，这个类实现了`org.xml.sax.EntityResolver`接口。它可以定制对外部实体处理的SAX解析器，解析器调用`setEntityResolver()`方法时传递相应的SAX驱动实例。这个定制的解析器使用的是一个为外部实体定义的简单的白名单。当输入不是任何指定的、安全地实体源路径时，`resolverEntity()`方法会返回一个空的InputSource对象。结果是，当解析恶意输入时，这个由自定义的解析器返回的空的InputStream对象会抛出`java.net.MalformedURLException`异常。需要注意的是，必须创建一个XMLReader对象，以便通过这个对象来设置自定义的实体解析器。  
+以下为示例代码:  
+```java
+class CustomResolver implements EntityResolver {  
+    public InputSource resolveEntity(String publicId, String systemId)  
+            throws SAXException, IOException {  
+        //check for known good entities  
+        String entityPath = "/home/username/java/xxe/file";  
+        if (systemId.equals(entityPath)) {  
+            System.out.println("Resolving entity: " + publicId + " " + systemId);  
+            return new InputSource(entityPath);  
+        } else {  
+            return new InputSource(); // Disallow unknown entities by returning a blank path  
+        }  
+    }  
+}  
+class XXE {  
+    private static void receiveXMLStream(InputStream inStream,DefaultHandler defaultHandler)  
+            throws ParserConfigurationException, SAXException, IOException {  
+        SAXParserFactory factory = SAXParserFactory.newInstance();  
+        SAXParser saxParser = null;  
+        try {  
+            saxParser = factory.newSAXParser();  
+            XMLReader reader = saxParser.getXMLReader();  
+            reader.setEntityResolver(new CustomResolver());  
+            reader.setErrorHandler(new DefaultHandler());  
+            InputSource is = new InputSource(inStream);  
+            reader.parse(is);  
+            ...  
+        } catch (ParserConfigurationException e) {  
+            ...  
+        } catch (SAXException e) {  
+            ...  
+        } catch (IOException e) {  
+            ...  
+        }  
+    }  
+    ...  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 611</Reference>
+				<Reference type="CWE">611:Improper Restriction of XML External Entity Reference ('XXE')</Reference>
+				<Reference type="CERT">IDS17-J:Prevent XML External Entity Attacks</Reference>
+				<Reference type="OWASP TOP 10">2017:A4 XML External Entities (XXE)</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

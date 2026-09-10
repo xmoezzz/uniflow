@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010060119" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">不安全的SSL：过于广泛的信任证书</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行过于广泛的信任证书。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行过于广泛的信任证书。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[盗用证书颁发机构的数量正在不断增加，即使由CA签名的证书也不应该信任，拥有这些盗用证书的攻击者可能会拦截这些CA的SSL/TLS信息流。  
+  
+**例如**：下列代码中使用默认的URLConnection建立了 SSL/TLS连接，URLConnection所使用的SSLSocketFactory未进行处理，它对Android默认密钥库中存在的所有CA签名的证书将全部信任。  
+```java
+URL url = new URL("https://www.myServer.com");  
+URLConnection urlConnection = url.openConnection();  
+InputStream inputStream = urlConnection.getInputStream();
+```
+]]></Description>
+			<Advice><![CDATA[不要直接使用默认的URLConnection建立 SSL/TLS连接，建议使用HttpsURLConnection进行替代，并对证书进行判断和处理。  
+  
+**例如**：下列代码中使用HttpsURLConnection建立了 SSL/TLS 连接，并重新设置了SSLSocketFactory。
+```java  
+...  
+SSLContext sslContext = SSLContext.getInstance("TLS");  
+sslContext.init(null, trustManagers, new SecureRandom());  
+URL url = new URL("https://www.myServer.com");  
+HttpsURLConnection httpsURLConnection = (HttpsURLConnection)url.openConnection();  
+httpsURLConnection.setSSLSocketFactory(sslContext.getSocketFactory());  
+InputStream inputStream = httpsURLConnection.getInputStream();
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">297:Improper Validation of Certificate with Host Mismatch</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M3 Insufficient Transport Layer Protection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发不安全的SSL：过于广泛的信任证书漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在不安全的SSL：过于广泛的信任证书漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在不安全的SSL：过于广泛的信任证书漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发不安全的SSL：过于广泛的信任证书漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010160063" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.4 错误处理安全</Category>  
+        <Category type="DetailClassChin">C.7.1 不要消除或忽略可检查的异常</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+异常出现时，必须恰当地处理异常，不要消除或者忽略可以检查的异常。   
+2) 原理   
+程序员常常使用一个空的或简单的 catch 程序段来捕获受控制的异常，并将其消除。catch 程序段要么从异常中恢复，将异常重新抛出，由下一个和 try 语句对应的 catch 段来处理异常，要么根据 catch   
+程序段的上下文抛出另一个适合的异常。异常会中断预期中的应用程序流程。   
+3) 示例   
+    如下不符合规则的代码示例简单地输入异常的栈跟踪。   
+    ```java
+    try {   
+        //...   
+    } catch (IOException ioe) {    
+        ioe.printStacktrace();   
+    }
+    ```   
+       
+    对应的符合规则的解决方案是：要求用户指定另一个文件名，以此来处理 FileNotFoundException异常。   
+    ```java
+    boolean volatile validFlag = false;   
+    do {   
+        try {   
+            // If requested file does not exist, throws FileNotFoundException    
+            // If requested file exists, sets validFlag to true validFlag = true;   
+        } catch (FileNotFoundException e) {   
+            // Ask the user for a different file name   
+        }   
+    } while (validFlag != true);   
+    //Use the file
+    ```   
+    为符合规则的要求，只能允许用户访问特定的用户目录。这防止了其他的IOException跳出循环从而泄漏文件系统的敏感信息。   
+4) 特例   
+**特例 1**：释放资源时发生的异常可以被消除。在这种情况下，释放资源的失败并不会影响之后的程序行为。释放资源的例子有关闭文件、网络套接字、停止线程等。这样的资源通常是在 catch 或 finally程序段中释放的，并不会在之后的执行中使用。因此，除了造成资源枯竭外, 异常不会以任何方式影响之后的程序行为。   
+**特例 2**：在特定的抽象层中，如果不可能从异常情况中恢复时，则不能由处于该抽象 层的代码来处理这个异常。这时必须抛出一个适当的异常，让髙层的代码捕获它，并尝试恢复。这种情况下，最常见的实现是忽略一个 catch 程序段，并允许异常正常地传递。   
+**特例 3**：当继承 Tread 类时，一个 InterruptedException 异常可以捕获并消除。实现了线程中断策略的代码可以消除一个中断请求。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">391:Unchecked Error Condition</Reference>  
+        <Reference type="CERT">ERR00-J:Do not suppress or ignore checked exceptions</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.5 catch语句块为空</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.7 异常行为</BigClassChin>  
+       
+    </BugInfo>  
+    

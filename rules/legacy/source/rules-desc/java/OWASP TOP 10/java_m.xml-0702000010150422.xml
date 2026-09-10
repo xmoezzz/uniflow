@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010150422" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】邮件服务器不要建立未加密的连接</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[邮件服务器使用的是未加密的连接，使用未加密网络发送敏感信息可能会被恶意攻击者通过拦截网络通信读取并修改信息。  
+  
+**例如**：下面代码示例中，AuthenticatingSMTPClient未使用TLS进行数据的发送。  
+```java
+AuthenticatingSMTPClient client = new AuthenticatingSMTPClient();   
+client.connect(url);  
+...  
+Writer writer = client.sendMessageData();  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[可使用SSL/TLS对通过网络发送的所有数据进行加密，或者将现有的未加密连接升级到SSL/TLS。  
+  
+**例如**：下面代码示例中，AuthenticatingSMTPClient未使用TLS进行数据的发送。  
+```java
+AuthenticatingSMTPClient client = new AuthenticatingSMTPClient();   
+client.connect(url);  
+...  
+client.execTLS();  
+Writer writer = client.sendMessageData();  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 200</Reference>  
+        <Reference type="CWE">200:Information Exposure</Reference>  
+        <Reference type="CERT">MSC00-J:Use SSLSocket rather than Socket for secure data exchange</Reference>  
+        <Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>  
+        <Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>  
+        <Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M3 Insufficient Transport Layer Protection</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin>Security Features</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>security</Tag> 
+    </BugInfo>  
+    

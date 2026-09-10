@@ -16,11 +16,31 @@ fn rules() -> &'static RuleSet {
     RULES.get_or_init(|| {
         let legacy = legacy_models_for(Language::Java).unwrap();
         let focused = RuleSet {
-            metadata: legacy.metadata.into_iter().filter(|rule| rule.id == SINK).collect(),
-            sources: legacy.sources.into_iter().filter(|rule| rule.id == SOURCE).collect(),
-            sinks: legacy.sinks.into_iter().filter(|rule| rule.id == SINK).collect(),
-            sink_conditions: legacy.sink_conditions.into_iter().filter(|rule| rule.sink_rule_id == SINK).collect(),
-            call_conditions: legacy.call_conditions.into_iter().filter(|rule| rule.rule_id == SOURCE || rule.rule_id == SINK).collect(),
+            metadata: legacy
+                .metadata
+                .into_iter()
+                .filter(|rule| rule.id == SINK)
+                .collect(),
+            sources: legacy
+                .sources
+                .into_iter()
+                .filter(|rule| rule.id == SOURCE)
+                .collect(),
+            sinks: legacy
+                .sinks
+                .into_iter()
+                .filter(|rule| rule.id == SINK)
+                .collect(),
+            sink_conditions: legacy
+                .sink_conditions
+                .into_iter()
+                .filter(|rule| rule.sink_rule_id == SINK)
+                .collect(),
+            call_conditions: legacy
+                .call_conditions
+                .into_iter()
+                .filter(|rule| rule.rule_id == SOURCE || rule.rule_id == SINK)
+                .collect(),
             ..Default::default()
         };
         assert_eq!(focused.sources.len(), 1);
@@ -37,9 +57,20 @@ fn check(value: &str, expected: usize) {
     let ir = lower_program(&hir);
     let graph = build(&ir, rules());
     let findings = analyze(&graph, rules());
-    assert_eq!(findings.len(), expected, "{source}\n{findings:#?}\n{:#?}", graph.call_meta);
-    assert!(findings.iter().all(|finding| finding.source_rule_id == SOURCE && finding.sink_rule_id == SINK));
-    assert!(findings.iter().all(|finding| finding.translations.zh_cn.as_ref().is_some_and(|text| !text.message.is_empty())));
+    assert_eq!(
+        findings.len(),
+        expected,
+        "{source}\n{findings:#?}\n{:#?}",
+        graph.call_meta
+    );
+    assert!(findings
+        .iter()
+        .all(|finding| finding.source_rule_id == SOURCE && finding.sink_rule_id == SINK));
+    assert!(findings.iter().all(|finding| finding
+        .translations
+        .zh_cn
+        .as_ref()
+        .is_some_and(|text| !text.message.is_empty())));
 }
 
 #[test]

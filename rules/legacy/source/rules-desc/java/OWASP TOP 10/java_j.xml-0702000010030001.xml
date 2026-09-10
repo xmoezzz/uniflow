@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010030001" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">跨站脚本</Category>
+				<Category type="DetailClassChin">基于DOM的XSS</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[DOM型XSS从效果上来说也属于反射型XSS，由于形成的原因比较特殊所以单独划分了。在网站页面中有许多页面的元素，当页面到达浏览器时浏览器会为页面创建一个顶级的Document object文档对象，接着生成各个子文档对象，每个页面元素对应一个文档对象，每个文档对象包含属性、方法和事件。可以通过JS脚本对文档对象进行编辑从而修改页面的元素。也就是说，客户端的脚本程序可以通过DOM来动态修改页面内容，从客户端获取DOM中的数据并在本地执行。当应用程序的客户端代码将受不受信的参数直接用于动态更新页面的DOM节点,应用程序将易于受到基于DOM的XSS攻击。  
+  
+**例如**：下面的JavaScript代码片段可从元素input中读取text信息，并将其显示给用户。 
+```javascript
+<script>  
+function test(){  
+    var str = document.getElementById("text").value;  
+    document.getElementById("test").innerHTML="<a href='"+str+"'>testLink</a>";  
+}  
+</script>  
+... 
+<div id="test"></div>  
+<input type="text" id="text" value="" />  
+<input type="button" value="write" onclick="test()" />  
+``` 
+在这里，`write`按钮的onclick事件调用了`test()`方法，而该函数用直接引用用户输入的值修改页面的DOM节点，当用户输入`'onclick=alert(/xss/)//`，应用程序将受到基于DOM的XSS攻击。
+]]></Description>
+			<Advice><![CDATA[为了避免基于Dom的XSS攻击，建议采用以下方式进行防御：  
+1.对用户的输入进行合理验证（如年龄只能是数字），对特殊字符（如`<、>、'、"`以及`<script>、javascript`等进行过滤。  
+2.根据数据将要置于HTML上下文中的不同位置（HTML标签、HTML属性、JavaScript脚本、CSS、URL），对所有不可信数据进行恰当的输出编码。  
+
+**例如**：采用OWASP ESAPI对数据输出HTML上下文中不同位置，编码方法如下。  
+```java
+//HTML encode  
+ESAPI.encoder().encodeForHTML(inputData);  
+//HTML attribute encode  
+ESAPI.encoder().encodeForHTMLAttribute(inputData);   
+//JavaScript encode  
+ESAPI.encoder().encodeForJavaScript(inputData);  
+//CSS encode  
+ESAPI.encoder().encodeForCSS(inputData);  
+//URL encode  
+ESAPI.encoder().encodeForURL(inputData);   
+```
+3.设置HttpOnly属性，避免攻击者利用跨站脚本漏洞进行Cookie劫持攻击。在Java EE中，给Cookie添加HttpOnly的代码如下：  
+```java
+...  
+response.setHeader("Set-Cookie","cookiename=cookievalue; path=/; Domain=domainvaule; Max-age=seconds; HttpOnly");   
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">83:Improper Neutralization of Script in Attributes in a Web Page</Reference>
+				<Reference type="CWE">82:Improper Neutralization of Script in Attributes of IMG Tags in a Web Page</Reference>
+				<Reference type="CWE">81:Improper Neutralization of Script in an Error Message Web Page</Reference>
+				<Reference type="CWE">80:Improper Neutralization of Script-Related HTML Tags in a Web Page (Basic XSS)</Reference>
+				<Reference type="CWE">79:Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</Reference>
+				<Reference type="OWASP TOP 10">2017:A7 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2013:A3 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2010:A2 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2007:A1 Cross Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2004:A4 Cross Site Scripting</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Cross-site Scripting [XYT]</Reference>
+				<Reference type="GB/T 34944-2017 Java">Web问题:跨站脚本</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

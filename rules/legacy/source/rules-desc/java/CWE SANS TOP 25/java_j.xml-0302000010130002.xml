@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010130002" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">equals()参数为null</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行调用的equals()参数为null。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行调用的equals()参数为null。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序使用equals()方法将一个对象与null作比较`obj.equals(null)`，如果obj对象为null，程序将抛出NullPointerException异常；如果obj对象不是null，那么该表达式将始终返回false。  
+  
+**例如**：如下代码片段中将一个string对象和null作比较  
+```java
+public class Demo {  
+    public static boolean equalsNull(String a){  
+        String b = null;  
+        return a.equals(b);  //equals参数为null  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[如果程序员想要判断对象是否为null，可以采用obj==null或obj!=null代替`obj.equals(null)`。
+]]></Advice>
+			<References>
+				<Reference type="CWE">754:Improper Check for Unusual or Exceptional Conditions</Reference>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 754</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.8 equals方法的参数为null</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

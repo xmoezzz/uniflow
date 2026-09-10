@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020052" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">文件权限操作</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行文件权限可能被用户控制。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行文件权限可能被用户控制。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[多用户系统中的文件通常为某一特定用户所有，文件所有者会指定系统中的用户可以访问这些文件的内容。当一个程序使用不充分的限制性的访问权限创建文件时，攻击者可以在程序修改权限之前读取或者修改这些文件。如果允许用户输入直接更改文件权限，则攻击者将能够访问其他受保护的系统资源。  
+  
+**例如**：以下代码使用来自系统属性的参数作为默认的权限代码。但是系统属性中的值未必是可信的，如果系统属性中的值为攻击者可控，则可以使用该程序获得其所处理文件的访问权限。如果程序还容易受路径篡改攻击，那么攻击者可能会利用这一漏洞访问系统中的任意文件。  
+```java
+...
+String permissionMask = System.getProperty("fileMask");  
+Path path= testFile.toPath();  
+...  
+Set<PosixFilePermission> permission= PosixFilePermissions.fromString(permissionMask);  
+Files.setPosixFilePermissions(path, permission);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[可以通过允许用户设置文件权限来防止此类文件权限操纵。如果必须确保用户拥有能够设置文件的权限，则可以采用一种间接方式，即创建一个允许用户进行指定的合法文件权限列表，并且仅允许用户从列表中进行选择。通过这种方式，用户提供的输入将不会直接更改文件权限。  
+  
+**例如**：以下代码使用了一种间接方式以验证来自系统属性的输入。  
+```java
+...
+String permissionMask = System.getProperty("fileMask");  
+Path path= testFile.toPath();  
+String[] validPermissions = {"r--------", "r--r-----"};  
+for (String validPermission : validPermissions){  
+    if (permissionMask.equals(validPermission){  
+        Set<PosixFilePermission> permission = PosixFilePermissions.fromString(validPermission);  
+        Files.setPosixFilePermissions(path, permission);  
+        ...  
+    }  
+    ...  
+}  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">732:Incorrect Permission Assignment for Critical Resource</Reference>
+				<Reference type="CWE">264:Permissions, Privileges, and Access Controls</Reference>
+				<Reference type="CERT">FIO01-J:Create files with appropriate access permissions</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M8 Security Decisions Via Untrusted Inputs</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 732</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 732</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 732</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发文件权限操作漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在文件权限操作漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在文件权限操作漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发文件权限操作漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

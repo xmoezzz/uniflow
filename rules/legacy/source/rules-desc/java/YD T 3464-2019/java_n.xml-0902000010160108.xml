@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160108" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">7.5 文件系统</Category>  
+        <Category type="DetailClassChin">C.13.3 发现并处理与文件相关的错误</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+Java 程序必须要对执行文件 I/O 方法的返回值进行检查。   
+2) 原理   
+Java 的文件操作方法通常使用返回值而不是抛出异常来指示其错误。许多方法在失败时不能抛出异常，所以不可能获得有用的错误信息。比如说，如果一个文件的删除失败了，程序会得到一个“删除失败”信息，但并不知道，是不是因为文件不存在, 是用户没有权限，还是其他的问题而造成的。因此，忽略文件操作返回值的程序常常不能发现文件操作的失败。   
+3) 示例   
+    这个不符合规则的代码示例想要删除一个特定的文件，却没有给出操作成功的指示。只有当程序没有足够的权限来删除文件时，`File.delete()`才抛出 SecurityException 异常。程序不会抛出其他异常，所以删除操作可能会失败而不被察觉。   
+    ```java
+    File file = new File(args[0]);    
+    file.delete();
+    ```   
+    对应的符合规则的方案检査 delete()方法的返回值。   
+    ```java
+    File file = new File(args[0]); if (!file.delete()) {   
+    System.out.println("Deletion failed");
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>yes</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.13 输入输出</BigClassChin>  
+       
+    </BugInfo>  
+    

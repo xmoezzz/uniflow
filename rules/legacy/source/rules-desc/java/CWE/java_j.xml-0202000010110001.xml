@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110001" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">JavaEE程序：Session中存储非序列化对象</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行Session中存储非序列化对象。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行Session中存储非序列化对象。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[把一个不可序列化的对象作为HttpSession属性来储存会破坏应用程序的可靠性。一个JAVA EE应用程序可以利用多个JVM，以提高应用程序的可靠性和性能。为了显示给用户一个单个的应用程序，JAVA EE容器可能在多个JVM之间复制HttpSession对象，所以当一个JVM不可用时，另一个JVM可以在不中断应用程序流程的情况下继续执行。为了使Session能够正常传递，作为属性存储在Session中的数值必须实现Serializable接口。    
+  
+**例如**：下面代码片段中，将一个DataGlob对象添加到HttpSession中，但由于它是不可序列化的，因此该Session就再也不能被传递了。  
+```java
+public class DataGlob {  
+    String globName;  
+    String globValue;  
+    public void addToSession(HttpSession session) {  
+        session.setAttribute("glob", this);  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[很多情况下，修复这一问题的最简单方法是让这个违反规则的对象实现Serializable接口。但对于复杂的对象来说，存储在Session中的对象，其传递闭包必须是可序列化的。如果对象A引用对象B，要将A存储到在Session中，那么A和B都必须实现Serializable接口。
+]]></Advice>
+			<References>
+				<Reference type="CWE">579:J2EE Bad Practices: Non-serializable Object Stored in Session</Reference>
+				<Reference type="CERT">MSC08-J:Do not store nonserializable objects as attributes in an HTTP session</Reference>
+				<Reference type="OWASP TOP 10">2010:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2007:A7 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

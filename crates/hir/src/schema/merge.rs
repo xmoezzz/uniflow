@@ -14,16 +14,11 @@ impl Program {
         if matches!(&self.language, Language::Unknown) {
             self.language = other.language.clone();
         }
-        let offsets = IdOffsets {
-            file: self.next_file_id(),
-            module: self.next_module_id(),
-            function: self.next_function_id(),
-            block: self.next_block_id(),
-            stmt: self.next_stmt_id(),
-            expr: self.next_expr_id(),
-            symbol: self.next_symbol_id(),
-            ty: self.next_type_id(),
-        };
+        let offsets = self.next_id_offsets();
+        self.merge_with_offsets(other, offsets);
+    }
+
+    fn merge_with_offsets(&mut self, other: Program, offsets: IdOffsets) {
 
         let mut files = other.files;
         for file in &mut files {
@@ -61,61 +56,77 @@ impl Program {
         self.source_maps.extend(source_maps);
     }
 
-    fn next_file_id(&self) -> u32 {
-        self.files.iter().map(|f| f.id.0).max().map_or(0, |v| v + 1)
-    }
-    fn next_module_id(&self) -> u32 {
-        self.modules.iter().map(|m| m.id.0).max().map_or(0, |v| v + 1)
-    }
-    fn next_function_id(&self) -> u32 {
-        let mut max_id = 0;
+    fn next_id_offsets(&self) -> IdOffsets {
+        let mut nested = NestedIdMaxima::default();
+        let mut function = None;
         for module in &self.modules {
             for item in &module.items {
                 match item {
-                    Item::Function(func) => max_id = max_id.max(func.id.0),
+                    Item::Function(func) => {
+                        observe_id(&mut function, func.id.0);
+                        observe_block_ids(&func.body, &mut nested);
+                    }
                     Item::Class(class) => {
                         for method in &class.methods {
-                            max_id = max_id.max(method.id.0);
+                            observe_id(&mut function, method.id.0);
+                            observe_block_ids(&method.body, &mut nested);
                         }
                     }
-                    Item::GlobalVar(_) => {}
+                    Item::GlobalVar(var) => {
+                        if let Some(init) = &var.init {
+                            observe_expr_ids(init, &mut nested);
+                        }
+                    }
                 }
             }
         }
-        if self.modules.is_empty() { 0 } else { max_id + 1 }
-    }
-    fn next_block_id(&self) -> u32 {
-        let mut ids = Vec::new();
-        for module in &self.modules {
-            for item in &module.items {
-                collect_item_block_ids(item, &mut ids);
-            }
+
+        IdOffsets {
+            file: next_id(self.files.iter().map(|file| file.id.0).max()),
+            module: next_id(self.modules.iter().map(|module| module.id.0).max()),
+            function: next_id(function),
+            block: next_id(nested.block),
+            stmt: next_id(nested.stmt),
+            expr: next_id(nested.expr),
+            symbol: next_id(self.symbols.iter().map(|symbol| symbol.id.0).max()),
+            ty: next_id(self.types.iter().map(|ty| ty.id.0).max()),
         }
-        ids.into_iter().max().map_or(0, |v| v + 1)
     }
-    fn next_stmt_id(&self) -> u32 {
-        let mut ids = Vec::new();
-        for module in &self.modules {
-            for item in &module.items {
-                collect_item_stmt_ids(item, &mut ids);
-            }
+}
+
+/// Incremental project-program merger that computes the existing program's ID
+/// bounds once and then advances them from each incoming compilation unit.
+///
+/// Repeatedly calling [`Program::merge`] must rediscover the maximum IDs in the
+/// entire accumulated program before every append, which is quadratic for a
+/// project assembled from many files. Project frontends should keep one merger
+/// for the whole scan instead.
+pub struct ProgramMerger {
+    program: Program,
+    next: IdOffsets,
+}
+
+impl ProgramMerger {
+    pub fn new(language: Language) -> Self {
+        Self::from_program(Program::empty(language))
+    }
+
+    pub fn from_program(program: Program) -> Self {
+        let next = program.next_id_offsets();
+        Self { program, next }
+    }
+
+    pub fn merge(&mut self, other: Program) {
+        if matches!(&self.program.language, Language::Unknown) {
+            self.program.language = other.language.clone();
         }
-        ids.into_iter().max().map_or(0, |v| v + 1)
+        let incoming = other.next_id_offsets();
+        self.program.merge_with_offsets(other, self.next);
+        self.next.add(incoming);
     }
-    fn next_expr_id(&self) -> u32 {
-        let mut ids = Vec::new();
-        for module in &self.modules {
-            for item in &module.items {
-                collect_item_expr_ids(item, &mut ids);
-            }
-        }
-        ids.into_iter().max().map_or(0, |v| v + 1)
-    }
-    fn next_symbol_id(&self) -> u32 {
-        self.symbols.iter().map(|s| s.id.0).max().map_or(0, |v| v + 1)
-    }
-    fn next_type_id(&self) -> u32 {
-        self.types.iter().map(|t| t.id.0).max().map_or(0, |v| v + 1)
+
+    pub fn finish(self) -> Program {
+        self.program
     }
 }
 
@@ -129,6 +140,34 @@ struct IdOffsets {
     expr: u32,
     symbol: u32,
     ty: u32,
+}
+
+impl IdOffsets {
+    fn add(&mut self, other: Self) {
+        self.file += other.file;
+        self.module += other.module;
+        self.function += other.function;
+        self.block += other.block;
+        self.stmt += other.stmt;
+        self.expr += other.expr;
+        self.symbol += other.symbol;
+        self.ty += other.ty;
+    }
+}
+
+#[derive(Default)]
+struct NestedIdMaxima {
+    block: Option<u32>,
+    stmt: Option<u32>,
+    expr: Option<u32>,
+}
+
+fn next_id(maximum: Option<u32>) -> u32 {
+    maximum.map_or(0, |id| id + 1)
+}
+
+fn observe_id(maximum: &mut Option<u32>, id: u32) {
+    *maximum = Some(maximum.map_or(id, |current| current.max(id)));
 }
 
 fn remap_span(span: &mut Span, file_offset: u32) {
@@ -461,177 +500,241 @@ fn remap_expr(expr: &mut Expr, offsets: &IdOffsets) {
     }
 }
 
-fn collect_item_block_ids(item: &Item, out: &mut Vec<u32>) {
-    match item {
-        Item::Function(func) => collect_function_block_ids(func, out),
-        Item::Class(class) => {
-            for method in &class.methods {
-                collect_function_block_ids(method, out);
-            }
-        }
-        Item::GlobalVar(_) => {}
-    }
-}
-fn collect_function_block_ids(func: &Function, out: &mut Vec<u32>) {
-    collect_block_ids(&func.body, out);
-}
-fn collect_block_ids(block: &Block, out: &mut Vec<u32>) {
-    out.push(block.id.0);
+fn observe_block_ids(block: &Block, ids: &mut NestedIdMaxima) {
+    observe_id(&mut ids.block, block.id.0);
     for stmt in &block.stmts {
-        match stmt {
-            Stmt::For { init, update, body, .. } => {
-                collect_block_ids(init, out);
-                collect_block_ids(update, out);
-                collect_block_ids(body, out);
-            }
-            Stmt::If { then_block, else_block, .. } => {
-                collect_block_ids(then_block, out);
-                if let Some(else_block) = else_block {
-                    collect_block_ids(else_block, out);
-                }
-            }
-            Stmt::While { body, .. } | Stmt::ForEach { body, .. } | Stmt::DoWhile { body, .. } => {
-                collect_block_ids(body, out)
-            }
-            Stmt::Switch { clauses, default, .. } => {
-                for clause in clauses {
-                    collect_block_ids(&clause.body, out);
-                }
-                if let Some(default) = default {
-                    collect_block_ids(default, out);
-                }
-            }
-            Stmt::Try { try_block, catches, finally_block, .. } => {
-                collect_block_ids(try_block, out);
-                for catch in catches {
-                    collect_block_ids(&catch.body, out);
-                }
-                if let Some(finally_block) = finally_block {
-                    collect_block_ids(finally_block, out);
-                }
-            }
-            _ => {}
-        }
+        observe_stmt_ids(stmt, ids);
     }
 }
-fn collect_item_stmt_ids(item: &Item, out: &mut Vec<u32>) {
-    match item {
-        Item::Function(func) => collect_stmt_ids(&func.body, out),
-        Item::Class(class) => {
-            for method in &class.methods {
-                collect_stmt_ids(&method.body, out);
+
+fn observe_stmt_ids(stmt: &Stmt, ids: &mut NestedIdMaxima) {
+    let stmt_id = match stmt {
+        Stmt::Let { id, init, .. } => {
+            if let Some(init) = init {
+                observe_expr_ids(init, ids);
             }
+            id
         }
-        Item::GlobalVar(_) => {}
-    }
-}
-fn collect_stmt_ids(block: &Block, out: &mut Vec<u32>) {
-    for stmt in &block.stmts {
-        match stmt {
-            Stmt::For { id, init, cond, update, body, .. } => {
-                out.push(id.0);
-                collect_stmt_ids(init, out);
-                if let Some(cond) = cond { collect_expr_ids(cond, out); }
-                collect_stmt_ids(update, out);
-                collect_stmt_ids(body, out);
+        Stmt::Assign { id, lhs, rhs, .. } => {
+            observe_lvalue_expr_ids(lhs, ids);
+            observe_expr_ids(rhs, ids);
+            id
+        }
+        Stmt::Expr { id, expr, .. } => {
+            observe_expr_ids(expr, ids);
+            id
+        }
+        Stmt::If { id, cond, then_block, else_block, .. } => {
+            observe_expr_ids(cond, ids);
+            observe_block_ids(then_block, ids);
+            if let Some(else_block) = else_block {
+                observe_block_ids(else_block, ids);
             }
-            Stmt::Let { id, init, .. } => {
-                out.push(id.0);
-                if let Some(init) = init { collect_expr_ids(init, out); }
+            id
+        }
+        Stmt::While { id, cond, body, .. } => {
+            observe_expr_ids(cond, ids);
+            observe_block_ids(body, ids);
+            id
+        }
+        Stmt::For { id, init, cond, update, body, .. } => {
+            observe_block_ids(init, ids);
+            if let Some(cond) = cond {
+                observe_expr_ids(cond, ids);
             }
-            Stmt::Assign { id, lhs, rhs, .. } => {
-                out.push(id.0);
-                collect_lvalue_expr_ids(lhs, out);
-                collect_expr_ids(rhs, out);
+            observe_block_ids(update, ids);
+            observe_block_ids(body, ids);
+            id
+        }
+        Stmt::ForEach { id, iterable, body, .. } => {
+            observe_expr_ids(iterable, ids);
+            observe_block_ids(body, ids);
+            id
+        }
+        Stmt::Return { id, value, .. } | Stmt::Throw { id, value, .. } => {
+            if let Some(value) = value {
+                observe_expr_ids(value, ids);
             }
-            Stmt::Expr { id, expr, .. } => { out.push(id.0); collect_expr_ids(expr, out); }
-            Stmt::If { id, cond, then_block, else_block, .. } => {
-                out.push(id.0); collect_expr_ids(cond, out); collect_stmt_ids(then_block, out); if let Some(else_block)=else_block { collect_stmt_ids(else_block, out); }
-            }
-            Stmt::While { id, cond, body, .. } => { out.push(id.0); collect_expr_ids(cond, out); collect_stmt_ids(body, out); }
-            Stmt::ForEach { id, iterable, body, .. } => { out.push(id.0); collect_expr_ids(iterable, out); collect_stmt_ids(body, out); }
-            Stmt::Return { id, value, .. } | Stmt::Throw { id, value, .. } => { out.push(id.0); if let Some(value)=value { collect_expr_ids(value, out); } }
-            Stmt::Try { id, try_block, catches, finally_block, .. } => {
-                out.push(id.0); collect_stmt_ids(try_block, out); for catch in catches { collect_stmt_ids(&catch.body, out); } if let Some(finally_block)=finally_block { collect_stmt_ids(finally_block, out); }
-            }
-            Stmt::Break { id, .. } | Stmt::Continue { id, .. } => { out.push(id.0); }
-            Stmt::DoWhile { id, body, cond, .. } => {
-                out.push(id.0); collect_expr_ids(cond, out); collect_stmt_ids(body, out);
-            }
-            Stmt::Switch { id, scrutinee, clauses, default, .. } => {
-                out.push(id.0);
-                collect_expr_ids(scrutinee, out);
-                for clause in clauses {
-                    for value in &clause.values { collect_expr_ids(value, out); }
-                    collect_stmt_ids(&clause.body, out);
+            id
+        }
+        Stmt::Break { id, .. } | Stmt::Continue { id, .. } => id,
+        Stmt::DoWhile { id, body, cond, .. } => {
+            observe_block_ids(body, ids);
+            observe_expr_ids(cond, ids);
+            id
+        }
+        Stmt::Switch { id, scrutinee, clauses, default, .. } => {
+            observe_expr_ids(scrutinee, ids);
+            for clause in clauses {
+                for value in &clause.values {
+                    observe_expr_ids(value, ids);
                 }
-                if let Some(default) = default { collect_stmt_ids(default, out); }
+                observe_block_ids(&clause.body, ids);
             }
-        }
-    }
-}
-fn collect_item_expr_ids(item: &Item, out: &mut Vec<u32>) {
-    match item {
-        Item::Function(func) => collect_stmt_ids(&func.body, out),
-        Item::Class(class) => {
-            for method in &class.methods {
-                collect_stmt_ids(&method.body, out);
+            if let Some(default) = default {
+                observe_block_ids(default, ids);
             }
+            id
         }
-        Item::GlobalVar(var) => { if let Some(init)=&var.init { collect_expr_ids(init, out); } }
-    }
+        Stmt::Try { id, try_block, catches, finally_block, .. } => {
+            observe_block_ids(try_block, ids);
+            for catch in catches {
+                observe_block_ids(&catch.body, ids);
+            }
+            if let Some(finally_block) = finally_block {
+                observe_block_ids(finally_block, ids);
+            }
+            id
+        }
+    };
+    observe_id(&mut ids.stmt, stmt_id.0);
 }
-fn collect_lvalue_expr_ids(lhs: &LValue, out: &mut Vec<u32>) {
+
+fn observe_lvalue_expr_ids(lhs: &LValue, ids: &mut NestedIdMaxima) {
     match lhs {
         LValue::Var(_) => {}
-        LValue::Field { base, .. } => collect_expr_ids(base, out),
-        LValue::Index { base, index } => { collect_expr_ids(base, out); collect_expr_ids(index, out); }
+        LValue::Field { base, .. } => observe_expr_ids(base, ids),
+        LValue::Index { base, index } => {
+            observe_expr_ids(base, ids);
+            observe_expr_ids(index, ids);
+        }
     }
 }
-fn collect_expr_ids(expr: &Expr, out: &mut Vec<u32>) {
-    match expr {
-        Expr::VarRef { id, .. } | Expr::Literal { id, .. } | Expr::Unknown { id, .. } => out.push(id.0),
-        Expr::Unary { id, expr, .. } | Expr::Cast { id, expr, .. } => { out.push(id.0); collect_expr_ids(expr, out); }
-        Expr::Binary { id, lhs, rhs, .. } => { out.push(id.0); collect_expr_ids(lhs, out); collect_expr_ids(rhs, out); }
-        Expr::FieldRead { id, base, .. } => { out.push(id.0); collect_expr_ids(base, out); }
-        Expr::IndexRead { id, base, index, .. } => { out.push(id.0); collect_expr_ids(base, out); collect_expr_ids(index, out); }
-        Expr::Call(call) => {
-            out.push(call.id.0);
-            if let CallTarget::Dynamic(callee) = &call.target { collect_expr_ids(callee, out); }
-            if let Some(receiver)=&call.receiver { collect_expr_ids(receiver, out); }
-            for arg in &call.args { collect_expr_ids(arg, out); }
+
+fn observe_expr_ids(expr: &Expr, ids: &mut NestedIdMaxima) {
+    let expr_id = match expr {
+        Expr::VarRef { id, .. } | Expr::Literal { id, .. } | Expr::Unknown { id, .. } => id,
+        Expr::Unary { id, expr, .. } | Expr::Cast { id, expr, .. } => {
+            observe_expr_ids(expr, ids);
+            id
         }
-        Expr::Lambda { id, body, .. } => { out.push(id.0); collect_stmt_ids(body, out); }
-        Expr::New { id, args, .. } => { out.push(id.0); for arg in args { collect_expr_ids(arg, out); } }
+        Expr::Binary { id, lhs, rhs, .. } => {
+            observe_expr_ids(lhs, ids);
+            observe_expr_ids(rhs, ids);
+            id
+        }
+        Expr::FieldRead { id, base, .. } => {
+            observe_expr_ids(base, ids);
+            id
+        }
+        Expr::IndexRead { id, base, index, .. } => {
+            observe_expr_ids(base, ids);
+            observe_expr_ids(index, ids);
+            id
+        }
+        Expr::Call(call) => {
+            if let CallTarget::Dynamic(callee) = &call.target {
+                observe_expr_ids(callee, ids);
+            }
+            if let Some(receiver) = &call.receiver {
+                observe_expr_ids(receiver, ids);
+            }
+            for arg in &call.args {
+                observe_expr_ids(arg, ids);
+            }
+            &call.id
+        }
+        Expr::Lambda { id, body, .. } => {
+            observe_block_ids(body, ids);
+            id
+        }
+        Expr::New { id, args, .. } => {
+            for arg in args {
+                observe_expr_ids(arg, ids);
+            }
+            id
+        }
         Expr::Conditional { id, cond, then_expr, else_expr, .. } => {
-            out.push(id.0);
-            collect_expr_ids(cond, out);
-            collect_expr_ids(then_expr, out);
-            collect_expr_ids(else_expr, out);
+            observe_expr_ids(cond, ids);
+            observe_expr_ids(then_expr, ids);
+            observe_expr_ids(else_expr, ids);
+            id
         }
         Expr::Assign { id, lhs, rhs, .. } => {
-            out.push(id.0);
-            collect_lvalue_expr_ids(lhs, out);
-            collect_expr_ids(rhs, out);
+            observe_lvalue_expr_ids(lhs, ids);
+            observe_expr_ids(rhs, ids);
+            id
         }
         Expr::Interp { id, parts, .. } | Expr::Collection { id, elements: parts, .. } => {
-            out.push(id.0);
             for part in parts {
-                collect_expr_ids(part, out);
+                observe_expr_ids(part, ids);
             }
+            id
         }
         Expr::Range { id, low, high, .. } => {
-            out.push(id.0);
-            collect_expr_ids(low, out);
-            collect_expr_ids(high, out);
+            observe_expr_ids(low, ids);
+            observe_expr_ids(high, ids);
+            id
         }
-        Expr::Opaque { id, .. } => out.push(id.0),
-    }
+        Expr::Opaque { id, .. } => id,
+    };
+    observe_id(&mut ids.expr, expr_id.0);
 }
 
 #[cfg(test)]
 mod merge_tests {
     use super::*;
+
+    fn program_with_lambda_ids() -> Program {
+        let span = Span::default();
+        Program {
+            language: Language::Rust,
+            files: vec![SourceFile {
+                id: FileId(0),
+                path: "unit.rs".to_string(),
+            }],
+            modules: vec![Module {
+                id: ModuleId(0),
+                file: FileId(0),
+                name: "unit".to_string(),
+                imports: vec![],
+                items: vec![Item::Function(Function {
+                    id: FunctionId(0),
+                    name: "outer".to_string(),
+                    symbol: None,
+                    params: vec![],
+                    captures: vec![],
+                    return_type: None,
+                    body: Block {
+                        id: BlockId(0),
+                        stmts: vec![Stmt::Expr {
+                            id: StmtId(200),
+                            expr: Expr::Lambda {
+                                id: ExprId(3),
+                                params: vec![],
+                                captures: vec![],
+                                body: Block {
+                                    id: BlockId(1),
+                                    stmts: vec![Stmt::Expr {
+                                        id: StmtId(2),
+                                        expr: Expr::Literal {
+                                            id: ExprId(10),
+                                            kind: LiteralKind::Int(1),
+                                            span,
+                                        },
+                                        span,
+                                    }],
+                                    span,
+                                },
+                                span,
+                            },
+                            span,
+                        }],
+                        span,
+                    },
+                    is_method: false,
+                    receiver: None,
+                    cpp: None,
+                    cpp_initializers: vec![],
+                    span,
+                })],
+                span,
+            }],
+            symbols: vec![],
+            types: vec![],
+            source_maps: vec![],
+        }
+    }
 
     #[test]
     fn call_targets_participate_in_id_remapping_and_collection() {
@@ -645,9 +748,9 @@ mod merge_tests {
             })),
             receiver: None, qualifier_is_explicit: false, args: vec![], arg_names: vec![], span,
         });
-        let mut ids = Vec::new();
-        collect_expr_ids(&call, &mut ids);
-        assert_eq!(ids, [1, 90, 99], "callee IDs can exceed the outer call ID");
+        let mut ids = NestedIdMaxima::default();
+        observe_expr_ids(&call, &mut ids);
+        assert_eq!(ids.expr, Some(99), "callee IDs can exceed the outer call ID");
         remap_expr(&mut call, &offsets);
         let Expr::Call(call) = &mut call else { unreachable!() };
         let CallTarget::Dynamic(callee) = &call.target else { unreachable!() };
@@ -659,5 +762,33 @@ mod merge_tests {
         let mut resolved = Expr::Call(call.clone());
         remap_expr(&mut resolved, &offsets);
         assert!(matches!(resolved, Expr::Call(CallExpr { target: CallTarget::Resolved(SymbolId(27)), .. })));
+    }
+
+    #[test]
+    fn project_merger_tracks_lambda_blocks_and_independent_id_namespaces() {
+        let unit = program_with_lambda_ids();
+        let mut merger = ProgramMerger::new(Language::Rust);
+        merger.merge(unit.clone());
+        merger.merge(unit);
+        let project = merger.finish();
+
+        let Item::Function(second) = &project.modules[1].items[0] else {
+            panic!("expected second function");
+        };
+        assert_eq!(second.body.id, BlockId(2));
+        let Stmt::Expr { id, expr, .. } = &second.body.stmts[0] else {
+            panic!("expected outer expression statement");
+        };
+        assert_eq!(*id, StmtId(401));
+        let Expr::Lambda { id, body, .. } = expr else {
+            panic!("expected lambda");
+        };
+        assert_eq!(*id, ExprId(14));
+        assert_eq!(body.id, BlockId(3));
+        let Stmt::Expr { id, expr, .. } = &body.stmts[0] else {
+            panic!("expected lambda expression statement");
+        };
+        assert_eq!(*id, StmtId(203));
+        assert!(matches!(expr, Expr::Literal { id: ExprId(21), .. }));
     }
 }

@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150452" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要在URL上使用equals或hashCode方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[因为URL的`equals`和`hashCode`方法都是阻塞操作，当使用URL的`equals`和`hashCode`方法执行域名解析，会导致很大的性能损失。  
+  
+**例如**：下列代码中，使用URL的`equals`来判断是否为同一个URL。
+```java  
+url.equals(otherUrl);
+```
+]]></Description>  
+      <Advice><![CDATA[使用URI替换URL进行处理。  
+  
+**例如**：下列代码中,使用URI的`equals`来判断是否为同一个URI。
+```java  
+uri.equals(otherUri);
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>performance,bad_practice</Tag> 
+    </BugInfo>  
+    

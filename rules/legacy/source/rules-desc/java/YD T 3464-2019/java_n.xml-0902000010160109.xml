@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160109" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">7.5 文件系统</Category>  
+        <Category type="DetailClassChin">C.13.4 在终止前移除临时文件</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+确保临时文件在终止前被移除。   
+2) 原理   
+开发人员通常在任何人都可以进行写操作的目录中创建临时文件。例如，POSIX 中的`/tap`、`/var/tmp`、Windows 中的 `C:\TEMP`。这些目录中的文件会被定期地清理，例如在每天晚上或者每次重启动时。然而，当那些文件被不安全地创建或者在使用后仍然保持可访问状态的时候，可访问本地文件系统的攻击者可以操作共享目录中的文件。   
+3) 示例   
+    以下这段代码示例认为在安全目录中创建的文件是符合规则要求的，并且使用了正确的访问权限来进行创建，符合规则的要求。这两个要求是在 JVM 之外进行管理的。 这个不符合规则的代码示例没有在结束时删除文件。   
+    ```java
+    class TempFile {
+        public static void main(String[] args) throws IOException {
+            File f = new File("tempnam.tmp");
+            if (f.exists()) {
+                System.out.printIn("This file already exists");
+                return;
+            }
+    
+            FileOutputStream fop = null;
+            try {
+                fop = new FileOutputStream(f);
+                String str = "Data";
+                Fop.write(str.getBytes());
+            } finally {
+                if (fop != null) {
+                    try {
+                        fop.close();
+                    } catch (IOException x) {
+                        // handle error
+                    }
+                }
+            }
+        }
+    }
+    ```   
+       
+    对应的符合规则的解决方案是：使用 Java SE 7 的 NIO2 包中的若干方法创建临时文件。它使用   `createTempFile()`方法创建一个不可预测的名字。   
+    ```java
+        class TempFile {
+            public static void main(String[] args) {
+                Path tempFile = null;
+                try {
+                    tempFile = Files.createTempFile("tempnam", ".tmp");
+                    try (BufferedWriter writer = Files.newBufferedWriter(tempFile, Charset.forName("UTF8"),
+                            StandardOpenOption.DELETE_ON_CLOSE)) {
+                        // write to file
+                    }
+                    System.out.println("Temporary file write done, file erased");
+                } catch (FileAlreadyExistsException x) {
+                    System.err.println("File exists: " + tempFile);
+                } catch (IOException x) {
+                    // Some other sort of failure, such as permissions.
+                    System.err.println("Error creating temporary file: " + x);
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">459:Incomplete Cleanup</Reference>  
+        <Reference type="CWE">377:Insecure Temporary File</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.13 输入输出</BigClassChin>  
+       
+    </BugInfo>  
+    

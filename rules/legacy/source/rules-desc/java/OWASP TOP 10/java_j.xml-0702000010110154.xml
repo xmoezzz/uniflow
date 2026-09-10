@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110154" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：缺少登录配置</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行缺少登录配置。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行缺少登录配置。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[`<login-config>`元素用于配置用户对应用程序进行验证的方式。缺少登陆配置意味着应用程序不知道如何应用授权限制，可使用`<login-config>`的子标签`<auth-method>`标签指定。  
+共有四种登录配置：`BASIC`、`FORM`、`DIGEST`和`CLIENT_CERT`。  
+`BASIC`代表 HTTP Basic 身份验证。  
+`FORM`代表基于表单的身份验证。  
+`DIGEST`和`BASIC`身份验证相似；但是，`DIGEST`中的密码已加密。  
+`CLIENT_CER`要求客户端有公钥证书并使用 SSL/TLS。  
+
+**例如**：以下配置文件未指定登录配置。
+```xml
+<web-app>
+
+    <!-- servlet declarations -->
+    <servlet>...</servlet>
+
+    <!-- servlet mappings-->
+    <servlet-mapping>...</servlet-mapping>
+
+    <!-- security-constraints-->
+    <security-constraint>...</security-constraint>
+
+    <!-- login-config goes here -->
+
+    <!-- security-roles -->
+    <security-role>...</security-role>
+
+</web-app>
+```  
+]]></Description>
+			<Advice><![CDATA[在定义授权限制时始终指定登录配置。确保`login-config`的`auth-method`设置为`BASIC`、`FORM`、`DIGEST`或`CLIENT_CERT`。   
+
+**例如**：以下配置文件指定登录配置。
+```xml
+<web-app>
+
+    <security-constraint>
+	    <web-resource-collection>
+	        <web-resource-name>Employees Only</web-resource-name>
+	        <description>Only allow employees access</description>
+	        <url-pattern>/store/employees/*</url-pattern>
+	    </web-resource-collection>
+	    <auth-constraint>
+	        <description>Employees only</description>
+	        <role-name>employee</role-name>
+	    </auth-constraint>
+	    <user-data-constraint>
+	        <transport-guarantee>CONFIDENTIAL</transport-guarantee>
+	    </user-data-constraint>
+	</security-constraint>
+	...
+	<login-config>
+	<auth-method>FORM</auth-method>
+	</login-config>
+</web-app>
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<Security>yes</Security>
+			<WhiteList>not</WhiteList>
+
+
+
+<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

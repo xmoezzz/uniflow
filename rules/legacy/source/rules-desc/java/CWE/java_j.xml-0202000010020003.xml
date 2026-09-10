@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020003" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">HTTP响应截断</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序从一个不可信赖的数据源获取数据，未进行验证就置于HTTP头文件中发给用户，可能会导致HTTP响应截断攻击。  
+  
+**例如**：下列代码片段中，程序从HTTP请求中获取`author`的值，并将其设置到HTTP响应文件的cookie中。  
+```java
+...
+String author = request.getParameter(AUTHOR_PARAM);  
+...   
+Cookie cookie = new Cookie("author", author);  
+cookie.setMaxAge(cookieExpiration);  
+response.addCookie(cookie);
+...
+```  
+如果请求中提交的是一个`Jane Smith`字符串，那么包含该cookie的HTTP响应可能表现为以下形式：  
+```java
+HTTP/1.1 200 OK  
+...  
+Set-Cookie: author=Jane Smith  
+...
+```  
+那么如果攻击者提交的是一个恶意字符串，比如`Wiley Hacker\r\nHTTP/1.1 200 OK\r\n...`，那么HTTP响应就会被分割成以下形式的两个响应：  
+```java
+HTTP/1.1 200 OK  
+...  
+Set-Cookie: author=Wiley Hacker  
+HTTP/1.1 200 OK  
+...
+```  
+这样第二个响应已完全由攻击者控制，攻击者可以用所需的头文件和正文内容构建该响应实施攻击。
+]]></Description>
+			<Advice><![CDATA[防止HTTP响应截断攻击的最安全的方法是创建一份安全字符白名单，只接受完全由这些受认可的字符组成的输入出现在HTTP响应头文件中。  
+  
+**例如**：以下代码片段中，验证了`author`的值是否由标准的字母数字字符组成。  
+```java
+...
+String author = request.getParameter(AUTHOR_PARAM);  
+if (Pattern.matches("[0-9A-Za-z]+", author)) {  
+    ...   
+    Cookie cookie = new Cookie("author", author);  
+    cookie.setMaxAge(cookieExpiration);  
+    response.addCookie(cookie);  
+}
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">113:Improper Neutralization of CRLF Sequences in HTTP Headers ('HTTP Response Splitting')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="GB/T 34944-2017 Java">Web问题:HTTP响应拆分</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发HTTP响应截断漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在HTTP响应截断漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在HTTP响应截断漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发HTTP响应截断漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

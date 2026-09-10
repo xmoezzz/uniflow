@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170033" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.1 面向对象程序安全</Category>  
+        <Category type="DetailClassChin">A.3.1.7 不要定义方法来隐藏基类或基类接口中声明的方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明： 当方法使用相同的名字、相同数目和类型的参数，以及相同的返回类型时，在子类中定义的实例方法会覆写基类中的实例方法。  
+对于不要定义方法来隐藏基类或基类接口中声明的方法的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+class GrantAccess {
+    public static void displayAccountStatus() {
+        System.out.println("Account details for admin: XX");
+    }
+}
+
+class GrantUserAccess extends GrantAccess {
+    public static void displayAccountStatus() {
+        System.out.println("Account details for user: XX");
+    }
+}
+
+public class StatMethod {
+    public static void choose(String username) {
+        GrantAccess admin = new GrantAccess();
+        GrantAccess user = new GrantUserAccess();
+        if (username.equals("admin")) {
+            admin.displayAccountStatus();
+        } else {
+            user.displayAccountStatus();
+        }
+    }
+
+    public static void main(String[] args) {
+        choose("user");
+    }
+}
+```  
+代码中程序员隐藏了static方法而不是将其覆写。因此，代码在两个不同的地方调用了基类中的`displayAccountStatus()`方法，而不是在一处调用基类的方法，另一处调用子类的方法。  
+**示例2**：  
+```java
+class GrantAccess {
+    public void displayAccountStatus() {
+        System.out.println("Account details for admin: XX");
+    }
+}
+
+class GrantUserAccess extends GrantAccess {
+    @Override
+    public void displayAccountStatus() {
+        System.out.println("Account details for user: XX");
+    }
+}
+
+public class StatMethod {
+    public static void choose(String username) {
+        GrantAccess admin = new GrantAccess();
+        GrantAccess user = new GrantUserAccess();
+        if (username.equals("admin")) {
+            admin.displayAccountStatus();
+        } else {
+            user.displayAccountStatus();
+        }
+    }
+
+    public static void main(String[] args) {
+        choose("user");
+    }
+}
+``` 
+去掉了方法`displayAccountStatus()`的关键字static，`displayAccountStatus()`即成了一个实例方法。因此，调用方法的动态方法扩展使执行得到了预期结果。  
+从理论上说，一个private方法是不能被隐藏或被覆写的。没有任何要求指定子类和基类中具有相同签名的private方法有任何联系，即使方法具有相同的返回类型和抛出异常，这是隐藏的必要条件。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">486:Comparison of Classes by Name</Reference>  
+        <Reference type="CERT">MET07-J:Never declare a class method that hides a method declared in a superclass or superinterface</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.1 面向对象程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

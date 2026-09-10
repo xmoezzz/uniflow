@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010170068" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">7.4 文件管理</Category>  
+        <Category type="DetailClassChin">A.4.4.5 避免路径遍历</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：应用程序对用户可控制的输入未经合理校验，就传送给一个文件API。攻击者可能会使用一些特殊的字符（如`“..”`和`“/”`）摆脱受保护的限制，访问一些受保护的文件或目录。  
+对于避免路径遍历的情况，示例1给出了不规范用法（java语言）示例。  
+**示例1**：  
+```java
+String path = getInputPath();  
+if (path.startsWith("/safe_dir/")){  
+    File f = new File(path);  
+    f.delete();  
+}
+```  
+上述代码片段通过验证输入路径是否以`“/safe_dir/”`为开头，来判断是否进行创建、删除操作。  
+攻击者可能提供类似下面的输入：  
+`/safe_dir/../important.dat`  
+程序假定路径是有效的，因为它是以`“/safe_dir/”`开头的，但是`“../”`将导致程序删除`“important.dat”`文件的父目录。  
+防止路径遍历的最佳方法是创建一份合法资源名的列表，并且规定用户只能选择其中的文件名。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">73:External Control of File Name or Path</Reference>  
+        <Reference type="CWE">36:Absolute Path Traversal</Reference>  
+        <Reference type="CWE">23:Relative Path Traversal</Reference>  
+        <Reference type="CWE">22:Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')</Reference>  
+        <Reference type="CERT">IDS02-J:Canonicalize path names before validating them</Reference>  
+        <Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>  
+        <Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>  
+        <Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 73</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Path Traversal [EWR]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:相对路径遍历</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:绝对路径遍历</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.4.4 文件管理</BigClassChin>  
+       
+    </BugInfo>  
+    

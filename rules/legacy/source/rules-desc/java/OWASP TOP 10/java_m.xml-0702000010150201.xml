@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010150201" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">密码规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用不安全的哈希算法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在安全性要求较高的系统中，不应使用被业界公认的不安全的哈希算法（如MD2、MD4、MD5、SHA、SHA1等)来保证数据的完整性。  
+  
+**例如**：下面代码片段中，采用MD5算法来保证数据的完整性。  
+```java
+...   
+byte[] b = str.getBytes();   
+MessageDigest md = null;   
+try {   
+    md = MessageDigest.getInstance( "MD5" );   
+    md.update( b );   
+}catch ( NoSuchAlgorithmException e ) {  
+...  
+}  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[在安全性要求较高的系统中，应采用散列值>=224比特的SHA系列算法（如SHA-224、SHA-256、SHA-384和SHA-512）来保证敏感数据的完整性。  
+  
+**例如**：下面代码片段中，使用SHA-256算法取代MD5算法保证数据完整性。  
+```java
+...   
+strSrc = upsw+salt;   
+byte[] bt = strSrc.getBytes();  
+try {  
+    md = MessageDigest.getInstance("SHA-256");  
+    md.update(bt);  
+    strDes = bytes2Hex(md.digest()); // to HexString  
+} catch ( NoSuchAlgorithmException e ) {  
+...  
+}  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">328:Reversible One-Way Hash</Reference>  
+        <Reference type="CWE">327:Use of a Broken or Risky Cryptographic Algorithm</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:可逆的散列算法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin>Security Features</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>security,password</Tag> 
+    </BugInfo>  
+    

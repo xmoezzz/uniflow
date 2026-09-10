@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010020018" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">有风险的XMLDecoder反序列化</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了有风险的XMLDecoder反序列化。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了有风险的XMLDecoder反序列化。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[JDK中的XMLDecoder反序列化存在命令执行漏洞，让攻击者有机会在服务器上执行恶意代码。当XMLDecoder的构造方法传入的数据来源不可信时，就可能导致XMLDecoder注入。  
+  
+**例如**：下面代码片段是利用XMLDecoder来反序列化。  
+```java
+public static Object xmlDecoder(BufferedInputStream bufferedInputStream){  
+    XMLDecoder decoder = new XMLDecoder(bufferedInputStream);  
+    Object object = decoder.readObject();  
+    decoder.close();  
+    return object;  
+}
+```  
+如果输入以下XML文档，程序会实例化ProcessBuilder对象，并调用其静态`start()`方法执行系统指令`（“c:\Windows\System32\calc.exe”）`运行Windows计算器。   
+```xml
+<java>  
+    <object class="java.lang.ProcessBuilder">  
+        <array class="java.lang.String" length="1" >  
+            <void index="0">  
+                <string>c:\\Windows\\System32\\calc.exe</string>    
+            </void>   
+        </array>  
+        <void method="start"/>  
+    </object>  
+</java>  
+```
+
+]]></Description>
+			<Advice><![CDATA[XMLDecoder与用户控制的数据尽量不要一起使用。如程序中不能避免，则需要验证输入XML文件的内容。
+]]></Advice>
+			<References>
+				<Reference type="CWE">116:Improper Encoding or Escaping of Output</Reference>
+				<Reference type="CWE">95:Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A8 Insecure Deserialization</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 116</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100102" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">Spring Boot配置错误：不安全的Actuator</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在文件+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行Actuator设置不安全。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Actuator是Springboot提供的用来对应用系统进行自省和监控的功能模块。默认情况下，所有有可能会泄露敏感数据并被贴上“敏感”标签的 Actuator都被保护。而将Actuator设为不敏感，意味着将不再受到保护。   
+  
+**例1**：下列代码中禁用敏感Actuator的身份验证要求。
+```  
+management.security.enabled=false
+```
+**例2**：下列代码中将敏感Actuator设为非敏感Actuator。  
+```
+endpoints.health.sensitive=false  
+```
+**例3**：下列代码中自定义 Actuator设置为非敏感 Actuator。
+```java
+@Component  
+public class UserEndpoint implements Endpoint<List<String>> {  
+    public boolean isEnabled() {  
+        return true;  
+    }  
+  
+    public boolean isSensitive() {  
+        return false;  
+    }  
+    ...  
+}
+```  
+]]></Description>
+			<Advice><![CDATA[不要禁用敏感Actuator的身份验证要求，以及不要将敏感Actuator设为非敏感Actuator。
+
+**例1**：下列代码中不再禁用敏感Actuator的身份验证要求。
+```  
+management.security.enabled=true
+```
+**例2**：下列代码中不再将敏感Actuator设为非敏感Actuator。  
+```
+endpoints.health.sensitive=true  
+```
+**例3**：下列代码中自定义 Actuator设置为敏感 Actuator。
+```java
+@Component  
+public class UserEndpoint implements Endpoint<List<String>> {  
+    public boolean isEnabled() {  
+        return true;  
+    }  
+  
+    public boolean isSensitive() {  
+        return true;  
+    }  
+    ...  
+}
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

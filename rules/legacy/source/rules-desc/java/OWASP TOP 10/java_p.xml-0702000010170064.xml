@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010170064" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">7.3 数据库管理</Category>  
+        <Category type="DetailClassChin">A.4.3.3 避免数据库访问控制</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：程序未进行恰当的访问控制，执行的SQL语句包含用户所控制的主键，可能会导致攻击者访问未经授权的记录。  
+对于避免数据库访问控制的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+id = Integer.decode(request.getParameter("invoiceID"));  
+String query = "SELECT * FROM invoices WHERE id = ?";  
+PreparedStatement stmt = conn.prepareStatement(query);  
+stmt.setInt(1, id);  
+ResultSet results = stmt.execute();  
+...
+```  
+上述代码片段中的SQL语句用于查询与指定标识符相匹配的清单。  
+在上面代码中，攻击者可以通过为`invoiceID`设置不同的值，获取所需的任何清单信息。  
+任何情况下都不应该允许用户在没有取得相应权限的情况下获取或修改数据库中的记录。可以通过把当前被授权的用户名作为查询语句的一部分来实现。   
+**示例2**：   
+```java
+userName = ctx.getAuthenticatedUserName();  
+id = Integer.decode(request.getParameter("invoiceID"));  
+String query =  "SELECT * FROM invoices WHERE id = ? AND user = ?";  
+PreparedStatement stmt = conn.prepareStatement(query);  
+stmt.setString(1, id);  
+stmt.setString(2, userName);  
+ResultSet results = stmt.execute();
+```  
+上述代码片段中，通过把当前被授权的用户名作为查询语句的一部分来限制用户对清单的访问。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">566:Authorization Bypass Through User-Controlled SQL Primary Key</Reference>  
+        <Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>  
+        <Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>  
+        <Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:通过用户控制的SQL关键字绕过授权</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.4.3 数据库管理</BigClassChin>  
+       
+    </BugInfo>  
+    

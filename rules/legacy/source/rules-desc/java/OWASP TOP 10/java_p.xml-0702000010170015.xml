@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010170015" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">5.2 数据加密与保护</Category>  
+        <Category type="DetailClassChin">A.2.2.1.6 避免使用不安全的操作模式</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：块密码又称为分组加密，一次加密明文中的一个块。将明文按一定的位长分组，明文组经过加密运算得到密文组，密文组经过解密运算（加密运算的逆运算），还原成明文组。这种加密算法共有四种操作模式用于描述如何重复地应用密码的单块操作来安全的转换大于块的数据量，分别是电子代码(ECB)、密码块链(CBC)、密码反馈(CFB)以及输出反馈（OFB）。其中ECB模式下相同的明文块总是会得到相同的密文，故不能抵挡回放攻击，而CBC模式则没有这个缺陷。  
+对于避免使用不安全的操作模式的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：   
+```java
+...  
+Cipher cipher = Cipher.getInstance("AES/ECB/PKCS7Padding", "BC");  
+cipher.init(Cipher.ENCRYPT_MODE, createSecretKey(seed));  
+...
+```  
+以上代码将AES密码用于ECB模式。  
+加密大于块的数据时，应该避免使用ECB模式。由于CBC模式不会对相同的明文块生成相同的密文块，所以CBC模式更好。然而，CBC模式效率较低，并且在和SSL一起使用时会造成严重风险。可以改用CCM(Counter with CBC-MAC)模式，如果更注重性能，在可用的情况下则使用GCM(Galois/Counter)模式。  
+**示例2**：   
+```java
+...  
+Cipher cipher = Cipher.getInstance("AES/CBC/PKCS7Padding", "BC");  
+cipher.init(Cipher.ENCRYPT_MODE, createSecretKey(seed));  
+...
+```  
+以上代码将AES密码用于CBC模式。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">327:Use of a Broken or Risky Cryptographic Algorithm</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.2 数据加密与保护</BigClassChin>  
+       
+    </BugInfo>  
+    

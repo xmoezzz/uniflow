@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010170018" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">5.2 数据加密与保护</Category>  
+        <Category type="DetailClassChin">A.2.2.2.3 不要硬编码敏感信息</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：硬编码如密码、服务器IP地址、加密密匙这样的敏感信息，会将信息暴露给攻击者。任何一个可以访问类文件的人都可以对其进行反编译，然后得到敏感信息。因此，程序不能对敏感信息进行硬编码。对敏感信息进行硬编码会使代码管理变得更复杂。例如，在一个已部署的程序中，改变其硬编码密码需要发布补丁。对敏感数据进行硬编码会向攻击者泄露信息。  
+对于不要硬编码敏感信息的情况，示例1、给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+class IPaddress {  
+    String ipAddress = new String("172.16.254.1");  
+    public static void main(String[] args) {  
+        // ...  
+    }  
+}
+```  
+代码在一个String常量中对服务器IP地址进行了硬编码。使用java反编译工具（例如：javap -c IPaddress）进行反汇编，从而可以得到硬编码的服务器IP地址。  
+**示例2**：  
+```java
+class IPaddress {
+    public static void main(String[] args) throws IOException {
+        char[] ipAddress = new char[100];
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("serveripaddress.txt")));
+        // Reads the server IP address into the char array,
+        // returns the number of bytes read
+        int n = br.read(ipAddress);
+        // Validate server IP address
+        // Manually clear out the server IP address
+        // immediately after use
+        for (int i = n - 1; i >= 0; i--) {
+            ipAddress[i] = 0;
+        }
+        br.close();
+    }
+}
+```  
+代码通过一个安全目录下的外部文件得到服务器IP地址。通过使用后立即清除内存中的服务器IP，可以防止进一步泄露。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">798:Use of Hard-coded Credentials</Reference>  
+        <Reference type="CWE">336:Same Seed in Pseudo-Random Number Generator (PRNG)</Reference>  
+        <Reference type="CWE">330:Use of Insufficiently Random Values</Reference>  
+        <Reference type="CWE">326:Inadequate Encryption Strength</Reference>  
+        <Reference type="CWE">259:Use of Hard-coded Password</Reference>  
+        <Reference type="CERT">MSC03-J:Never hard code sensitive information</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 798</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 798</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 798</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 330</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 259</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Hard-coded Password [XYP]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:口令硬编码</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.2 数据加密与保护</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141403" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 13. 输入输出 (FIO)</Category>  
+        <Category type="DetailClassChin">FIO03-J：在终止前移除临时文件</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[临时文件可以用于：  
+1）在进程间共享数据。  
+2）存储附带的程序数据。  
+3）动态创建并且/或者装载类、jar文件以及原生库类。  
+开发人员通常在任何人都可以进行操作的目录中创建临时文件。如：POSIX中的`/tmp`、`/var/tmp`、Windows中的`c:\temp`，这些目录中的文件一般会被定期的清理。然而，当这些目录中的文件被不安全的创建或者在使用后仍然保持着可访问状态的时候，可访问本地文件系统的攻击者可以操作共享目录中的文件。  
+创建临时文件通常需要赋予其独特和不可预测的文件名，不仅如此，还需要在不需要它的时候删除它。每一个程序会负责保证在正常操作的情况下删除临时文件，但却没有万无一失的办法可以保证在异常情况下删除孤立文件，甚至采用finally块也不行。基于这个原因，很多系统使用的临时文件删除工具来清除临时目录并删除旧文件。  
+风险评估：违反该条准则可能会导致信息泄露和资源耗尽。      
+**不规范的代码样例1**：  
+```java
+class TempFile {
+    public static void main(String[] args) throws IOException {
+        File f = File.createTempFile("tempnam", ".tmp");
+        FileOutputStream fop = null;
+        try {
+            fop = new FileOutputStream(f);
+            String str = "Data";
+            fop.write(str.getBytes());
+            fop.flush();
+        } finally {
+            // Stream/file still open; file will
+            // not be deleted on Windows systems
+            // Delete the file when the JVM terminates
+            f.deleteOnExit();
+            if (fop != null) {
+                try {
+                } catch (IOException x) {// handle error
+                }
+            }
+        }
+    }
+}
+```  
+代码使用了`File.creatTempFile()`生成一个具有独特名称的临时文件，并且使用了`File.deleteOnExit()`方法保证了临时文件在JVM终止时删除。然而，根据Java API对File类的描述：仅在JVM正常终止的时候才进行删除操作。如果JVM不正常终止，文件不能删除。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+Java 7 的nio2包中的若干方法可以创建临时文件，该样例采用`Files.createTempFile()`方法创建了一个不可预测名称的临时文件，这个方法使用try的构造函数打开，它会自动关闭文件，而不管文件是否出现异常。最后，使用Java 7 的DELETE_ON_CLOSE选项打开文件，这选项能让在关闭文件的时候文件被删除。  
+```java
+class TempFile {
+    public static void main(String[] args) {
+        Path tempFile = null;
+        try {
+            tempFile = Files.createTempFile("tempnam", ".tmp");
+            try (BufferedWriter writer = Files.newBufferedWriter(tempFile, Charset.forName("UTF8"),
+                    StandardOpenOption.DELETE_ON_CLOSE)) {
+                // write to file
+            }
+            System.out.println("Temporary file write done, file erased");
+        } catch (FileAlreadyExistsException x) {
+            System.err.println("File exists: " + tempFile);
+        } catch (IOException x) {
+            // Some other sort of failure, such as permissions.
+            System.err.println("Error creating temporary file: " + x);
+        }
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">459:Incomplete Cleanup</Reference>  
+        <Reference type="CWE">377:Insecure Temporary File</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

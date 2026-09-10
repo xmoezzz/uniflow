@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010110070" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">JavaEE程序：永远不会超时的Session设置</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行Session设置为永远不会超时。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行Session设置为永远不会超时。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在JAVA EE程序中，设置了一个永远都不会过期的会话不仅会给恶意攻击者提供更多的机会，并且这样做意味着session对象会永远存在web服务器的内存空间中，当会话量足够大时可能会导致拒绝服务攻击。  
+  
+**例如**： 下面代码为设置了会话永远不会过期。  
+```java
+HttpSession session = request.getSession(true);  
+session.setMaxInactiveInterval(-1);
+```
+]]></Description>
+			<Advice><![CDATA[将Session的失效时间设置为30分钟或更少，既能使用户在一段时间内与应用程序互动，又提供了一个限制窗口攻击的合理范围。  
+  
+**例如**：下面代码片段中，将Session失效时间设置为30分钟。  
+```java
+HttpSession sesssion = request.getSession(true);  
+session.setMaxInactiveInterval(30*60);
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">613:Insufficient Session Expiration</Reference>
+				<Reference type="OWASP TOP 10">2017:A2 Broken Authentication</Reference>
+				<Reference type="OWASP TOP 10">2013:A2 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2010:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2007:A7 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="GB/T 34944-2017 Java">时间和状态:会话永不过期</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

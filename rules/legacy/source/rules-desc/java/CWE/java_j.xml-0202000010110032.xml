@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110032" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">日志记录：非static final的日志对象</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行定义了非static final的日志对象。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序中定义的日志记录对象未声明为static final的。  
+  
+**例如**：下列代码中定义的日志记录对象未声明为static。  
+```java
+public class Demo{  
+    public final  Logger logger = Logger.getLogger("A");    
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[建议应用程序中将日志记录对象声明为static final的。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>log,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

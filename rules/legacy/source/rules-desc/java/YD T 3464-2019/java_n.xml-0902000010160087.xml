@@ -1,0 +1,176 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160087" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.9.9 在异常条件时，保证释放已经持有的锁</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+在发生异常条件的情况下，程序必须释放当前持有的锁。   
+2) 原理   
+一个异常条件会阻碍释放锁，从而导致死锁。   
+根据 Java API的描述: 一个ReentnmtLock是由一个成功地执行了锁定但没有执行解锁操作的线程所拥有的，如果没有其他的线程持有锁，一个调用 Lock 的线程会成功的获得锁并返回。   
+因此，一个在任何线程中没有被释放的锁会阻止其他线程得到这个锁。在发生异常条件的情况下，程序必须释放当前持有的锁。在异常条件下（例如线程的非正常终结），被方法块和代码块同步使用的类对象的内置锁会自动释放。   
+3) 示例   
+    1、不符合规则的代码示例（可检查异常），该示例使用 ReentrantLock 来保护资源，当对打开的文件进行操作而发生异常时，却不能释放持有的锁。当抛出一个异常时，控制权会移交给 catch 代码块，并且 `unlock()`方法的调用不会成功。   
+    ```java
+    public final class Client {
+        public void doSomething(File file) {
+            final Lock lock = new ReentrantLock();
+            InputStream in = null;
+            try {
+                lock.lock();
+                in = new FileInputStream(file);
+                // Perform operations on the open file
+                lock.unlock();
+            } catch (FileNotFoundException x) {
+                // Handle exception
+            } finally {
+                if (in != null) {
+                    try {
+                        in.close();
+                    } catch (IOException x) {
+                        // Handle exception
+                    }
+                }
+    ```  
+       
+    对应的符合规则的解决方案（finally 代码块）是：在成功地执行锁定操作之后，将可能抛出异常的操作封装在 try 代码块中。这个锁在执行 try 代码块之前获得，这可以保证当执行 finally 代码块时，可以持有锁。在 finally 代码块中调用 `Lock.unlock()`方法，可以保证不管是否发生一个异常，总会释放锁。   
+    ```java
+    public final class Client {
+        public void doSomething(File file) {
+            final Lock lock = new ReentrantLock();
+            InputStream in = null;
+            try {
+                lock.lock();
+                in = new FileInputStream(file);
+                // Perform operations on the open file
+                lock.unlock();
+            } catch (FileNotFoundException x) {
+                // Handle exception
+            } finally {
+                lock.unlock();
+                if (in != null) {
+                    try {
+                        in.close();
+                    } catch (IOException x) {
+                        // Handle exception
+                    }
+                }
+            }
+    ```    
+       
+    另一个符合规则的解决方案是：围绕执行惯用法（`execute-aroimd idiom)`提供一个通用的机制来完成资源的分配并且进行清理操作，这样一个客户可以专注于那些必需的功能上。该惯用法减少了客户代码中的碎片，并且为管理资源提供了一个安全机制。   
+    本示例中，客户的`doSomething()`方法仅提供了必需的功能，是通过实现 LockAction 接口的`doSomethingWithFile()`方法来实现的，并且这个实现不需要管理锁的获取和释放， 也不需要管理文件的打开或关闭操作。这个 ReentrantLockAction 类封装了所有的资源管理动作。   
+    ```java
+        public interface LockAction {
+            void doSomethingWithFile(InputStream in);
+        }
+    
+        public final class ReentrantLockAction {
+            private static final Lock lock = new ReentrantLock();
+    
+            public static void doSomething(File file, LockAction action) {
+                InputStream in = null;
+                lock.lock();
+                try {
+                    in = new FileInputStream(file);
+                    action.doSomethingWithFile(in);
+                } catch (FileNotFoundException fnf) {
+                    // Forward to handler
+                } finally {
+                    lock.unlock();
+    
+                    if (in != null) {
+                        try {
+                            in.close();
+                        } catch (IOException e) {
+                            // Forward to handler
+                        }
+                    }
+                }
+            }
+        }
+    
+        public final class Client {
+            public void doSomething(File file) {
+                ReentrantLockAction.doSomething(file, new LockAction() {
+                    public void doSomethingWithFile(InputStream in) {
+                        // Perform operations on the open file
+                    }
+                });
+    ```   
+       
+    2、不符合规则的代码示例（未经检查的异常），该示例使用了一个 ReentrantLock 来保护一个`java.util.Date`实例。   
+    ```java
+    final class DateHandler {
+    
+        private final Date date = new Date();
+    
+        private final Lock lock = new ReentrantLock();
+    
+        // str could be null
+        public void doSomething(String str) {
+            lock.lock();
+            String dateString = date.toString();
+            if (str.equals(dateString)) {
+                // ...
+            }
+            // ...
+    
+            lock.unlock();
+        }
+    }
+    ```   
+    发生一个执行期异常，因为 `doSomething()`方法不能检査 str 是否是一个空引用，从而阻止了锁的释放。   
+       
+    对应符合规则的解决方案（finally 代码块）是：封装所有的操作，这些操作会在 try 代码块中抛出异常，并且释放那些在关联代码块中的锁。因此，甚至在一个执行期异常事件中，也会释放锁。   
+    ```java
+    final class DateHandler {
+    
+        private final Date date = new Date();
+    
+        private final Lock lock = new ReentrantLock();
+    
+        // str could be null
+        public void doSomething(String str) {
+            lock.lock();
+            try {
+                String dateString = date.toString();
+                if (str != null && str.equals(dateString)) {
+                    // ...
+                }
+                // ...
+    
+            } finally {
+                lock.unlock();
+            }
+        }
+    }
+    ```   
+    `doSomething()`方法同样避免抛出一个 NullPointerException 异常，可以通过保证这个字符串不包含一个空引用来实现。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>  
+        <Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>  
+        <Reference type="CWE">667:Improper Locking</Reference>  
+        <Reference type="CWE">459:Incomplete Cleanup</Reference>  
+        <Reference type="CWE">411:Resource Locking Problems</Reference>  
+        <Reference type="CERT">LCK08-J:Ensure actively held locks are released on exceptional conditions</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference>  
+        <Reference type="SJ/T 11683-2017">6.8.2 获取锁后没有释放锁</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.9 锁</BigClassChin>  
+       
+    </BugInfo>  
+    

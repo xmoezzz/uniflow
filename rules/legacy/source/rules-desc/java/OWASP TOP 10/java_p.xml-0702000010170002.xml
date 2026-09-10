@@ -1,0 +1,132 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010170002" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">5.1 数据清洗</Category>  
+        <Category type="DetailClassChin">A.2.1.1.3 从ZipInputStream安全解压文件</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：对`java.util.ZipInputStream`的输入进行检查可以防止消耗过多的系统资源。解压一个文件，比如zip、gif或者gzip编码的HTTP内容，可能会消耗过多的资源，并且在压缩率极高的情况下，可能会导致zip炸弹的出现。  
+对于从ZipInputStream安全解压文件的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+static final int BUFFER = 512;
+// ...
+
+public final void unzip(String filename) throws java.io.IOException {
+    FileInputStream fis = new FileInputStream(filename);
+    ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+    ZipEntry entry;
+    try {
+        while ((entry = zis.getNextEntry()) != null) {
+            System.out.println("Extracting: " + entry);
+            int count;
+            byte data[] = new byte[BUFFER];
+            // Write the files to the disk
+            FileOutputStream fos = new FileOutputStream(entry.getName());
+            BufferedOutputStream dest = new BufferedOutputStream(fos, BUFFER);
+            while ((count = zis.read(data, 0, BUFFER)) != -1) {
+                dest.write(data, 0, count);
+            }
+            dest.flush();
+            dest.close();
+            zis.closeEntry();
+        }
+    } finally {
+        zis.close();
+    }
+}
+```  
+这个不规范的代码示例没有检查解压一个文件时所消耗的资源。它会允许操作持续进行直至完成，或者直至本地资源耗尽为止。  
+**示例2**：  
+```java
+static final int BUFFER = 512;
+static final int TOOBIG = 0x6400000; // Max size of unzipped data, 100MB
+static final int TOOMANY = 1024; // Max number of files
+// ...
+
+private String validateFilename(String filename, String intendedDir) throws java.io.IOException {
+    File f = new File(filename);
+    String canonicalPath = f.getCanonicalPath();
+
+    File iD = new File(intendedDir);
+    String canonicalID = iD.getCanonicalPath();
+
+    if (canonicalPath.startsWith(canonicalID)) {
+        return canonicalPath;
+    } else {
+        throw new IllegalStateException("File is outside extraction target directory.");
+    }
+}
+
+public final void unzip(String filename) throws java.io.IOException {
+    FileInputStream fis = new FileInputStream(filename);
+    ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+    ZipEntry entry;
+    int entries = 0;
+    long total = 0;
+    try {
+        while ((entry = zis.getNextEntry()) != null) {
+            System.out.println("Extracting: " + entry);
+            int count;
+            byte data[] = new byte[BUFFER];
+            // Write the files to the disk, but ensure that the filename is valid,
+            // and that the file is not insanely big
+            String name = validateFilename(entry.getName(), ".");
+            if (entry.isDirectory()) {
+                System.out.println("Creating directory " + name);
+                new File(name).mkdir();
+                continue;
+            }
+            FileOutputStream fos = new FileOutputStream(name);
+            BufferedOutputStream dest = new BufferedOutputStream(fos, BUFFER);
+            while (total + BUFFER <= TOOBIG && (count = zis.read(data, 0, BUFFER)) != -1) {
+                dest.write(data, 0, count);
+                total += count;
+            }
+            dest.flush();
+            dest.close();
+            zis.closeEntry();
+            entries++;
+            if (entries > TOOMANY) {
+                throw new IllegalStateException("Too many files to unzip.");
+            }
+            if (total > TOOBIG) {
+                throw new IllegalStateException("File being unzipped is too big.");
+            }
+        }
+    } finally {
+        zis.close();
+    }
+}
+``` 
+在这个规范的代码示例中，代码在提取条目之前验证每个条目的名称。如果名称无效，那么整个提取就会被中止。while循环中的代码将判断zip归档中每个条目的文件大小，同时提取条目。如果提取的条目太大，在本例中为100MB，则会抛出异常。代码不要使用`ZipEntry.getSize()`方法, 因为攻击者可以伪造ZIP文档中未压缩的文件的大小。最后，代码还计算压缩包中文件条目的数量，如果超过1024个条目，则抛出异常。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">73:External Control of File Name or Path</Reference>  
+        <Reference type="CWE">23:Relative Path Traversal</Reference>  
+        <Reference type="CWE">22:Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')</Reference>  
+        <Reference type="CERT">IDS04-J:Safely extract files from ZipInputStream</Reference>  
+        <Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>  
+        <Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>  
+        <Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M8 Security Decisions Via Untrusted Inputs</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 73</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.1 数据清洗</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160111" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">7.5 文件系统</Category>  
+        <Category type="DetailClassChin">C.13.6 不要使用wrap（）或duplicate（）创建缓存，并将这些缓存暴露给非受信代码</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+不要使用 `wrap()`和 `duplicate()`进行缓存创建，防止将缓存暴露给非受信代码。   
+2) 原理   
+Buffer 类在 java.nio 包中定义，例如 IntBuffer、CharBuffer、和 ByteBuffer，同时还定义了一系列的 `wrap()`方法来封装对应的基础数据类型的数据，将其封装到一个缓存区中，并返回一个 Buffer 对象来代表这个缓存区。这些方法创建了一个新的 Buffer 对象，新的 Buffer 其实由指定的输入数组支持。   
+新的缓存区由指定的字符数组来支持，也就是说，对缓存区的修改会导致数值的修改，反之亦然。   
+将这些数组暴露给非受信的代码，会将其背后的数组也暴露给恶意的修改。同样, `duplicate()`创建了额外的缓存区，这个缓存区背后是支持原始缓存区的数组。暴露这个额外的缓存区给非受信的代码，同样将其暴露给恶意的修改。   
+3) 示例   
+    **例 1** 这个不符合规则的代码示例声明了一个 char 数组，将其封装在一个缓存区里，并且将那个缓存区通过 `getBufferCopy()`方法暴露给非受信的代码。   
+    ```java
+    final class Wrap {
+        private char[] dataArray;
+    
+        public Wrap() {
+            dataArray = new char[10];
+            // Initialize
+        }
+    
+        public CharBuffer getBufferCopy() {
+            return CharBuffer.wrap(dataArray);
+        }
+    }
+    ```  
+    对应的符合规则的解决方案是：以一个只读的 CharBuffer 形式返回一个字节数组的视图。在标准类库中，可以保证对一个 CharBuffer 中元素的修改会导致一个 `java.nio.ReadOnlyBufferException` 异常。   
+    ```java
+    final class Wrap {
+        private char[] dataArray;
+    
+        public Wrap() {
+            dataArray = new char[10];
+            // Initialize
+        }
+    
+        public CharBuffer getBufferCopy() {
+            return CharBuffer.wrap(dataArray).asReadOnlyBuffer();
+        }
+    }
+    ```   
+    **例 2** 这个不符合规则的代码示例调用`duplicate()`方法来创建和返回一个对 CharBuffer 的复制。正如在`duplicate()`方法中描述的一样，返回的缓存区与原始的缓存区有同样数组在背后支持，对其修改同样会影响到原始的缓存区。   
+    ```java
+    final class Dup {
+        CharBuffer cb;
+    
+        public Dup() {
+            cb = CharBuffer.allocate(10);
+            // Initialize
+        }
+    
+        public CharBuffer getBufferCopy() {
+            return cb.duplicate();
+        }
+    }
+    ```  
+       
+    对应的符合规则的解决方案是：将一个 CharBuffer 的只读视图暴露给非受信的代码。   
+    ```java
+    final class Dup {
+        CharBuffer cb;
+    
+        public Dup() {
+            cb = CharBuffer.allocate(10);
+            // Initialize
+        }
+    
+        public CharBuffer getBufferCopy() {
+            return cb.asReadOnlyBuffer();
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.13 输入输出</BigClassChin>  
+       
+    </BugInfo>  
+    

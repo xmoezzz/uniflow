@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010130150" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">会话篡改：Spring</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[会话数据一般来说都是值得信任的，而当类被`@SessionAttributes`注解所标注时，Spring会将`@SessionAttributes`对应的模型中的数据存储一份到session域中。攻击者可能进行会话注入或篡改导致应用程序逻辑执行异常。  
+  
+**例如**：下列代码片段中，`user`对象将会被存储至Session中，当攻击者对Seesion进行恶意注入或者篡改时，系统将面临风险。   
+```java
+@Controller  
+@SessionAttributes("user")  
+public class UserController {  
+    ...  
+    @RequestMapping(value= "/login")  
+    public String login(@RequestParam String id,RedirectAttributes attributes) {  
+        User user = testService.findById(id);  
+        //...  
+        attributes.addAttribute("user", user);  
+        return "success";  
+    }  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[当使用`@SessionAttributes`注解类时，对HTTP传入的数据进行验证和过滤。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A2 Broken Authentication</Reference>
+				<Reference type="OWASP TOP 10">2013:A2 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2010:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2007:A7 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M9 Improper Session Handling</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发会话篡改：Spring漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在会话篡改：Spring漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在会话篡改：Spring漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发会话篡改：Spring漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -1,0 +1,178 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010140230" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">GB/T 34944-2017</Category>  
+        <Category type="SubClassChin">Rule 00. 输入验证和数据处理 (IDS)</Category>  
+        <Category type="DetailClassChin">IDS00-J：预防SQL注入</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当初始化的SQL查询被修改成另外一个完全不同形式的查询的时候，就会出现SQL注入漏洞。执行这个被修改过的查询，可能导致信息泄露或者数据被修改。防止SQL注入的主要方法是：净化并验证非受信输入，并采用参数化查询。  
+假设一个数据库的表db_user中存储了用户名和密码，它们用于对系统用户进行认证。用户名使用长度为8的字符串表示，密码使用长度为20的字符串表示。  
+一个用来验证用户的SQL命令如下：`SELECT * FROM db_user WHERE username='<USERNAME>' AND password='<PASSWORD>' ` 
+如果它可以返回记录，那么意味着用户名和密码是合法的。  
+然而，如果攻击者能够替换`<USERNAME>`和`<PASSWORD>`中的任意字符串，它们就可以使用下面关于`<USERNAME>`的字符串进行SQL注入攻击：`validuser' OR '1'='1 ` 
+当其提交SQL查询时，命令就变成：`SELECT * FROM db_user WHERE username='validuser' OR '1'='1' AND password='<PASSWORD>'`  
+如果`validuser`确实是一个存在的用户名，那么这条语句就会返回表中存储的`validuser`用户的记录。这个操作就成功的跳过了密码验证。  
+同样，如果攻击者为`<PASSWORD>`提交字符串：`' OR '1'='1`  
+这样就会产生以下命令：`SELECT * FROM db_user WHERE username='' AND password='' OR '1'='1'`  
+这一次`'1'='1'`是永远成立的，它使得用户名和密码验证都是无效的，攻击者可以不需要用户名和密码就通过了用户认证。  
+**不规范的代码样例1**：  
+```java
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+class Login {
+    public Connection getConnection() throws SQLException {
+        DriverManager.registerDriver(new com.microsoft.sqlserver.jdbc.SQLServerDriver());
+        String dbConnection = PropertyManager.getProperty("db.connection");
+        // Can hold some value like
+        // "jdbc:microsoft:sqlserver://\<HOST\>:1433,<UID>,<PWD>"
+        return DriverManager.getConnection(dbConnection);
+    }
+
+    String hashPassword(char[] password) {
+        // Create hash of password
+    }
+
+    public void doPrivilegedAction(String username, char[] password) throws SQLException {
+        Connection connection = getConnection();
+        if (connection == null) {
+            // Handle error
+        }
+        try {
+            String pwd = hashPassword(password);
+
+            String sqlString = "SELECT * FROM db_user WHERE username = '" + username + "' AND password = '" + pwd + "'";
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery(sqlString);
+
+            if (!rs.next()) {
+                throw new SecurityException("User name or password incorrect");
+            }
+
+            // Authenticated; proceed
+        } finally {
+            try {
+                connection.close();
+            } catch (SQLException x) {
+                // Forward to handler
+            }
+        }
+    }
+}
+```
+代码使用JDBC代码来认证用户，提交`stmt.executeQuery(sqlString)`查询的SQL为`sqlString`，它是通过一个拼接字符串组合而来，并且`sqlString`未经过净化或验证，`Statement.executeQuery(String)`方法不能防止SQL注入，该代码将会引发SQL注入漏洞攻击。  
+**不规范的代码样例2**：  
+```java
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+class Login {
+    public Connection getConnection() throws SQLException {
+        DriverManager.registerDriver(new com.microsoft.sqlserver.jdbc.SQLServerDriver());
+        String dbConnection = PropertyManager.getProperty("db.connection");
+        // Can hold some value like  
+        // "jdbc:microsoft:sqlserver://\<HOST\>:1433,<UID>,<PWD>"  
+        return DriverManager.getConnection(dbConnection);
+    }
+
+    String hashPassword(char[] password) {
+        // Create hash of password  
+    }
+
+    public void doPrivilegedAction(String username, char[] password) throws SQLException {
+        Connection connection = getConnection();
+        if (connection == null) {
+            // Handle error
+        }
+        try {
+            String pwd = hashPassword(password);
+            String sqlString = "select * from db_user where username=" + username + " and password =" + pwd;
+            PreparedStatement stmt = connection.prepareStatement(sqlString);
+
+            ResultSet rs = stmt.executeQuery();
+            if (!rs.next()) {
+                throw new SecurityException("User name or password incorrect");
+            }
+
+            // Authenticated; proceed
+        } finally {
+            try {
+                connection.close();
+            } catch (SQLException x) {
+                // Forward to handler
+            }
+        }
+    }
+}
+```
+`java.sql.PreparedStatement`类恰当转义输入字符串。当正确使用时，可以防止SQL注入。这段代码示例修改`doPrivilegedAction()`方法使用`PreparedStatement`代替`java.sql.Statement`。在预处理语句中，当未验证的用户输入，仍然会导致SQL注入。
+]]></Description>  
+      <Advice><![CDATA[采用`java.sql.PreparedStatement`来执行参数化查询，正确的使用该类可以避免含有注入代码的SQL语句提交执行。  
+**规范的代码样例1**：  
+```java
+public void doPrivilegedAction(String username, char[] password) throws SQLException {
+    Connection connection = getConnection();
+    if (connection == null) {
+        // Handle error
+    }
+    try {
+        String pwd = hashPassword(password);
+
+        // Validate username length
+        if (username.length() > 8) {
+            // Handle error
+        }
+
+        String sqlString = "select * from db_user where username=? and password=?";
+        PreparedStatement stmt = connection.prepareStatement(sqlString);
+        stmt.setString(1, username);
+        stmt.setString(2, pwd);
+        ResultSet rs = stmt.executeQuery();
+        if (!rs.next()) {
+            throw new SecurityException("User name or password incorrect");
+        }
+
+        // Authenticated; proceed
+    } finally {
+        try {
+            connection.close();
+        } catch (SQLException x) {
+            // Forward to handler
+        }
+    }
+}
+```  
+代码使用参数化查询来防止SQL注入，通过使用`prepareStatement`类的`set*()`方法，可以进行强类型检查。这样可以减少SQL注入漏洞，因为程序会正确的转义双引号内的输入数据。需要注意的是，那些将数据插入数据库的查询也必须使用`prepareStatement`。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">564:SQL Injection: Hibernate</Reference>  
+        <Reference type="CWE">89:Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')</Reference>  
+        <Reference type="OWASP TOP 10">2017:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:SQL注入</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

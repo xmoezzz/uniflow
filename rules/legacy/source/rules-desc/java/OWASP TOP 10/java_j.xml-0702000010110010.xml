@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110010" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts2：冗余的校验器字段</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行校验器字段冗余。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在`ActionClass-validation.xml`中，存在多个采用相同名称的字段校验器定义。存在重复的校验器引用表明该验证不是最新的。  
+  
+**例如**：下列条目显示了两个重复的字段验证器定义。  
+```xml
+<field name="usernameField">  
+    <field-validator type="username" short-circuit="true">  
+        <message>You must enter a value for username.</message>  
+    </field-validator>  
+    <field-validator type="username" short-circuit="true">  
+        <message>Not a valid username.</message>  
+    </field-validator>  
+</field> 
+```
+ 
+验证逻辑的维护至关重要，验证逻辑必须与应用程序的其余部分保持同步。输入检查是例如SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。缺少输入验证或者输入验证不完整都可能导致程序易于被以上攻击手段攻击，但是如果JAVA EE应用程序连接到未执行数组边界检查的本地代码，攻击者就可能会利用JAVA EE应用程序中一个输入校验错误发起缓冲区溢出攻击。
+]]></Description>
+			<Advice><![CDATA[每个Action字段都需要有一个对应的校验器，避免出现多个相同名称的校验器。
+]]></Advice>
+			<References>
+				<Reference type="CWE">101:Struts Validation Problems</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

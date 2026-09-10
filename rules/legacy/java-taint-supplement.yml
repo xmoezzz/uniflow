@@ -1,0 +1,103 @@
+metadata:
+- id: uniflow.java.sink.zip-entry-path
+  title: ZIP entry name reaches an extraction path
+  message: Validate the normalized output path remains below the extraction root.
+  severity: error
+  cwe: [CWE-22]
+  standards: [bug:02000010050050, cert:02000010140204, 'YD/T 3464-2019:02000010160005', guide:02000010170002]
+- id: uniflow.java.sink.pbe-salt
+  title: Untrusted data controls a password-based encryption salt
+  message: Generate and protect the PBE salt independently of user-controlled inputs.
+  severity: error
+  cwe: [CWE-328]
+  standards: [bug:02000010110155]
+- id: uniflow.java.sink.password-redirect
+  title: Untrusted password data reaches an HTTP redirect
+  message: Never include credentials or password-derived data in a redirect target.
+  severity: error
+  cwe: [CWE-359]
+  standards: [bug:02000010080007]
+- id: uniflow.java.sink.string-builder-dos
+  title: Unbounded input is appended to a StringBuilder or StringBuffer
+  message: Enforce an input-size limit before appending untrusted content.
+  severity: error
+  cwe: [CWE-400]
+  standards: [bug:02000010050055]
+sources:
+- id: uniflow.java.source.intent-numeric-extra
+  language: java
+  matcher:
+    receiver_type: android.content.Intent
+    method_regex: '^(?:getByteExtra|getShortExtra|getIntExtra|getLongExtra|getFloatExtra|getDoubleExtra)$'
+  out: return
+  kind: number
+- id: uniflow.java.source.zip-entry-name
+  language: java
+  matcher:
+    receiver_regex: '^(?:java\.util\.zip\.ZipEntry|java\.util\.jar\.JarEntry)$'
+    method_name: getName
+  out: return
+  kind: generic
+- id: uniflow.java.source.properties-value
+  language: java
+  matcher:
+    receiver_type: java.util.Properties
+    method_name: getProperty
+  out: return
+  kind: generic
+- id: uniflow.java.source.request-parameter
+  language: java
+  matcher:
+    receiver_regex: '^(?:javax|jakarta)\.servlet\.http\.HttpServletRequest$'
+    method_name: getParameter
+  out: return
+  kind: generic
+sinks:
+- id: uniflow.java.sink.zip-entry-path
+  language: java
+  matcher:
+    receiver_type: java.io.File
+    method_name: init^
+    arg_count: 2
+  inputs: [arg1]
+  kind: generic
+- id: uniflow.java.sink.pbe-salt
+  language: java
+  matcher:
+    receiver_type: javax.crypto.spec.PBEParameterSpec
+    method_name: init^
+    arg_count_min: 2
+  inputs: [arg0]
+  kind: generic
+- id: uniflow.java.sink.password-redirect
+  language: java
+  matcher:
+    receiver_regex: '^(?:javax|jakarta)\.servlet\.(?:http\.)?(?:HttpServletResponse|ServletResponse)$'
+    method_name: sendRedirect
+    arg_count: 1
+  inputs: [arg0]
+  kind: generic
+- id: uniflow.java.sink.string-builder-dos
+  language: java
+  matcher:
+    receiver_regex: '^java\.lang\.(?:StringBuilder|StringBuffer)$'
+    method_name: append
+    arg_count: 1
+  inputs: [arg0]
+  kind: generic
+propagators:
+- id: uniflow.java.propagator.map-put-value
+  language: java
+  matcher:
+    receiver_regex: '^java\.util\.(?:Map|HashMap|LinkedHashMap|TreeMap|ConcurrentMap|ConcurrentHashMap)$'
+    method_name: put
+    arg_count: 2
+  flows:
+  - {from: arg1, to: receiver}
+- id: uniflow.java.propagator.string-get-bytes
+  language: java
+  matcher:
+    method_name: getBytes
+    arg_count: 0
+  flows:
+  - {from: receiver, to: return}

@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130111" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">switch语句中缺少break语句</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行switch语句中缺少break语句。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在switch语句中缺少break语句。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序在switch语句省略了一个break语句，会导致与多个case语句相关联的代码执行。当程序员只打算执行与case语句相关联的代码时，这可能导致代码在不应该执行的情况下执行，从而产生问题。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，为switch语句添加所需的break语句
+]]></Advice>
+			<References>
+				<Reference type="CWE">484:Omitted Break Statement in Switch</Reference>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

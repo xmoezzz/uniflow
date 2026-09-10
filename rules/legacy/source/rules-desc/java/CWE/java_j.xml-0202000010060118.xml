@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010060118" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">JSON注入</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[JSON注入是指应用程序所解析的JSON文档或请求来源于不可信赖的数据源，程序没有对这些不可信赖的数据进行验证、过滤，攻击者可以插入一些元素做一些可以预测的操作，比如解析JSON失败，导致抛出异常，甚至可以导致XSS和动态解析代码。  
+  
+**例1**：以下代码片段将不可信数据`username`和`password`拼接为json，没有对其进行验证和过滤。  
+```java
+public String generateUserJson(HttpServletRequest request){  
+    String username = request.getParameter("username");  
+    String password = request.getParameter("password");  
+    String json = "{\"username\":\""+username+"\",\"role\":\"default\",\"password\":\""+password+"\"}";  
+    return json;  
+}  
+...
+```  
+当`username`为张三，`password`为`admin123456\",\"role\":\"admin`时，将会构成以下JSON内容。  
+`{"username":"张三","role":"default", "password":"admin123456","role":"admin"}`  
+当json传入`createParser`中，应用程序会将`user`张三的权限设置为管理员。  
+```java
+...  
+String json = generatUserJson(request);  
+JsonFactory jfactory = new JsonFactory();  
+JsonParser createParser = jfactory.createParser(json);  
+JsonToken t = createParser.nextToken();  
+if ( t != JsonToken.START_OBJECT){  
+    System.out.println("Json格式不正确!");  
+}  
+while (t != JsonToken.END_OBJECT){  
+    if (t == JsonToken.FIELD_NAME && "role".equals(createParser.getCurrentName())){  
+        createParser.nextToken();  
+        String role = createParser.getText();  
+        user.setRole(role);  
+    }  
+    ...  
+    t = createParser.nextToken();  
+}
+```  
+**例2**：以下代码片段将不可信数据json转换为User，没有对数据进行验证和过滤。  
+```java
+Gson gson = new Gson();  
+User user = gson.fromJson(json, User.class);  
+userService.save(user);
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，根据实际需求对数据进行了合理过滤和安全校验，以避免产生JSON注入。  
+  
+**例1**：以下代码片段将用户输入进行过滤，防止JsonParser多次解析导致用户设为管理员。  
+```java
+public String generateUserJson(HttpServletRequest request){  
+    String username = request.getParameter("username");  
+    username = StringEscapeUtils.escapeJson(username);  
+    String password = request.getParameter("password");  
+    password = StringEscapeUtils.escapeJson(password);  
+    String json = "{\"username\":\""+username+"\",\"role\":\"default\",\"password\":\""+password+"\"}";  
+    return json;  
+}  
+...
+```  
+当`username`为张三，`password`为`admin123456\",\"role\":\"admin`时，将会构成以下JSON内容。  
+`{"username":"张三","role":"default","password":"admin123456\",\"role\":\"admin"}`  
+当json传入`createParser`中，应用程序会将`user`张三的权限设置为默认权限。  
+```java
+...  
+String json = generatUserJson(request);  
+JsonFactory jfactory = new JsonFactory();  
+JsonParser createParser = jfactory.createParser(json);  
+JsonToken t = createParser.nextToken();  
+if ( t != JsonToken.START_OBJECT){  
+    System.out.println("Json格式不正确!");  
+}  
+while (t != JsonToken.END_OBJECT){  
+    if (t == JsonToken.FIELD_NAME && "role".equals(createParser.getCurrentName())){  
+        createParser.nextToken();  
+        String role = createParser.getText();  
+        user.setRole(role);  
+    }  
+    ...  
+    t = createParser.nextToken();  
+}
+```  
+**例2**：以下代码片段解析json时`role`字段将不会赋值，`role`将会进行额外赋值。  
+```java
+GsonBuilder builder = new GsonBuilder();  
+builder.setExclusionStrategies(new ExclusionStrategy() {  
+    @Override  
+    public boolean shouldSkipField(FieldAttributes f) {  
+        return f.getName().equals("role");  
+    }  
+  
+    @Override  
+    public boolean shouldSkipClass(Class<?> clazz) {  
+        return false;  
+    }  
+});  
+Gson gson = builder.create();  
+User user = gson.fromJson(json, User.class);  
+user.setRole(role);  
+userService.save(user);
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">91:XML Injection (aka Blind XPath Injection)</Reference>
+				<Reference type="OWASP TOP 10">2017:A8 Insecure Deserialization</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发JSON注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在JSON注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在JSON注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发JSON注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

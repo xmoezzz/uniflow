@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150116" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">API误用</Category>  
+        <Category type="DetailClassChin">【强制】不要在数组上调用hashCode()</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[数组类中并没有对`hashCode`方法进行重写，在数组上调用`hashCode()`默认调用的是Object中的`hashCode`方法，返回的是内存地址哈希码。
+]]></Description>  
+      <Advice><![CDATA[检查程序逻辑，如果需要获取数组的hash值，可以通过遍历数组中每个对象综合获取，或者使用Java工具类Arrays中的`hashCode`方法获取。  
+  
+**例1**：采用循环的方式获取其中的值形成字符串。  
+```java
+String[] params = getParams();  
+int hashcode = 0;  
+if (params == null)  
+    hashcode = 0;  
+hashcode= 1;  
+for (String param: params )  
+    hashcode= 31 * hashcode+ (param== null ? 0 : param.hashCode());
+```  
+**例2**：直接使用Java工具类Arrays中的`toString`方法转化数组为字符串。  
+```java
+String[] params = getParams();  
+int hashcode = Arrays.hashCode(strings);
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

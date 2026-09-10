@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010120001" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">异常处理</Category>
+				<Category type="DetailClassChin">泛化的捕获异常</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行捕获了泛化的异常。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行捕获了泛化的异常。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[使用一个catch块捕获泛化的异常类（如Exception），可能会混淆那些需要特殊处理的异常，或是捕获了不应在该程序点捕获的异常。捕获范围过大的异常与“Java的异常处理机制”是相违背的。  
+  
+**例如**：下面的代码片段中，程序捕获了一个泛化的Exception异常。  
+```java
+try {  
+    doExchange();  
+}catch(Exception e){  
+    logger.error("doExchange failed", e);    
+}
+```
+]]></Description>
+			<Advice><![CDATA[不应捕获范围过大的异常类，比如Exception、SystemException或ApplicationException，除非是级别非常高的程序或线程。
+]]></Advice>
+			<References>
+				<Reference type="CWE">396:Declaration of Catch for Generic Exception</Reference>
+				<Reference type="CERT">ERR08-J:Do not catch NullPointerException or any of its ancestors</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>exception,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

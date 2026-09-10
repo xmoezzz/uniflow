@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160096" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.10.6 不要使用Thread.stop()来终止线程</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序不能调用`Thread.stop()`。   
+2) 原理   
+线程在可以正常退出时会维持类的不变性。但是，程序员在认为任务结束、要求被取消或程序必须快速关闭 Java 虚拟机时，经常会非正常地终止线程。   某些线程 API 最初是用来帮助线程的暂停、恢复和终止的，但是因设计上先天缺陷而废弃了。例如，`Thread.stop()`方法会导致线程立即抛出一个 ThreadDeath 异常，这通常会停止线程。调用 `Thread.stop()`会造成一个线程释放它获得的所有的锁，这有可能会暴露这些锁保护的对象，而这些对象正处于一个不一致的状态中。线程可以捕捉 ThreadDeath 异常，并使用 finally 程序段来尝试修复处于不一致状态的对象。可是，因为 ThreadDeath 可以在线程执行的任何时候被抛出，所以需要小心地检查所有同步的方法和程序段。而且，必须确保代码不受在 catch 或 finally 程序段执行时抛出的ThreadDeath 异常的影响。因此，程序不能调用 `Thread.stop()`。   
+需注意的是，将 stopThread 权限从 `java.lang.RuntimePermission`中去除可以避免使用 `Thread.stop()`方法来停止线程。自行开发的可信任的使用 `Thread.stop()`的代码可能会依赖于系统的能力来执行这样的操作。此外，第三方开发的库也有可能依赖于 `Thread.stop()`方法的使用。   
+3) 示例   
+    不符合规则的代码示例（废弃的 `Thread.stop()`)，一个线程将伪随机数值写入一个vector中。在经过指定一段时间后，这个线程将被强迫停止。  
+    ```java
+    public final class Container implements Runnable {
+        private final Vector<Integer> vector = new Vector<Integer>(1000);
+    
+        public Vector<Integer> getVector() {
+            return vector;
+        }
+    
+        @Override
+        public synchronized void run() {
+            Random number = new Random(123L);
+            int i = vector.capacity();
+            while (i > 0) {
+                vector.add(number.nextInt(100));
+                i--;
+            }
+        }
+    
+        public static void main(String[] args) throws InterruptedException {
+            Thread thread = new Thread(new Container());
+            thread.start();
+            Thread.sleep(5000);
+            thread.stop();
+        }
+    }
+    ```  
+    因为 Vector 类是线程安全的，所以多个线程对共享实例进行的操作是不会让其处于一个不一致的状态的。比如，`Vector.size()`方法总是可以返回 vector 中元素的正确数目，即使在对 vector 进行并发操作之后。这是因为 vector 实例是使用自身的隐含锁来防止在实例状态暂时不一致时其他线程对实例的访问。   
+    然而，`Thread.stop()`方法会造成线程停止正在进行的操作并抛出一个 ThreadDeath 异常。所有获得的锁则会被释放。如果线程是在加入一个新整数至 vector 时被停止，就有可能 访问处于不一致状态的 vector。例如，因为元素数目是在添加一个元素后增加的，所以这可能导致 `Vector.size()`返回错误的元素数目。   
+       
+    对应符合规则的解决方案是使用一个 volatile 标志来请求线程终止。`shutdown()`访问方法是用来设置这个标志成 true 的。线程的 `run()`方法查询 done 标记，并在标记被设置后终止线程。   
+    ```java
+    public final class Container implements Runnable {
+        private final Vector<Integer> vector = new Vector<Integer>(1000);
+        private volatile boolean done = false;
+    
+        public Vector<Integer> getVector() {
+            return vector;
+        }
+    
+        public void shutdown() {
+            done = true;
+        }
+    
+        @Override
+        public synchronized void run() {
+            Random number = new Random(123L);
+            int i = vector.capacity();
+            while (!done && i > 0) {
+                vector.add(number.nextInt(100));
+                i--;
+            }
+        }
+    
+        public static void main(String[] args) throws InterruptedException {
+            Container container = new Container();
+            Thread thread = new Thread(container);
+            thread.start();
+            Thread.sleep(5000);
+            container.shutdown();
+        }
+    }
+    ```   
+       
+    另一个符合规则的解决方案（可中断的）中，`main()`调用 `Thread.interrupt()`方法来终止线程。调用`Thread.interrupt()`设置了一个内部的中断状态标志。线程可以通过 `Thread.interrupted()`方法来查询这个标记。该方法会在当前线程被中断时返回 true,并会清除中断状态标志。   
+    ```java
+    public final class Container implements Runnable {
+        private final Vector<Integer> vector = new Vector<Integer>(1000);
+    
+        public Vector<Integer> getVector() {
+            return vector;
+        }
+    
+        @Override
+        public synchronized void run() {
+            Random number = new Random(123L);
+            int i = vector.capacity();
+            while (!Thread.interrupted() && i > 0) {
+                vector.add(number.nextInt(100));
+                i--;
+            }
+        }
+    
+        public static void main(String[] args) throws InterruptedException {
+            Container c = new Container();
+            Thread thread = new Thread(c);
+            thread.start();
+            Thread.sleep(5000);
+            thread.interrupt();
+        }
+    }
+    ```  
+    一个线程可以使用中断来完成取消和关闭之外的操作。因此，一个线程应该只能在它的中断策略已知的情况下被中断。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">THI05-J:Do not use Thread.stop() to terminate threads</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.10 线程 API</BigClassChin>  
+       
+    </BugInfo>  
+    

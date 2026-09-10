@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010160072" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.4 错误处理安全</Category>  
+        <Category type="DetailClassChin">C.7.10 禁止非受信代码终止JVM</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序应该尽量避免无意地和恶意地调用 `System.exit()`终止 Java 虚拟机的行为，在被迫终止时，程序应该进行必要的清理操作。   
+2) 原理   
+调用 `system.exit()`会终止 Java 虚拟机（JVM），从而终止所有运行中的程序和线程。这会导致拒绝服务攻击。例如，一个嵌入在 `Java Server Pages(JSP)`中的 `System.exit()`的调用会停止网络服务器，阻碍了对用户的服务。   
+3) 示例   
+    如下不符合规则的代码示例使用 `System.exit()`来强制关闭 JVM 并终止运行中的进程。这个程序没有安全管理器，因此它缺乏检査是否允许调用者使用 `System.exit()`的能力。   
+    ```java
+    public class InterceptExit {   
+        public static void main(String[] args) {   
+            // . . .    
+            System.exit(1); // Abrupt exit   
+            System.out.println("This never executes");   
+        }   
+    }
+    ```   
+    对应的符合规则的解决方案是：代码设置一个自定义的安全管理器PasswordSecurityManager，并覆写在SecurityManager类中定义的`checkExit()`方法。为实现退出前对清理代码的调用，这一覆写是必须的。  
+    ```java
+    class PasswordSecurityManager extends SecurityManager {
+        private boolean isExitAllowedFlag;
+    
+        public PasswordSecurityManager() {
+            super();
+            isExitAllowedFlag = false;
+        }
+    
+        public boolean isExitAllowed() {
+            return isExitAllowedFlag;
+        }
+    
+        @Override
+        public void checkExit(int status) {
+            if (!isExitAllowed()) {
+                throw new SecurityException();
+            }
+            super.checkExit(status);
+        }
+    
+        public void setExitAllowed(boolean f) {
+            isExitAllowedFlag = f;
+        }
+    }
+    
+    public class InterceptExit {
+        public static void main(String[] args) {
+            PasswordSecurityManager secManager = new PasswordSecurityManager();
+            System.setSecurityManager(secManager);
+            try {
+                // ...
+                System.exit(1); // Abrupt exit call
+            } catch (Throwable x) {
+                if (x instanceof SecurityException) {
+                    System.out.println("Intercepted `System.exit()`");
+                    // Log exception
+                } else {
+                    // Forward to exception handler
+                }
+            }
+            // ...
+            secManager.setExitAllowed(true); // Permit exit
+            // `System.exit()` will work subsequently
+            // ...
+        }
+    }
+    ```   
+   
+4) 特例   
+—个命令行应用调用 `System.exit()`是允许的，例如，当没有输入足够数量要求的参数时。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">382:J2EE Bad Practices: Use of System.exit()</Reference>  
+        <Reference type="CERT">ERR09-J:Do not allow untrusted code to terminate the JVM</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">调用System.exit方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.7 异常行为</BigClassChin>  
+       
+    </BugInfo>  
+    

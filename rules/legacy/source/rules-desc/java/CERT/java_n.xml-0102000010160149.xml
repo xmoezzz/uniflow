@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010160149" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.17.2 不要使用空的无限循环</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+不要使用空的无限循环。   
+2) 原理   
+一个空的无限循环会消耗大量的 CPU 计算资源，而不起任何作用。优化编译器和即时系统 (JIT)允许去除这样的循环。   
+3) 示例   
+    1.这个不符合规则的代码示例实现了一个闲置任务，这个任务会连续地执行一个循环，却在这个循环中不执行任何指令。   
+    ```java
+    public int nop () {   
+        while (true) {
+            
+        }   
+    }
+    ```   
+       
+    相应的符合规则的代码示例：通过在 while 循环中调用 `Thread.sleep()`方法来避免这个无限循环。   
+    ```java
+    public final int DURATION=10000; // in milliseconds   
+    public void nop() throws InterruptedException { 
+        while (true) { 4   
+            // Useful operations Thread.sleep(DURATION);   
+        }   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">835:Loop with Unreachable Exit Condition ('Infinite Loop')</Reference>  
+        <Reference type="CERT">MSC01-J:Do not use an empty infinite loop</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.17 其它</BigClassChin>  
+       
+    </BugInfo>  
+    

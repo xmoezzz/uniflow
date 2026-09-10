@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110066" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">缺少安全检查：readObject()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法缺少安全检查。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方方法缺少安全检查。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[一个可序列化的类反序列化调用`readObject()`方法时，并不会调用该类中的构造函数。因此，如果可序列化类的构造函数中存在SecurityManager检查，而在`readObject()`和`readObjectNoData()`方法中又没有进行相同的SecurityManager检查，此类进行反序列化时将会绕过此安全检查。  
+  
+**例如**：对于下列代码，构造函数中包含SecurityManager检查，而`readObject()`和`readObjectNoData()`方法中不包含该检查。  
+```java
+import java.io.IOException;  
+import java.io.ObjectInputStream;  
+import java.io.Serializable;  
+import java.security.Permission;  
+public class BadSecurityCheck implements Serializable {  
+    private String name;  
+    public SecurityCheck(String name) {  
+        SecurityManager smanger= System.getSecurityManager();  
+        if (smanger!= null) {  
+            smanger.checkPermission(new BadPermission("SecurityCheck"));  
+        }  
+        this.name = name;  
+    }  
+    public void readObject(ObjectInputStream input) throws ClassNotFoundException,IOException {  
+        input.defaultReadObject();  
+    }  
+    public void readObjectNoData(ObjectInputStream input) throws ClassNotFoundException, IOException {  
+        input.defaultReadObject();  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[如果可序列化类的构造函数中存在SecurityManager检查，则`readObject()`和`readObjectNoData()`方法中必须存在相同的SecurityManager检查。  
+  
+**例如**：下列代码在构造函数与`readObject()`和`readObjectNoData()`方法中都使用`doSecurityCheck()`方法来执行SecurityManager检查。  
+```java
+import java.io.IOException;  
+import java.io.ObjectInputStream;  
+import java.io.Serializable;      
+public class GoodSecurityCheck implements Serializable {  
+    private String name;  
+    public SecurityCheck(String name) {  
+        SecurityManager smanger= System.getSecurityManager();  
+        if (smanger!= null) {  
+            smanger.checkPermission(new BadPermission("SecurityCheck"));  
+        }  
+        this.name = name;  
+    }  
+    public void readObject(ObjectInputStream input) throws ClassNotFoundException,IOException {  
+        input.defaultReadObject();  
+        doSecurityCheck();  
+    }  
+    public void readObjectNoData(ObjectInputStream input) throws ClassNotFoundException, IOException {  
+        input.defaultReadObject();  
+        doSecurityCheck();  
+    }  
+    private final void doSecurityCheck() {  
+        SecurityManager sm = System.getSecurityManager();  
+        if (sm != null) {  
+            sm.checkPermission(new GoodPermission("SecurityCheck"));  
+        }  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">358:Improperly Implemented Security Check for Standard</Reference>
+				<Reference type="OWASP TOP 10">2017:A8 Insecure Deserialization</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

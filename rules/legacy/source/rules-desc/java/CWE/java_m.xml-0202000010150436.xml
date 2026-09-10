@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150436" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】toString或clone方法不应该返回null</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[重写`toString`或`clone`方法应该总是返回一个字符串或者对象，程序员默认不会认为其为null。当返回null时，可能会引起空指针异常，影响程序运行。  
+  
+**例1**：下面代码示例中，重写了`toString`方法，有可能返回为null。 
+```java 
+public String toString () {  
+    if (this.collection.isEmpty()) {  
+        return null;   
+    }  
+	...   
+}
+```  
+**例2**：下面代码示例中，重写了`clone`方法，有可能返回为null。
+```java  
+protected Object clone() throws CloneNotSupportedException {  
+    Object object = super.clone();  
+    if (this.collection.isEmpty()) {  
+        return null;   
+    }  
+    ...  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[正确的重写`toString`或`clone`方法，避免空指针异常和程序逻辑出错。  
+  
+**例1**：下面代码示例中，重写了`toString`方法，不会返回null。
+```java  
+public String toString () {  
+    if (this.collection.isEmpty()) {  
+        return "";   
+    }  
+    ...   
+}
+```  
+
+**例2**：下面代码示例中，重写了`clone`方法，不会返回null。
+```java  
+protected Object clone() throws CloneNotSupportedException {  
+    Object object = super.clone();  
+	if (this.collection.isEmpty()) {  
+        return object;   
+    }  
+    ...  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>security</Tag> 
+    </BugInfo>  
+    

@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010070020" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">弱密码验证</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了弱密码验证。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了弱密码验证。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[密码验证不应采用复制的方式。  
+  
+**例如**：下面API的目的在于确保用户不会输错密码。复制密码操作违反此安全机制。  
+```java
+String password=request.getParameter("password");  
+...  
+DefaultUser user = (DefaultUser) ESAPI.authenticator().createUser(username, password, password);
+```
+]]></Description>
+			<Advice><![CDATA[验证密码是否输入错误，应该输入两次，不应采用复制的方式。
+]]></Advice>
+			<References>
+				<Reference type="CWE">521:Weak Password Requirements</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>password,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

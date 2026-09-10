@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010130144" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">过于宽松的跨文档消息目标</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的跨文档消息目标过于宽松。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的跨文档消息目标过于宽松。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[HTML5的跨文档消息传递允许程序将消息发布到其他窗口，利用特定的 API可指定具体的目标窗口。 如果目标过于宽松，攻击者就能有可能与窗口进行通信，从而导致信息泄露，欺诈等其他攻击。  
+  
+**例如**：下面代码片段中，采用了`postWebMessage`方法发送消息到目标源，而通配符代表程序无论任何源都会将消息发送到窗口。  
+```java
+WebMessage webMessage = new WebMessage(WEBVIEW_MESSAGE);  
+myWebview.postWebMessage(webMessage, Uri.parse("*"));
+```
+]]></Description>
+			<Advice><![CDATA[不要使用过于宽松的跨文档消息目标。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

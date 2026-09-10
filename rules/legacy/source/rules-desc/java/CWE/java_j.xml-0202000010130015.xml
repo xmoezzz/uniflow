@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130015" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">未使用的值</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的值未被使用。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的值未被使用。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[变量赋值后，程序未使用该变量。  
+  
+**例如**：下列程序声明一个字符串并赋值，后续一直未使用  
+```java
+...  
+String username = "张三";  
+...
+```
+]]></Description>
+			<Advice><![CDATA[为了使代码易于理解和维护，删除不必要的赋值。
+]]></Advice>
+			<References>
+				<Reference type="CWE">563:Unused Variable</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.14 变量赋值后未被使用</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

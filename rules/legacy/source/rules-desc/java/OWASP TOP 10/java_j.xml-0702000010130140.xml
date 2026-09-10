@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010130140" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">拒绝服务：不受控制的循环</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果允许用户输入来控制循环的次数，且不进行任何验证，则攻击者可以输入过大的循环次数，此段代码执行时间将会过长。如果循环中存在分配内存空间的操作，甚至有可能会造成OutOfMemoryError异常抛出，进而导致应用程序崩溃。  
+  
+**例如**：用户可以通过BufferedReader读取的内容指定数组的大小。  
+```java
+...  
+String str = bufferedReader.readLine();  
+int parseInt = Integer.parseInt(str);  
+for (int i = 0; i < parseInt; i ++)  
+{  
+    ...  
+}  
+...
+```
+]]></Description>
+			<Advice><![CDATA[对于循环次数来说，无论何时都应将判断用户所输入的值。如果必须动态获取循环的次数，则可以定义一组有效的需要分配内存的数字，并从这组安全的数字中进行选择。
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 400</Reference>
+				<Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>
+				<Reference type="CWE">606:Unchecked Input for Loop Condition</Reference>
+				<Reference type="CWE">400:Uncontrolled Resource Consumption ('Resource Exhaustion')</Reference>
+				<Reference type="CERT">IDS06-J:Exclude unsanitized user input from format strings</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:未检查的输入作为循环条件</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发拒绝服务：不受控制的循环漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在拒绝服务：不受控制的循环漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在拒绝服务：不受控制的循环漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发拒绝服务：不受控制的循环漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

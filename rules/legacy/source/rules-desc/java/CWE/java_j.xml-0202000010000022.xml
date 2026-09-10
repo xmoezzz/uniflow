@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010000022" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">匿名内部类使用非静态初始化器</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行匿名内部类使用了非静态初始化器。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行匿名内部类使用了非静态初始化器。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[当匿名内部类拥有某个对象的实例时：如果匿名内部类被其他对象返回并持有，那么使用这个对象可能导致内存泄漏。并且这种写法语义非常模糊，不利于后期维护。  
+
+**例如**：下列代码中匿名内部类使用了非静态初始化器。  
+```java
+Map source = new HashMap(){{ // Noncompliant  
+    put("firstName", "John");  
+    put("lastName", "Smith");  
+}};  
+...
+```
+]]></Description>
+			<Advice><![CDATA[对于集合，应该显式声明并地将每个项直接添加到集合中。  
+
+**例如**：下列代码中显示声明集合并添加数据。  
+```java
+Map source = new HashMap();  
+// ...  
+source.put("firstName", "John");  
+source.put("lastName", "Smith");  
+// ...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

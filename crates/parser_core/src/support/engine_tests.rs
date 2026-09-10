@@ -151,7 +151,15 @@ fn preserves_c_style_for_regions() {
     );
     let function = only_function(&program);
     assert_eq!(stmt_kinds(&function.body), vec!["for"]);
-    let Stmt::For { init, cond, update, body, init_is_scoped, .. } = &function.body.stmts[0] else {
+    let Stmt::For {
+        init,
+        cond,
+        update,
+        body,
+        init_is_scoped,
+        ..
+    } = &function.body.stmts[0]
+    else {
         panic!("expected for");
     };
     assert!(*init_is_scoped);
@@ -163,10 +171,22 @@ fn preserves_c_style_for_regions() {
 
 #[test]
 fn classic_for_keeps_empty_condition_and_multiple_declarators() {
-    let program = parsed(&c_like(), "void f(void) { for (int i=0, j=1;; i++, j--) { break; } after(); }");
+    let program = parsed(
+        &c_like(),
+        "void f(void) { for (int i=0, j=1;; i++, j--) { break; } after(); }",
+    );
     let function = only_function(&program);
     assert_eq!(stmt_kinds(&function.body), ["for", "expr"]);
-    let Stmt::For { init, cond, update, body, .. } = &function.body.stmts[0] else { panic!("for") };
+    let Stmt::For {
+        init,
+        cond,
+        update,
+        body,
+        ..
+    } = &function.body.stmts[0]
+    else {
+        panic!("for")
+    };
     assert!(cond.is_none());
     assert_eq!(stmt_kinds(init), ["let", "let"]);
     assert_eq!(stmt_kinds(update), ["assign", "assign"]);

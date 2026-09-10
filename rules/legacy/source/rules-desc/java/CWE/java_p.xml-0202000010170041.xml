@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170041" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 并发程序安全</Category>  
+        <Category type="DetailClassChin">A.3.2.9 通知所有等待中的线程而不是单一的线程</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：notify()方法只唤醒一个线程，而并不保证哪一个线程会接到通知。如果没有满足等候条件，那么选中的线程会继续等待，这通常违背了通知的目的。另外，`Condition.signal()`和`Condition.signalAll()`方法唤醒在调用`Condition.await()`时受阻线程的原理也与`Object.notify()`和`Object.notifyAll()`方法相同。  
+对于通知所有等待中的线程而不是单一的线程的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+public final class ProcessStep implements Runnable {  
+    private static final Object lock = new Object();
+    private static int time = 0;
+    private final int step; // Perform operations when field time
+    // reaches this value
+
+    public ProcessStep(int step) {  
+        this.step = step;  
+    }
+
+    @Override
+    public void run() {
+        try {
+            synchronized (lock) {
+                while (time != step) {
+                    lock.wait();
+                }
+                // Perform operations
+                time++;
+                lock.notify();
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt(); // Reset interrupted status
+        }
+    }
+
+    public static void main(String[] args) {
+        for (int i = 4; i >= 0; i--) {
+            new Thread(new ProcessStep(i)).start();
+        }
+    } 
+}
+```  
+这个代码演示了一个由多线程执行的复杂的多步过程。每一个线程的执行由`time`字段决定步骤。线程会等待`time`字段的指示，来确定是否执行对应线程的步骤。在执行任务后，每一个线程先是增加`time`，然后再通知负责下一个步骤的线程。但是，每一个线程拥有不同的等候条件，`Object.notify()`每次只唤醒一个线程。除非正好唤醒执行下一个步骤的线程，否则这个程序会发生死锁。  
+**示例2**：  
+```java
+public final class ProcessStep implements Runnable {  
+    private static final Object lock = new Object();
+    private static int time = 0;
+    private final int step; // Perform operations when field time
+    // reaches this value
+
+    public ProcessStep(int step) {  
+        this.step = step;  
+    }
+
+    @Override
+    public void run() {
+        try {
+            synchronized (lock) {
+                while (time != step) {
+                    lock.wait();
+                }
+                // Perform operations
+                time++;
+                lock.notifyAll(); // Use notifyAll() instead of notify()
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt(); // Reset interrupted status
+        }
+    } 
+}
+```  
+代码中每一个限制在完成它自己的步骤后调用`Object.notifyAll()`方法来通知所有等待中的线程，准备好的线程可以执行它的任务，而那些其他等待条件为假的线程则会继续等待。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">373:DEPRECATED: State Synchronization Error</Reference>  
+        <Reference type="CERT">THI02-J:Notify all waiting threads rather than a single thread</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.2 并发程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

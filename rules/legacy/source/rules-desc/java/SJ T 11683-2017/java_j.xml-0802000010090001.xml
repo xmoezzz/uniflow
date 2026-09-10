@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010090001" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">资源管理</Category>
+				<Category type="DetailClassChin">线程锁定状态下调用sleep()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行在线程锁定状态下调用sleep()。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行在线程锁定状态下调用sleep()。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[线程锁定情况下，调用线程的`sleep()`方法可能会导致程序性能下降，甚至可能导致死锁。   
+  
+**例如**：下列代码片段中，保持线程锁定情况下调用了`sleep()`方法。  
+```java
+ReentrantLock rl = new ReentrantLock();  
+...  
+rl.lock();  
+Thread.sleep(500);  
+...  
+rl.unlock();
+```
+]]></Description>
+			<Advice><![CDATA[程序中应避免线程锁定的情况下，调用线程的`sleep()`方法。
+]]></Advice>
+			<References>
+				<Reference type="CWE">557:Concurrency Issues</Reference>
+				<Reference type="CERT">LCK09-J:Do not perform operations that can block while holding a lock</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="SJ/T 11683-2017">6.8.4 持锁时调用sleep方法</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>performance,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

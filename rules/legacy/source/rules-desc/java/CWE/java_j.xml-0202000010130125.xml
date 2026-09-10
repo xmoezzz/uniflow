@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130125" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">不正确的检查函数的返回值</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行不正确的检查函数的返回值。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行不正确的检查函数的返回值。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序错误的检查函数的返回值，它可能忽视程序的终止条件或者异常情况，从而导致程序产生异常。  
+  
+**例如**：下面代码片段中，程序错误的检查了`FileInputStream.read()`的返回值，程序将会一直执行下去，成为死循环，消耗大量的CPU资源。  
+```java
+...  
+File file = new File(fileName);  
+InputStream in = null;  
+try {  
+    in = new FileInputStream(file);  
+    int a;  
+    while ((a = in.read()) != 0) {  
+        ...  
+    }  
+} catch (IOException e) {  
+    e.printStackTrace();  
+}finally{  
+    if(in != null){  
+        try {  
+            in.close();  
+        } catch (IOException e) {  
+            e.printStackTrace();  
+        }  
+    }  
+}  
+...
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，正确检查函数返回值。  
+  
+**例如**：下面代码片段中，程序正确的检查了`FileInputStream.read()`的返回值。  
+```java
+...  
+File file = new File(fileName);  
+InputStream in = null;  
+try {  
+    in = new FileInputStream(file);  
+    int a;  
+    while ((a = in.read()) != -1) {  
+        ...  
+    }  
+} catch (IOException e) {  
+    e.printStackTrace();  
+}finally{  
+    if(in != null){  
+        try {  
+            in.close();  
+        } catch (IOException e) {  
+            e.printStackTrace();  
+        }  
+    }  
+}  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="CWE">253:Incorrect Check of Function Return Value</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

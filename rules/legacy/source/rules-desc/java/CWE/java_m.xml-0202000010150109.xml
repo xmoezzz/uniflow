@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150109" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">API误用</Category>  
+        <Category type="DetailClassChin">【强制】不要调用Thread.run()</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[程序调用了线程的`run()`方法，而不是`start()`方法。   
+  
+**例如**：下面代码片段中，程序错误地调用了线程的`run()`方法，而不是`start()`方法。  
+```java
+public final class Foo implements Runnable {  
+    @Override public void run() {  
+        // ...  
+    }  
+    public static void main(String[] args) {  
+        Foo foo = new Foo();  
+        new Thread(foo).run();  
+    }  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[调用线程的`start()`方法替代`run()`方法。  
+  
+**例如**：下面代码片段中使用`start()`方法来通知Java运行库开始执行新线程。  
+```java
+public final class Foo implements Runnable {  
+    @Override public void run() {  
+        // ...  
+    }  
+    public static void main(String[] args) {  
+        Foo foo = new Foo();  
+        new Thread(foo).start();  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">572:Call to Thread run() instead of start()</Reference>  
+        <Reference type="CERT">THI00-J:Do not invoke Thread.run()</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">6.8.3 显式调用Thread.run方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

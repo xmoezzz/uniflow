@@ -1,0 +1,111 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010020009" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">SQL注入：Hibernate</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[SQL注入是一种数据库攻击手段。攻击者通过向应用程序提交恶意代码来改变原SQL语句的含义，进而执行任意SQL命令，达到入侵数据库乃至操作系统的目的。使用Hibernate执行一个通过用户输入构建的动态SQL指令，会使攻击者篡改指令的含义或者执行任意的SQL命令。  
+  
+**例如**：下面代码片段中，动态构造并执行了一个SQL查询。  
+```java
+...  
+String queryString = "from db_user where name like '%" + userName + "%' ";  
+List result = session.createQuery(queryString).list();  
+...
+```  
+如果攻击者能够替代`userName`的任意字符串，他们可以使用下面的关于`userName`的字符串进行SQL注入。  
+`' or 1=1 or ''='`  
+当其注入到命令时，命令就会变成：  
+`from db_user where name like '%' or 1=1 or ''='%'`
+]]></Description>
+			<Advice><![CDATA[造成SQL注入攻击的根本原因在于攻击者可以改变SQL查询的上下文，使程序员原本要作为数据解析的数值，被篡改为命令了。防止SQL注入的方法如下：  
+1. 正确使用参数化API进行SQL查询。  
+2. 如果构造SQL指令时需要动态加入约束条件，可以通过创建一份合法字符串列表，使其对应于可能要加入到SQL指令中的不同元素，来避免SQL注入攻击。  
+
+**例1**：以下代码片段对参数名称进行绑定，来防止SQL注入。  
+```java
+...  
+Query query=session.createQuery("from User user where user.name=:userName ");   
+query.setString(“userName”,name);   
+...
+```  
+**例2**：以下代码片段对参数位置进行绑定，来防止SQL注入。  
+```java
+....  
+Query query=session.createQuery("from User user where user.name=? ");   
+query.setString(0, userName);   
+...
+```  
+**例3**：以下代码片段使用`setParameter()`来防止SQL注入。  
+```java
+...  
+String hql="from User user where user.name=: userName";   
+Query query=session.createQuery(hql);   
+query.setParameter(“userName”,name,Hibernate.STRING); ...  
+...
+```  
+**例4**：以下代码片段使用`setProperties()`方法来防止SQL注入。  
+```java
+...
+InputUser inputUser=new InputUser ();   
+inputUser.setName(“userName”);   
+Query query=session.createQuery(“from User u where u.name=:name”);   
+query.setProperties(inputUser);   
+...
+```
+`setProperties()`方法会自动将`inputUser`对象实例的属性值匹配到命名参数上，参数名称要与`inputUser`对象相应的属性同名。
+]]></Advice>
+			<References>
+				<Reference type="CWE">564:SQL Injection: Hibernate</Reference>
+				<Reference type="CERT">IDS00-J:Prevent SQL injection</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:SQL注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发SQL注入：Hibernate漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在SQL注入：Hibernate漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在SQL注入：Hibernate漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发SQL注入：Hibernate漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

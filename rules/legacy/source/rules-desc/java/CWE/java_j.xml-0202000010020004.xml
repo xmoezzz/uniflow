@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020004" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">LDAP注入</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[LDAP注入是利用用户引入的参数生成恶意LDAP查询，通过构造LDAP过滤器来绕过访问控制、用户权限提升。当客户端发送查询请求时，输入的字符串中含有一些特殊字符，导致修改了LDAP本来的查询结构，从而使得可以访问更多的未授权数据的一种攻击方式。  
+  
+**例如**：以下代码动态构造一个LDAP查询，并对其加以执行，该查询为了验证客户端提供的账号密码是否正确,但并未对输入参数做任何过滤。  
+```java
+...  
+DirContext ctx = new InitialDirContext(env);  
+String userName = request.getParameter("UserName");  
+String password= request.getParameter("Password");  
+String filter = "(&(USER=" + userName+ ")(PASSWORD="+password+"))";  
+NamingEnumeration employees = ctx.search("ou=People,dc=example,dc=com",filter);  
+...
+```  
+由于筛选器是通过连接一个常数基本查询串和一个用户输入串动态构造而成的，因此，该查询只在`userName`以及`password`不包含任何LDAP元字符时才能正常运行。如果攻击者为UserName输入字符串`aaa)(&))`，引入任意字符串作为`password`。则该查询会变成：  
+`(&(USER= aaa)(&)(PASSWORD=Pwd))`  
+                                                                          LDAP服务器只处理第一个过滤器，即仅查询`(&(USER=aaa)(&))`得到了处理。这个查询永真，因而攻击者无需有效地密码就能获取对系统的访问
+]]></Description>
+			<Advice><![CDATA[LDAP注入的根本原因是攻击者提供了可以改变LDAP查询含义的 LDAP元字符。构造LDAP筛选器时，程序员应清楚哪些字符应作为命令解析，而哪些字符应作为数据解析。为了防止攻击者侵犯程序员的各种预设情况，应使用白名单的方法，确保LDAP查询中由用户控制的数值完全来自于预定的字符集合，应不包含任何LDAP元字符。如果由用户控制的数值范围要求必须包含 LDAP元字符，则应使用相应的编码机制转义这些元字符在LDAP查询中的意义。  
+如`&、!、|、=、<、>、,、+、、"、'、;`这些字符正常情况下不会用到，如果用户的输入中出现了，需要用反斜杠转义处理。还有些字符如`(、)、\、*、/、NUL`这些字符不仅需要用反斜杠处理，还要将字符变成相应的ASCII码值。  
+
+**例如**：以下代码片段中使用Spring框架`EqualsFilter`类来构造一个编码得当的筛选器字符串。不论请求参数中是否存在LDAP元字符，这一字符串都可以保护指令的命令结构。  
+```java
+...  
+DirContext ctx = new InitialDirContext(env);  
+String userName = request.getParameter("UserName");  
+String password= request.getParameter("Password");  
+EqualsFilter nameFilter = new EqualsFilter("USER", userName);  
+EqualsFilter passwordFilter = new EqualsFilter("PASSWORD", password);  
+...  
+NamingEnumeration employees = ctx.search("ou=People,dc=example,dc=com","(&"+nameFilter.toString()+passwordFilter.toString()+")");  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">639:Authorization Bypass Through User-Controlled Key</Reference>
+				<Reference type="CWE">90:Improper Neutralization of Special Elements used in an LDAP Query ('LDAP Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发LDAP注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在LDAP注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在LDAP注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发LDAP注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010130102" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">资源管理</Category>
+				<Category type="DetailClassChin">资源未释放：Android Camera</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行Android Camera没有释放。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行Android Camera未释放。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在Android Activity中创建了Camera对象（如android.hardware.Camera），未在回调函数`onPause()、onStop()、onDestroy()`中进行合理释放，会导致其它应用对Camera资源的使用，过多未释放的Camera资源会导致Android系统产生异常，导致DOS。另外，Activity暂停时仍占用Camera资源还会导致电池电量损耗，影响用户体验。  
+  
+**例如**：以下代码中，UnreleasedAndroidCamera中创建了camera对象，而在回调函数`onPause()`中没有释放camera。 
+```java 
+public class UnreleasedAndroidCamera extends Activity{  
+    private Camera camera;  
+    @Override  
+    protected void onPause() {  
+        super.onPause();  
+    }  
+    ...  
+    public void doSomething() {  
+        camera = Camera.open();  
+        ...  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[在`onPause()、onStop()`或`onDestroy()`中调用Camera对象的`release()`方法对Camera资源进行合理释放。释放Camera对象后，可通过在`onResume()`方法中重新配置和重新获取Camera对象。
+]]></Advice>
+			<References>
+				<Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>
+				<Reference type="CWE">619:Dangling Database Cursor ('Cursor Injection')</Reference>
+				<Reference type="CWE">459:Incomplete Cleanup</Reference>
+				<Reference type="CWE">404:Improper Resource Shutdown or Release</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 404</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.持有Android Camera资源"/>
+					<CodeFragment id="2" name="2.持有Android Camera资源的关联资源"/>
+					<CodeFragment id="3" name="3.Android Camera资源被资源池持有"/>
+					<CodeFragment id="4" name="4.Android Camera资源被返回函数外"/>
+					<CodeFragment id="5" name="5.Android Camera资源已关闭"/>
+					<CodeFragment id="6" name="6.Android Camera资源的关联资源已关闭"/>
+					<CodeFragment id="7" name="7.Android Camera资源未关闭"/>
+					<CodeFragment id="8" name="8.Android Camera资源的关联资源未关闭"/>
+					<CodeFragment id="9" name="9.触发Android Camera资源未释放"/>
+					<CodeFragment id="10" name="10.程序执行正常"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="申请关联资源"/>
+					<Relationship fromId="1" toId="3" name="资源被放入资源池中"/>
+					<Relationship fromId="1" toId="4" name="资源通过函数返回值返回"/>
+					<Relationship fromId="1" toId="5" name="关闭资源"/>
+					<Relationship fromId="1" toId="7" name="作用域结束"/>
+					<Relationship fromId="2" toId="6" name="关闭关联资源"/>
+					<Relationship fromId="2" toId="8" name="作用域结束"/>
+					<Relationship fromId="3" toId="10" name="作用域结束"/>
+					<Relationship fromId="4" toId="10" name="作用域结束"/>
+					<Relationship fromId="5" toId="10" name="作用域结束"/>
+					<Relationship fromId="6" toId="10" name="作用域结束"/>
+					<Relationship fromId="7" toId="9" name="执行"/>
+					<Relationship fromId="8" toId="9" name="执行"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

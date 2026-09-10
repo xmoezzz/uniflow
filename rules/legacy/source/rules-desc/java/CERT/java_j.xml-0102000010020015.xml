@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010020015" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">拒绝服务：正则表达式</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[正则表达式引擎分成两类：一类称为DFA（确定性有限状态自动机），另一类称为NFA（非确定性有限状态自动机）。Java使用的是NFA正则引擎，使用正则式和文本比较，每碰到一个字符，就把它跟正则式比较，匹配就记下来，然后接着往下比较。一旦不匹配，就会后退直到回到上一次匹配的地方。而不可信赖数据被传递至应用程序并作为正则表达式使用，可能导致线程过度使用 CPU 资源，从而导致拒绝服务攻击。   
+  
+**例如**：  
+```java
+(e+)+    
+([a-zA-Z]+)*  
+(a|aa)+  
+(a|a?)+  
+^(a+)
++$
+```  
+以`^(a+)+$`为例，该正则表达式对aaaax进行匹配时需要经历2^4次尝试失败才会确定这个字符串不符合要求，对aaaaaaaaax进行匹配时则需要经历2^10次尝试，随着长度的增加，尝试次数并不是线性增长而是指数型的增长，当长度达到20、30时就会大量消耗cpu导致拒绝服务。目前已知的正则表达式实现方法均无法避免这种漏洞，所有平台和语言都容易受到这种攻击。
+]]></Description>
+			<Advice><![CDATA[不要将不可信赖数据作为正则表达式使用。
+]]></Advice>
+			<References>
+				<Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>
+				<Reference type="CWE">185:Incorrect Regular Expression</Reference>
+				<Reference type="CERT">IDS08-J:Sanitize untrusted data included in a regular expression</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发拒绝服务：正则表达式漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在拒绝服务：正则表达式漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在拒绝服务：正则表达式漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发拒绝服务：正则表达式漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

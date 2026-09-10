@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140402" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 02. 表达式 (EXP)</Category>  
+        <Category type="DetailClassChin">EXP02-J：不要使用Object.equals()方法来比较两个数组</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[数组没有重写`Object.equals()`方法，所以直接在数组上使用一个参数的`equals`方法，比较的是数组的引用而不是数组的内容值，会导致不可预期的后果。并且在判断两个数组的引用是否相等时，也不推荐采用一个参数的equals方法，而是要采用相等操作符`==或!=`来比较。  
+在`java.util.Arrays`中实现了两个参数的`equals`方法来比较两个数组的内容。  
+**不规范的代码样例1**：  
+```java
+public void arrayEqualsExample() {
+    int[] arr1 = new int[20]; // initialized to 0
+    int[] arr2 = new int[20]; // initialized to 0
+    arr1.equals(arr2); // false
+}
+```
+]]></Description>  
+      <Advice><![CDATA[比较两个数组的内容可以采用在`java.util.Arrays`中`equals`方法。  
+**规范的代码样例1**：  
+```java
+public void arrayEqualsExample() {
+    int[] arr1 = new int[20]; // initialized to 0
+    int[] arr2 = new int[20]; // initialized to 0
+    Arrays.equals(arr1, arr2); // true
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">754:Improper Check for Unusual or Exceptional Conditions</Reference>  
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 754</Reference>  
+        <Reference type="SJ/T 11683-2017">6.3.4 equals方法的错误使用</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

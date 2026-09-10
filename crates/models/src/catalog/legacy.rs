@@ -1,4 +1,6 @@
 const LEGACY_JAVA_TAINT: &str = include_str!("../../../../rules/legacy/java-taint.yml");
+const LEGACY_JAVA_TAINT_SUPPLEMENT: &str =
+    include_str!("../../../../rules/legacy/java-taint-supplement.yml");
 const LEGACY_JAVASCRIPT_TAINT: &str = include_str!("../../../../rules/legacy/javascript-taint.yml");
 const LEGACY_JAVASCRIPT_SEMGREP_TAINT: &str =
     include_str!("../../../../rules/legacy/javascript-semgrep-taint.yml");
@@ -67,11 +69,36 @@ fn parsed_legacy_java() -> Result<&'static RuleSet> {
     if let Some(rules) = LEGACY_JAVA_RULES.get() {
         return Ok(rules);
     }
-    let parsed = RuleSet::from_yaml_str(LEGACY_JAVA_TAINT)?;
+    let mut parsed = RuleSet::from_yaml_str(LEGACY_JAVA_TAINT)?;
+    parsed.merge(RuleSet::from_yaml_str(LEGACY_JAVA_TAINT_SUPPLEMENT)?);
+    attach_general_java_sanitization_policy(&mut parsed);
+    parsed.validate()?;
     let _ = LEGACY_JAVA_RULES.set(parsed);
     Ok(LEGACY_JAVA_RULES
         .get()
         .expect("legacy Java rules initialized"))
+}
+
+fn attach_general_java_sanitization_policy(rules: &mut RuleSet) {
+    const POLICY_STANDARDS: [&str; 3] = [
+        "cert:02000010140200",
+        "legacy-product:0202000010140200",
+        "legacy-product:0302000010140200",
+    ];
+    for metadata in &mut rules.metadata {
+        if !metadata
+            .cwe
+            .iter()
+            .any(|cwe| matches!(cwe.as_str(), "CWE-89" | "CWE-112" | "CWE-116" | "CWE-611"))
+        {
+            continue;
+        }
+        for standard in POLICY_STANDARDS {
+            if !metadata.standards.iter().any(|value| value == standard) {
+                metadata.standards.push(standard.to_string());
+            }
+        }
+    }
 }
 
 fn parsed_legacy_javascript() -> Result<&'static RuleSet> {

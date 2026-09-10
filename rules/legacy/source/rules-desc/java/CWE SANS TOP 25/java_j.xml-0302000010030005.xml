@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010030005" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">不安全的HTML清除策略</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的HTML清除策略不安全。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的HTML清除策略不安全。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[使用 HTML清除策略可以防止 Web应用程序中出现 XSS漏洞，但是系统使用完整的 HTML清除策略十分困难，需要了解使用数据的上下文，根据具体情况具体分析，实施不当会导致虚假安全。  
+  
+**例如**：下列代码中在构建 HTML清除策略的过程中，用户控制了HTML清除策略，并且允许全局使用关键属性。  
+```java
+...  
+String attribute= request.getParameter("attribute");  
+public static final PolicyFactory POLICY_DEFINITION = new HtmlPolicyBuilder()  
+                                                        .allowAttributes(attribute).matching(Pattern.compile(".*"))  
+                                                        .globally()  
+                                                        .toFactory();  
+...
+```
+]]></Description>
+			<Advice><![CDATA[不要允许用户控制HTML清除策略，而且不要全局使用关键属性，始终应用筛选器以允许限制的数值集合，并将该权限限制为特定的元素集合。在了解使用数据的上下文前提下设置策略限制，确保Sanitizer策略限制是合理的。
+]]></Advice>
+			<References>
+				<Reference type="CWE">80:Improper Neutralization of Script-Related HTML Tags in a Web Page (Basic XSS)</Reference>
+				<Reference type="CWE">79:Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A2 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2007:A1 Cross Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2004:A4 Cross Site Scripting</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="GB/T 34944-2017 Java">Web问题:跨站脚本</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发不安全的HTML清除策略漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在不安全的HTML清除策略漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在不安全的HTML清除策略漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发不安全的HTML清除策略漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

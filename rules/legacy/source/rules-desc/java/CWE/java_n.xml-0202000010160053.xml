@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010160053" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.6.4 进行安全检测的方法必须声明为private或final</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+安全检测方法必须声明为 private或 final，以避免恶意的子类覆写 nonfinal类的成员方法。   
+2) 原理   
+恶意的子类可以覆写进行安全检测的 nonfinal 类的成员方法，并忽略这些检测，从而使安全检测不起作用。因此，这些方法必须声明为 private或 final来避免覆写。   
+3) 示例   
+    这个不符合规则的代码示例：允许子类覆写方法 `readSensitiveFile()`，并省略了所需的安全检测。
+    ```java
+    public void readSensitiveFile() {
+        try {
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) { // Check for permission to read file
+                sm.checkRead("/temp/tempFile"); // Access the file
+            }
+        } catch (SecurityException se) { // Log exception
+        }
+    }
+    ```    
+    对应的符合规定的解决方案 1：将 `readSensitiveFile()`声明为 final，从而避免覆写。
+    ```java
+    public final void readSensitiveFile() {
+        try {
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) { // Check for permission to read file
+                sm.checkRead("/temp/tempFile");
+            }
+            // Access the file
+        } catch (SecurityException se) {
+            // Log exception
+        }
+    }
+    ```      
+    对应的符合规定的解决方案 2：将 `readSensitiveFile()`声明为 private:，从而避免覆写。
+    ```java
+    private void readSensitiveFile() {
+        try {
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) { // Check for permission to read file
+                sm.checkRead("/temp/tempFile");
+            }
+        }
+        // Access the file }
+        catch (SecurityException se) {
+            // Log exception
+        }
+    }
+    ```   
+4) 特例   
+声明为 final 的类不受这条规则的限制，因为它们的成员方法不能够被覆写。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">358:Improperly Implemented Security Check for Standard</Reference>  
+        <Reference type="CERT">MET03-J:Methods that perform a security check must be declared private or final</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.6 方法</BigClassChin>  
+       
+    </BugInfo>  
+    

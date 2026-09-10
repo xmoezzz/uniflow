@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110153" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">不正确的可序列化方法签名</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法签名不正确。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的所在方法签名不正确。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在序列化方法上使用错误的方法签名可能导致永远不会调用该方法，意味着将无法完成序列化/反序列化。  ]]></Description>
+			<Advice><![CDATA[在使用Java中需要特殊处理的类的序列化时，`writeObject()`、`readObject()` 和`readObjectNoData()`必须具有正确的签名。   
+              
+**例如**：下列代码为正确的可序列化方法签名。  
+```
+private void writeObject(java.io.ObjectOutputStream out) throws IOException;
+private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException;
+private void readObjectNoData() throws ObjectStreamException;
+```
+]]></Advice>
+			<References>
+				<Reference type="CERT">SER01-J:Do not deviate from the proper signatures of serialization methods</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<Security>not</Security>
+			<WhiteList>not</WhiteList>
+
+
+
+<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170044" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.2 并发程序安全</Category>  
+        <Category type="DetailClassChin">A.3.2.12 确保可以终止受阻线程</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明： `Thread.stop()`方法会导致线程抛出一个ThreadDeath异常，通常会停止线程。调用`Thread.stop()`会使得一个线程释放它获得的所有锁，这有可能暴露这些锁保护的对象，而这些对象正处于一个不一致的状态中。线程可以捕获ThreadDeath异常，并使用finally来尝试修复处于不一致的状态对象。  
+对于确保可以终止受阻线程的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+public final class Container implements Runnable {
+    private final Vector<Integer> vector = new Vector<Integer>(1000);
+
+    public Vector<Integer> getVector() {
+        return vector;
+    }
+
+    @Override
+    public synchronized void run() {
+        Random number = new Random(123L);
+        int i = vector.capacity();
+        while (i > 0) {
+            vector.add(number.nextInt(100));
+            i--;
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        Thread thread = new Thread(new Container());
+        thread.start();
+        Thread.sleep(5000);
+        thread.stop();
+    }
+}
+```
+Vector类是线程安全的，所以多个线程对共享实例进行的操作时不会让其处于一个不一致的状态的。vector实例是使用自身的隐含锁来防止在实例状态暂时不一致时其他线程对它的访问。然而，`Thread.stop()`方法会造成线程停止正在进行的操作并抛出一个ThreadDeath异常。所有获得的锁则会被释放。如果线程是在加入一个新的整数至vector时被停止，就有可能导致访问处于不一致状态的vector。  
+**示例2**：  
+```java
+public final class Container implements Runnable {
+    private final Vector<Integer> vector = new Vector<Integer>(1000);
+
+    public Vector<Integer> getVector() {
+        return vector;
+    }
+
+    @Override
+    public synchronized void run() {
+        Random number = new Random(123L);
+        int i = vector.capacity();
+        while (i > 0) {
+            vector.add(number.nextInt(100));
+            i--;
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        Thread thread = new Thread(new Container());
+        thread.start();
+        Thread.sleep(5000);
+        thread.interrupt();
+    }
+}
+```
+调用`Thread.interrupt()`方法设置了一个内部的中断状态标志。线程可以通过`Thread.interrupt()`方法来查询这个标志。这个方法会在当前线程被中断时返回true，并会清除中断状态标志。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">THI05-J:Do not use Thread.stop() to terminate threads</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.2 并发程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

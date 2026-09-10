@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130113" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">类实现了clone()但没有被声明为final</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在类实现了clone()但没有被声明为final。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[类实现了`clone`方法，但是该方法没有被声明为final，它允许在不调用构造函数的情况下创建一个可能处于意想不到状态的对象。  
+  
+**例如**：下面代码片段中，程序实现了`clone()`方法，未声明为final，同时实现Cloneable接口。  
+```java
+public class CloneExp implements Cloneable{  
+    public Object clone() throws CloneNotSupportedException{  
+        ...  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[将clone方法声明为final，  
+  
+**例如**：下面代码片段中，程序实现了`clone()`方法，并将其声明为final，同时实现Cloneable接口。  
+```java
+public class CloneExp implements Cloneable{  
+    public final Object clone() throws CloneNotSupportedException{  
+        ...  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">491:Public cloneable() Method Without Final ('Object Hijack')</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

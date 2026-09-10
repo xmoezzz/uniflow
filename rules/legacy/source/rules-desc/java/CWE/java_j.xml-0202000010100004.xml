@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100004" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：重复的安全角色</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行存在重复的安全角色。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[重复的安全角色毫无用处，因为只会使用指定的安全角色的最后一个定义。  
+  
+**例如**：web.xml文件中的条目定义了两个admin角色。 
+```xml
+<security-constraint>  
+    <web-resource-collection>  
+        <web-resource-name>AdminPage</web-resource-name>  
+        <description>Admin only pages</description>  
+        <url-pattern>/auth/noaccess/*</url-pattern>  
+    </web-resource-collection>  
+    <auth-constraint>  
+        <description>Administrators only</description>  
+        <role-name>admin</role-name>  
+    </auth-constraint></security-constraint>  
+    ...  
+    <security-role>  
+        <description>Administrator</description>  
+        <role-name>admin</role-name>  
+    </security-role><security-role>  
+    <description>Non-Administrator</description>  
+    <role-name>admin</role-name>  
+</security-role>
+``` 
+]]></Description>
+			<Advice><![CDATA[删除掉不必要的安全角色定义。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

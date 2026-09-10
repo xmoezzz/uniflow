@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010000021" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">使用无效的索引</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用了无效的索引。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用了无效的索引。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[PreparedStatement为参数设值的方法和ResultSet中获取指定列的值的方法中的索引都是从1开始编号的，当使用0或者大于占位符数目或列数目时都会抛出SQLException异常。  
+
+**例如**：下列代码中使用了无效的参数索引和列索引。  
+```java
+PreparedStatement ps = connection.prepareStatement("select *  from users where name = ? and age < ?");  
+ps.setString(0, name);  //索引都是从1开始编号的  
+ps.setInt(3, age);  //索引大小超过占位符总数  
+ResultSet rs = ps.executeQuery();  
+while (rs.next()) {  
+    long id = rs.getLong(0);  //索引都是从1开始编号的  
+// ...  
+}  
+...
+```
+]]></Description>
+			<Advice><![CDATA[使用有效的正确来设置参数值和获取列值。  
+
+**例如**：下列代码中使用了正确的参数索引和列索引。  
+```java
+PreparedStatement ps = connection.prepareStatement("select *  from users where name = ? and age < ?");  
+ps.setString(1, name);  
+ps.setInt(2, age);  
+  
+ResultSet rs = ps.executeQuery();  
+while (rs.next()) {  
+    long id = rs.getLong(1);  
+    // ...  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

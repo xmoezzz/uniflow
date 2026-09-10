@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140800" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 07. 异常行为 (ERR)</Category>  
+        <Category type="DetailClassChin">ERR00-J：不要消除或忽略可检查异常</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[程序员常常使用一个空的或者简单的catch块来捕获异常，并将其消除。每一个catch块都必须保证程序在发生异常的情况下继续运行。因此，catch块要么从异常中恢复，将异常重新抛出，由下一个与try对应的catch块来处理异常，要么根据catch块的上下文抛出一个适合的异常。  
+异常中断了预期中的应用程序流程。例如：在try程序段中，不会执行在异常抛出之后的表达式或语句。因此，必须恰当的处理异常。  
+**不规范的代码样例1**：  
+```java
+try {
+    // ...
+} catch (IOException ioe) {
+    // do nothing
+}
+```
+]]></Description>  
+      <Advice><![CDATA[对于捕获的异常，需要进行对应的处理，而不是忽略异常，或者消除异常。  
+**规范的代码样例1**：   
+采用日志记录工具记录异常。  
+```java
+try {
+    // ...
+} catch (IOException ioe) {
+    Logger.info(e, "file is not find");
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">391:Unchecked Error Condition</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.5 catch语句块为空</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

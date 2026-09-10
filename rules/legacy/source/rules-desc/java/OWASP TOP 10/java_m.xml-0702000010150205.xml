@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010150205" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">密码规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要将Random.setSeed参数设为特定值</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[不应为`Random.setSeed`设置特定值作为参数。如果Random对象使用特定值作为种子，则`Random.nextInt()`以及类似方法返回的值是可以预测的。  
+  
+**例如**：下面代码可以通过Random对象`a`来预测Random对象`b`生成的值。  
+```java
+Random a = new Random();  
+a.setSeed(111111);  
+int i = a.nextInt();  
+double x = a.nextDouble()  
+Random b = new Random();  
+b.setSeed(111111);  
+int j = b.nextInt();  
+double y = b.nextDouble()
+```  
+在此例中，Random对象`a`和`b`设置了相同的种子，`i`和`j`以及`x`和`y`的值都是相等的。
+]]></Description>  
+      <Advice><![CDATA[不应为`Random.setSeed`设置特定值作为参数。  
+  
+**例如**：下面代码不为`Random.setSeed`设置特定值。  
+```java
+Random a = new Random();  
+int i = a.nextInt();  
+double x = a.nextDouble();  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">336:Same Seed in Pseudo-Random Number Generator (PRNG)</Reference>  
+        <Reference type="CWE">330:Use of Insufficiently Random Values</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 330</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin>Security Features</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>security,password,bad_practice</Tag> 
+    </BugInfo>  
+    

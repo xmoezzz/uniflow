@@ -1,0 +1,115 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010020051" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">HTTP响应截断：SMTP</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序从一个不可信赖的数据源获取数据，未进行验证就置于SMTP头，可能会导致攻击者可以修改SMTP头，导致邮件内容泄露或发送垃圾邮件等。  
+  
+**例如**：以下代码示例中：subject未进行验证就置于SMTP头，并发送电子邮件。  
+```java
+...  
+Session session = Session.getInstance(props, new MyAuthenticator());    
+MimeMessage message = new MimeMessage(session);  
+String subject = request.getParameter("subject");    
+// set message subject  
+message.setSubject(subject);    
+message.setFrom(new InternetAddress(from));    
+message.setSentDate(new Date());    
+message.setRecipients(RecipientType.TO, InternetAddress.parse(to));    
+...   
+// send message  
+Transport.send(message);    
+...
+```   
+如果请求中提交的是一个`codesafe logs`字符串，那么SMTP头可能表现为以下形式：  
+```java
+...  
+subject: codesafe logs  
+...
+```  
+那么如果攻击者提交的是一个恶意字符串，比如`codesafe logs\r\ncc:attacker@xxx.com\r\n...`，那么SMTP头表现为：  
+```java
+...  
+subject: codesafe logs  
+cc:attacker@xxx.com  
+...
+```  
+这将导致SMTP头被攻击者注入，可导致邮件内容泄露或发送垃圾邮件等。
+]]></Description>
+			<Advice><![CDATA[防止SMTP消息头注入的方式是对放置在SMTP头中的数据进行安全校验，确保没有包含CRLF字符。最安全的方法是创建一份安全字符白名单，只接受完全由这些受认可的字符组成的输入出现在SMTP头中。  
+  
+**例如**：以下代码片段中，验证了`subject`的值是否由标准的字母数字字符组成。  
+```java
+...
+String subject = request.getParameter(subject);  
+if (Pattern.matches("[0-9A-Za-z]+", subject)) {  
+    ...   
+    Session session = Session.getInstance(props, new MyAuthenticator());    
+    MimeMessage message = new MimeMessage(session);  
+    // set message subject  
+    message.setSubject(subject);    
+    message.setFrom(new InternetAddress(from));    
+    message.setSentDate(new Date());    
+    message.setRecipients(RecipientType.TO, InternetAddress.parse(to));    
+    ...   
+    // send message  
+    Transport.send(message);    
+    ...   
+}
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">93:Improper Neutralization of CRLF Sequences('CRLF Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+				<Reference type="GB/T 34944-2017 Java">Web问题:HTTP响应拆分</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发HTTP响应截断：SMTP漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在HTTP响应截断：SMTP漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在HTTP响应截断：SMTP漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发HTTP响应截断：SMTP漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

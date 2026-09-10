@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160138" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.15.6 不要使用反射来增加类、方法和字段的可访问性</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+反射不应用来提供对类、方法和字段的访问，除非这些类、方法和数据成员本身已经不通过反射就不可以访问。   
+2) 原理   
+使用反射会将安全分析弄复杂，并且会比较容易地引入安全漏洞。因此，就算当它们可以用的时候，开发者也应当避免使用这些反射 API。当使用反射的时候，需要特别地小心谨慎。特别地，反射不应当用来提供对类、方法和字段的访问，除非这些类、方法和数据成员本身已经不通过反射就不可以访问。例如，使用反射来访问或修改字段是不允许的，除非那些字段本身就可以被其他的方式访问和修改，例如通过 getter和 setter方法。   
+3) 示例   
+    **示例 1**：当需要使用反射时，确认直接的调用者通过声明为 private和 final和恶意代码是分开的，正如这个符合规定的方案所展示的一样：   
+    ```java
+    class FieldExample {   
+        //...   
+        private void zeroField(String fieldName) {   
+            // ...   
+        }   
+    }
+    ```   
+    注意，当通过使用 `java.lang.reflect.Field.setAccessible()`来覆写语言访问检查的时候，直 接调用者甚至可以访问其他类的私有字段。因此，不要使用`suppressAccessChecks`来赋予ReflectPermission权限，这会确保安全管理器阻塞那些试图访问其他类的私有字段的企图。   
+    **示例 2**：当一个类必须要使用反射来对字段进行访问的时候，它同时必须使用一个非反射的接口来进行同样访问。这个符合规定的方案提供了受限的 setter 方法，从而赋予所有的调用者不使用反射也能访问它的字段的能力。如果这些 setter 方法符合其他所有的规则或者安全策略，那么使用反射也同样符合这条规则。   
+    ```java
+    class FieldExample {
+        // . . .
+        public void zeroField(String fieldName) {
+            // . . .
+        }
+    
+        public void zeroI() {
+            this.i = 0;
+        }
+    
+        public void zeroJ() {
+            this.i = 0;
+        }
+    }
+    ```   
+    **示例 3**：这个符合规定的方案将对`create()`的访问减少到包私有的程度，可以防止在包外部的调用者 使用这个方法来绕过语言检查从而创建出 Trusted 类的实例。使用反射可以创建出 Trusted 类的实例的调用者，这时可以通过简单的调用`Trusted()`构造方法来替代。   
+    ```java
+    package Safe;   
+    public class Trusted {   
+        Trusted() { } // package private constructor   
+        static <T> T create(Class<T> c)  throws InstantiationException, IllegalAccessException {
+            return c.newlnstance ();
+        }   
+    } 
+    ```
+     
+    **示例 4**：这个符合规定的方案使用 `getConstructors()`方法来检査作为参数的类是否有公有的构 造方法。当具有公有的构造方法的时候，所以没有相关的安全问题，这个构造方法本身已经可以被恶意代码访问。当其没有公有的构造方法时，`create()`方法使用安全管理器的 `checkPackageAccess()`方法来保证所有在执行链中的调用者有足够的权限来访问定义在 Safe包中的类和它们对应的字段。   
+    ```java
+    package Safe;
+    import java.beans.Beans;
+    import java.io.IOException;
+    
+    public class Trusted {
+        Trusted() {
+        }
+    
+        public static <T> T create(Class<T> c) throws InstantiationException, IllegalAccessException {
+            if (c.getConstructors().length == 0) { // No public constructors
+                SecurityManager sm = System.getSecurityManager();
+                if (sm != null) {
+                    // throws an exception when access is not allowed
+                    sm.checkPackageAccess("Safe");
+                }
+            }
+            return c.newInstance(); // Safe to return
+        }
+    }
+    ```  
+    **示例 5**：这个符合规定的方案使用`java.beans.Beans`API 来检査接收到的 Class 对象是否有公有的构造函数。   
+    ```java
+    public class Trusted {
+        Trusted() {
+        }
+    
+        public static <T> T create(Class<T> c) throws IOException, ClassNotFoundException {
+            // Executes without exception only if there are public constructors
+            ClassLoader cl = new SafeClassLoader();
+            Object b = Beans.instantiate(cl, c.getName());
+            return c.cast(b);
+        }
+    }
+    ```
+    这个 `Beans.instantiate()`方法仅当实例化的类有公有的构造函数时才会成功，否则，它会抛出IllegalAccessException 异常。该方法使用了一个类装载器参数和一个需要实例化的类的名称参数。不像前面的符合规定的例子一样，这个方法避免了使用反射权限的需要。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>yes</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.15 平台安全性</BigClassChin>  
+       
+    </BugInfo>  
+    

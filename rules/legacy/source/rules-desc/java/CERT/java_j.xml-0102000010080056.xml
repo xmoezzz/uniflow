@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010080056" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">弱加密：byte数组转String时未指定编码</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行byte数组转String时未指定编码。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行byte数组转String时未指定编码。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[将加密密钥转换为String会导致熵大量丢失。  
+  
+**例如**：在下面代码片段中，创建了加密密钥，然后将其转换为String。  
+```java
+...  
+KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");  
+keyGenerator.init(256);  
+SecretKey generateKey = keyGenerator.generateKey();  
+byte[] encoded = generateKey.getEncoded();  
+String key = new String(encoded);  
+...
+```  
+使用系统默认字符集将加密密钥转换为String，与原始的`rawCryptoKey`加密密钥相比，`key`可能会造成熵的大量丢失。
+]]></Description>
+			<Advice><![CDATA[应避免将可能包含非字符数据的byte数组转换为String对象，如果必须将byte数组转String，应对其进行编码。  
+  
+**例如**：下面代码片段中，字节数组转换为String之前对其进行64位基址编码。  
+```java
+...  
+KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");  
+keyGenerator.init(256);  
+SecretKey generateKey = keyGenerator.generateKey();  
+byte[] rawCryptoKey = generateKey.getEncoded();  
+String key = String.valueOf(Base64.getEncoder().encode(rawCryptoKey));  
+...
+```  
+使用`java.util.Base64`类将字节数组编码为64位基址编码的String对象。但是，此方式无法防止用户对其进行解码以获取原始加密密钥。
+]]></Advice>
+			<References>
+				<Reference type="CWE">320:Key Management Errors</Reference>
+				<Reference type="CERT">STR03-J:Do not encode noncharacter data as a string</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>correctness,password,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发弱加密：byte数组转String时未指定编码漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在弱加密：byte数组转String时未指定编码漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在弱加密：byte数组转String时未指定编码漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发弱加密：byte数组转String时未指定编码漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

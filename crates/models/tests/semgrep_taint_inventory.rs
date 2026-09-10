@@ -18,7 +18,12 @@ fn migrated_semgrep_taint_ids_are_executable_in_the_bundled_model_catalog() {
         .chain(rules.field_sources.iter().map(|rule| rule.id.as_str()))
         .chain(rules.field_sinks.iter().map(|rule| rule.id.as_str()))
         .chain(rules.index_sinks.iter().map(|rule| rule.id.as_str()))
-        .chain(rules.sink_reports.iter().map(|rule| rule.report_rule_id.as_str()))
+        .chain(
+            rules
+                .sink_reports
+                .iter()
+                .map(|rule| rule.report_rule_id.as_str()),
+        )
         .chain(rules.function_sources.iter().map(|rule| rule.id.as_str()))
         .chain(rules.function_sinks.iter().map(|rule| rule.id.as_str()))
         .collect::<HashSet<_>>();
@@ -28,7 +33,13 @@ fn migrated_semgrep_taint_ids_are_executable_in_the_bundled_model_catalog() {
         .collect::<Vec<_>>();
     assert_eq!(migrated.len(), 64);
     for id in migrated {
-        assert!(executable.contains(id), "missing bundled Semgrep taint rule {id}");
-        assert!(rules.metadata_for(id).is_some(), "missing metadata for {id}");
+        assert!(
+            executable.contains(id),
+            "missing bundled Semgrep taint rule {id}"
+        );
+        assert!(
+            rules.metadata_for(id).is_some(),
+            "missing metadata for {id}"
+        );
     }
 }

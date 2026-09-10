@@ -560,7 +560,7 @@ fn main() {
                 let migrated_native_rule_id = migrated_semgrep_native_id(&relative, &id);
                 let generated_native_rule_id = (mode != "taint"
                     && migrated_native_rule_id.is_none())
-                    .then(|| generated_semgrep_search_id(language, &relative, &id));
+                .then(|| generated_semgrep_search_id(language, &relative, &id));
                 let native_rule_id = migrated_native_rule_id
                     .map(str::to_string)
                     .or_else(|| generated_native_rule_id.clone());
@@ -733,9 +733,8 @@ fn main() {
                     let severity = rule["severity"].as_str().unwrap_or("WARNING");
                     let rule_yaml = serde_yaml::to_string(rule)
                         .unwrap_or_else(|error| panic!("serialize {relative}:{id}: {error}"));
-                    semgrep_compat_entries.push_str(
-                        "    LegacySemgrepSearchCompatRule { native_rule_id: ",
-                    );
+                    semgrep_compat_entries
+                        .push_str("    LegacySemgrepSearchCompatRule { native_rule_id: ");
                     semgrep_compat_entries.push_str(&format!("{native_id:?}"));
                     semgrep_compat_entries.push_str(", source: ");
                     semgrep_compat_entries.push_str(&format!("{relative:?}"));

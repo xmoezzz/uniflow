@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010020026" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">不安全的反序列化：JSON</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行反序列化过程存在风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行反序列化过程存在风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在反序列化过程中对用户输入，即不可信数据，没有进行校验就进行反序列化处理，那么攻击者可以通过构造恶意输入，让反序列化产生非预期的对象，非预期的对象在产生过程中就有可能带来任意代码执行。  
+  
+**例如**：以下代码使用Jackson从HTTP请求中读取的参数来进行反序列化并且调用了enableDefaultTyping方法。enableDefaultTyping方法允许json字符串中指定反序列化java对象的类名，而在使用Object、Map、List等对象时，可诱发反序列化漏洞，导致可执行任意命令。  
+```java
+String json = request.getParameter("json");  
+...  
+ObjectMapper objectMapper = new ObjectMapper();
+objectMapper.enableDefaultTyping();
+User readValue = objectMapper.readValue(json,User.class);
+```  
+当json字符串过长时甚至会导致拒绝服务。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，是否对反序列化的数据进行了合理安全校验，以避免产生JSON反序列化漏洞。
+
+**例如**：下列代码中Jackson不再使用enableDefaultTyping方法,并且对json内容进行了检查。  
+```java
+String json = request.getParameter("json"); 
+//对json内容进行检查
+if(!isSafeJson(json)){ 
+    return null; 
+}
+...  
+ObjectMapper objectMapper = new ObjectMapper();
+objectMapper.enableDefaultTyping();
+User readValue = objectMapper.readValue(json,User.class);
+```  
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 502</Reference>
+				<Reference type="CWE">502:Deserialization of Untrusted Data</Reference>
+				<Reference type="OWASP TOP 10">2017:A8 Insecure Deserialization</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发不安全的反序列化：JSON漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在不安全的反序列化：JSON漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在不安全的反序列化：JSON漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发不安全的反序列化：JSON漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

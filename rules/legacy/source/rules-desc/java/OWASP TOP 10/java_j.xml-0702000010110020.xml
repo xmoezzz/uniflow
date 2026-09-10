@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110020" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：表单字段未进行验证</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行表单字段未进行验证。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[表单中的每个字段都应该对照相应的表单校验进行验证。只要疏忽了一个输入字段的验证，就会留下能被攻击者利用的破绽。输入检查是例如SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。缺少输入验证或者输入验证不完整可能让程序易于被攻击。
+]]></Description>
+			<Advice><![CDATA[表单中的每个字段都应该对照相应的表单校验进行验证，避免被攻击者利用未被校验的字段。
+]]></Advice>
+			<References>
+				<Reference type="CWE">105:Struts: Form Field Without Validator</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

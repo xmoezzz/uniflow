@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010160059" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.6.10 定义了 equlas（）方法的类必须定义hashCode（）方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+覆写了 `Object.equals()`方法的类必须同时覆写 `Object.hashCode()`方法。   
+2) 原理   
+`java.lang.Object`类要求当两个对象用`equals()`方法进行比较并得到等同的结果时，对这两个对象调用 `hashCode()`方法时必须产生一样的整数结果。   
+`equals()`方法用于判定两个对象实例逻辑上的等同性。因此，对于所有等同的对象，` hashCode()`方法必须返回相同的数值。没能遵守这一合约是一个常见的产生错误的原因。   
+3) 示例   
+这个不符合规则的代码示例用 HashMap 将信用卡号和字符串联系在一起，随后尝试取得一个信用卡的卡号字符串。预期的数值是`4111111111111111`，但实际获得的数值是null。   
+```java
+    public final class CreditCard {
+        private final int number;
+
+        public CreditCard(int number) {
+            this.number = (short) number;
+        }
+
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof CreditCard)) {
+                return false;
+            }
+            CreditCard cc = (CreditCard) o;
+            return cc.number == number;
+        }
+        public static void main(String[] args) {
+            Map<CreditCard, String> m = new HashMap<CreditCard, String>();
+            m.put(new CreditCard(100), "4111111111111111");
+            System.out.println(m.get(new CreditCard(100)));
+        }
+    }
+``` 
+造成这一错误行为的原因是 CreditCrad 类覆写了`equlas()`方法，但没有覆写`hashCode()`方法。 因此，默认的`hashCode()`方法对不同的对象返回一个不同的数值，即便这些对象在逻辑上是等同的；这些不同的数值导致了査看不同的散列桶，这阻碍了`get()`方法找到预期的数值。   
+   
+对应的符合规定的解决方案是：覆写 `hashCode()`方法，从而保证由 `equals()`方法认为相等的两个实例能产生相同的数值。   
+```java
+public final class CreditCard {
+    private final int number;
+
+    public CreditCard(int number) {
+        this.number = (short) number;
+    }
+
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof CreditCard)) {
+            return false;
+        }
+        CreditCard cc = (CreditCard) o;
+        return cc.number == number;
+    }
+
+    public int hashCode() {
+        int result = 17;
+        result = 31 * result + number;
+        return result;
+    }
+
+    public static void main(String[] args) {
+        Map<CreditCard, String> m = new HashMap<CreditCard, String>();
+        m.put(new CreditCard(100), "4111111111111111");
+        System.out.printIn(m.get(new CreditCard(100)));
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">581:Object Model Violation: Just One of Equals and Hashcode Defined</Reference>  
+        <Reference type="CERT">MET09-J:Classes that define an equals() method must also define a hashCode() method</Reference>  
+        <Reference type="SJ/T 11683-2017">6.5.8 类定义了equals方法但是没有定义hashCode方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.6 方法</BigClassChin>  
+       
+    </BugInfo>  
+    

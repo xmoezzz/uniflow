@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130040" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts2：动态方法调用</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了动态方法调用。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了动态方法调用。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Struts2框架支持动态方法调用的功能，它是指表单元素的Action并不是直接等于某个Action的名称，而是通过在Action的名称中使用感叹号`!`来标识要调用的方法名称，格式为：`actionName!methodName.action`。但是动态方法调用可能会带来安全隐患（通过URL可以执行Action中的任意方法）。  
+  
+**例如**：如果Action类中定义了公有方法`getPassword()`，并且在项目配置文件中未禁用动态方法调用功能，那么攻击者可以访问`URL：http://server/app/recoverpassword!getPassword.action`，以直接执行该方法。
+]]></Description>
+			<Advice><![CDATA[建议禁用Struts2的动态调用方法功能，配置方法有三种：  
+1.在struts.xml文件中添加常量配置内容：
+```xml
+<constant name="struts.enable.DynamicMethodInvocation" value="false">
+```
+2.在struts.properties文件中添加内容：
+```
+struts.enable.DynamicMethodInvocation = false; 
+```
+3.在web.xml文件中的Struts2 filter内部添加init-param节点内容：  
+```xml
+<init-param>  
+    <param-name>struts.enable.DynamiceMethodInvocation</param-name>  
+    <param-value>false</param-value>  
+</init-param> 
+```
+如果使用 `Struts 2.3.15.2` 或更高版本且未明确启用动态方法调用功能，那么可以忽视此问题。
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Common Weakness Enumeration</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2014:M1 Weak Server Side Controls</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

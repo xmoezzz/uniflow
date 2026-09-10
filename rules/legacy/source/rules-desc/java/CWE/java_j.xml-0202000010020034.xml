@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020034" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">NoSQL注入：DynamoDB</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[NoSQL注入是一种数据库攻击手段。攻击者通过向应用程序提交恶意代码来改变原NoSQL语句的含义，进而执行任意NoSQL命令，达到入侵数据库乃至操作系统的目的。使用DynamoDB执行一个通过用户输入构建的动态指令，会让攻击者有机会篡改指令的含义或者执行任意的NoSQL命令。  
+
+**例如**：下列代码构建了一个动态指令来使用 MongoDB查询具有特定用户的电子邮件,程序可以根据用户名或用户ID以及密码进行查询。  
+```java
+...  
+String password = request.getParameter("password");  
+String type = request.getParameter("type");  
+String value = request.getParameter("value");  
+DynamoDbClient ddc = DynamoDbClient.create();  
+HashMap<String, AttributeValue> attributeValues = new HashMap<String,AttributeValue>();  
+attributeValues.put(":value", AttributeValue.builder().s(value).build());  
+attributeValues.put(":password", AttributeValue.builder().s(password).build());  
+  
+ScanRequest queryRequest = ScanRequest.builder()  
+    .filterExpression(type + " = :value AND Password = :password")  
+    .tableName("user")  
+    .expressionAttributeValues(attributeValues)  
+    .build();  
+  
+ScanResponse response = ddc.scan(queryRequest);  
+...  
+```
+如果攻击者能够替代`type`，它们可以使用下面的关于`type`的字符串进行NoSQL注入。  
+`:value = :value OR :value`  
+当其注入到命令时，命令就会变成：  
+`:value = :value OR :value = :value AND Password = :password`  
+意味着无论账号密码是否正确，该查询都会返回`users`集合中存储的所有条目。
+]]></Description>
+			<Advice><![CDATA[防止NoSQL注入的方法如下：  
+1. 程序对非受信的用户输入数据进行净化，删除不安全的字符。  
+2. 创建一份安全字符串列表，限制用户只能输入该列表中的数据。
+]]></Advice>
+			<References>
+				<Reference type="CWE">89:Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:SQL注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发NoSQL注入：DynamoDB漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在NoSQL注入：DynamoDB漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在NoSQL注入：DynamoDB漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发NoSQL注入：DynamoDB漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

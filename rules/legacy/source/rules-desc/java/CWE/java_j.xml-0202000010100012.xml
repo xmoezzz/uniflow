@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100012" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：Session ID长度过短</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行Session ID长度设置过短。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[较短的Session ID会使应用程序暴露在暴力破解Session的攻击之下。  
+  
+**例如**：下面配置文件片段中，Session ID的长度设定较短。
+```xml
+<weblogic-application>    
+    ...  
+    <session-descriptor>    
+        <id-length>10</id-length>    
+    </session-descriptor>    
+</weblogic-application>
+```  
+]]></Description>
+			<Advice><![CDATA[Session ID的长度不小于128比特，以防止会话的暴力破解攻击。
+]]></Advice>
+			<References>
+				<Reference type="CWE">6:J2EE Misconfiguration: Insufficient Session-ID Length</Reference>
+				<Reference type="OWASP TOP 10">2017:A2 Broken Authentication</Reference>
+				<Reference type="OWASP TOP 10">2013:A2 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2010:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2007:A7 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

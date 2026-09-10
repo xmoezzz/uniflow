@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010150206" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">GB/T 34944-2017</Category>  
+        <Category type="SubClassChin">密码规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用固定的初始化向量</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[初始化向量(IV)应该使用加密随机数生成器进行创建。如果不使用随机IV，则结果密码可预测性会高得多，容易受到字典式攻击。  
+  
+**例如**：下面代码片段使用硬编码字节创建非随机IV。 
+```java 
+byte[] iv = {14, 80, 94, 47, 3, 66, 96, 110, 86, 30, 3, 0, 106, 107, 57, 117}  
+IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[初始化向量(IV)应该使用加密伪随机数生成器进行创建。  
+  
+**例如**：下面代码片段创建随机IV。  
+```java
+SecureRandom secureRandom = new SecureRandom();  
+byte[] iv = secureRandom.generateSeed(16);  
+IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">329:Not Using a Random IV with CBC Mode</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:密码分组链接模式未使用随机初始化矢量</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin>Security Features</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>security,password,bad_practice</Tag> 
+    </BugInfo>  
+    

@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100022" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">Struts配置错误：无效的path属性</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行path属性设置无效。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[无效的path属性会导致Struts无法定位服务请求的正确资源。  
+  
+**例如**：如下所示配置文件中action标签中的path属性值不是以`/`开头  
+```xml
+<action path="NoImageCSVReportAction" type="org.posterita.webstore.action.ProductAction"  
+        scope="request" validate="true" parameter="action">    
+    ...     
+</action>
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，正确添加path属性的值。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

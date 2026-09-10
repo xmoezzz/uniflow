@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010090012" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">固定的Session ID</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用了固定的Session ID。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用了固定的Session ID。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在未释放当前Session ID的情况下验证用户会给攻击者窃取验证Session的机会。固定的Session ID漏洞会在以下情况中出现：  
+1. 当Web应用程序验证某一用户时，没有首先释放当前Session，而是继续使用已经与该用户关联的Session。  
+2. 攻击者能够夺取已知的用户Session ID，因此，一旦该用户进行验证，攻击者便可以访问经过验证的Session。   
+在通常情况下，攻击者会利用固定的Session ID漏洞在Web应用程序中创建一个新Session，并且记录与之关联的Session ID。然后，攻击者会设法使受害者在服务器中的验证失败，从而通过当前Session来访问用户帐号。  
+    
+    **例如**：在下列代码片段中，系统创建登录上下文，然后进行登录，登录之前未进行Session的释放。  
+    ```java
+    ...  
+    LoginContext context = new LoginContext("myLogin", new MyCallbackHander());  
+    context.login();  
+    ...
+    ```
+]]></Description>
+			<Advice><![CDATA[为了防止固定的Session ID，基于Web的应用程序应该在验证用户登录前，invalidate用户的会话，并创建新的会话。  
+  
+**例如**：在下列代码片段中，系统创建登录上下文，然后进行登录，登录之前将Session进行释放。  
+```java
+...  
+LoginContext context = new LoginContext("myLogin", new MyCallbackHander());  
+HttpSession session = request.getSession();  
+session.invalidate();  
+context.login();  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">384:Session Fixation</Reference>
+				<Reference type="OWASP TOP 10">2010:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2007:A7 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="GB/T 34944-2017 Java">时间和状态:会话固定</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

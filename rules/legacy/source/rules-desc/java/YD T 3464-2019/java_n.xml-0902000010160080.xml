@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160080" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.9.2 不要基于那些可能被重用的对象进行同步</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序不要基于那些会被重用的对象进行同步。   
+2) 原理   
+错误地使用那些同步的基础数据类型是并发问题的一个常见来源。基于那些可能被重用的对象进行同步，会导致死锁和不确定的行为。因此，程序不要基于那些会被重用的对象进行同步。   
+3) 示例   
+    1、不符合规则的代码示例（布尔型的锁对象），该示例基于一个布尔型的锁对象实现同步。   
+    ```java
+    private final Boolean initialized = Boolean.FALSE;   
+    public void doSomething() {   
+        synchronized (initialized) {   
+            // ...   
+        }   
+    }
+    ```   
+    Boolean 类型不太适合作为锁来使用，因为它只允许两个值：true 和 false。包含相同数值的 Boolean数据，并且在 Java 虚拟机中共享一个 Boolean 类实例。如果在其他任何代码中，不经意地使用了具有这个 Boolean 类型进行同步，这个锁实例会被重用，并且系统会失去响应或者产生死锁。   
+       
+    2、不符合规则的代码示例（封装过的基础数据类型），该示例使用封包的 Integer 对象实现锁操作。   
+    ```java
+    int lock = 0;   
+    private final Integer Lock = lock; // Boxed primitive Lock is shared   
+    public void doSomething() {   
+        synchronized (Lock) {
+            // . . .    
+        }   
+    }
+    ```   
+    封装过的数据类型会使用整形范围内的同一个实例，因此，它们会遇到与 Boolean 常数同样的重用问题。当将这个数据表示成一个字节时，会重用封装器对象。当使用一个和经过封包的 Interger 封装器对象联系在一起的内置锁时，会产生不安全性。   
+       
+    对应上述情形的符合规则的解决方案（整形）是：基于一个没有封包的整型来使用锁，这是使用私有锁对象技巧的一种变形。在 `doSomething()`方法中，使用 Integer 实例的内置锁 Lock 进行同步。   
+    ```java
+    int lock = 0;   
+    private final Integer Lock = new Integer(lock);   
+    public void doSomething() {   
+        synchronized (Lock) {   
+            // ...
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">LCK01-J:Do not synchronize on objects than may be reused</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.9 锁</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -207,7 +207,6 @@ pub enum InstKind {
     Call(CallInst),
 }
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CppCastKind {
     Static,
@@ -407,8 +406,12 @@ fn validate_function(function: &Function, errors: &mut Vec<IrValidationError>) {
         }
         if let Some(inst) = edge.source_inst {
             let source_block = function.blocks.iter().find(|block| block.id == edge.from);
-            let source_instruction = source_block
-                .and_then(|block| block.insts.iter().find(|instruction| instruction.id == inst));
+            let source_instruction = source_block.and_then(|block| {
+                block
+                    .insts
+                    .iter()
+                    .find(|instruction| instruction.id == inst)
+            });
             if !source_instruction
                 .is_some_and(|instruction| matches!(&instruction.kind, InstKind::Call(_)))
             {
@@ -547,14 +550,18 @@ fn defined_value(kind: &InstKind) -> Option<ValueId> {
         | InstKind::LoadField { dst, .. }
         | InstKind::LoadIndex { dst, .. } => Some(*dst),
         InstKind::Call(call) => call.dst,
-        InstKind::Lifetime { .. } | InstKind::StoreField { .. } | InstKind::StoreIndex { .. } => None,
+        InstKind::Lifetime { .. } | InstKind::StoreField { .. } | InstKind::StoreIndex { .. } => {
+            None
+        }
     }
 }
 
 fn used_values(kind: &InstKind) -> Vec<ValueId> {
     match kind {
         InstKind::ConstInt { .. } | InstKind::ConstString { .. } => Vec::new(),
-        InstKind::Copy { src, .. } | InstKind::Move { src, .. } | InstKind::Cast { src, .. } => vec![*src],
+        InstKind::Copy { src, .. } | InstKind::Move { src, .. } | InstKind::Cast { src, .. } => {
+            vec![*src]
+        }
         InstKind::NumericStep { src, .. } => vec![*src],
         InstKind::Lifetime { value, .. } => vec![*value],
         InstKind::Phi { inputs, .. } => inputs.clone(),

@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140707" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 06. 方法 (MET)</Category>  
+        <Category type="DetailClassChin">MET07-J：不要定义方法来隐藏基类或基类接口中声明的方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[根据Java语言规范8.4.8.2节“隐藏(类方法)”：  
+>当声明了一个static方法ma时，ma的定义会隐藏任何符合条件的方法mb。这发生在当ma的签名是mb签名的子签名，并且mb是同时在声明类的基类或者基类接口中定义的。    
+
+当方法用于相同的名字、相同数目和类型的参数，以及相同的返回类型时，在子类中定义的实例方法会覆写基类中的实例方法。  
+**不规范的代码样例1**：  
+代码中程序员隐藏了static方法而不是将其覆写。因此，代码在两个不同的地方调用了基类中的`displayAccountStatus()`方法，而不是在一处调用基类的方法，另一处调用子类的方法。  
+```java
+class GrantAccess {
+    public static void displayAccountStatus() {
+        System.out.println("Account details for admin: XX");
+    }
+}
+
+class GrantUserAccess extends GrantAccess {
+    public static void displayAccountStatus() {
+        System.out.println("Account details for user: XX");
+    }
+}
+
+public class StatMethod {
+    public static void choose(String username) {
+        GrantAccess admin = new GrantAccess();
+        GrantAccess user = new GrantUserAccess();
+        if (username.equals("admin")) {
+            admin.displayAccountStatus();
+        } else {
+            user.displayAccountStatus();
+        }
+    }
+
+    public static void main(String[] args) {
+        choose("user");
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+去掉了方法`displayAccountStatus()`的关键字static，`displayAccountStatus()`即成了一个实例方法。因此，调用方法的动态方法扩展使执行得到了预期结果。  
+从理论上说，一个private方法是不能被隐藏或被覆写的。没有任何要求指定子类和基类中具有相同签名的private方法有任何联系，即使方法具有相同的返回类型和抛出异常，这是隐藏的必要条件。  
+```java
+class GrantAccess {
+    public void displayAccountStatus() {
+        System.out.println("Account details for admin: XX");
+    }
+}
+
+class GrantUserAccess extends GrantAccess {
+    @Override
+    public void displayAccountStatus() {
+        System.out.println("Account details for user: XX");
+    }
+}
+
+public class StatMethod {
+    public static void choose(String username) {
+        GrantAccess admin = new GrantAccess();
+        GrantAccess user = new GrantUserAccess();
+        if (username.equals("admin")) {
+            admin.displayAccountStatus();
+        } else {
+            user.displayAccountStatus();
+        }
+    }
+
+    public static void main(String[] args) {
+        choose("user");
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">486:Comparison of Classes by Name</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010170013" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">5.2 数据加密与保护</Category>  
+        <Category type="DetailClassChin">A.2.2.1.4 密钥长度应该足够长</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：加密算法中使用的密钥长度较短，会降低系统安全。  
+对于密钥长度应足够长的情况，示例1给出了不规范用法（java语言）示例。  
+**示例1**：  
+```java
+KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("RSA");  
+keyPairGen.initialize(1024);  
+KeyPair keyPair = keyPairGen.generateKeyPair();  
+PublicKey publicKey = (RSAPublicKey) keyPair.getPublic();  
+PrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();  
+byte[] publicKeyData = publicKey.getEncoded();  
+byte[] privateKeyData = privateKey.getEncoded();  
+...
+```  
+以上代码片段中，KeyPairGenerator使用RSA加密算法，长度为1024位。  
+对于对称加密算法，建议使用长度大于或等于128位的密钥。对于非对称加密算法（如RSA)，建议使用长度大于或等于2048位的密钥。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">326:Inadequate Encryption Strength</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.2 数据加密与保护</BigClassChin>  
+       
+    </BugInfo>  
+    

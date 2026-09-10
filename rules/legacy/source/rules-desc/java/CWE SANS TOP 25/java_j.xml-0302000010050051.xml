@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010050051" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">反射文件下载</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[反射型文件下载允许攻击者创建一个URL，该URL会强制下载似乎来自可信赖域的任意内容。由于用户信任域，可能会打开已下载的文件，从而导致执行恶意代码。反射型文件下载攻击，需要满足以下要求：  
+1. 应用程序未对用户输入进行适当验证或编码。  
+2. 应用程序允许打开未严格限制的URL，攻击者可以控制下载文件的名称和扩展名。  
+3. 应用程序的Content-Disposition头文件配置错误，从而允许攻击者控制HTTP响应中的Content-Type和Content-Disposition头文件，或者目标应用程序包含默认情况下不在浏览器中呈现的Content-Type。  
+**例如**：如果应用程序使用Spring Web MVC ContentNegotiationManager来动态生成不同的响应格式，则将满足进行反射型文件下载的必要条件。将ContentNegotiationManager配置为基于请求路径扩展名来确定响应格式，以及使用 `JAF(JavaBeans Activation Framework)`找到可以更好地匹配客户端所请求格式的Content-Type。它还允许客户端通过在请求的Accept头文件中发送的媒体类型指定响应内容类型。  
+
+**例1**：下面代码示**例中**：将应用程序配置为允许使用路径扩展名策略以及用`JAF(JavaBeans Activation Framework)`激活框架来确定响应的内容类型：  
+```java
+ContentNegotiationManagerFactoryBean cnManager = new ContentNegotiationManagerFactoryBean();  
+cnManager.setFavorPathExtension(true);  
+cnManager.setUseJaf(true);
+```  
+**例2**：下面代码示**例中**：将应用程序配置为允许使用请求的Accept头文件来确定响应的内容类型：  
+```java
+ContentNegotiationManagerFactoryBean cnManager = new ContentNegotiationManagerFactoryBean();  
+cnManager.setIgnoreAcceptHeader(false);
+```  
+请注意，Spring 4.2.1中的ContentNegotiationManagerFactoryBean属性默认值为：
+```
+useJaf: true  
+favorPathExtension: true  
+ignoreAcceptHeader: false 
+```  
+例1中所显示的配置允许攻击者创建一个恶意URL，例如：`http://server/some/resource/endpoint/foo.bat?input=payload`  
+这样ContentNegotiationManager将使用JAF（如果在类路径中找到activation.jar）来尝试解析给定文件扩展名的媒体类型，并相应地设置响应的ContentType头文件。在此示例中：文件扩展名为"bat"，导致生成`application/x-msdownload`的`Content-Type`头文件（尽管确切的Content-Type可能因服务器OS和JAF配置而异）。因此，一旦受害者访问该恶意URL，其计算机将自动下载含有受攻击者控制的内容的“.bat”文件。如果接下来执行此文件，那么受害者的计算机将运行由攻击者的负载指定的任何命令。
+]]></Description>
+			<Advice><![CDATA[为了防止反射式文件下载的攻击，应用程序遵循以下建议：  
+如果使用Spring MVC ContentNegotiationManager：  
+1. 使用Content-Type策略并使之尽可能地简单。如果可以，请仅使用路径扩展名策略，并在应用程序客户端未使用参数或Accept头文件的相关选项时将它们禁用。  
+2. 通过将setUseJaf设置为false，可禁用JAF。  
+3. 恰当处理的所有媒体类型列表来设置mediaTypes属性。  
+4. 设置defaultMediaType，以便始终控制未知媒体类型响应的Content-Type头文件。  
+5. 将ignoreAcceptHeader设置为true后，攻击者将无法强制执行响应的Content-Type头文件值。
+  
+**例如**：下面代码示例显示Spring ContentNegotiationManagerFactoryBean的安全配置：  
+```java
+ContentNegotiationManagerFactoryBean contentNegotiationManager = new ContentNegotiationManagerFactoryBean();  
+contentNegotiationManager.setFavorPathExtension(true);  
+contentNegotiationManager.setFavorParameter(false);  
+contentNegotiationManager.setUseJaf(false);  
+contentNegotiationManager.setIgnoreAcceptHeader(true);  
+contentNegotiationManager.setIgnoreUnknownPathExtensions (true);  
+contentNegotiationManager.addMediaType("json", MediaType.APPLICATION_JSON);  
+contentNegotiationManager.addMediaType("xml", MediaType.APPLICATION_XML);  
+contentNegotiationManager.addMediaType("txt", MediaType.TEXT_PLAIN);  
+contentNegotiationManager.addMediaType("html", MediaType.TEXT_HTML);  
+contentNegotiationManager.setDefaultContentType(MediaType.APPLICATION_JSON);
+```  
+作为一般性建议：  
+1. 确保URL不宽松并且禁止将其他字符添加到URL中。  
+2. 对任意用户输入执行严格的白名单验证后，再将其设置到HTTP响应中。  
+3. 若用户控制的数据显示到页面，进行恰当的编码。  
+4. 使用Content-Disposition头文件时，明确指定文件名和扩展名。  
+5. 使用反CSRF标记。  
+6. 从服务器可验证使用API的应该是客户端，而不是处于浏览器的客户端自己获取一个自定义头文件。  
+7. 使用JSONP时，请使用白名单来验证回调名称。  
+8. 使用X-Content-Type-Options: nosniff响应头文件阻止浏览器尝试自动确定响应的Content-Type。  
+9. 如果可以，将应用程序配置为禁用请求路径和矩阵参数。  
+10. 创建受支持的Content-Type值列表并禁用用于反映Accept请求头文件的选项。
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 79</Reference>
+				<Reference type="CWE">79:Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

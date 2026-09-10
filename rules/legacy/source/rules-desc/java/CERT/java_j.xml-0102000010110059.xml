@@ -1,0 +1,98 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110059" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">clone()中调用可覆写的方法</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法中调用了可覆写的方法。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法中调用了可覆写的方法。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在`clone()`方法中调用可覆写的方法是不安全的。首先，一个恶意子类可以对方法进行覆写并改变`clone()`方法的行为。其次，一个可信任的子类可以观察（并有可能修改）被克隆对象在创建完成之前的某一特定初始化的状态。  
+  
+**例如**：这个不符合规则的代码示例中有两个类：CloneExample和Sub。CloneExample类调用可覆写的方法`doSomething()`。被覆写的方法设置了`cookies`的值，覆写的方法则设置了域名的值。基于多态性的原因，子类Sub中`doSomething()`方法在运行时被错误地执行了两次。第一次调用时发生在`CloneExample.clone()`，另一次是在`Sub.clone()`。因此，`cookies`的值并没有被初始化，而域名却初始化了两次。  
+```java
+class CloneExample implements Cloneable {  
+    HttpCookie[] cookies;  
+    CloneExample(HttpCookie[] c) {  
+        cookies = c;  
+    }  
+    public Object clone() throws CloneNotSupportedException {  
+        final CloneExample clone = (CloneExample) super.clone();  
+        clone.doSomething(); // Invokes overridable method  
+        clone.cookies = clone.deepCopy();  
+        return clone;  
+    }  
+    void doSomething() { // Overridable  
+        for (int i = 0; i < cookies.length; i++) {  
+            cookies[i].setValue("" + i);  
+        }  
+    }  
+    HttpCookie[] deepCopy() {  
+        if (cookies == null) {  
+            throw new NullPointerException();  
+        }  
+        // deep copy  
+        HttpCookie[] cookiesCopy = new HttpCookie[cookies.length];  
+        for (int i = 0; i < cookies.length; i++) {  
+            // Manually create a copy of each element in array  
+            cookiesCopy[i] = (HttpCookie) cookies[i].clone();  
+        }  
+        return cookiesCopy;  
+    }  
+}  
+class Sub extends CloneExample {  
+    Sub(HttpCookie[] c) {  
+        super(c);  
+    }  
+    public Object clone() throws CloneNotSupportedException {  
+        final Sub clone = (Sub) super.clone();  
+        clone.doSomething();  
+        return clone;  
+    }  
+    void doSomething() { // Erroneously executed  
+        for (int i = 0; i < cookies.length; i++) {  
+            cookies[i].setDomain(i + ".foo.com");  
+        }  
+    }  
+    public static void main(String[] args) throws CloneNotSupportedException {  
+        HttpCookie[] hc = new HttpCookie[20];  
+        for (int i = 0; i < hc.length; i++) {  
+            hc[i] = new HttpCookie("cookie" + i, "" + i);  
+        }  
+        CloneExample bc = new Sub(hc);  
+        bc.clone();  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[`clone()`方法只能调用final或private的方法。  
+  
+**例如**：这个符合规范的方案将`doSomething()`和`deepCopy()`方法声明为final的，从而避免了对这些方法的覆写。  
+```java
+class CloneExample implements Cloneable {  
+    final void doSomething () {  
+        //...  
+    }  
+    final HttpCookie[] deepCopy() {  
+        //...  
+    }  
+    //...   
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CERT">MET06-J:Do not invoke overridable methods in clone()</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

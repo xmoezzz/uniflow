@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010150501" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">异常规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要捕获NullPointerException</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[应用程序中不应该捕获NullPointerException或者任何它的基类。因为捕获NullPointerException只可能掩盖潜在的空引用，降低应用性能，并造成难以理解和维护的代码。  
+  
+**例如**：如下代码对空指针异常进行了捕获  
+```java
+String name=null;  
+try {  
+    name=request.getParameter("name");  
+    if(name.equals("admin")){  
+        ...  
+    }  
+}catch(NullPointerException e) { //程序捕获NullPointerException  
+    ...  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[检查程序逻辑，删除捕获NullPointerException的代码。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">395:Use of NullPointerException Catch to Detect NULL Pointer Dereference</Reference>  
+        <Reference type="CERT">ERR08-J:Do not catch NullPointerException or any of its ancestors</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.3 捕捉运行时异常</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Errors</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>exception,bad_practice</Tag> 
+    </BugInfo>  
+    

@@ -113,7 +113,11 @@ fn assert_language_compatibility_models(language_name: &str, language: Language)
         checked += 1;
     }
 
-    let expected = if language_name == "javascript" { 90 } else { 45 };
+    let expected = if language_name == "javascript" {
+        90
+    } else {
+        45
+    };
     assert_eq!(checked, expected);
 }
 

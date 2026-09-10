@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130023" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">缺少对方法参数的null检查</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行方法参数可能为null。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行方法参数可能为null。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[函数没有检查传入的参数是否为null。  
+Java标准指出，实现`Object.equals()、Comparable.compareTo()`和 `Comparator.compare()`方法时，如果其参数为null，则必须返回一个指定值。不遵守该规定可能会导致发生意外的行为。  
+**例如**：以下代码实现了`compareTo()`方法，但没有检查参数是否为null。  
+```java
+public int compareTo(Object object) {  
+    return this.age-(User)object.age;  
+}
+```
+]]></Description>
+			<Advice><![CDATA[方法在使用其参数之前，必须对参数进行null检查，以此避免程序在运行时抛出NullPointException。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="CERT">MET08-J:Preserve the equality contract when overriding the equals() method,MET10-J:Follow the general contract when implementing the compareTo() method</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

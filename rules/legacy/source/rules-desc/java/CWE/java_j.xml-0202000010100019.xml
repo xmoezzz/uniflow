@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100019" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：弱访问权限</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行访问权限设置较弱。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果EJB部署描述符包含一个或多个方法，并且这些方法被授予了特殊的ANYONE角色的访问权限，这表明程序员没有全面考虑应用程序的访问控制，或者应用程序的构造方式决定了不可能进行合理的访问控制。  
+  
+**例如**：以下部署描述符授权给ANYONE，允许其调用User的`getInfo()`方法。
+```xml
+<ejb-jar>  
+    ...  
+    <assembly-descriptor>  
+        <method-permission>  
+            <role-name>ANYONE</role-name>  
+            <method>  
+                <ejb-name>User</ejb-name>  
+                <method-name>getInfo</method-name>  
+            </method>  
+        </method-permission>  
+    </assembly-descriptor>  
+    ...  
+</ejb-jar>
+```  
+]]></Description>
+			<Advice><![CDATA[不要将调用EJB方法的权限授予ANYONE角色。
+]]></Advice>
+			<References>
+				<Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

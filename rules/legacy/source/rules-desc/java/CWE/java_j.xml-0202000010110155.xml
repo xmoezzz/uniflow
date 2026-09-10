@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110155" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">不安全的哈希算法：不受控制的PBE Salt</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的PBE Salt可能被用户控制。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的PBE Salt可能被用户控制。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序加密时所采用的`salt`被用户控制，当攻击者可以指定一个空`salt`时，既能更容易地确定散列值，又能泄露有关程序如何执行加密散列的信息，通过限制所用散列的特定变体，可以更轻松地“破解”其他密码。  
+  
+**例如**：以下代码使用了用户控制的`salt`。
+```java
+...
+Properties prop = new Properties();
+prop.load(new FileInputStream("local.properties"));
+String salt = prop.getProperty("salt");
+...
+PBEKeySpec pbeSpec=new PBEKeySpec(password);
+SecretKeyFactory keyFact=SecretKeyFactory.getInstance(CIPHER_ALG);
+PBEParameterSpec defParams=new PBEParameterSpec(salt,0);
+Cipher cipher=Cipher.getInstance(CIPHER_ALG);
+cipher.init(cipherMode,keyFact.generateSecret(pbeSpec),defParams);
+...
+```  
+该代码可以正常运行，任何有此功能权限的人将能够通过修改属性`salt`，来操纵用于派生密钥或密码的`salt`。在程序发布之后，撤消有关用户控制的`salt`的问题会非常困难，因为很难知道密码散列的`salt`是否已经被恶意用户确定。
+]]></Description>
+			<Advice><![CDATA[不应该由用户控制`salt`，也不能是硬编码的。通常情况下，应对`salt`加以模糊化，并在外部数据源中进行管理。在系统中采用明文的形式存储`salt`，会造成任何有充分权限的人读取和无意中误用`salt`。
+]]></Advice>
+			<References>
+				<Reference type="CWE">328:Reversible One-Way Hash</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发不安全的哈希算法：不受控制的PBE Salt漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在不安全的哈希算法：不受控制的PBE Salt漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在不安全的哈希算法：不受控制的PBE Salt漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发不安全的哈希算法：不受控制的PBE Salt漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

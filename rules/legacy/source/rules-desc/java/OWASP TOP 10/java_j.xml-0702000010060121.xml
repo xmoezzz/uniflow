@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010060121" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">安卓程序开启服务</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行安卓程序将会开启监听服务。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行安卓程序将会开启监听服务。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序中开启服务意味着创建监听端口的SocketServer，通过SocketServer开启服务，可以接受客户端的请求操作，通常使用NanoHTTPD库来创建Socket服务端。  
+  
+**例如**：下列代码中创建了ServerSocket，开启了服务监听，如果服务端对连接的客户端验证不严格的话，恶意应用就可以连接服务，使用服务端的功能，可能导致应用隐私数据泄露或其他的严重问题。  
+```java
+while (isLoop && !Thread.interrupted()) {   
+    Socket socket = serverSocket.accept();   
+    DefaultHttpServerConnection conn = new DefaultHttpServerConnection();   
+    conn.bind(socket, params);   
+    Thread t = new WorkerThread(httpService, conn);   
+    t.setDaemon(true);  
+    t.start();   
+}
+```
+]]></Description>
+			<Advice><![CDATA[请勿在应用中开启监听服务，如果实在需要开启服务，一定要有完善的机制来验证连接的客户端。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

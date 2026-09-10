@@ -1,0 +1,228 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010160093" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.10.3 通知所有等待中的线程而不是单一线程</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+只有在“所有线程拥有一致的等候条件”、“所有线程在被唤醒后会进行相同的操作”、“在发出通知后，只需要一个线程恢复工作”都满足的情况下，才能调用 notify()方法。   
+2) 原理   
+调用 `Object.wait()`的线程期望在它们的等候条件成真时恢复继续运行。等待中的线程在接到通知时，必须测试它们的等候条件，而且在等候条件为假时，必须继续等待。`java.lang.Object` 包中的`notify()`和`notifyAll()`方法分別是用来唤醒等待中的一个或多个线程的。这些方法必须由那些拥有等待线程的对象锁的线程来调用，而且这些方法在被其他线程调用时会抛出illegalMonitorStateException。`notifyAll()`方法会唤醒所有等待同一对象锁的线程，并允许等候条件成真的线程恢复执行。而且，如果那些等候条件成真的所有线程在进入等候状态前持有某一特定的锁的话，在接到通知时只有一个线程可以重新得到这个锁。其他线程将会继续等待。`notify(`)方法只唤醒一个线程，而并不保证哪一个线程会接到通知。并且，只有在“所有线程拥有一致的等候条件”、“所有线程在被唤醒后会进行相同的操作”、“在发出通知后，只需要一个线程恢复工作”都满足的情况下，才能调用`notify()`方法。   `java.util.concurrent.locks` 工具提供了 `Condition.signal()`和 `Condition.signalAll()`方法来唤醒在调用`Condition.await()`时受阻的线程。使用 `java.util.concurrent.locks.Lock` 对象时需要 Condition 对象。利用一个 Lock 对象来同步的代码会用到一个或多个和这个 Lock 对象相关的 Condition 对象，而不只是使用它的隐含锁。这些对象根据 Lock 对象制定的锁定策略来直接进行相互操作。因此，方法 `await()、signal()`和 `signalAll()`是用来代替方法 `wait()、notify()` 和 `notifyAll()`的。   
+3) 示例   
+    1、不符合规则的代码示例（`notify()`），该示例演示了一个由多个线程执行的复杂的多步骤过程。每一个线程执行由 time 字段决定的步骤。线程会等待 time 字段的指示，来确定是否执行对应线程的步骤。在 执行任务后，每一个线程先是增加 time,然后再通知负责下一个步骤的线程。   
+    ```java
+    public final class ProcessStep implements Runnable {
+        private static final Object lock = new Object();
+        private static int time = 0;
+        private final int step; // Perform operations when field time
+        // reaches this value
+    
+        public ProcessStep(int step) {
+            this.step = step;
+        }
+    
+        @Override
+        public void run() {
+            try {
+                synchronized (lock) {
+                    while (time != step) {
+                        lock.wait();
+                    }
+                    // Perform operations
+                    time++;
+                    lock.notify();
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt(); // Reset interrupted status
+            }
+        }
+    
+        public static void main(String[] args) {
+            for (int i = 4; i >= 0; i--) {
+                new Thread(new ProcessStep(i)).start();
+            }
+        }
+    }
+    ```  
+    本代码示例违反了活性属性。因为每一个线程在继续执行前要求的 step 数值是不一样的，所有线程有着不同的等候条件。`Object.notify()`方法一次只会唤醒一个线程。除非正好唤醒执行下一个步骤的线程，否则这个程序会发生死锁。   
+       
+    对应的符合规则的解决方案（`notifyAll())`中，每一个线程都在完成它自己的步骤后调用`notifyAll()`方法来通知等待中的线程。准备好的线程可以执行它的任务，而那些其他等待条件为假的线程（循环条件表 达式为 true)则会继续等待。   
+    本代码只修改了上述不符合规则代码示例中的`run()`方法：   
+    ```java
+    public final class ProcessStep implements Runnable {
+        private static final Object lock = new Object();
+        private static int time = 0;
+        private final int step; // Perform operations when field time
+                                // reaches this value
+    
+        public ProcessStep(int step) {
+            this.step = step;
+        }
+    
+        @Override
+        public void run() {
+            try {
+                synchronized (lock) {
+                    while (time != step) {
+                        lock.wait();
+                    }
+    
+                    // Perform operations
+    
+                    time++;
+                    lock.notifyAll(); // Use notifyAll() instead of notify()
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt(); // Reset interrupted status
+            }
+        }
+    
+    }
+    ```
+       
+    2、不符合规则的代码示例（Condition 接口），该示例是和使用`notify()`的例子相类似，本段代码使用的是 Condition 接口来进行等待和通知操作。   
+    ```java
+    public class ProcessStep implements Runnable {
+        private static final Lock lock = new ReentrantLock();
+        private static final Condition condition = lock.newCondition();
+        private static int time = 0;
+        private final int step; // Perform operations when field time
+                                // reaches this value
+    
+        public ProcessStep(int step) {
+            this.step = step;
+        }
+    
+        @Override
+        public void run() {
+            lock.lock();
+            try {
+                while (time != step) {
+                    condition.await();
+                }
+    
+                // Perform operations
+    
+                time++;
+                condition.signal();
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt(); // Reset interrupted status
+            } finally {
+                lock.unlock();
+            }
+        }
+    
+        public static void main(String[] args) {
+            for (int i = 4; i >= 0; i--) {
+                new Thread(new ProcessStep(i)).start();
+            }
+        }
+    }
+    ```   
+    和 `Object.notify()` —样，`signal()`方法会唤醒任意一个线程。   
+       
+    对应的符合规则的方案（`signalAll()`)通过使用 `signalAll()`方法来通知所有等待中的线程。在 `await()`返回前，当前线程会重新获取和条件相关的锁。线程在返回时，肯定是拥有这个锁的。准备就绪的线程可以执行其任务，而那些等条件为假的线程则会继续等待。   
+    本代码只修改了上述不符合规则的代码示例中的`run()`方法：   
+    ```java
+    public class ProcessStep implements Runnable {
+        private static final Lock lock = new ReentrantLock();
+        private static final Condition condition = lock.newCondition();
+        private static int time = 0;
+        private final int step; // Perform operations when field time
+                                // reaches this value
+    
+        public ProcessStep(int step) {
+            this.step = step;
+        }
+    
+        @Override
+        public void run() {
+            lock.lock();
+            try {
+                while (time != step) {
+                    condition.await();
+                }
+    
+                // Perform operations
+    
+                time++;
+                condition.signalAll();
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt(); // Reset interrupted status
+            } finally {
+                lock.unlock();
+            }
+        }
+    
+    }
+    ```   
+       
+    另一个符合规则的解决方案是赋予每个线程一个自己的条件。所有的线程都可以访问所有的Condition 对象。   
+    ```java
+    // Declare class as final because its constructor throws an exception
+    public final class ProcessStep implements Runnable {
+        private static final Lock lock = new ReentrantLock();
+        private static int time = 0;
+        private final int step; // Perform operations when field time
+                                // reaches this value
+        private static final int MAX_STEPS = 5;
+        private static final Condition[] conditions = new Condition[MAX_STEPS];
+    
+        public ProcessStep(int step) {
+            if (step <= MAX_STEPS) {
+                this.step = step;
+                conditions[step] = lock.newCondition();
+            } else {
+                throw new IllegalArgumentException("Too many threads");
+            }
+        }
+    
+        @Override
+        public void run() {
+            lock.lock();
+            try {
+                while (time != step) {
+                    conditions[step].await();
+                }
+    
+                // Perform operations
+    
+                time++;
+                if (step + 1 < conditions.length) {
+                    conditions[step + 1].signal();
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt(); // Reset interrupted status
+            } finally {
+                lock.unlock();
+            }
+        }
+    
+        public static void main(String[] args) {
+            for (int i = MAX_STEPS - 1; i >= 0; i--) {
+                ProcessStep ps = new ProcessStep(i);
+                new Thread(ps).start();
+            }
+        }
+    }
+    ```  
+    虽然使用了`signal()`方法，但是只有等候条件对应于特定 Condition 变量的线程才会被唤醒。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">373:DEPRECATED: State Synchronization Error</Reference>  
+        <Reference type="CERT">THI02-J:Notify all waiting threads rather than a single thread</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.10 线程 API</BigClassChin>  
+       
+    </BugInfo>  
+    

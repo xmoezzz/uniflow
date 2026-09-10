@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110024" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：未验证的Action表单</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的Action表单未被验证。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[所有的Action表单都应该有与之对应的Validation表单。如果某个struts Action表单映射指定了一个表单，它必须具有一个在struts校验器下定义的Validation表单。输入检查是SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。如果某个Action表单映射没有定义的Validation表单，它可能极易受到那些利用未经检验的输入发起的攻击。
+]]></Description>
+			<Advice><![CDATA[应采用struts的校验框架对表单中的所有字段进行验证。
+]]></Advice>
+			<References>
+				<Reference type="CWE">108:Struts: Unvalidated Action Form</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

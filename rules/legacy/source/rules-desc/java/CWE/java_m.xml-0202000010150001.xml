@@ -1,0 +1,181 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150001" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码注入</Category>  
+        <Category type="DetailClassChin">【强制】需要防止XML外部实体注入</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[XML外部实体的URI设置不当有可能造成拒绝服务攻击或者程序崩溃。  
+  
+**例1**：下面代码片段使用Java原生的SAX对evil.xml文件进行解析  
+```java
+private static void receiveXMLStream(InputStream inStream){  
+    SAXParserFactory factory = SAXParserFactory.newInstance();  
+    SAXParser saxParser;  
+    try {  
+        saxParser = factory.newSAXParser();  
+        saxParser.parse(inStream,new DefaultHandler());  
+        ...  
+    } catch (ParserConfigurationException e) {  
+        ...  
+    } catch (SAXException e) {  
+        ...  
+    } catch (IOException e) {  
+        ...  
+    }  
+}
+```  
+  
+**例2**：下面代码片段使用Java原生的DOM对evil.xml文件进行解析  
+```java
+private static void receiveXMLStream(InputStream stream){  
+    DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();  
+    DocumentBuilder documentBuilder;  
+    try {  
+        documentBuilder = documentBuilderFactory.newDocumentBuilder();  
+        documentBuilder.parse(stream);  
+        ...  
+    } catch (ParserConfigurationException e) {  
+        ...  
+    } catch (SAXException e) {  
+        ...  
+    } catch (IOException e) {  
+        ...  
+    }     
+}
+```  
+  如果evil.xml文件中包含以下文本
+```xml
+<?xml version="1.0"?>  
+<!DOCTYPE foo SYSTEM "file:/dev/tty">  
+<foo>bar</foo>  
+...  
+```  
+  SAX或者DOM解析器会尝试访问在SYSTEM属性中标识的URL，这意味着它将读取本地`/dev/tty`文件的内容。在POSIX系统中，读取这个文件会导致程序阻塞，直到可以通过计算机控制台得到输入数据为止。这样，攻击者可以使用这个恶意的XML文件来导致系统挂起，程序会受到XML外部实体注入攻击。
+]]></Description>  
+      <Advice><![CDATA[对于使用Java原生DOM和SAX有以下两种修复方法:   
+1. 不允许DTD（doctypes），这样可以阻止几乎所有的XML实体攻击  
+    **例1**：下面代码片段SAXParserFactory将禁用DTD  
+    ```java
+    private static void receiveXMLStream(InputStream inStream){  
+        SAXParserFactory factory = SAXParserFactory.newInstance();  
+        SAXParser saxParser;  
+        try {  
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);  
+            saxParser = factory.newSAXParser();  
+            saxParser.parse(inStream,new DefaultHandler());  
+            ...  
+        } catch (ParserConfigurationException e) {  
+            ...  
+        } catch (SAXException e) {  
+            ...  
+        } catch (IOException e) {  
+            ...  
+        }  
+    }
+    ```  
+    **例2**：下面代码片段DocumentBuilderFactory将禁用DTD
+    ```java  
+    private static void receiveXMLStream(InputStream stream){  
+        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();  
+        DocumentBuilder documentBuilder;  
+        try {  
+            documentBuilderFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);  
+            documentBuilder = documentBuilderFactory.newDocumentBuilder();  
+            documentBuilder.parse(stream);  
+            ...  
+        } catch (ParserConfigurationException e) {  
+            ...  
+        } catch (SAXException e) {  
+            ...  
+        } catch (IOException e) {  
+            ...  
+        }     
+    }
+    ```  
+2. 如果无法完全禁用DTD，可以采用禁用外部通用实体和参数实体并且禁用外部DTD和禁止实体扩展引用。   
+    **例1**：下面代码片段SAXParserFactory将禁用DTD
+    ```java  
+    private static void receiveXMLStream(InputStream inStream){  
+        SAXParserFactory factory = SAXParserFactory.newInstance();  
+        SAXParser saxParser;  
+        try {  
+            factory.setFeature("http://xml.org/sax/features/external-general-entities",false);  
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);  
+            factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd",false);  
+            factory.setXIncludeAware(false);  
+            saxParser = factory.newSAXParser();  
+            saxParser.parse(inStream,new DefaultHandler());  
+            ...  
+        } catch (ParserConfigurationException e) {  
+            ...  
+        } catch (SAXException e) {  
+            ...  
+        } catch (IOException e) {  
+            ...  
+        }  
+    }
+    ```  
+      
+    **例2**：下面代码片段DocumentBuilderFactory将禁用DTD  
+    ```java
+    private static void receiveXMLStream(InputStream stream){  
+        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();  
+        DocumentBuilder documentBuilder;  
+        try {  
+            documentBuilderFactory.setFeature("http://xml.org/sax/features/external-general-entities",false);  
+            documentBuilderFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd",false);  
+            documentBuilderFactory.setXIncludeAware(false);  
+            documentBuilderFactory.setExpandEntityReferences(false);   
+            documentBuilder = documentBuilderFactory.newDocumentBuilder();  
+            documentBuilder.parse(stream);  
+            ...  
+        } catch (ParserConfigurationException e) {  
+            ...  
+        } catch (SAXException e) {  
+            ...  
+        } catch (IOException e) {  
+            ...  
+        }     
+    }
+    ```  
+    上述设置功能的方法setFeature也可以换成setAttribute，setAttribute方法用于用户在底层设置特定属性，使用方法和效果是一样的。  
+    上述防御需要Java 7 Update 67，Java 8 Update 20或更高版本，因为DocumentBuilderFactory和SAXParserFactory的上述对策在早期Java版本中被破坏。  
+    也可以从其他类上着手防范xxe漏洞：  
+    如XMLInputFactory、TransformerFactory、Validator、SchemaFactory、SAXTransformerFactory。但这些类都是调用了XMLConstants中的属性，故需要支持JAXP1.5.使用StAX解析xml文件时，以XMLInputFactory为例，可使用下面方法进行防范：  
+    ```java
+    //禁用DTD   
+    xmlInputFactory.setProperty(XMLInputFactory.SUPPORT_DTD,false);
+    ```   
+    ```java
+    //禁用外部实体 
+    xmlInputFactory.setProperty("javax.xml.stream.isSupportingExternalEntities",false);
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 611</Reference>  
+        <Reference type="CWE">611:Improper Restriction of XML External Entity Reference ('XXE')</Reference>  
+        <Reference type="CERT">IDS17-J:Prevent XML External Entity Attacks</Reference>  
+        <Reference type="OWASP TOP 10">2017:A4 XML External Entities (XXE)</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin>Input Validation and Representation</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>security</Tag> 
+    </BugInfo>  
+    

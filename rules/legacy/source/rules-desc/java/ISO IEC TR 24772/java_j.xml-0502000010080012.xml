@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0502000010080012" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">ISO/IEC TR 24772</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">弱加密：RSA不适当的填充模式</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行RSA填充模式不适当。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行RSA填充模式不适当。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序使用非对称加密算法RSA，未使用`OAEP(Optimal Asymmetric Encryption Padding)`填充模式，将降低加密的安全性。
+]]></Description>
+			<Advice><![CDATA[使用非对称加密算法RSA时，建议使用`OAEP(Optimal Asymmetric Encryption Padding)`作为填充模式。
+]]></Advice>
+			<References>
+				<Reference type="CWE">325:Missing Required Cryptographic Step</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Missing Required Cryptographic Step [XZS]</Reference>
+				<Reference type="GB/T 34944-2017 Java">安全功能:RSA算法未使用最优非对称加密填充</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

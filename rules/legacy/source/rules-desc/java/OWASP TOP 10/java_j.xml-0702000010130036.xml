@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010130036" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts2中Session会话映射篡改</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Apache Struts 2.0 以上的版本增加了SessionAware接口，它允许开发人员将运行时的会话信息直接注入到Action的代码中，具体方法是在Action类中实现 `org.apache.struts2.intercepter.SessionAware`接口的`setter`方法(setSession)：  
+```java
+public class VulnerableAction extends ActionSupport implements SessionAware {  
+    protected Map<String, Object> session;  
+      
+    @Override  
+    public void setSession(Map<String, Object> session) {  
+        this.session = session;  
+    }  
+    ... 
+```
+ 
+另一方面，Struts 2.x会自动通过Action内部的public accessors将来自用户的请求数据绑定到Action的属性。由于SessionAware接口要求实现public setter，因此这一setter也将自动绑定到与SessionAware接口setter名称相匹配的任意请求参数，这可允许远程攻击者通过伪造的参数修改应用程序的运行时数据值，使其实现的SessionAware接口受到影响。  
+**例如**：下面的 URL 将允许攻击者重写会话映射中的`roles`属性，这可能会使他成为管理员。   
+```java
+http://server/VulnerableAction?session.roles=admin
+```
+]]></Description>
+			<Advice><![CDATA[`Apache Struts 2.3.1.1` 及较早版本易于受到此运行时数据操纵的攻击，因此应将框架库升级到最新的稳定版。  
+除升级框架版本外，还可以在受影响的接口类中实现 `com.opensymphony.xwork2.interceptor.ParameterNameAware` 接口，来排除危险的参数名称。  
+```java
+public boolean acceptableParameterName(String parameterName) {  
+    boolean allowedParameterName = true ;  
+    if ( parameterName.matches("(dojo\..*|^struts\..*|^session\..*|^request\..*|^application\..*|^servlet(Request|Response)\..*|parameters\..*)")) {  
+        allowedParameterName = false ;  
+    }  
+    return allowedParameterName;  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 20</Reference>
+				<Reference type="CWE">20:Common Weakness Enumeration</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2014:M1 Weak Server Side Controls</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110042" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">类实现了clone()但未继承Cloneable接口</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在类实现了clone()但未继承Cloneable接口。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序实现了`clone()`方法，但没有实现Cloneable接口。如果程序在没有实现Cloneable接口的实例上调用Object的`clone()`方法，则会导致抛出CloneNotSupportedException异常。  
+  
+**例如**：下面代码片段中，程序实现了`clone()`方法，未实现Cloneable接口，将抛出CloneNotSupportedException异常。  
+```java
+public class CloneExp{  
+    public Object clone(){  
+        ...  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[实现Cloneable接口，以指示`Object.clone()`方法可以合法地对该类实例进行按字段复制。  
+  
+**例如**：下面代码片段中，程序实现了`clone()`方法，同时实现Cloneable接口。  
+```java
+public class CloneExp implements Cloneable{  
+    public final Object clone(){  
+        ...  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">498:Cloneable Class Containing Sensitive Information</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

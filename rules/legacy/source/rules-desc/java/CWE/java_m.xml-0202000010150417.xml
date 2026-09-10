@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150417" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">并发规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要保留空的synchronized代码块</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[空的同步代码块在程序中没有起到任何同步的作用，是程序中的死代码或者是被注释掉的调试代码。这些死代码会增加代码的阅读、理解和维护难度。  
+  
+**例如**：下列程序是一个空的synchronized代码块  
+```java
+...  
+synchronized(object) {       
+}  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[检查程序逻辑，如果确定程序中的死代码没有作用，应该将其删除。否则，应在该代码块中加入相应的代码。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">585:Empty Synchronized Block</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

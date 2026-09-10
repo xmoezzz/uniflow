@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010150428" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">日志规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用printStackTrace()打印错误信息</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[通过使用`printStackTrace()`打印错误信息时，在一些类似Eclipse的程序，为了让错误信息更加显眼，会将错误信息以红色文本的形式通过System.err输出到控制台上，更容易发生内部信息泄露。而且通过`printStackTrace()`打印错误信息，输出信息难以监控，容易导致错误信息丢失。  
+  
+**例如**：下面代码片段中，使用`printStackTrace()`打印错误信息。
+```java
+try{  
+    ...  
+}catch(Exception e){  
+    e.printStackTrace();  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[程序不应通过`printStackTrace()`打印错误信息，应使用日志记录工具进行记录。  
+  
+**例如**：下列代码中使用Log4j工具类进行错误信息管理。  
+```java
+...  
+logger.error("发生异常:",e);  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">535:Information Exposure Through Shell Error Message</Reference>  
+        <Reference type="CWE">526:Information Exposure Through Environmental Variables</Reference>  
+        <Reference type="CWE">497:Exposure of System Data to an Unauthorized Control Sphere</Reference>  
+        <Reference type="CWE">209:Information Exposure Through an Error Message</Reference>  
+        <Reference type="CERT">ERR01-J:Do not allow exceptions to expose sensitive information,ENV02-J:Do not trust the values of environment variables</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:信息通过错误消息泄露</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>log,exception,bad_practice</Tag> 
+    </BugInfo> 
+  

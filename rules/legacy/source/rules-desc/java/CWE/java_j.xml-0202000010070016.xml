@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010070016" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">仅重写了equals()和hashCode()中的一个</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在的类仅重写了equals()和hashCode()中的一个。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在仅重写类的`equals()`方法和`hashCode()`方法中的一个时，由于顶层基类Object的 `public boolean equals(Object obj)`方法逻辑是，在比较任何非空引用x和y时，当且仅当x和y引用同一对象时返回true。而在重写了`equals()`方法后，通常也必须重写`hashCode()`方法，这样时为了维护`hashCode()`方法的常规协定，协定声明相等对象必须具有相同的哈希码，即：  
+1. 当`obj1.equals(obj2)`为true时，`obj1.hashCode() == obj2.hashCode()`必须为true   
+2. 当`obj1.hashCode() == obj2.hashCode()`为false时，`obj1.equals(obj2)`必须为false  
+如果不遵循这个准则，当这个重写类的对象保存在一个集合中时，可能就会引发一些问题。比如保存到HashMap或HashSet集合中，相同对象的哈希码必须相等，这一点十分重要。
+]]></Description>
+			<Advice><![CDATA[类中应同时重写`equals()`方法和`hashCode()`方法。
+]]></Advice>
+			<References>
+				<Reference type="CWE">581:Object Model Violation: Just One of Equals and Hashcode Defined</Reference>
+				<Reference type="CERT">MET09-J:Classes that define an equals() method must also define a hashCode() method</Reference>
+				<Reference type="SJ/T 11683-2017">6.5.8 类定义了equals方法但是没有定义hashCode方法</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,97 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141102" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 10. 线程API (THI)</Category>  
+        <Category type="DetailClassChin">THI02-J：通知所有等待中的线程而不是单一的线程</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[`Object.notify()`和`Object.notifyAll()`方法分别是用来唤醒等待中的一个或者多个线程。这些方法必须由那些拥有等待对象锁的线程来调用，而且这些方法在被其他线程调用时会抛出IllegalMonitorStateException。  
+`notifyAll()`方法会唤醒所有等待同一对象锁的线程，并允许等候条件成真的线程恢复执行。而且，如果那些等候条件成真的所有线程在进入等候状态前只有某一特定的锁的话，在接到通知时只有一个线程可以重新得到这个锁。其他线程将会继续等待。  
+`notify()`方法只唤醒一个线程，而并不保证哪一个线程会接到通知。如果没有满足等候条件，那么选中的线程会继续等待，这通常违背了通知的目的。只有满足了以下条件时，调用`notify()`方法才是允许的：  
+1）所有线程拥有一致的等候条件。  
+2）所有线程被唤醒后会进行相同的操作。  
+3）在发出`notify()`通知后，只需要一个线程恢复工作。  
+另外，`Condition.signal()`和`Condition.signalAll()`方法唤醒在调用`Condition.await()`时受阻的线程的原理也与`Object.notify()`和`Object.notifyAll()`方法相同。  
+风险评估：通知单一的线程而不是所有等待中的线程违反了程序的活性属性。  
+**不规范的代码样例**：  
+```java
+public final class ProcessStep implements Runnable {
+    private static final Object lock = new Object();
+    private static int time = 0;
+    private final int step; // Perform operations when field time
+    // reaches this value
+
+    public ProcessStep(int step) {
+        this.step = step;
+    }
+
+    @Override
+    public void run() {
+        try {
+            synchronized (lock) {
+                while (time != step) {
+                    lock.wait();
+                }
+                // Perform operations
+                time++;
+                lock.notify();
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt(); // Reset interrupted status
+        }
+    }
+
+    public static void main(String[] args) {
+        for (int i = 4; i >= 0; i--) {
+            new Thread(new ProcessStep(i)).start();
+        }
+    }
+}
+```  
+这个代码演示了一个由多线程执行的复杂的多步过程。每一个线程的执行由time字段决定的步骤。线程会等待time字段的指示，来确定是否执行对应线程的步骤。在执行任务后，每一个线程先是增加time，然后在通知负责下一个步骤的线程。但是，每一个线程拥有不同的等候条件，`Object.notify()`每次只唤醒一个线程。除非正好唤醒执行下一个步骤的线程，否则这个程序会发生死锁。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public final class ProcessStep implements Runnable {
+    private static final Object lock = new Object();
+    private static int time = 0;
+    private final int step; // Perform operations when field time
+    // reaches this value
+
+    public ProcessStep(int step) {
+        this.step = step;
+    }
+
+    @Override
+    public void run() {
+        try {
+            synchronized (lock) {
+                while (time != step) {
+                    lock.wait();
+                }
+                // Perform operations
+                time++;
+                lock.notifyAll(); // Use notifyAll() instead of notify()
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt(); // Reset interrupted status
+        }
+    }
+}
+```  
+代码中每一个限制在完成它自己的步骤后调用`Object.notifyAll()`方法来通知所有等待中的线程，准备好的线程可以执行它的任务，而那些其他等待条件为假的线程则会继续等待。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">373:DEPRECATED: State Synchronization Error</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

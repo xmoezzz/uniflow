@@ -60,10 +60,18 @@ fn sql_forms_reference_rule_executes_from_bundle_with_metadata() {
         .filter(|finding| finding["rule_id"] == "LEGACY-SQL-InvalidReferenceToObject")
         .collect::<Vec<_>>();
     assert_eq!(matches.len(), 2, "{findings:#?}");
-    assert!(matches.iter().any(|finding| finding["message"]
-        .as_str()
-        .is_some_and(|message| message.contains("missing") && message.contains("FIND_ALERT"))), "{matches:#?}");
-    assert!(matches.iter().any(|finding| finding["message"]
-        .as_str()
-        .is_some_and(|message| message.contains("MAIN.missing") && message.contains("GO_ITEM"))), "{matches:#?}");
+    assert!(
+        matches.iter().any(|finding| finding["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("missing") && message.contains("FIND_ALERT"))),
+        "{matches:#?}"
+    );
+    assert!(
+        matches.iter().any(|finding| {
+            finding["message"].as_str().is_some_and(|message| {
+                message.contains("MAIN.missing") && message.contains("GO_ITEM")
+            })
+        }),
+        "{matches:#?}"
+    );
 }

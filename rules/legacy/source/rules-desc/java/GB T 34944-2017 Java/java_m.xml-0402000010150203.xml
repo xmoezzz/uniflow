@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010150203" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">GB/T 34944-2017</Category>  
+        <Category type="SubClassChin">密码规范</Category>  
+        <Category type="DetailClassChin">【推荐】RSA不要使用不适当的填充模式</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[用程序使用非对称加密算法RSA，未使用`OAEP(Optimal Asymmetric Encryption Padding)`填充模式，将降低加密的安全性。  
+  
+**例如**：下面代码片段中，没有使用OAEP作为填充模式。 
+```java
+Cipher rsa = Cipher.getInstance("RSA/NONE/NoPadding");
+``` 
+]]></Description>  
+      <Advice><![CDATA[使用非对称加密算法RSA时，建议使用`OAEP(Optimal Asymmetric Encryption Padding)`作为填充模式。  
+  
+**例如**：下面代码片段中，使用OAEP作为填充模式。  
+```java
+Cipher rsa = Cipher.getInstance("RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING");
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">325:Missing Required Cryptographic Step</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Missing Required Cryptographic Step [XZS]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:RSA算法未使用最优非对称加密填充</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin>Security Features</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>security,password</Tag> 
+    </BugInfo>  
+    

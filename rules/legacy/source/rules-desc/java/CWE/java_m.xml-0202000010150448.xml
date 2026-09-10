@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150448" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】重写next方法应该抛出NoSuchElementException</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当类实现Iterator接口时，需重写`next`方法，而`next`方法未抛出NoSuchElementException可能导致程序运行异常。  
+  
+**例如**：下面代码示例中，类Iter实现了Iterator接口，而`next`方法未抛出NoSuchElementException,当程序为判断是否`hasNext`时，有可能抛出数组越界异常。  
+```java
+public class Users implements Iterable<User> {  
+    private User[] users = new User[10];  
+    ...  
+   @Override  
+    public Iterator<User> iterator() {  
+       return new Itr();  
+   }  
+   class Itr implements Iterator<User> {  
+       private int cursor;  
+       @Override  
+       public boolean hasNext() {  
+           return cursor != users.length;  
+       }  
+       @Override  
+       public User next() {  
+           return users[cursor++];  
+       }  
+       ...  
+   }  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[正确重写Iterator接口的next方法，当元素获取不到时，抛出NoSuchElementException。  
+  
+**例如**：下面代码示例中，正确重写Iterator接口的`next`方法。
+```java
+public class Users implements Iterable<User> {
+    private User[] users = new User[10];...
+
+    @Override
+    public Iterator<User> iterator() {
+        return new Itr();
+    }
+
+    class Itr implements Iterator<User> {
+        private int cursor;
+
+        @Override
+        public boolean hasNext() {
+            return cursor != users.length;
+        }
+
+        @Override
+        public User next() {
+            if (cursor >= users.length)
+                throw new NoSuchElementException();
+            return users[cursor++];
+        }
+        ...
+    }
+}
+```  
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150118" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">API误用</Category>  
+        <Category type="DetailClassChin">【强制】不要设置ScheduledThreadPoolExecutor最大线程数</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[ThreadPoolExecutor使用`corePoolSize`数量的线程和无界队列作为固定大小的线程池，即使设置最大线程数，也没有任何有用的效果。  
+  
+**例如**：下列代码中使用`setMaximumPoolSize`方法为ScheduledThreadPoolExecutor设置最大线程数。  
+```java
+public static void init() {  
+    ScheduledThreadPoolExecutor stpe = new ScheduledThreadPoolExecutor(10);   
+    stpe.setMaximumPoolSize(20);  
+}  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[不要为ScheduledThreadPoolExecutor设置最大线程数。  
+  
+**例如**：下列代码中,在ScheduledThreadPoolExecutor初始化时定义更大的线程池。  
+```java
+public static void init() {  
+    ScheduledThreadPoolExecutor stpe = new ScheduledThreadPoolExecutor(20);   
+    ...  
+}  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness,bad_practice</Tag> 
+    </BugInfo>  
+    

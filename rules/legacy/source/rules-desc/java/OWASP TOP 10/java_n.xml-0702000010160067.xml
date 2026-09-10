@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010160067" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">6.4 错误处理安全</Category>  
+        <Category type="DetailClassChin">C.7.5 不要在finally程序段非正常退出</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+不要在 finally 程序段中使用 return、break、continue 或 throw 语句。   
+2) 原理   
+当程序进入带有 finally 程序段的 try 程序段时，不管 try 程序段（或是相应的 catch 程序段）是否完成执行，finally 程序段总是会执行的。造成 finally 程序段非正常终止的语句也会导致 try 程序段非正常终止，从而消除了从 try 或 catch 程序段抛出的任何异常。   
+3) 示例   
+    如下不符合规则的代码示例中，在代码段中的 return 语句造成了 finally 程序段非正常终止。   
+    ```java
+    class TryFinally {   
+        private static boolean doLogic()  {    
+            try {   
+                throw new IllegalStateException();   
+            } finally {   
+                System.out.printIn("logic done");    
+                return true;   
+            }   
+        }   
+    }
+    ```   
+    return 语句引起的 finally 程序段的非正常终止消除了 IllegalStateException 异常。   
+       
+    对应的符合规则的解决方案是：去除 finally 程序段中的 return 语句。   
+    ```java
+    class TryFinally {   
+    private static boolean doLogic() {   
+        try {   
+            throw new IllegalStateException ();   
+        } finally {   
+            System.out.println("logic done");   
+        }   
+            // Any return statements must go here;   
+            //applicable only when exception is thrown conditionally   
+        }   
+    }  
+    ```
+4) 特例   
+程序流控制语句的目的地在 finally 程序段内时，是可以接受的。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">584:Return Inside Finally Block</Reference>  
+        <Reference type="CERT">ERR04-J:Do not exit abruptly from a finally block</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.2 finally语句块中包含return语句</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.7 异常行为</BigClassChin>  
+       
+    </BugInfo>  
+    

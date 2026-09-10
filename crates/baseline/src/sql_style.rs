@@ -210,7 +210,11 @@ fn sql_xpath_document(syntax: &SqlSyntax) -> Package {
         .map(|index| index + 1)
         .chain(std::iter::once(syntax.tokens.len()))
     {
-        if let Some(first) = syntax.tokens.get(start..end).and_then(|tokens| tokens.first()) {
+        if let Some(first) = syntax
+            .tokens
+            .get(start..end)
+            .and_then(|tokens| tokens.first())
+        {
             let statement = document.create_element("STATEMENT");
             statement.set_attribute_value("offset", &first.start.to_string());
             for token in &syntax.tokens[start..end] {
@@ -283,7 +287,12 @@ fn invalid_object_reference_offsets(
         ("recalculate", &[1], 0, FormsObjectKind::Item),
         ("set_item_instance_property", &[4], 0, FormsObjectKind::Item),
         ("set_item_property", &[3, 4], 0, FormsObjectKind::Item),
-        ("set_radio_button_property", &[4, 5], 0, FormsObjectKind::Item),
+        (
+            "set_radio_button_property",
+            &[4, 5],
+            0,
+            FormsObjectKind::Item,
+        ),
         ("write_image_file", &[5], 2, FormsObjectKind::Item),
         ("write_sound_file", &[5], 2, FormsObjectKind::Item),
     ];
@@ -357,9 +366,10 @@ fn forms_object_exists(forms: &OracleFormsMetadata, kind: FormsObjectKind, value
             .iter()
             .any(|candidate| candidate.eq_ignore_ascii_case(value)),
         FormsObjectKind::Item => forms.blocks.iter().any(|block| {
-            block.items.iter().any(|item| {
-                format!("{}.{}", block.name, item).eq_ignore_ascii_case(value)
-            })
+            block
+                .items
+                .iter()
+                .any(|item| format!("{}.{}", block.name, item).eq_ignore_ascii_case(value))
         }),
     }
 }

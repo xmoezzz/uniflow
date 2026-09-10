@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110005" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Cookie：域范围过大</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行中Cookie域范围过大。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中Cookie域范围过大。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[将Cookie设置在类似`.qtthanj.com`的基本域中处于活动状态，这将使Cookie暴露在基本域和任何子域中的所有Web应用程序下。  
+  
+**例如**：一个Web应用程序部署在`http://secure.qtthanj.com/Test`上，当用户登录时，应用程序使用`.qtthanj.com`设置Session ID的Cookie。  
+```java
+Cookie cookie = new Cookie("sessionID", sessionID);   
+cookie.setDomain(".qtthanj.com");
+```  
+如果攻击者在`http://insecure.qtthanj.com/`上创建另一个应用程序，任何浏览`http://insecure.qtthanj.com`的`http://secure.qtthanj.com`认证用户都将面临暴露来自`http://secure.qtthanj.com`的Session ID的风险。
+]]></Description>
+			<Advice><![CDATA[不要将Cookie域范围设置过大，使用具体的值或者更加具体的正则表达式来确定域范围。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

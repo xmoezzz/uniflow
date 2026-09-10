@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100024" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">Struts配置错误：缺少Exception标签的type属性</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的Exception标签缺少type属性。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[缺少`<exception>`标签的type属性或者该属性为空，表示存在冗余的异常处理或者遗漏了该属性，有可能造成系统信息泄露。  
+  
+**例如**：如下所示的配置中，`Exception`标签缺少`type`属性  
+```xml
+<global-exceptions>  
+    <exception key="error.sessionRuntimeException" path="/Webstore.do"/>   
+</global-exceptions>
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，增加`<exception>`标签的type属性。
+]]></Advice>
+			<References>
+				<Reference type="CWE">248:Uncaught Exception</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:信息通过错误消息泄露</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,exception</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

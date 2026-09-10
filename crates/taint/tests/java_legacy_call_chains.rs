@@ -18,16 +18,35 @@ fn rules() -> &'static RuleSet {
         let legacy = legacy_models_for(Language::Java).unwrap();
         let ids = [COMMAND, XSS, SQL];
         let rules = RuleSet {
-            sources: legacy.sources.into_iter().filter(|r| r.id.starts_with("legacy.java.source.ef3204b8-093b-4fa9-9b52-dc06e3e75533.0.")).collect(),
-            sinks: legacy.sinks.into_iter().filter(|r| ids.contains(&r.id.as_str())).collect(),
-            sink_conditions: legacy.sink_conditions.into_iter().filter(|r| ids.contains(&r.sink_rule_id.as_str())).collect(),
-            call_conditions: legacy.call_conditions.into_iter().filter(|r| r.rule_id == SOURCE || ids.contains(&r.rule_id.as_str())).collect(),
+            sources: legacy
+                .sources
+                .into_iter()
+                .filter(|r| {
+                    r.id.starts_with("legacy.java.source.ef3204b8-093b-4fa9-9b52-dc06e3e75533.0.")
+                })
+                .collect(),
+            sinks: legacy
+                .sinks
+                .into_iter()
+                .filter(|r| ids.contains(&r.id.as_str()))
+                .collect(),
+            sink_conditions: legacy
+                .sink_conditions
+                .into_iter()
+                .filter(|r| ids.contains(&r.sink_rule_id.as_str()))
+                .collect(),
+            call_conditions: legacy
+                .call_conditions
+                .into_iter()
+                .filter(|r| r.rule_id == SOURCE || ids.contains(&r.rule_id.as_str()))
+                .collect(),
             ..Default::default()
         };
         assert_eq!(rules.sources.len(), 2);
         assert_eq!(rules.sinks.len(), 3);
         assert_eq!(rules.sink_conditions.len(), 3);
-        rules.validate().unwrap(); rules
+        rules.validate().unwrap();
+        rules
     })
 }
 
@@ -37,25 +56,52 @@ fn check(body: &str, sink: &str, expected: usize) {
     let ir = lower_program(&hir);
     let graph = build(&ir, rules());
     let findings = analyze(&graph, rules());
-    let sites = findings.iter().filter(|f| f.sink_rule_id == sink).map(|f| &f.sink_location).collect::<std::collections::HashSet<_>>();
-    assert_eq!(sites.len(), expected, "{body}\nfindings={findings:#?}\ncalls={:#?}", graph.call_meta);
-    assert!(findings.iter().all(|f| f.source_rule_id == SOURCE || f.source_rule_id == SOURCE.replace(".web", ".xss")));
+    let sites = findings
+        .iter()
+        .filter(|f| f.sink_rule_id == sink)
+        .map(|f| &f.sink_location)
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(
+        sites.len(),
+        expected,
+        "{body}\nfindings={findings:#?}\ncalls={:#?}",
+        graph.call_meta
+    );
+    assert!(findings
+        .iter()
+        .all(|f| f.source_rule_id == SOURCE || f.source_rule_id == SOURCE.replace(".web", ".xss")));
 }
 
 #[test]
 fn bundled_java_command_rule_executes_runtime_factory_chain() {
-    check("java.lang.Runtime.getRuntime().exec(request.getQueryString());", COMMAND, 1);
+    check(
+        "java.lang.Runtime.getRuntime().exec(request.getQueryString());",
+        COMMAND,
+        1,
+    );
     check("java.lang.Runtime.getRuntime().exec(\"safe\");", COMMAND, 0);
 }
 
 #[test]
 fn bundled_java_xss_rule_executes_servlet_writer_chain() {
-    check("response.getWriter().println(request.getQueryString());", XSS, 1);
+    check(
+        "response.getWriter().println(request.getQueryString());",
+        XSS,
+        1,
+    );
     check("response.getWriter().println(\"safe\");", XSS, 0);
 }
 
 #[test]
 fn bundled_java_sql_rule_executes_connection_statement_chain() {
-    check("data.getConnection().createStatement().executeQuery(request.getQueryString());", SQL, 1);
-    check("data.getConnection().createStatement().executeQuery(\"SELECT 1\");", SQL, 0);
+    check(
+        "data.getConnection().createStatement().executeQuery(request.getQueryString());",
+        SQL,
+        1,
+    );
+    check(
+        "data.getConnection().createStatement().executeQuery(\"SELECT 1\");",
+        SQL,
+        0,
+    );
 }

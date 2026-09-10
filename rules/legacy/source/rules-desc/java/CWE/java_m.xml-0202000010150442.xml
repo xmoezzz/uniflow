@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150442" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】可序列化类的不可序列化的父类应拥有无参构造方法</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当可序列化类序列化时，对象反序列化会从父类中第一个非可序列化的类开始，并沿着链继续下去，添加每个后续子类的属性，直到最后一个对象被实例化为止。为了创建非序列化的父类，将会调用了它的无参构造方法。若没有无参构造方法将会报出InvalidClassException异常。  
+  
+**例如**：下面代码示例中User的父类Human未实现Serializable接口，并没有无参构造方法。  
+```java
+public class Human{  
+    private int age;  
+    public Human(int age) {...}  
+    ...  
+}  
+public class User extends Human implements Serializable{  
+    private String name;  
+    public User (String name,int age) {...}  
+    ...  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[可以将父类实现Serializable接口或者添加无参构造方法。  
+  
+**例1**：下面代码示例中User的父类Human实现Serializable接口。  
+```java
+public class Human implements Serializable{  
+    private int age;  
+    public Human(int age) {...}  
+    ...  
+}  
+public class User extends Human implements Serializable{  
+    private String name;  
+    public User (String name,int age) {...}  
+    ...  
+}
+```  
+**例2**：下面代码示例中User的父类Human添加了无参构造方法。  
+```java
+public class Human{  
+    private int age;  
+    public Human() {...}  
+    public Human(int age) {...}  
+    ...  
+}  
+public class User extends Human implements Serializable{  
+    private String name;  
+    public User (String name,int age) {...}  
+    ...  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness,bad_practice</Tag> 
+    </BugInfo>  
+    

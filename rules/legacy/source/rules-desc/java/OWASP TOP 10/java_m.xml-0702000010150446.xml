@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010150446" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】HttpSecurity配置的URL应该正确排序</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在`HttpSecurity.authorizeRequests()`方法上配置的URL模式将会按照声明的顺序进行匹配，过多的配置容易犯错，导致作用域大的在作用域小的前面。  
+  
+**例如**：下面代码示例中`/admin/**`配置在`/admin/login`前面。  
+```java
+http.authorizeRequests()  
+    .antMatchers("/resources/**", "/signup", "/about").permitAll()  
+    .antMatchers("/admin/**").hasRole("ADMIN")  
+    .antMatchers("/admin/login").permitAll()  
+    .antMatchers("/**").permitAll()  
+    .antMatchers("/db/**").access("hasRole('ADMIN') and hasRole('DBA')").and().formLogin()  
+    .loginPage("/login").permitAll().and().logout().permitAll();
+```
+]]></Description>  
+      <Advice><![CDATA[检查代码逻辑，判断`HttpSecurity.authorizeRequests()`方法上配置的URL模式执行顺序。  
+  
+**例如**：下面代码示例中`/admin/login`配置在`/admin/**`前面。  
+```java
+http.authorizeRequests()  
+    .antMatchers("/resources/**", "/signup", "/about").permitAll()  
+    .antMatchers("/admin/login").permitAll()  
+    .antMatchers("/admin/**").hasRole("ADMIN")      
+    .antMatchers("/db/**").access("hasRole('ADMIN') and hasRole('DBA')")  
+    .antMatchers("/**").permitAll().and().formLogin()  
+    .loginPage("/login").permitAll().and().logout().permitAll();
+```
+]]></Advice>  
+      <References> 
+        <Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>  
+        <Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>  
+        <Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness</Tag> 
+    </BugInfo>  
+    

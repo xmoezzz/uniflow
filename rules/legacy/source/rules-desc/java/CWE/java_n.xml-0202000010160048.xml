@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010160048" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.5.11 不要使用公有静态的非final变量</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+类必须不能包含非 final 的公有静态字段。   
+2) 原理   
+通常，客户代码可轻易访问到公有静态数据成员，而且安全管理器也不会对读取或写入这些变量进行检查。   
+在多线程的场合中，非 final 的公有静态字段会被不一致的方式修改。不正确使用公有静态数据成员，会导致类型安全问题。例如，当定义变量为一个更通用的像 java.Iang.Object 这样的通用类型时，非受信代码可以通过恶意方法来提供一个非期望的子类型。因此，类必须不能包含非 final 的公有静态字段。   
+3) 示例   
+    1、不符合规则的代码示例，该示例是声明了一个包含公有静态字段的方法表。   
+    ```java
+    package org.apache.xpath.compiler;   
+    public class FunctionTable {   
+        public static FuncLoader m_functions;   
+    }
+    ```   
+    攻击者会使用以下的方式来代替函数表：   
+    `FunctionTable.m—functions = new_table;`   
+    替换函数表会给攻击者访问 XPathContext 提供机会，而 XPathContext 会被用来设置评估 XPath 表达式的引用节点。操作 XPathContext 会导致 XML 字段被不一致的方式修改，从而导致不可预期的行为。   
+    对应的符合规则的解决方案是：声明 FuncLoader 静态成员数据为 final 并将其视为一个常数。   
+    ```java
+    public static final FuncLoader m_functions;   
+    //Initialize m_functions in a constructor   
+    ```
+    声明为静态和 final 的数据成员，对多线程使用同样是安全的。   
+    2、不符合规则的代码示例（`serialVersionLMD)`，该示例在一个用来进行序列化的类中，使用了一个公有静态的非 final 的 serialVersionUID 的字段。   
+    ```java
+    class DataSerializer implements Serializable {   
+        public static long serialVersionUID = 1973473122623778747L;   
+        // . . .    
+    }
+    ```   
+       
+    对应的符合规则的解决方案是：声明 serialVersionUID 字段为 final 和私有的。   
+    ```java
+    class DataSerializer implements Serializable {   
+        private static final long serialVersionUID = 1973473122623778747L;
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">500:Public Static Field Not Marked Final</Reference>  
+        <Reference type="CWE">493:Critical Public Variable Without Final Modifier</Reference>  
+        <Reference type="CERT">OBJ10-J:Do not use public static nonfinal variables</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.5 面向对象</BigClassChin>  
+       
+    </BugInfo>  
+    

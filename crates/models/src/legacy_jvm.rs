@@ -1,3 +1,4 @@
+use crate::legacy_jvm_metadata::{LegacyJvmKnowledgeCatalog, LegacyJvmMetadataReport};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Mapping, Value};
@@ -10,7 +11,6 @@ use uniflow_rules::{
     SanitizerRule, SinkConditionRule, SinkRule, SourceRule, TaintCondition, TaintTransformRule,
     UnusedReturnSinkRule,
 };
-use crate::legacy_jvm_metadata::{LegacyJvmKnowledgeCatalog, LegacyJvmMetadataReport};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -292,7 +292,8 @@ pub fn compile_legacy_jvm_rule_tree(
             .with_context(|| format!("failed to read legacy JVM rules {}", path.display()))?;
         let document: Value = serde_yaml::from_str(&text)
             .with_context(|| format!("failed to parse legacy JVM YAML {}", path.display()))?;
-        knowledge.ingest_document(&document)
+        knowledge
+            .ingest_document(&document)
             .with_context(|| format!("failed to import JVM knowledge {}", path.display()))?;
         if document
             .as_mapping()
@@ -305,10 +306,18 @@ pub fn compile_legacy_jvm_rule_tree(
         let pack = LegacyJvmRulePack::from_yaml_str(&text)
             .with_context(|| format!("failed to parse legacy JVM rules {}", path.display()))?;
         knowledge.ingest_rule_maps(&pack);
-        for rule in pack.rules.iter().filter(|rule| rule.kind == LegacyJvmRuleKind::Sink) {
+        for rule in pack
+            .rules
+            .iter()
+            .filter(|rule| rule.kind == LegacyJvmRuleKind::Sink)
+        {
             for point in 0..rule.points.len() {
-                vulnerability_names.insert(format!("{namespace}.sink.{}.{point}", normalized_id(&rule.id)),
-                    rule.vulnerability.clone().unwrap_or_else(|| "legacy_taint".into()));
+                vulnerability_names.insert(
+                    format!("{namespace}.sink.{}.{point}", normalized_id(&rule.id)),
+                    rule.vulnerability
+                        .clone()
+                        .unwrap_or_else(|| "legacy_taint".into()),
+                );
             }
         }
         let compiled = compile_legacy_jvm_taint_pack(&pack, language.clone(), namespace)

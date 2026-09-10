@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010130115" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">不安全的JNI</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用JNI。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用JNI。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[当Java应用程序使用`Java Native Interface(JNI)`来调用其他编程语言编写的程序时,当所调用程序遭受安全漏洞攻击时，Java应用程序也会产生安全问题，即使这些问题不能发生在Java。  
+  
+**例如**：以下 Java代码定义了一个名为 Echo的类。这个类声明了一个本地方法（下文定义），使用C语言将控制台上输入的命令回显给用户。  
+```java
+class Echo {  
+    public native void runEcho();  
+  
+    static {  
+        System.loadLibrary("echo");  
+    }  
+  
+    public static void main(String[] args) {  
+        new Echo().runEcho();  
+    }  
+}
+```  
+以下C语言代码定义了在 Echo类中实现的本地方法：
+```c
+#include <jni.h>  
+#include "Echo.h" //the java class above compiled with javah  
+#include <stdio.h>  
+JNIEXPORT void JNICALL  
+Java_Echo_runEcho(JNIEnv *env, jobject obj)  
+{  
+    char buf[64];  
+    gets(buf);  
+    printf(buf);  
+}  
+```  
+因为这个例子是在 Java中实现的，所以看上去似乎可以避免诸如 buffer overflow之类的内存问题。虽然 Java在内存安全方面做的很好，但是该保护机制并不适用于其他语言编写的且通过 Java 本地接口 (JNI) 访问的源代码中出现的漏洞。尽管有 Java 提供的内存保护机制，但是这个例子中的 C语言代码仍然很容易受到 buffer overflow的攻击，因为它在没有执行任何输入检查的情况下就使用了gets()。   
+Sun Java(TM)教程对 JNI 描述如下 ：  
+>一旦有了JNI框架，您的本地方法就可以像 Java 代码那样利用 Java 对象。本地方法可以创建 Java 对象（包括数组和字符串），并且检查和应用这些对象，以便执行各种相关的任务。本地方法也可以检查和应用由 Java 应用程序代码创建的对象。本地方法甚至可以更新由自己创建的或传递给它的 Java 对象，且更新后的对象可以应用到 Java 应用程序中。因此，在应用程序中，无论是本地语言还是 Java 语言都能创建、更新和访问 Java 对象，并在两种语言间共享这些对象。  
+>通过检查本地方法实现的源代码，可以轻松地发现上述例子中存在的漏洞。根据不同的 C语言源代码和项目构建方式，这种方式可能在某些情况下不可行，但是多数情况下还是可行的。然而，这种能够在 Java 方法和本地方法间共享对象的能力会进一步加大潜在的风险。在 Java中数据处理不当时，可能会导致本地代码出现意想不到的漏洞，同样本地代码中的不安全操作会破坏 Java 的数据结构。   
+>通过Java应用程序访问的本地代码中出现的漏洞，通常与由本地语言编写的应用程序中存在的漏洞是一样的。这种攻击面临的唯一挑战是：攻击者需要确定Java应用程序是否使用了本地代码执行某些特定的操作。可以用多种方法实现上述目的，包括识别那些通常用本地代码实现的某些特定行为，或者利用 Java应用程序中 system information leak 的漏洞（表明系统使用了 JNI）。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，在存在替换方案的情况下尽量减少JNI的使用
+]]></Advice>
+			<References>
+				<Reference type="CWE">111:Direct Use of Unsafe JNI</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发不安全的JNI漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在不安全的JNI漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在不安全的JNI漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发不安全的JNI漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

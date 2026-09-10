@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110002" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">JavaEE程序：调用System.exit()或Runtime.exit()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行在调用了System.exit()或Runtime.exit()。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行在调用了System.exit()或Runtime.exit()。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序中的测试代码会建立一些意想不到的入口，这些入口可能会被攻击者作为后门进行利用，如JAVA EE程序调用关闭虚拟机的方法。
+]]></Description>
+			<Advice><![CDATA[软件系统在发布之前务必删除测试代码。
+]]></Advice>
+			<References>
+				<Reference type="CWE">382:J2EE Bad Practices: Use of System.exit()</Reference>
+				<Reference type="CERT">ERR09-J:Do not allow untrusted code to terminate the JVM</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="SJ/T 11683-2017">调用System.exit方法</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

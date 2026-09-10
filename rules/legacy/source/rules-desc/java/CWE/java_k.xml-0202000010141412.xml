@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141412" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 13. 输入输出 (FIO)</Category>  
+        <Category type="DetailClassChin">FIO12-J：为小端数据的读写提供方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在Java中，数据是按照大端字节序（big-endian，同样被称为network-order）进行存储的。这意味着，线性的从最高位到最低位表示数据。在同时包括了大端字节序和小端字节序（little-endian）主机的网络化环境中，或者与使用JNI的其他语言在一起工作时，正确的处理相关的字节顺序问题是很重要的。不能处理字节顺序问题，会导致不可预期的行为。在Java 4之前，要求提供对相反字节顺序进行管理的方法的定义，同时需要维护这些相反字节顺序与采用小端字节编码的系统的兼容性。  
+风险评估：违反该条准则可能会导致错误的解读数据，这种错误的解读包括对数据值、数据符号属性的错误解读。    
+**不规范的代码样例1**：  
+```java
+public void doSomeThing() {
+    DataInputStream dis = null;
+    try {
+        dis = new DataInputStream(new FileInputStream("data"));
+        // Little-endian data might be read as big-endian
+        int serialNumber = dis.readInt();
+    } catch (IOException x) {
+        // handle error
+    } finally {
+        if (dis != null) {
+            try {
+                dis.close();
+            } catch (IOException e) {
+                // handle error
+            }
+        }
+    }
+}
+```  
+由类`java.io.DataInputStream`和`java.io.DataOutputStream`定义的数据读取的方法（`readByte()、readShort()、readInt()、readLong()、readFloat()、readDouble()`）和对应的写方法仅对大端字节序数据进行操作。使这些方法与C、C++语言进行交互操作是不安全的，这些语言不能保证字节顺序。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+DataInputStream dis = null;
+try {
+    dis = new DataInputStream(new FileInputStream("data"));
+    byte[] buffer = new byte[4];
+    int bytesRead = dis.read(buffer); // Bytes are read into buffer
+    if (bytesRead != 4) {
+        throw new IOException("Unexpected End of Stream");
+    }
+    int serialNumber = ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN).getInt();
+} finally {
+    if (dis != null) {
+        try {
+            dis.close();
+        } catch (IOException x) {
+            // handle error
+        }
+    }
+}
+```  
+代码通过使用类ByteBuffer提供的方法来正确的从初始的输入数值中提取一个int值。它使用ByteBuffer来封装输入的字节数组，设置字节顺序为小端字节序，并提取出int值，结果存储在serialNumber整数中。类ByteBuffer提供了类似get、put方法来处理其他的数值类型。  
+**规范的代码样例2**：  
+使用Java 5+进行编程时，使用定义在类Character、Short、Integer、Long的`reverseBytes()`方法转换整型数值的字节顺序。但是在类Float和Bouble中没有提供这个方法。  
+```java
+public static int reverse(int i) {  
+  return Integer.reverseBytes(i);  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">198:Use of Incorrect Byte Ordering</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

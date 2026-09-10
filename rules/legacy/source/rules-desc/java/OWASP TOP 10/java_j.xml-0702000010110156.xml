@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110156" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">过于宽松的自定义Headers策略</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行设定的自定义Headers策略过于宽松。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行设定的自定义Headers策略过于宽松。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[默认情况下，Flash应用程序需要遵循Same Origin Policy（同源策略），该策略可确保来自同一个域的两个SWF应用程序能够访问各自的数据。Adobe Flash允许开发人员通过编程或crossdomain.xml配置文件中的相应设置来更改策略。从Flash Player 9.0.124.0开始，Adobe也引入了定义 Flash Player可以跨域发送的自定义头文件的功能。不过，定义这些设置时应防止自定义头文件策略过于宽松，将其与同样过于宽松的跨域策略结合使用时，将使得恶意应用程序能够将其选择的头文件发送给目标应用程序，从而可能遭受多种攻击，或在执行不知道如何处理收到的头文件的应用程序时出现错误。    
+  
+**例如**：以下配置文件中，使用通配符指定Flash Player可以跨域发送的头文件。
+```xml
+<cross-domain-policy>
+    <allow-http-request-headers-from domain="*" headers="*"/>
+</cross-domain-policy>
+```  
+将`*`作为`headers`属性的值表明将跨域发送任何头文件。
+]]></Description>
+			<Advice><![CDATA[避免将`*`作为`headers`属性的值。而应该提供头文件的显式列表。   
+
+**例如**：以下配置文件中，指定头文件的显式列表。
+```xml
+<cross-domain-policy>
+    <allow-http-request-headers-from domain="www.test.com" headers="TestOne,TestTwo"/>
+</cross-domain-policy>
+```  
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

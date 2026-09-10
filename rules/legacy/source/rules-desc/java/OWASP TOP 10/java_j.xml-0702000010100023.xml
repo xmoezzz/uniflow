@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100023" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">Struts配置错误：缺少Action标签的input属性</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的Action标签缺少input属性。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Struts规范要求Action标签中应包含`input`属性，`input`属性可指定验证错误出现时用来显示错误消息的页面。  
+  
+**例如**：如下所示的配置文件中，action标签中未配置`input`属性  
+```xml
+<action path="/NoImageCSVReportAction" type="org.posterita.webstore.action.ProductAction"  
+        scope="request" validate="true" parameter="action">    
+    <forward name="getNoImageCSVReport" path=""/>     
+</action>
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，增加Action标签的`input`属性。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,exception</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

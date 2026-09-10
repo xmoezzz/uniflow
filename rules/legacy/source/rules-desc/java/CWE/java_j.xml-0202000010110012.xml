@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110012" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts2：重复的校验器定义</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中校验器定义重复。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[validators.xml存在多个相同名称的验证定义。如果validators.xml出现两个校验单名称，Struts2校验器会在其中任选一个来进行输入较验，这可能不是程序员所预期的情况。同时，出现这种情况往往也意味这验证逻辑没有得到维护，可能还会存在其他难以发觉的验证错误。  
+验证逻辑的维护至关重要，验证逻辑必须与应用程序的其余部分保持同步。输入检查是例如SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。缺少输入验证或者输入验证不完整都可能导致程序易于被以上攻击手段攻击。虽然JAVA EE应用程序通常情况下不容易受到内存损坏的影响，但是如果JAVA EE应用程序连接到未执行数组边界检查的本地代码，攻击者就可能会利用JAVA EE应用程序中一个输入校验错误发起缓冲区溢出攻击。
+]]></Description>
+			<Advice><![CDATA[检查验证文件validators.xml中是否存在同一名字的校验器，如果存在，请检查系统的逻辑，并删除一个重名的校验器。
+]]></Advice>
+			<References>
+				<Reference type="CWE">101:Struts Validation Problems</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170034" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.2 并发程序安全</Category>  
+        <Category type="DetailClassChin">A.3.2.2 不要基于可被重用的对象进行同步</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：错误的使用基础数据类型进行同步是引发并发问题的一个常见原因。基于那些可被重用的对象进行同步，会导致死锁和不确定的行为。可重用的对象包括但不限于以下几种：Boolean、封装过的基础数据类型、进入字符串池的String对象。  
+对于不要基于可被重用的对象进行同步的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：Boolean类型  
+```java
+private final Boolean initialized = Boolean.FALSE;  
+public void doSomething() {  
+    synchronized (initialized) {  
+    // . . .  
+    }  
+}
+```  
+Boolean类型不适合作为锁来使用，因为它只允许有两个值：true和false。包含相同数值的Boolean数据，并且在Java虚拟机中共享一个Boolean类实例。在这个例子中，`initialized`指向对应于值Boolean.FALSE的实例。如果在其他任何代码中，不经意的使用了具有这个Boolean类型进行同步，这个锁实例会被重用，并且系统会失去响应或者产生死锁。使用错误的对象类型进行锁定，会产生并发漏洞。封装过的基础数据类型会使用整型范围内的同一个实例，它们会遇到与Boolean常量同样的重用问题。  
+**示例2**：Integer对象  
+```java
+int lock = 0;  
+private final Integer Lock = new Integer(lock);  
+    public void doSomething() {  
+    synchronized (Lock) {  
+    // . . .  
+    }  
+}
+```  
+当显式创建一个Integer对象时，这个对象只有唯一一个引用，并且它的内置锁不但区别于其他Integer对象，并且区别于具有同一个数值经过封装的整数。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">LCK01-J:Do not synchronize on objects than may be reused</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.2 并发程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

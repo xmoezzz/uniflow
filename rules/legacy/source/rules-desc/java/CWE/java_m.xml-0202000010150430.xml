@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150430" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用WeekYear日期格式化</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在使用SimpleDateFormat格式化和解析日期时，Y表示Week Year，意味着是当天所在的周属于的年份，一周从周日开始，周六结束，只要本周跨年，那么这周就算入下一年。。  
+  
+**例如**：下列代码中使用YYYY格式化日期，获取的值为2017/12/31。
+```java  
+Date date = new SimpleDateFormat("yyyy/MM/dd").parse("2017/12/31");  
+String result = new SimpleDateFormat("YYYY/MM/dd").format(date);
+```
+]]></Description>  
+      <Advice><![CDATA[确认代码逻辑，是否使用YYYY来格式化日期。  
+  
+**例如**：下列代码中使用yyyy格式化日期，获取的值为2017/12/31。
+```java  
+Date date = new SimpleDateFormat("yyyy/MM/dd").parse("2017/12/31");  
+String result = new SimpleDateFormat("yyyy/MM/dd").format(date);
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness</Tag> 
+    </BugInfo>  
+    

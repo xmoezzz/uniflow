@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110069" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">非private的finalize()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法为非private的。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法为非private的。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[该程序没有将`finalize()`方法声明为private，因此会造成攻击者的恶意调用，应该将`finalize()`方法声明为private访问权限。除非在`finalize()`的实现方法内部调用`super.finalize()`，否则不要显示调用`finalize()`方法。  
+  
+**例如**：以下Java Applet代码错误地声明了`public finalize()`方法。  
+```java
+public final class TestFinalize extends Applet {  
+    public void finalize() {  
+        ...  
+    }  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[应当避免使用`finalize()`方法，而且不要将`finalize()`方法声明为非private。  
+  
+**例如**：代码应该用以下方式重写。  
+```java
+public final class TestFinalize extends Applet {  
+    private void finalize(){  
+        ...  
+    }  
+    ...  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">583:finalize() Method Declared Public</Reference>
+				<Reference type="CERT">MET12-J:Do not use finalizers</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

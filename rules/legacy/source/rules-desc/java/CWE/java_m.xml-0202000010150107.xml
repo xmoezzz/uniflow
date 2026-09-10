@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150107" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">API误用</Category>  
+        <Category type="DetailClassChin">【强制】不要调用finalize()</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[`finalize()`方法是回收分配给对象的内存之前调用垃圾收集器线程的基本语句，该方法用于释放对象占用的存储空间，应由JVM进行调用。  
+不要调用`finalize()`方法，因为：  
+1. `finalize()`方法并不能保证执行。  
+2. 任何有`finalize()`方法抛出的异常都会被GC线程忽略而且不会被进一步传播，事实上也不会在日志文件上记录下来。  
+3. `finalize()`方法在性能上将会增加负担。
+]]></Description>  
+      <Advice><![CDATA[方法`finalize()`只能在对象回收时由JVM进行调用。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">586:Explicit Call to Finalize()</Reference>  
+        <Reference type="CERT">MET12-J:Do not use ﬁnalizers</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.18 调用finalize方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>API Abuse</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

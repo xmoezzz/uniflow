@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010090101" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">资源管理</Category>
+				<Category type="DetailClassChin">Android Provider访问控制</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在没有适当的访问控制情况下执行一个包含用户主键的SQLite指令可能会允许攻击者访问未经授权的记录。如下两种情况，SQLite查询会发生访问控制错误：  
+1. 该数据来自不可信赖的数据源。  
+2. 该数据用于指定SQLite查询中主键的值。  
+
+**例如**：以下代码使用一个参数化语句，该语句可转义元字符和防止query string injection漏洞，以构造并执行一个SQLite查询，来搜索与用户指定的标识符相匹配的清单。  
+```java
+...  
+id = this.getIntent().getExtras().getInt("id");     
+object  = db.query(Uri.parse(invoices), columns, "id = ? ", {id}, null, null, null);  
+...
+```  
+该示例的问题在于开发者没有考虑到所有可能出现的id值。虽然查询生成了一个当前用户的标识符清单，但是攻击者可以绕过这一行为，从而获取所需的任意清单。因为此例中的代码没有确保用户有权访问需要的清单，所以代码会显示所有清单，包括那些不属于当前用户的清单。
+]]></Description>
+			<Advice><![CDATA[在业务层和数据访问层应进行访问控制。任何情况下都不允许用户在没有取得相应权限的情况下获取或修改数据库中的记录。  
+  
+**例如**：以下代码实现功能与缺陷代码相同，但是添加了一个限制，即要求当前获得授权的用户必须具有访问特定清单的权限。  
+```java
+...  
+id = this.getIntent().getExtras().getInt("id");  
+user = getCurrentAuthenticatedUser();  
+object  = db.query(Uri.parse(invoices), columns, "id = ? AND user = ?", {id, user}, null, null, null);  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">566:Authorization Bypass Through User-Controlled SQL Primary Key</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发Android Provider访问控制漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在Android Provider访问控制漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在Android Provider访问控制漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发Android Provider访问控制漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170072" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">8.2 开发环境安全</Category>  
+        <Category type="DetailClassChin">A.5.2.2 避免解析Double类型数据导致拒绝服务</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：程序调用Double的解析方法时，可能导致线程被挂起。`java.lang.Double.parseDouble()`方法解析位于`[2^(-1022) - 2^(-1075) :2^(-1022) - 2^(-1076)]`范围内的任何数字时可能导致线程被挂起，攻击者可以故意触发该漏洞执行拒绝服务攻击。该漏洞在java6 update24或更高版本中进行了修复。  
+对于避免解析Double类型数据导致拒绝服务的情况，示例1给出了不规范用法（java语言）示例。  
+**示例1**： 
+```java
+Double d = Double.parseDouble(request.getParameter("d"));
+```  
+上述代码片段中，使用了易受攻击的方法。攻击者可发送d参数值位于该范围(例如`"0.0222507385850720119e-00306"`）内的请求，致使程序在处理该请求时被挂起。  
+避免该缺陷的方式如下：  
+1. 验证传递给parseDouble数据的合法性。  
+2. 升级JDK版本到6 Update 24或更高版本。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>  
+        <Reference type="OWASP TOP 10">2017:A9 Using Components with Known Vulnerabilities</Reference>  
+        <Reference type="OWASP TOP 10">2013:A9 Using Components with Known Vulnerabilities</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.5.2 开发环境安全</BigClassChin>  
+       
+    </BugInfo> 
+  

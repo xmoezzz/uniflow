@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010160047" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.5.10 比较类而不是类名称</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+不能基于类名称进行类比较。   
+2) 原理   
+在 JVM 中，如果两个类被同一个类装载器装载且有相同的全名，则被认为是相同的类（且有相同的类型）。有相同名称但却有不同包名的两个类是不同的类，就像是被不同的类装载器载入的有相同的全名的两个类一样。   
+有时需要检查一个指定对象是否是特定的类型，或两个对象的类型是否相同。如果这个比较不能正确完成，代码会认为这两个对象是同样的类，但它们实际上并不相同。因此，不能基于类名称进行比较。   
+一些不安全代码，可能容易受到混合与匹配攻击。攻击者会提供与目标类全限定名相同的恶意类。如果对一个受保护资源的访问是被授权的，并且该授权只是基于对类名称的比较，那么非特权类会未经授权就能够访问资源。   
+3) 示例   
+    1、不符合规则的代码示例，该示例将对象`auth`的类的名称和字符串“`com.application.autli.DefaultAuthenticationHandler”`进行比较，并且基于该比较结果进行分支。   
+    ```java
+    //Determine whether object auth has required/expected class object 
+    if (auth.getClass().getName().equals( "com.application.auth.DefaultAuthenticationHandler")) {   
+        //...   
+    }
+    ```   
+       
+    对应符合规则的解决方案是将类对象`auth`与当前类装载器装载的类对象进行了比较，而不仅仅对类名称进行比较。   
+    ```java
+    //Determine whether object auth has required/expected class name 
+    if (auth.getClass() ==   this.getClass().getClassLoader().loadClass( "com.application.auth.DefaultAuthenticationHandler11)) {   
+        // ...   
+    }
+    ```   
+    2、不符合规则的代码示例，该示例使用`equals()`方法对类对象 x 和 y 的名称进行比较。如果它们来自不同的类装载器，即使是同样的名称，x 和 y 也可能是不同的类。   
+    ```java
+    // Determine whether objects x and y have the same class name 
+    if (x.getClass() .getName() .equals(y.getClass() .getName())) {   
+        //Objects have the same class   
+    }
+    ```
+    对应符合规则的解决方案是：   
+    ```java
+    // Determine whether objects x and y have the same class 
+    if (x.getClass() == y.getClass()) {   
+        // Objects have the same class   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">486:Comparison of Classes by Name</Reference>  
+        <Reference type="CERT">OBJ09-J:Compare classes and not class names</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.5 面向对象</BigClassChin>  
+       
+    </BugInfo>  
+    

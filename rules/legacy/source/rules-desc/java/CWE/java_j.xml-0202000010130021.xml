@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130021" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">资源管理</Category>
+				<Category type="DetailClassChin">资源未释放：同步锁</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行同步锁没有释放。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行同步锁没有释放。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序创建或分配同步锁资源后，不进行合理释放，将会降低系统性能甚至可能会导致死锁，攻击者可能会通过耗尽资源池的方式发起拒绝服务攻击。  
+  
+**例如**：下面代码片段中只有在`dosomething()`不抛出异常的情况下才会正常运行，但如果在执行`dosomething()`方法时发生异常，程序将无法释放其持有的锁。  
+```java
+...  
+TestLock lock = new TestLock ();  
+lock.lock();  
+dosomething();  
+lock.unlock();  
+...
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，保证任何情况下，程序持有的锁都能正常释放。  
+  
+**例如**：下列代码片段中，在finally代码块中调用`Lock.unlock()`方法，可以保证不管是否发生异常，总会释放锁。  
+```java
+public final class Client {  
+    public void doSomething(File file) {  
+        final Lock lock = new ReentrantLock();  
+        InputStream in = null;  
+        lock.lock();  
+        try {  
+            in = new FileInputStream(file);  
+            // Perform operations on the open file  
+        } catch (FileNotFoundException fnf) {  
+            // Forward to handler  
+        } finally {  
+            lock.unlock();  
+            if (in != null) {  
+                try {  
+                    in.close();  
+                } catch (IOException e) {  
+                    // Forward to handler  
+                }  
+            }  
+        }  
+    }
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>
+				<Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>
+				<Reference type="CWE">667:Improper Locking</Reference>
+				<Reference type="CWE">459:Incomplete Cleanup</Reference>
+				<Reference type="CWE">411:Resource Locking Problems</Reference>
+				<Reference type="CERT">LCK08-J:Ensure actively held locks are released on exceptional conditions</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference>
+				<Reference type="SJ/T 11683-2017">6.8.2 获取锁后没有释放锁</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>concurrency,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.持有同步锁资源"/>
+					<CodeFragment id="2" name="2.持有同步锁资源的关联资源"/>
+					<CodeFragment id="3" name="3.同步锁资源被资源池持有"/>
+					<CodeFragment id="4" name="4.同步锁资源被返回函数外"/>
+					<CodeFragment id="5" name="5.同步锁资源已关闭"/>
+					<CodeFragment id="6" name="6.同步锁资源的关联资源已关闭"/>
+					<CodeFragment id="7" name="7.同步锁资源未关闭"/>
+					<CodeFragment id="8" name="8.同步锁资源的关联资源未关闭"/>
+					<CodeFragment id="9" name="9.触发同步锁资源未释放"/>
+					<CodeFragment id="10" name="10.程序执行正常"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="申请关联资源"/>
+					<Relationship fromId="1" toId="3" name="资源被放入资源池中"/>
+					<Relationship fromId="1" toId="4" name="资源通过函数返回值返回"/>
+					<Relationship fromId="1" toId="5" name="关闭资源"/>
+					<Relationship fromId="1" toId="7" name="作用域结束"/>
+					<Relationship fromId="2" toId="6" name="关闭关联资源"/>
+					<Relationship fromId="2" toId="8" name="作用域结束"/>
+					<Relationship fromId="3" toId="10" name="作用域结束"/>
+					<Relationship fromId="4" toId="10" name="作用域结束"/>
+					<Relationship fromId="5" toId="10" name="作用域结束"/>
+					<Relationship fromId="6" toId="10" name="作用域结束"/>
+					<Relationship fromId="7" toId="9" name="执行"/>
+					<Relationship fromId="8" toId="9" name="执行"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

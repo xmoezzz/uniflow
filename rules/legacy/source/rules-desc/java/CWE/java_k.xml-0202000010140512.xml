@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140512" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 03. 数据类型与运算 (NUM)</Category>  
+        <Category type="DetailClassChin">NUM12-J：确保将数值转换成较小类型时不会产生数据丢失或曲解</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当较大类型的数值不在较小类型的数值合法范围内时，将大类型转换为小类型会造成数据丢失或曲解。根据Java语言规范5.1.3节“向下基本类型转换”中描述，Java中有22种可能的向下转换：  
+>  short 至 byte、char  
+  char 至 byte、short  
+  int 至 byte、short、char  
+  long 至 byte、short、char、int  
+  float 至 byte、short、char、int、long  
+  double 至 byte、short、char、int、long、float  
+  
+注意：在较大类型的数值处于较小类型的数值合法范围内的情况下，基本类型向下转换是不会存在精度损失的。  
+代码静态分析来判断转换是否符合程序员的意图是不能实现的，本规则检测提供的警示信息对于程序员分析程序意图是有所帮助的。  
+风险评估：将数值转换为较小类型可能导致数值符合和数值大小信息丢失，由此引发数据会被曲解或者错误的表达。  
+**不规范的代码样例1**：int转换为byte  
+```java
+class CastAway {
+    public static void main(String[] args) {
+        int i = 128;
+        workWith(i);
+    }
+
+    public static void workWith(int i) {
+        byte b = (byte) i; // b has value -128
+        // work with b
+    }
+}
+```  
+由于转换之前没有对i进行范围检查，所以，当i的值超过了byte类型的数值范围（-128-127）时，会产生不可预期的结果。
+]]></Description>  
+      <Advice><![CDATA[所有向下的转换必须在转换之前检查数值的范围，来确保转换不会丢失数据。  
+**规范的代码样例1**：  
+```java
+class CastAway {
+    public static void workWith(int i) {
+        // check if i is within byte range
+        if ((i < Byte.MIN_VALUE) || (i > Byte.MAX_VALUE)) {
+            throw new ArithmeticException("Value is out of range");
+        }
+        byte b = (byte) i;
+        // work with b
+    }
+}
+```
+代码在语句`byte b = (byte) i;`之前对i的值进行了是否处于byte类型的有效数值范围的检查，当i的值不处于该范围时会抛出ArithmeticException异常。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">681:Incorrect Conversion between Numeric Types</Reference>  
+        <Reference type="CWE">197:Numeric Truncation Error</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

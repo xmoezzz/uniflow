@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010080015" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">配置文件中的明文密码</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行密码为明文。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[配置文件中采用明文存储密码，所有能够访问该文件的人都能访问该密码，将会降低系统安全性。
+]]></Description>
+			<Advice><![CDATA[即使不能阻止应用程序被那些可以访问配置文件的攻击者入侵，也可以通过加密密码提升攻击者入侵难度，故配置文件中的密码应进行加密存储。
+]]></Advice>
+			<References>
+				<Reference type="CWE">555:J2EE Misconfiguration: Plaintext Password in Configuration File</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

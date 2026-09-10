@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141009" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 09. 锁 (LCK)</Category>  
+        <Category type="DetailClassChin">LCK09-J：不要执行那些持有锁时会阻塞的操作</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当执行耗时或者阻塞的操作时，持有锁会严重的影响系统的性能并且会导致资源不足。此外，如果无限阻塞相互关联的线程，会发生死锁。阻塞操作包括网络、文件、控制台I/O和对象序列化。将一个线程延时同样会形成阻塞操作。因此，程序必须在不能持有锁的时候执行阻塞操作。  
+当JVM与文件系统进行交互时，如果这些操作基于不可靠的网络，文件IO会导致很严重的性能问题。在这样的情况下，要避免在持有锁时，进行基于网络的文件IO操作。  
+风险评估：在同步块（同步方法）中执行阻塞或者冗长的操作会导致死锁或者系统无响应。  
+**不规范的代码样例1**：  
+```java
+public synchronized void doSomething(long time) throws InterruptedException {
+    // . . .
+    Thread.sleep(time);
+}
+```  
+代码在一个同步方法中执行线程睡眠语句。因为方法是同步的，当线程挂起时，其他线程也不能使用这个类的同步方法，线程将继续持有当前的对象监视器，这是因为`Thread.sleep()`方法缺少同步语义。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public synchronized void doSomething(long timeout) throws InterruptedException {
+    while (timeout > 1000) {
+        wait(1000); // Immediately releases the current monitor
+    }
+}
+```  
+方法`doSomething`使用了一个内置锁，使用了`Object.wait()`方法而不是`Thead.sleep()`方法，`Object.wait()`方法设置了一个`timeout`期限，当对象的监视器在进入等待状态时，会被立即释放。在`timeout`期限到达时，线程在获得当前对象的监视器之后会继续执行。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">557:Concurrency Issues</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">6.8.4 持锁时调用sleep方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

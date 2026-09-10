@@ -88,25 +88,39 @@ impl SqlSyntax {
         let blocks = parse_blocks(&tokens);
         let unexplained_disabled_tests = unexplained_disabled_tests(source);
         let parse_errors = parse_errors(&tokens, &mates, &ifs, &blocks);
-        Self { tokens, mates, ifs, blocks, unexplained_disabled_tests, parse_errors }
+        Self {
+            tokens,
+            mates,
+            ifs,
+            blocks,
+            unexplained_disabled_tests,
+            parse_errors,
+        }
     }
 
     pub fn is(&self, index: usize, text: &str) -> bool {
-        self.tokens.get(index).is_some_and(|token| token.text.eq_ignore_ascii_case(text))
+        self.tokens
+            .get(index)
+            .is_some_and(|token| token.text.eq_ignore_ascii_case(text))
     }
 
     pub fn normalized(&self, range: Range<usize>) -> String {
         let mut value = String::new();
         for token in self.tokens.get(range).unwrap_or_default() {
-            if token.text == ";" { continue; }
-            if !value.is_empty() { value.push('\u{1f}'); }
+            if token.text == ";" {
+                continue;
+            }
+            if !value.is_empty() {
+                value.push('\u{1f}');
+            }
             value.push_str(&token.text);
         }
         value
     }
 
     pub fn trim_parens(&self, mut range: Range<usize>) -> Range<usize> {
-        while range.start < range.end && self.is(range.start, "(")
+        while range.start < range.end
+            && self.is(range.start, "(")
             && self.mates.get(range.start).and_then(|mate| *mate) == Some(range.end - 1)
         {
             range = range.start + 1..range.end - 1;
@@ -136,9 +150,12 @@ impl SqlSyntax {
     }
 
     pub fn statement_range_containing(&self, index: usize) -> Range<usize> {
-        let start = (0..index).rev().find(|candidate| self.is(*candidate, ";"))
+        let start = (0..index)
+            .rev()
+            .find(|candidate| self.is(*candidate, ";"))
             .map_or(0, |candidate| candidate + 1);
-        let end = (index..self.tokens.len()).find(|candidate| self.is(*candidate, ";"))
+        let end = (index..self.tokens.len())
+            .find(|candidate| self.is(*candidate, ";"))
             .map_or(self.tokens.len(), |candidate| candidate + 1);
         start..end
     }
@@ -150,27 +167,51 @@ fn unexplained_disabled_tests(source: &str) -> Vec<usize> {
     for line in source.split_inclusive('\n') {
         if let Some(comment) = line.find("--") {
             let text = line[comment + 2..].trim();
-            if text.eq_ignore_ascii_case("%disabled") { offsets.push(base + comment); }
+            if text.eq_ignore_ascii_case("%disabled") {
+                offsets.push(base + comment);
+            }
         }
         base += line.len();
     }
     offsets
 }
 
-fn parse_errors(tokens: &[SqlToken], mates: &[Option<usize>], ifs: &[SqlIf], blocks: &[SqlBlock]) -> Vec<usize> {
-    let mut errors = tokens.iter().enumerate().filter(|(index, token)|
-        matches!(token.text.as_str(), "(" | ")" | "[" | "]" | "{" | "}") && mates[*index].is_none())
-        .map(|(_, token)| token.start).collect::<Vec<_>>();
-    let if_starts = tokens.iter().enumerate().filter(|(index, token)| token.text == "if"
-        && (*index == 0 || tokens[*index - 1].text != "end")).count();
+fn parse_errors(
+    tokens: &[SqlToken],
+    mates: &[Option<usize>],
+    ifs: &[SqlIf],
+    blocks: &[SqlBlock],
+) -> Vec<usize> {
+    let mut errors = tokens
+        .iter()
+        .enumerate()
+        .filter(|(index, token)| {
+            matches!(token.text.as_str(), "(" | ")" | "[" | "]" | "{" | "}")
+                && mates[*index].is_none()
+        })
+        .map(|(_, token)| token.start)
+        .collect::<Vec<_>>();
+    let if_starts = tokens
+        .iter()
+        .enumerate()
+        .filter(|(index, token)| {
+            token.text == "if" && (*index == 0 || tokens[*index - 1].text != "end")
+        })
+        .count();
     if if_starts != ifs.len() {
-        if let Some(token) = tokens.iter().find(|token| token.text == "if") { errors.push(token.start); }
+        if let Some(token) = tokens.iter().find(|token| token.text == "if") {
+            errors.push(token.start);
+        }
     }
     let begins = tokens.iter().filter(|token| token.text == "begin").count();
     if begins != blocks.len() {
-        if let Some(token) = tokens.iter().find(|token| token.text == "begin") { errors.push(token.start); }
+        if let Some(token) = tokens.iter().find(|token| token.text == "begin") {
+            errors.push(token.start);
+        }
     }
-    errors.sort_unstable(); errors.dedup(); errors
+    errors.sort_unstable();
+    errors.dedup();
+    errors
 }
 
 fn delimiter_mates(tokens: &[SqlToken]) -> Vec<Option<usize>> {
@@ -180,7 +221,11 @@ fn delimiter_mates(tokens: &[SqlToken]) -> Vec<Option<usize>> {
         if matches!(token.text.as_str(), "(" | "[" | "{") {
             stack.push((token.text.clone(), index));
         } else if matches!(token.text.as_str(), ")" | "]" | "}") {
-            let expected = match token.text.as_str() { ")" => "(", "]" => "[", _ => "{" };
+            let expected = match token.text.as_str() {
+                ")" => "(",
+                "]" => "[",
+                _ => "{",
+            };
             if let Some(position) = stack.iter().rposition(|(open, _)| open == expected) {
                 let (_, open) = stack.remove(position);
                 mates[open] = Some(index);
@@ -210,7 +255,12 @@ fn parse_ifs(tokens: &[SqlToken]) -> Vec<SqlIf> {
             stack.push(OpenIf {
                 start: index,
                 branches: Vec::new(),
-                current: OpenBranch { marker: index, condition_start: Some(index + 1), condition: None, body_start: None },
+                current: OpenBranch {
+                    marker: index,
+                    condition_start: Some(index + 1),
+                    condition: None,
+                    body_start: None,
+                },
             });
         } else if text == "then" {
             if let Some(open) = stack.last_mut() {
@@ -229,10 +279,18 @@ fn parse_ifs(tokens: &[SqlToken]) -> Vec<SqlIf> {
                     body_start: (text == "else").then_some(index + 1),
                 };
             }
-        } else if text == "end" && tokens.get(index + 1).is_some_and(|token| token.text == "if") {
+        } else if text == "end"
+            && tokens
+                .get(index + 1)
+                .is_some_and(|token| token.text == "if")
+        {
             if let Some(mut open) = stack.pop() {
                 finish_branch(&mut open, index);
-                result.push(SqlIf { start: open.start, branches: open.branches, end: index + 2 });
+                result.push(SqlIf {
+                    start: open.start,
+                    branches: open.branches,
+                    end: index + 2,
+                });
             }
         }
     }
@@ -247,10 +305,16 @@ fn parse_blocks(tokens: &[SqlToken]) -> Vec<SqlBlock> {
         if tokens[index].text == "begin" {
             stack.push(index);
         } else if tokens[index].text == "end"
-            && !tokens.get(index + 1).is_some_and(|token| matches!(token.text.as_str(), "if" | "loop" | "case"))
+            && !tokens
+                .get(index + 1)
+                .is_some_and(|token| matches!(token.text.as_str(), "if" | "loop" | "case"))
         {
             if let Some(start) = stack.pop() {
-                result.push(SqlBlock { start, body: start + 1..index, end: index + 1 });
+                result.push(SqlBlock {
+                    start,
+                    body: start + 1..index,
+                    end: index + 1,
+                });
             }
         }
     }

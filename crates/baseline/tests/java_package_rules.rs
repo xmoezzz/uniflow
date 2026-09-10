@@ -10,7 +10,11 @@ fn regex_witness(pattern: &str) -> String {
             HirKind::Empty | HirKind::Look(_) => {}
             HirKind::Literal(literal) => output.extend_from_slice(&literal.0),
             HirKind::Class(Class::Unicode(class)) => {
-                let character = class.iter().next().expect("non-empty Unicode class").start();
+                let character = class
+                    .iter()
+                    .next()
+                    .expect("non-empty Unicode class")
+                    .start();
                 let mut bytes = [0; 4];
                 output.extend_from_slice(character.encode_utf8(&mut bytes).as_bytes());
             }
@@ -71,11 +75,8 @@ fn every_bundled_java_package_rule_has_positive_and_non_code_witnesses() {
             title: native_id.clone(),
             rules: vec![rule],
         };
-        let findings = focused.scan_text(
-            &Language::Java,
-            Path::new("PackageWitness.java"),
-            &source,
-        );
+        let findings =
+            focused.scan_text(&Language::Java, Path::new("PackageWitness.java"), &source);
         assert_eq!(
             findings.len(),
             1,

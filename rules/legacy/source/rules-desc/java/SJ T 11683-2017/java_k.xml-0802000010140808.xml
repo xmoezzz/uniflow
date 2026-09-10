@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010140808" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">Rule 07. 异常行为 (ERR)</Category>  
+        <Category type="DetailClassChin">ERR08-J：不要捕获NullPointerException或者任何它的基类</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[一个运行期间抛出的NullPointerException异常表明存在一个对空引用的解引用，这是必须在应用代码中解决的。  
+1）当程序中有多个语句都有可能抛出NullPointerException时，判断抛出异常的语句是困难甚至不可能的，这是因为catch语句会去处理任何位置抛出的NullPointerException。  
+2）程序抛出NullPointerException后很少会处于一个正常的可用状态。在捕获和记录（更糟糕的是去抑制）第一次异常后继续尝试去执行程序很少能够成功。  
+类似，程序不能捕获RuntimeException、Exception、Throwable。如果有捕获这些异常的话，很少有方法能够处理这些潜在的运行异常。当方法捕获了上述异常，它可能是程序设计外的异常，很多时候，运行时异常都是程序中应该改正的错误。  
+风险评估：捕获NullPointerException可能掩盖潜在的空引用，降低应用性能，并造成难以理解和维护的代码。  
+**不规范的代码样例1**：  
+```java
+boolean isName(String s) {
+    try {
+        String names[] = s.split(" ");
+        if (names.length != 2) {
+            return false;
+        }
+        return (isCapitalized(names[0]) && isCapitalized(names[1]));
+    } catch (NullPointerException e) {
+        return false;
+    }
+}
+```  
+  
+**例外**：  
+1） 当处理任务的线程(线程池中的工作线程)或Swing事件分配线程（Runable接口的抽象调用代码时），它们是允许捕获RuntimeException。  
+2） 需要大量容错能力或要求降低性能运行的系统是允许在适当的抽象层捕获并记录类似Throwable的普通异常的。  
+3） 异常封装是一个用于安全的处理未知异常的技巧。此时，一个catch程序捕获所有的异常，并将它们封装在一个自定义的异常类中。
+]]></Description>  
+      <Advice><![CDATA[程序不能捕获`java.lang.NullPointerException`或者任何它的基类。如果捕获了，这通常说明程序中存在错误。  
+**规范的代码样例1**：  
+明确的对参数进行null检查，而不是捕获NullPointerException。
+```java  
+boolean isName(String s) {
+    if (s == null) {
+        return false;
+    }
+    String names[] = s.split(" ");
+    if (names.length != 2) {
+        return false;
+    }
+    return (isCapitalized(names[0]) && isCapitalized(names[1]));
+}
+```  
+**符合规范的使用样例2**：  
+异常封装机制。  
+```java
+class DoSomethingException extends Exception {
+    public DoSomethingException(Throwable cause) {
+        super(cause);
+    }
+    // other methods
+}
+
+class DoSomething {
+    private void doSomething() throws DoSomethingException {
+        try {
+            // code that might throw an Exception
+        } catch (Throwable t) {
+            throw new DoSomethingException(t);
+        }
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">395:Use of NullPointerException Catch to Detect NULL Pointer Dereference</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.3 捕捉运行时异常</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

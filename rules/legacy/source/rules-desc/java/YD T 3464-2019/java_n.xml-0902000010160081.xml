@@ -1,0 +1,137 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160081" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.9.3 不要基于那些通过getClass()返回的类对象来实现同步</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+当基于类进行同步时，对应的锁对象不应被非受信的代码进入。其他包的调用者不能进入那些包私有的类对象。   
+2) 原理   
+基于 `Object.getClass()`方法的返回值进行同步，会导致不可预期的行为。当类在实现继承时，子类会对基类进行锁定。对于子类的 Class 对象来说，它与其基类的 Class 对象是完全不同的。   
+如果声明一个类方法为同步，那么它会基于这个类的 Class 对象实现锁。   
+如果开发人员认为“一个子类使用`getClass()`，就会基于其基类的 Class 对象进行同步”，这是不对的。一个子类会基于它自己的 Class 对象实现锁，可能会是或者不是开发人员想要的功能。因此，开发人员不能基于从`getClass()`方法返回的类对象来实现同步。   
+当一个子类不能覆写一个可进入的不合规的基类的方法时，这个方法会被继承，从而可能会导致一个错误的结论，即在子类中可以得到基类的内置锁。   
+当基于类进行同步时，对应的锁对象不应被非受信的代码进入。其他包的调用者不能进入那些包私有的类对象。因此，基于那些类的内置锁对象进行的同步是允许的。   
+3) 示例   
+    1、不符合规则的代码示例（`getClass()`锁对象），该例中，Base 类的`parse()`方法会解析一个日期并且基于`getClass()`方法返回的类对象进行同步。Derived 类同样继承了`parse()`方法。然而，这个继承的方法基于 Derived 类实现同步，因为继承的 `parse()`方法对 `getClass()`的调用，实际上调用的是`this.getClass()`，因此这个 this 参数实际上是指向 Derived 类实例的一个引用。   
+    Derived 类同样增加了一个 `doSomethingAndParse()`方法，这个方法基于 Base 类的类对象实现锁定，因为开发人员会错误地认为在 Base 类中创建的` parse() `方法总会获得一个基于 Base 类对象的锁，并且`doSomethingAndParse()`方法必须遵循同样的锁规则。因此，Dervied 类有两个不同的锁策略并且不是线程安全的。   
+    ```java
+    class Base {
+        static DateFormat format = DateFormat.getDateInstance(DateFormat.MEDIUM);
+    
+        public Date parse(String str) throws ParseException {
+            synchronized (getClass()) {
+                return format.parse(str);
+            }
+        }
+    }
+    
+    class Derived extends Base {
+        public Date doSomethingAndParse(String str) throws ParseException {
+            synchronized (Base.class) {
+                // . . .
+                return format.parse(str);
+            }
+        }
+    }
+    ```    
+       
+    对应符合规则的解决方案(类名合规)中，通过类名提供的锁（Base)是合规的。   
+    ```java
+    class Base {
+        static DateFormat format = DateFormat.getDateInstance(DateFormat.MEDIUM);
+    
+        public Date parse(String str) throws ParseException {
+            synchronized (Base.class) {
+                return format.parse(str);
+            }
+        }
+    }  
+    //...
+    ```   
+    它总是基于 Base.class 对象实现同步，即便是在一个 Derived 对象中进行调用。   
+       
+    另一个符合规则的解决方案使用了 `Class.forName()`方法来基于 Base 的类对象进行同步。   
+    ```java
+    class Base {   
+    static DateFormat format =   
+    DateFormat.getDatelnstance(DateFormat.MEDIUM);   
+    public Date parse(String str) throws ParseException { try {   
+    synchronized (Class.forName("Base")) {   
+    return format.parse(str);   
+    }   
+    } catch (ClassNotFoundException x) {   
+    // "Base" not found; handle error   
+    }   
+    return null;   
+    // . . .
+    ```    
+    不要在使用 `Class.forName()`方法载入类时，接受非受信的输入作为参数。   
+       
+    2、不符合规则的代码示例（`getClass()`锁对象，内隐类），该示例中，Base 类的 `parse()`方法通过`getClass()`返回的类对象实现同步。这个 Base 类同样是一个 Helper 类，这个类的 `doSomethingAndParse()`基于`getClass()`的返回值实现同步是不正确的。   
+    ```java
+    class Base {
+        static DateFormat format = DateFormat.getDateInstance(DateFormat.MEDIUM);
+    
+        public Date parse(String str) throws ParseException {
+            synchronized (getClass()) {
+                return format.parse(str);
+            }
+        }
+    
+        public Date doSomething(String str) throws ParseException {
+            return new Helper().doSomethingAndParse(str);
+        }
+    
+        private class Helper {
+            public Date doSomethingAndParse(String str) throws ParseException {
+                synchronized (getClass()) { // Synchronizes on Helper.class
+                    return format.parse(str);
+                }
+            }
+        }
+    }
+    ```   
+    在 Helper 类中对`getClass()`方法的调用会返回一个 Helper 类对象而不是 Base 类对象。因此，一个线程其实是通过调用 `Base.parse()`方法来锁定一个不同的对象而不是通过调用 `Base.doSomething()`来实现。这样容易忽视在内隐类中产生的并发错误，因为它们存在于包含它们的外部类的代码块中。   
+       
+    对应符合规则的解决方案（类名合规）中，使用 `parse()`和 `doSomethingAndParse()`方法中的 Base类的字元实现同步。   
+    ```java
+    class Base {
+        static DateFormat format = DateFormat.getDateInstance(DateFormat.MEDIUM);
+    
+        public Date parse(String str) throws ParseException {
+            synchronized (Base.class) {
+                return format.parse(str);
+            }
+        }
+    
+        public Date doSomething(String str) throws ParseException {
+            return new Helper().doSomethingAndParse(str);
+        }
+    
+        private class Helper {
+            public Date doSomethingAndParse(String str) throws ParseException {
+                synchronized (Base.class) { // Synchronizes on Base.class
+                    return format.parse(str);
+                }
+            }
+        }
+    }
+    ```   
+    Base和Helper类同时基于Base的内置锁来实现锁定。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.9 锁</BigClassChin>  
+       
+    </BugInfo>  
+    

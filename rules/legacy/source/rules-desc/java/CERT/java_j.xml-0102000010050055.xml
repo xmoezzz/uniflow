@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010050055" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">拒绝服务：StringBuilder</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[当StringBuilder或者StringBuffer使用`append`添加数据时，如果StringBuilder或者StringBuffer对象内部数组不足以存入所有数据时，会重新调整调整基础数组的大小来存放新的数据。而旧数组将继续留在堆中，一直等待系统回收。当旧数组过多时，可能导致堆栈溢出，从而拒绝服务。  
+  
+**例如**：在以下代码片段中，使用了不信任的数据添加到StringBuilder中。  
+```java
+...  
+String data = request.getParameter("data");  
+StringBuilder sb = new StringBuilder();  
+sb.append(data);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，对用户输入的大小进行了合理校验，以避免系统堆栈溢出而拒绝服务。
+]]></Advice>
+			<References>
+				<Reference type="CERT">MSC05-J:Do not exhaust heap space CERT</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发拒绝服务：StringBuilder漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在拒绝服务：StringBuilder漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在拒绝服务：StringBuilder漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发拒绝服务：StringBuilder漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

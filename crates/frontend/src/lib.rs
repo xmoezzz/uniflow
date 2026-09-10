@@ -1,16 +1,18 @@
 mod clang_ast;
+mod compile_commands;
 mod conditionals;
 mod config;
-mod compile_commands;
 mod files;
 mod header_index;
 mod parse;
 
 pub use clang_ast::{clang_translation_unit_args, dump_clang_ast_json, ClangAstOptions};
-pub use conditionals::simulate_c_family_conditionals;
 pub use compile_commands::{CompileCommandDatabase, CompileCommandOptions};
+pub use conditionals::simulate_c_family_conditionals;
 pub use config::FrontendOptions;
-pub use files::{collect_source_files, supports_path};
+pub use files::{
+    collect_auxiliary_files, collect_source_files, supports_auxiliary_path, supports_path,
+};
 pub use header_index::collect_project_headers;
 pub use parse::{
     parse_project_files, parse_project_files_with_options, parse_project_paths,

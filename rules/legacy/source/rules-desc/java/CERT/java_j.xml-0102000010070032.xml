@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010070032" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">JavaEE程序：非受信代码终止JVM</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行将会使用非受信代码终止JVM。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行将会使用非受信代码终止JVM。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[调用`System.exit()`会终止Java虚拟机，从而终止所有运行中的程序和线程。Web应用程序关闭自身的容器，有可能导致拒绝服务攻击，**例如**：一个嵌入在JSP中的`System.exit()`的调用会停止网络服务器，阻碍了对用户的服务。
+]]></Description>
+			<Advice><![CDATA[程序必须避免无意地和恶意地调用`System.exit()`。而且，在被强迫终止时（例如通过Windows任务管理器、POSIX kill命令或者其他机制），程序应该进行必要的清理操作。
+]]></Advice>
+			<References>
+				<Reference type="CWE">382:J2EE Bad Practices: Use of System.exit()</Reference>
+				<Reference type="CERT">ERR09-J:Do not allow untrusted code to terminate the JVM</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="SJ/T 11683-2017">调用System.exit方法</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

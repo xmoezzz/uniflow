@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170061" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">7.1 资源管理</Category>  
+        <Category type="DetailClassChin">A.4.1.3 需确保Sockets得到释放</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：程序创建或分配Socket后，不进行合理释放，将会降低系统性能。攻击者可能会通过耗尽资源池的方式发起拒绝服务攻击。  
+对于需确保Sockets得到释放的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+public void getSocket(String host, int port) {
+    try {
+        Socket socket = new Socket(host, port);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        while (reader.readLine() != null) {
+            ...
+        }
+    } catch (UnknownHostException e) {
+        e.printStackTrace();
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+```  
+上述代码片段中，创建了一个套接字socket对象，未进行合理释放。  
+程序不应依赖于`finalize()`回收Socket资源，应在finally代码块中手动释放Socket资源。  
+**示例2**：  
+```java
+public void getSocket(String host, int port) {
+    Socket socket = null;
+    try {
+        socket = new Socket(host, port);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        while (reader.readLine() != null) {
+            ...
+        }
+    } catch (UnknownHostException e) {
+        e.printStackTrace();
+    } catch (IOException e) {
+        e.printStackTrace();
+    } finally {
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+```  
+上述代码片段中，使用完之前创建的socket套接字资源后，在finally代码块中进行了释放。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>  
+        <Reference type="CWE">459:Incomplete Cleanup</Reference>  
+        <Reference type="CWE">404:Improper Resource Shutdown or Release</Reference>  
+        <Reference type="CERT">FIO04-J:Close resources when they are no longer needed</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 404</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.4.1 资源管理</BigClassChin>  
+       
+    </BugInfo>  
+    

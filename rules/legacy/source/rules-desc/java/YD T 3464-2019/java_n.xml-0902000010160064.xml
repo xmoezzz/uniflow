@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160064" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.4 错误处理安全</Category>  
+        <Category type="DetailClassChin">C.7.2 不能允许异常泄露敏感信息</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+在异常传递的过程中，必须对敏感信息进行过滤，防止敏感信息泄露。   
+2) 原理   
+在异常传递的过程中，如果不对敏感信息进行过滤，常会导致信息泄露，这将有助于攻击者实现对系统的攻击。一个攻击者可以通过精心设计的输入参数来得到应用程序的内部数据结构或机制。异常的文本和异常的类型都可以泄漏信息。   
+这条规则同时适用于服务器端和客户端应用。攻击者不单只可以从易受攻击的网络服务器收集敏感信息，也可以从使用这些网络服务器的用户网络浏览器那里得到敏感信息。   
+所有异常都能提供信息，这会帮助攻击者完成对系统的拒绝服务（Dos）攻击。因此，程序员必须过滤能传递出可信任边界的异常信息和异常类型。   
+3) 示例   
+  
+**例 1** 如下不符合规则的代码示例中，程序需要读取一个用户提供的文件，但是文件系统的内容和布局是敏感的。这个程序接受一个文件名作为参数，却没能防止潜在的异常会将敏感信息展现给用户。   
+```java
+class ExceptionExample {   
+  public static void main(String[] args) throws FileNotFoundException {   
+    // Linux stores a user's home directory path in   
+    // the environment variable $HOME, Windows in %APPDATA%   
+    FilelnputStream fis =  new FilelnputStream(System.getenv("APPDATA") + args[0]);   
+  }   
+}
+```   
+
+**例 2** 如下不符合规则的代码示例将异常记入日志，并在重新抛出前将其封装在一个更普通的异常中。   
+```java
+try {   
+    FileInputStream fis =  new FilelnputStream(System.getenv("APPDATA") + args[0]；   
+} catch (FileNotFoundException e) {   
+    // Log the exception   
+    throw new IOException("Unable to retrieve file", e);   
+}
+```   
+
+**例 3** 如下不符合规则的代码示例将异常记入日志，抛出一个自定义的异常，并没有将FileNotFoundException 异常封装在其中。   
+```java
+class SecuritylOException extends IOException {/* ... */};    
+try {   
+    FilelnputStream fis =   new FilelnputStream(System.getenv("APPDATA") + args[0]);   
+} catch (FileNotFoundException e) {   
+    // Log the exception   
+    throw new SecurityIOException();   
+}
+```   
+   
+对应于上述三个不符合规则的方案可以采用下述符合规则的方案，该方案实现了一个安全策略，用户只能打开 `c:\homepath` 中的文件，并且不允许用户发现这个目录之外的文件。当文件不能打开或不在正确的目录内时，返回一个简洁的错误信息。`c:\homepath` 目录外文件的任何信息都被屏蔽了。   
+```java
+class ExceptionExample {   
+    public static void main(String[] args) {   
+        File file = null;    
+        try {   
+            file = new File(System.getenv("APPDATA") + args[0]) .getCanonicalFile ();    
+            if (!file.getPath().startsWith("c:Whomepath")) {   
+                System.out.printIn("Invalid file"); return;   
+            }   
+        } catch (IOException x) {   
+            System.out.printIn("Invalid file");    
+            return;   
+        }   
+        try {   
+            FilelnputStream fis = new FilelnputStream(file);    
+        } catch (FileNotFoundException x) {   
+            System.out.printIn("Invalid file"); return;   
+        }   
+    }   
+}
+```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">600:Uncaught Exception in Servlet</Reference>  
+        <Reference type="CWE">431:Missing Handler</Reference>  
+        <Reference type="CWE">248:Uncaught Exception</Reference>  
+        <Reference type="CWE">209:Information Exposure Through an Error Message</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 209</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 209</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:信息通过错误消息泄露</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.7 异常行为</BigClassChin>  
+       
+    </BugInfo>  
+    

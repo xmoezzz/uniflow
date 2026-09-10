@@ -46,8 +46,16 @@ fn materialize_heap_value_adjacency(fg: &mut FlowGraph) {
             let Some(&proj_node) = fg.values.get(&(proj_func, proj_value)) else {
                 continue;
             };
-            push_unique_index(&mut fg.heap_value_successors, base_node.index(), proj_node.index());
-            push_unique_index(&mut fg.heap_value_predecessors, proj_node.index(), base_node.index());
+            push_unique_index(
+                &mut fg.heap_value_successors,
+                base_node.index(),
+                proj_node.index(),
+            );
+            push_unique_index(
+                &mut fg.heap_value_predecessors,
+                proj_node.index(),
+                base_node.index(),
+            );
         }
     }
     for (&(func, base, _), &cell) in &fg.index_cells {
@@ -58,8 +66,16 @@ fn materialize_heap_value_adjacency(fg: &mut FlowGraph) {
             let Some(&proj_node) = fg.values.get(&(proj_func, proj_value)) else {
                 continue;
             };
-            push_unique_index(&mut fg.heap_value_successors, base_node.index(), proj_node.index());
-            push_unique_index(&mut fg.heap_value_predecessors, proj_node.index(), base_node.index());
+            push_unique_index(
+                &mut fg.heap_value_successors,
+                base_node.index(),
+                proj_node.index(),
+            );
+            push_unique_index(
+                &mut fg.heap_value_predecessors,
+                proj_node.index(),
+                base_node.index(),
+            );
         }
     }
     for values in fg.heap_value_successors.values_mut() {
@@ -89,15 +105,31 @@ fn materialize_heap_object_adjacency(fg: &mut FlowGraph) {
         let Some(&base_node) = fg.values.get(&(func, base)) else {
             continue;
         };
-        push_unique_index(&mut fg.heap_object_successors, base_node.index(), cell.index());
-        push_unique_index(&mut fg.heap_object_predecessors, cell.index(), base_node.index());
+        push_unique_index(
+            &mut fg.heap_object_successors,
+            base_node.index(),
+            cell.index(),
+        );
+        push_unique_index(
+            &mut fg.heap_object_predecessors,
+            cell.index(),
+            base_node.index(),
+        );
         let projected = cell_values_for_flow(fg, cell);
         for (proj_func, proj_value) in projected {
             let Some(&proj_node) = fg.values.get(&(proj_func, proj_value)) else {
                 continue;
             };
-            push_unique_index(&mut fg.heap_object_successors, cell.index(), proj_node.index());
-            push_unique_index(&mut fg.heap_object_predecessors, proj_node.index(), cell.index());
+            push_unique_index(
+                &mut fg.heap_object_successors,
+                cell.index(),
+                proj_node.index(),
+            );
+            push_unique_index(
+                &mut fg.heap_object_predecessors,
+                proj_node.index(),
+                cell.index(),
+            );
         }
     }
     for values in fg.heap_object_successors.values_mut() {
@@ -121,7 +153,10 @@ fn materialize_object_graph_adjacency(fg: &mut FlowGraph) {
             continue;
         };
         let label = format!("field:{}", field);
-        fg.object_shape_labels.entry(base_node.index()).or_default().push(label.clone());
+        fg.object_shape_labels
+            .entry(base_node.index())
+            .or_default()
+            .push(label.clone());
         for (proj_func, proj_value) in cell_values_for_flow(fg, cell) {
             let Some(&proj_node) = fg.values.get(&(proj_func, proj_value)) else {
                 continue;
@@ -148,7 +183,10 @@ fn materialize_object_graph_adjacency(fg: &mut FlowGraph) {
             continue;
         };
         let label = format!("index:{}", key);
-        fg.object_shape_labels.entry(base_node.index()).or_default().push(label.clone());
+        fg.object_shape_labels
+            .entry(base_node.index())
+            .or_default()
+            .push(label.clone());
         for (proj_func, proj_value) in cell_values_for_flow(fg, cell) {
             let Some(&proj_node) = fg.values.get(&(proj_func, proj_value)) else {
                 continue;
@@ -190,8 +228,12 @@ fn object_shape_suffixes(
     depth: usize,
     cache: &mut HashMap<(usize, usize), BTreeSet<String>>,
 ) -> BTreeSet<String> {
-    if depth == 0 { return BTreeSet::new(); }
-    if let Some(paths) = cache.get(&(node.index(), depth)) { return paths.clone(); }
+    if depth == 0 {
+        return BTreeSet::new();
+    }
+    if let Some(paths) = cache.get(&(node.index(), depth)) {
+        return paths.clone();
+    }
     let mut out = BTreeSet::new();
     for succ in fg.object_graph_successors_of(node) {
         let Some(label) = fg.object_graph_edge_label(node, succ) else {
@@ -216,7 +258,8 @@ fn materialize_object_shape_paths(fg: &mut FlowGraph) {
     for node in value_nodes {
         let out = object_shape_suffixes(fg, node, 4, &mut cache);
         if !out.is_empty() {
-            fg.object_shape_paths.insert(node.index(), out.into_iter().collect());
+            fg.object_shape_paths
+                .insert(node.index(), out.into_iter().collect());
         }
     }
 }
@@ -244,7 +287,9 @@ fn propagate_symmetric_labels<T: Ord + Clone>(
     let mut seen = HashSet::new();
     let mut out = HashMap::new();
     for node in nodes {
-        if !seen.insert(node.index()) { continue; }
+        if !seen.insert(node.index()) {
+            continue;
+        }
         let mut component = Vec::new();
         let mut pending = vec![node];
         let mut labels = BTreeSet::new();
@@ -254,11 +299,15 @@ fn propagate_symmetric_labels<T: Ord + Clone>(
                 labels.extend(values.iter().cloned());
             }
             for next in neighbors(current) {
-                if seen.insert(next.index()) { pending.push(next); }
+                if seen.insert(next.index()) {
+                    pending.push(next);
+                }
             }
         }
         if !labels.is_empty() {
-            for index in component { out.insert(index, labels.clone()); }
+            for index in component {
+                out.insert(index, labels.clone());
+            }
         }
     }
     out
@@ -272,8 +321,9 @@ fn materialize_object_shape_fixpoint(fg: &mut FlowGraph) {
             .or_default()
             .extend(labels.iter().cloned());
     }
-    let propagated = propagate_symmetric_labels(fg.graph.node_indices(), propagated,
-        |node| shape_propagation_neighbors(fg, node));
+    let propagated = propagate_symmetric_labels(fg.graph.node_indices(), propagated, |node| {
+        shape_propagation_neighbors(fg, node)
+    });
     fg.object_shape_paths = propagated
         .into_iter()
         .map(|(node_idx, values)| (node_idx, values.into_iter().collect()))
@@ -288,7 +338,9 @@ fn initial_memory_regions_for_node(fg: &FlowGraph, node: NodeIndex) -> BTreeSet<
                 regions.insert(region);
             }
         }
-        FlowNode::FieldCell { func, base, field, .. } => {
+        FlowNode::FieldCell {
+            func, base, field, ..
+        } => {
             let mut bases = fg.value_memory_regions_of(*func, *base);
             if bases.is_empty() {
                 bases = memory_region_seed_for_value(fg, *func, *base);
@@ -297,7 +349,12 @@ fn initial_memory_regions_for_node(fg: &FlowGraph, node: NodeIndex) -> BTreeSet<
                 regions.insert(format!("{}.{}", base_region, field));
             }
         }
-        FlowNode::IndexCell { func, base, abstract_key, .. } => {
+        FlowNode::IndexCell {
+            func,
+            base,
+            abstract_key,
+            ..
+        } => {
             let mut bases = fg.value_memory_regions_of(*func, *base);
             if bases.is_empty() {
                 bases = memory_region_seed_for_value(fg, *func, *base);
@@ -339,14 +396,19 @@ fn materialize_memory_regions(fg: &mut FlowGraph) {
             regions.insert(node.index(), seeded);
         }
     }
-    let regions = propagate_symmetric_labels(fg.graph.node_indices(), regions,
-        |node| memory_region_propagation_neighbors(fg, node));
+    let regions = propagate_symmetric_labels(fg.graph.node_indices(), regions, |node| {
+        memory_region_propagation_neighbors(fg, node)
+    });
     for (node_idx, values) in &regions {
-        fg.node_memory_regions.insert(*node_idx, values.iter().cloned().collect());
+        fg.node_memory_regions
+            .insert(*node_idx, values.iter().cloned().collect());
     }
     for (&(func, value), &node) in &fg.values {
         if let Some(node_regions) = fg.node_memory_regions.get(&node.index()).cloned() {
-            let mut merged = fg.value_memory_regions.remove(&(func, value)).unwrap_or_default();
+            let mut merged = fg
+                .value_memory_regions
+                .remove(&(func, value))
+                .unwrap_or_default();
             merged.extend(node_regions);
             merged.sort();
             merged.dedup();
@@ -355,7 +417,10 @@ fn materialize_memory_regions(fg: &mut FlowGraph) {
     }
     for cell in all_cell_nodes(fg) {
         if let Some(node_regions) = fg.node_memory_regions.get(&cell.index()).cloned() {
-            let mut merged = fg.cell_memory_regions.remove(&cell.index()).unwrap_or_default();
+            let mut merged = fg
+                .cell_memory_regions
+                .remove(&cell.index())
+                .unwrap_or_default();
             merged.extend(node_regions);
             merged.sort();
             merged.dedup();
@@ -367,34 +432,77 @@ fn materialize_memory_regions(fg: &mut FlowGraph) {
 fn materialize_region_graph_adjacency(fg: &mut FlowGraph) {
     fg.region_graph_successors.clear();
     fg.region_graph_predecessors.clear();
+    fg.region_graph_direct_neighbors_cache.borrow_mut().clear();
 
-    let mut region_to_nodes = BTreeMap::<String, BTreeSet<usize>>::new();
+    let mut region_to_nodes = HashMap::<String, Vec<usize>>::new();
     for node in fg.graph.node_indices() {
         for region in fg.node_memory_regions_of(node) {
-            region_to_nodes.entry(region).or_default().insert(node.index());
+            region_to_nodes
+                .entry(region)
+                .or_default()
+                .push(node.index());
         }
     }
+    for nodes in region_to_nodes.values_mut() {
+        nodes.sort_unstable();
+        nodes.dedup();
+    }
 
-    let regions = region_to_nodes.keys().cloned().collect::<Vec<_>>();
-    let mut neighbors = BTreeMap::<usize, BTreeSet<usize>>::new();
-    for left_region in &regions {
-        // Many rule ports share the same region sets. Union related nodes
-        // once per region, instead of reinserting every node pair for every
-        // overlapping region and linearly scanning a growing adjacency list.
-        let mut related = BTreeSet::new();
-        for right_region in &regions {
-            if memory_region_related(left_region, right_region) {
-                related.extend(region_to_nodes[right_region].iter().copied());
+    // The logical region graph is symmetric and is used by the build-time
+    // solvers only for connected-component propagation. Expanding every
+    // logical relation into every node pair creates a dense clique for common
+    // regions. Instead, retain a connectivity-preserving subgraph:
+    //
+    // * nodes with the same exact region form a star around one representative;
+    // * related region names are joined only through their representatives.
+    //
+    // Every stored edge is a valid logical region edge, and every logical edge
+    // has a path through this backbone. Exact one-hop logical neighbors remain
+    // available lazily through the public query methods.
+    let mut neighbors = HashMap::<usize, HashSet<usize>>::new();
+    let mut representatives = HashMap::<String, usize>::new();
+    for (region, nodes) in &region_to_nodes {
+        if let Some(&representative) = nodes.first() {
+            representatives.insert(region.clone(), representative);
+            for &node in nodes.iter().skip(1) {
+                neighbors.entry(representative).or_default().insert(node);
+                neighbors.entry(node).or_default().insert(representative);
             }
         }
-        for node in &region_to_nodes[left_region] {
-            neighbors.entry(*node).or_default().extend(related.iter().copied());
+    }
+    for (region, _) in &region_to_nodes {
+        let Some(&representative) = representatives.get(region) else {
+            continue;
+        };
+
+        // Proper boundary ancestors. `char_indices` keeps slicing valid for
+        // non-ASCII region names while matching the exact `.` / `[` boundary
+        // semantics used by `memory_region_related`.
+        for (boundary, ch) in region.char_indices() {
+            if ch != '.' && ch != '[' {
+                continue;
+            }
+            let ancestor = &region[..boundary];
+            let Some(&ancestor_representative) = representatives.get(ancestor) else {
+                continue;
+            };
+            if representative != ancestor_representative {
+                neighbors
+                    .entry(representative)
+                    .or_default()
+                    .insert(ancestor_representative);
+                neighbors
+                    .entry(ancestor_representative)
+                    .or_default()
+                    .insert(representative);
+            }
         }
     }
     for (node, mut adjacent) in neighbors {
         adjacent.remove(&node);
         if !adjacent.is_empty() {
-            let adjacent = adjacent.into_iter().collect::<Vec<_>>();
+            let mut adjacent = adjacent.into_iter().collect::<Vec<_>>();
+            adjacent.sort_unstable();
             // Region relatedness is symmetric; both indexes have equal sets.
             fg.region_graph_predecessors.insert(node, adjacent.clone());
             fg.region_graph_successors.insert(node, adjacent);
@@ -408,8 +516,16 @@ fn materialize_cell_live_state(fg: &mut FlowGraph) {
     let records = all_transitive_cell_store_records(fg);
     let mut strong = HashMap::new();
     for cell in all_cell_nodes(fg) {
-        let live = visible_cell_store_records(fg, cell, None,
-            records.get(&cell.index()).map(|r| r.iter().copied().collect()).unwrap_or_default(), &mut strong);
+        let live = visible_cell_store_records(
+            fg,
+            cell,
+            None,
+            records
+                .get(&cell.index())
+                .map(|r| r.iter().copied().collect())
+                .unwrap_or_default(),
+            &mut strong,
+        );
         {
             let mut values = live
                 .iter()
@@ -431,7 +547,8 @@ fn materialize_cell_live_state(fg: &mut FlowGraph) {
             }
         }
         if !regions.is_empty() {
-            fg.cell_live_regions.insert(cell.index(), regions.into_iter().collect());
+            fg.cell_live_regions
+                .insert(cell.index(), regions.into_iter().collect());
         }
     }
 }
@@ -453,9 +570,15 @@ fn materialize_region_live_state(fg: &mut FlowGraph) {
         }
         for region in cell_regions {
             for ancestor in memory_region_ancestor_chain(&region) {
-                live_cells.entry(ancestor.clone()).or_default().insert(cell.index());
+                live_cells
+                    .entry(ancestor.clone())
+                    .or_default()
+                    .insert(cell.index());
                 for (func, value) in &cell_values {
-                    live_values.entry(ancestor.clone()).or_default().insert((func.0, value.0));
+                    live_values
+                        .entry(ancestor.clone())
+                        .or_default()
+                        .insert((func.0, value.0));
                 }
             }
         }
@@ -473,18 +596,25 @@ fn materialize_region_live_state(fg: &mut FlowGraph) {
 
 fn materialize_cell_write_generations(fg: &mut FlowGraph) {
     fg.cell_write_generations.clear();
+    let transitive_records = all_transitive_cell_store_records(fg);
     let mut all_cells = fg.field_cells.values().copied().collect::<Vec<_>>();
     all_cells.extend(fg.index_cells.values().copied());
     all_cells.sort_unstable_by_key(|node| node.index());
     all_cells.dedup_by_key(|node| node.index());
     for cell in all_cells {
-        let mut records = alias_equivalent_cells(fg, cell)
+        let mut records = transitive_records
+            .get(&cell.index())
             .into_iter()
-            .flat_map(|candidate| transitive_cell_store_records(fg, candidate))
+            .flat_map(|records| records.iter().copied())
             .filter(|record| {
                 fg.graph
                     .edge_weight(petgraph::graph::EdgeIndex::new(record.edge_idx))
-                    .is_some_and(|edge| matches!(&edge.kind, EdgeKind::StoreField { .. } | EdgeKind::StoreIndex))
+                    .is_some_and(|edge| {
+                        matches!(
+                            &edge.kind,
+                            EdgeKind::StoreField { .. } | EdgeKind::StoreIndex
+                        )
+                    })
             })
             .collect::<Vec<_>>();
         records.sort_unstable_by_key(|record| record.edge_idx);
@@ -525,20 +655,35 @@ fn materialize_points_to_partitions(fg: &mut FlowGraph) {
         }
         let mut classes = BTreeSet::new();
         match &fg.graph[cell] {
-            FlowNode::FieldCell { func, base, field, .. } => {
+            FlowNode::FieldCell {
+                func, base, field, ..
+            } => {
                 if let Some(site) = value_identity_site(fg, *func, *base) {
                     classes.insert(format!("cell-site:{}:{}", site.trim(), field));
                 }
                 if let Some(ty) = fg.value_types.get(&(*func, *base)) {
-                    classes.insert(format!("cell-field:{}:{}", normalized_type_point_class(ty), field));
+                    classes.insert(format!(
+                        "cell-field:{}:{}",
+                        normalized_type_point_class(ty),
+                        field
+                    ));
                 }
             }
-            FlowNode::IndexCell { func, base, abstract_key, .. } => {
+            FlowNode::IndexCell {
+                func,
+                base,
+                abstract_key,
+                ..
+            } => {
                 if let Some(site) = value_identity_site(fg, *func, *base) {
                     classes.insert(format!("cell-site:{}:[{}]", site.trim(), abstract_key));
                 }
                 if let Some(ty) = fg.value_types.get(&(*func, *base)) {
-                    classes.insert(format!("cell-index:{}:[{}]", normalized_type_point_class(ty), abstract_key));
+                    classes.insert(format!(
+                        "cell-index:{}:[{}]",
+                        normalized_type_point_class(ty),
+                        abstract_key
+                    ));
                 }
             }
             _ => {}
@@ -552,7 +697,8 @@ fn materialize_points_to_partitions(fg: &mut FlowGraph) {
             classes.insert(class);
         }
         if !classes.is_empty() {
-            fg.cell_points_to_classes.insert(cell.index(), classes.into_iter().collect());
+            fg.cell_points_to_classes
+                .insert(cell.index(), classes.into_iter().collect());
         }
     }
 }
@@ -582,8 +728,7 @@ fn points_to_propagation_neighbors(fg: &FlowGraph, node: NodeIndex) -> Vec<NodeI
     out.extend(fg.heap_object_predecessors_of(node));
     out.extend(fg.object_graph_successors_of(node));
     out.extend(fg.object_graph_predecessors_of(node));
-    out.extend(fg.region_graph_successors_of(node));
-    out.extend(fg.region_graph_predecessors_of(node));
+    out.extend(fg.region_graph_connectivity_neighbors_of(node));
     out.sort_unstable_by_key(|n| n.index());
     out.dedup_by_key(|n| n.index());
     out
@@ -631,7 +776,10 @@ fn materialize_points_to_fixpoint(fg: &mut FlowGraph) {
     }
     for (&(func, value), &node) in &fg.values {
         if let Some(node_classes) = fg.node_points_to_classes.get(&node.index()).cloned() {
-            let mut merged = fg.value_points_to_classes.remove(&(func, value)).unwrap_or_default();
+            let mut merged = fg
+                .value_points_to_classes
+                .remove(&(func, value))
+                .unwrap_or_default();
             merged.extend(node_classes);
             merged.sort();
             merged.dedup();
@@ -640,7 +788,10 @@ fn materialize_points_to_fixpoint(fg: &mut FlowGraph) {
     }
     for cell in all_cell_nodes(fg) {
         if let Some(node_classes) = fg.node_points_to_classes.get(&cell.index()).cloned() {
-            let mut merged = fg.cell_points_to_classes.remove(&cell.index()).unwrap_or_default();
+            let mut merged = fg
+                .cell_points_to_classes
+                .remove(&cell.index())
+                .unwrap_or_default();
             merged.extend(node_classes);
             merged.sort();
             merged.dedup();
@@ -715,9 +866,16 @@ fn compute_points_to_targets_fixpoint_for_allowed_nodes(
     let nodes = fg
         .graph
         .node_indices()
-        .filter(|node| allowed_nodes.map(|allowed| allowed.contains(&node.index())).unwrap_or(true))
+        .filter(|node| {
+            allowed_nodes
+                .map(|allowed| allowed.contains(&node.index()))
+                .unwrap_or(true)
+        })
         .collect::<Vec<_>>();
-    let allowed_lookup = nodes.iter().map(|node| node.index()).collect::<HashSet<_>>();
+    let allowed_lookup = nodes
+        .iter()
+        .map(|node| node.index())
+        .collect::<HashSet<_>>();
     let mut targets = HashMap::<usize, BTreeSet<String>>::new();
     for node in &nodes {
         let seeded = initial_node_points_to_targets(fg, *node);
@@ -725,10 +883,15 @@ fn compute_points_to_targets_fixpoint_for_allowed_nodes(
             targets.insert(node.index(), seeded);
         }
     }
-    let mut targets = propagate_symmetric_labels(nodes.iter().copied(), targets, |node|
-        points_to_propagation_neighbors(fg, node).into_iter()
-            .filter(|neighbor| allowed_lookup.contains(&neighbor.index())).collect());
-    for node in nodes { targets.entry(node.index()).or_default(); }
+    let mut targets = propagate_symmetric_labels(nodes.iter().copied(), targets, |node| {
+        points_to_propagation_neighbors(fg, node)
+            .into_iter()
+            .filter(|neighbor| allowed_lookup.contains(&neighbor.index()))
+            .collect()
+    });
+    for node in nodes {
+        targets.entry(node.index()).or_default();
+    }
     targets
         .into_iter()
         .map(|(node_idx, values)| (node_idx, values.into_iter().collect::<Vec<_>>()))
@@ -741,7 +904,10 @@ fn materialize_points_to_targets_fixpoint(fg: &mut FlowGraph) {
     fg.cell_points_to_targets.clear();
     for (&(func, value), &node) in &fg.values {
         if let Some(node_targets) = fg.node_points_to_targets.get(&node.index()).cloned() {
-            let mut merged = fg.value_points_to_targets.remove(&(func, value)).unwrap_or_default();
+            let mut merged = fg
+                .value_points_to_targets
+                .remove(&(func, value))
+                .unwrap_or_default();
             merged.extend(node_targets);
             merged.sort();
             merged.dedup();
@@ -750,7 +916,10 @@ fn materialize_points_to_targets_fixpoint(fg: &mut FlowGraph) {
     }
     for cell in all_cell_nodes(fg) {
         if let Some(node_targets) = fg.node_points_to_targets.get(&cell.index()).cloned() {
-            let mut merged = fg.cell_points_to_targets.remove(&cell.index()).unwrap_or_default();
+            let mut merged = fg
+                .cell_points_to_targets
+                .remove(&cell.index())
+                .unwrap_or_default();
             merged.extend(node_targets);
             merged.sort();
             merged.dedup();
@@ -766,9 +935,16 @@ fn compute_points_to_object_ids_fixpoint_for_allowed_nodes(
     let nodes = fg
         .graph
         .node_indices()
-        .filter(|node| allowed_nodes.map(|allowed| allowed.contains(&node.index())).unwrap_or(true))
+        .filter(|node| {
+            allowed_nodes
+                .map(|allowed| allowed.contains(&node.index()))
+                .unwrap_or(true)
+        })
         .collect::<Vec<_>>();
-    let allowed_lookup = nodes.iter().map(|node| node.index()).collect::<HashSet<_>>();
+    let allowed_lookup = nodes
+        .iter()
+        .map(|node| node.index())
+        .collect::<HashSet<_>>();
     let mut object_ids = HashMap::<usize, BTreeSet<u32>>::new();
     for node in &nodes {
         if let Some(ids) = fg.abstract_object_seed_nodes.get(&node.index()) {
@@ -782,15 +958,19 @@ fn compute_points_to_object_ids_fixpoint_for_allowed_nodes(
         let mut neighbors = points_to_propagation_neighbors(fg, node);
         neighbors.extend(fg.object_successors_of(node));
         neighbors.extend(fg.object_predecessors_of(node));
-        neighbors.into_iter().filter(|neighbor| allowed_lookup.contains(&neighbor.index())).collect()
+        neighbors
+            .into_iter()
+            .filter(|neighbor| allowed_lookup.contains(&neighbor.index()))
+            .collect()
     });
-    for node in nodes { object_ids.entry(node.index()).or_default(); }
+    for node in nodes {
+        object_ids.entry(node.index()).or_default();
+    }
     object_ids
         .into_iter()
         .map(|(node_idx, values)| (node_idx, values.into_iter().collect::<Vec<_>>()))
         .collect()
 }
-
 
 fn materialize_points_to_object_ids(fg: &mut FlowGraph) {
     materialize_abstract_object_catalog(fg);
@@ -798,7 +978,8 @@ fn materialize_points_to_object_ids(fg: &mut FlowGraph) {
     fg.value_points_to_object_ids.clear();
     fg.cell_points_to_object_ids.clear();
 
-    fg.node_points_to_object_ids = compute_points_to_object_ids_fixpoint_for_allowed_nodes(fg, None);
+    fg.node_points_to_object_ids =
+        compute_points_to_object_ids_fixpoint_for_allowed_nodes(fg, None);
     for (&(func, value), &node) in &fg.values {
         if let Some(ids) = fg.node_points_to_object_ids.get(&node.index()).cloned() {
             fg.value_points_to_object_ids.insert((func, value), ids);
@@ -827,7 +1008,144 @@ fn cell_candidates_for_object_ids(fg: &FlowGraph, object_ids: &[u32]) -> Vec<Nod
     out
 }
 
-fn cell_candidates_for_value_targets(fg: &FlowGraph, func: FunctionId, value: ValueId) -> Vec<NodeIndex> {
+struct CellObjectIdIndex {
+    by_object_id: HashMap<u32, Vec<NodeIndex>>,
+    scan_catalog: Vec<(NodeIndex, Vec<u32>)>,
+    seen_epochs: Vec<u32>,
+    epoch: u32,
+}
+
+fn cell_candidates_by_object_id(fg: &FlowGraph) -> CellObjectIdIndex {
+    let cells = all_cell_nodes(fg);
+    let mut by_object_id = HashMap::<u32, Vec<NodeIndex>>::new();
+    let mut scan_catalog = Vec::<(NodeIndex, Vec<u32>)>::with_capacity(cells.len());
+    for &cell in &cells {
+        let Some(object_ids) = fg.cell_points_to_object_ids.get(&cell.index()) else {
+            continue;
+        };
+        if object_ids.is_empty() {
+            continue;
+        }
+        let mut object_ids = object_ids.clone();
+        object_ids.sort_unstable();
+        object_ids.dedup();
+        for object_id in &object_ids {
+            by_object_id.entry(*object_id).or_default().push(cell);
+        }
+        scan_catalog.push((cell, object_ids));
+    }
+    for candidates in by_object_id.values_mut() {
+        candidates.sort_unstable_by_key(|node| node.index());
+        candidates.dedup_by_key(|node| node.index());
+    }
+    let seen_epochs = vec![
+        0;
+        cells
+            .iter()
+            .map(|node| node.index())
+            .max()
+            .map(|max| max + 1)
+            .unwrap_or(0)
+    ];
+    CellObjectIdIndex {
+        by_object_id,
+        scan_catalog,
+        seen_epochs,
+        epoch: 0,
+    }
+}
+
+fn sorted_object_ids_overlap(left: &[u32], right: &[u32]) -> bool {
+    let mut left_index = 0usize;
+    let mut right_index = 0usize;
+    while left_index < left.len() && right_index < right.len() {
+        match left[left_index].cmp(&right[right_index]) {
+            std::cmp::Ordering::Less => left_index += 1,
+            std::cmp::Ordering::Greater => right_index += 1,
+            std::cmp::Ordering::Equal => return true,
+        }
+    }
+    false
+}
+
+fn cell_object_id_query_prefers_scan(index: &CellObjectIdIndex, object_ids: &[u32]) -> bool {
+    const ALWAYS_INDEXED_OBJECT_IDS: usize = 8;
+    const PROBE_OBJECT_IDS: usize = 8;
+    const SCAN_EXPANSION_FACTOR: usize = 2;
+
+    if object_ids.len() <= ALWAYS_INDEXED_OBJECT_IDS || index.scan_catalog.is_empty() {
+        return false;
+    }
+
+    let probe_len = object_ids.len().min(PROBE_OBJECT_IDS);
+    let sampled_postings = object_ids[..probe_len]
+        .iter()
+        .map(|object_id| {
+            index
+                .by_object_id
+                .get(object_id)
+                .map_or(0usize, Vec::len)
+        })
+        .sum::<usize>();
+    let estimated_postings = sampled_postings
+        .saturating_mul(object_ids.len())
+        .div_ceil(probe_len);
+
+    object_ids.len() >= 32
+        || estimated_postings
+            >= index
+                .scan_catalog
+                .len()
+                .saturating_mul(SCAN_EXPANSION_FACTOR)
+}
+
+fn cell_candidates_for_object_ids_indexed(
+    index: &mut CellObjectIdIndex,
+    object_ids: &[u32],
+) -> Vec<NodeIndex> {
+    if object_ids.is_empty() {
+        return Vec::new();
+    }
+    if cell_object_id_query_prefers_scan(index, object_ids) {
+        let mut sorted_object_ids = object_ids.to_vec();
+        sorted_object_ids.sort_unstable();
+        sorted_object_ids.dedup();
+        return index
+            .scan_catalog
+            .iter()
+            .filter_map(|(cell, candidate_ids)| {
+                sorted_object_ids_overlap(&sorted_object_ids, candidate_ids).then_some(*cell)
+            })
+            .collect();
+    }
+    index.epoch = index.epoch.wrapping_add(1);
+    if index.epoch == 0 {
+        index.seen_epochs.fill(0);
+        index.epoch = 1;
+    }
+    let epoch = index.epoch;
+    let mut out = Vec::new();
+    for object_id in object_ids {
+        if let Some(candidates) = index.by_object_id.get(object_id) {
+            for &candidate in candidates {
+                let seen = &mut index.seen_epochs[candidate.index()];
+                if *seen == epoch {
+                    continue;
+                }
+                *seen = epoch;
+                out.push(candidate);
+            }
+        }
+    }
+    out.sort_unstable_by_key(|node| node.index());
+    out
+}
+
+fn cell_candidates_for_value_targets(
+    fg: &FlowGraph,
+    func: FunctionId,
+    value: ValueId,
+) -> Vec<NodeIndex> {
     let targets = fg.value_points_to_targets_of(func, value);
     if targets.is_empty() {
         return Vec::new();
@@ -873,7 +1191,8 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                     continue;
                 }
                 for sensitivity in all_context_sensitivities() {
-                    let context = fg.refine_call_context_for_sensitivity(base_context.clone(), *sensitivity);
+                    let context =
+                        fg.refine_call_context_for_sensitivity(base_context.clone(), *sensitivity);
                     let Some(summary) = fg.contextual_call_summary(
                         func.id,
                         inst.id,
@@ -902,15 +1221,24 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                         .visited
                         .iter()
                         .copied()
-                        .filter(|node_idx| fg.node_matches_structural_call_context(NodeIndex::new(*node_idx), &context))
+                        .filter(|node_idx| {
+                            fg.node_matches_structural_call_context(
+                                NodeIndex::new(*node_idx),
+                                &context,
+                            )
+                        })
                         .collect::<HashSet<_>>();
                     for (ret_func, ret_value) in &call_summary.return_values {
-                        if let Some(&node) = fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value))) {
+                        if let Some(&node) =
+                            fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
+                        {
                             allowed_nodes.insert(node.index());
                         }
                     }
                     for (ret_func, ret_value) in &call_summary.return_live_values {
-                        if let Some(&node) = fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value))) {
+                        if let Some(&node) =
+                            fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
+                        {
                             allowed_nodes.insert(node.index());
                         }
                     }
@@ -920,8 +1248,16 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                     for (_ret_func, _ret_value, cell) in &call_summary.return_value_cells {
                         allowed_nodes.insert(*cell as usize);
                     }
-                    let contextual_node_targets = compute_points_to_targets_fixpoint_for_allowed_nodes(fg, Some(&allowed_nodes));
-                    let contextual_node_object_ids = compute_points_to_object_ids_fixpoint_for_allowed_nodes(fg, Some(&allowed_nodes));
+                    let contextual_node_targets =
+                        compute_points_to_targets_fixpoint_for_allowed_nodes(
+                            fg,
+                            Some(&allowed_nodes),
+                        );
+                    let contextual_node_object_ids =
+                        compute_points_to_object_ids_fixpoint_for_allowed_nodes(
+                            fg,
+                            Some(&allowed_nodes),
+                        );
                     let mut targets = fg
                         .contextual_points_to_targets
                         .remove(&context)
@@ -956,7 +1292,8 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                             .collect::<BTreeSet<_>>();
                         merged_targets.extend(node_targets.iter().cloned());
                         let merged_targets_vec = merged_targets.iter().cloned().collect::<Vec<_>>();
-                        fg.contextual_node_points_to_targets.insert((context.clone(), node_idx), merged_targets_vec.clone());
+                        fg.contextual_node_points_to_targets
+                            .insert((context.clone(), node_idx), merged_targets_vec.clone());
                         let mut node_object_ids = fg
                             .contextual_node_points_to_object_ids
                             .remove(&(context.clone(), node_idx))
@@ -968,21 +1305,46 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                         }
                         if !node_object_ids.is_empty() {
                             let ids = node_object_ids.iter().copied().collect::<Vec<_>>();
-                            fg.contextual_node_points_to_object_ids.insert((context.clone(), node_idx), ids.clone());
+                            fg.contextual_node_points_to_object_ids
+                                .insert((context.clone(), node_idx), ids.clone());
                             object_ids.extend(ids.iter().copied());
                         }
                         targets.extend(merged_targets_vec.iter().cloned());
                         match &fg.graph[node] {
-                            FlowNode::Value { func: value_func, value } | FlowNode::Param { func: value_func, value, .. } => {
-                                fg.contextual_value_points_to_targets.insert((context.clone(), value_func.0, value.0), merged_targets_vec.clone());
-                                if let Some(ids) = fg.contextual_node_points_to_object_ids.get(&(context.clone(), node_idx)).cloned() {
-                                    fg.contextual_value_points_to_object_ids.insert((context.clone(), value_func.0, value.0), ids);
+                            FlowNode::Value {
+                                func: value_func,
+                                value,
+                            }
+                            | FlowNode::Param {
+                                func: value_func,
+                                value,
+                                ..
+                            } => {
+                                fg.contextual_value_points_to_targets.insert(
+                                    (context.clone(), value_func.0, value.0),
+                                    merged_targets_vec.clone(),
+                                );
+                                if let Some(ids) = fg
+                                    .contextual_node_points_to_object_ids
+                                    .get(&(context.clone(), node_idx))
+                                    .cloned()
+                                {
+                                    fg.contextual_value_points_to_object_ids
+                                        .insert((context.clone(), value_func.0, value.0), ids);
                                 }
                             }
                             FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. } => {
-                                fg.contextual_cell_points_to_targets.insert((context.clone(), node_idx), merged_targets_vec.clone());
-                                if let Some(ids) = fg.contextual_node_points_to_object_ids.get(&(context.clone(), node_idx)).cloned() {
-                                    fg.contextual_cell_points_to_object_ids.insert((context.clone(), node_idx), ids);
+                                fg.contextual_cell_points_to_targets.insert(
+                                    (context.clone(), node_idx),
+                                    merged_targets_vec.clone(),
+                                );
+                                if let Some(ids) = fg
+                                    .contextual_node_points_to_object_ids
+                                    .get(&(context.clone(), node_idx))
+                                    .cloned()
+                                {
+                                    fg.contextual_cell_points_to_object_ids
+                                        .insert((context.clone(), node_idx), ids);
                                 }
                             }
                             _ => {}
@@ -1000,10 +1362,14 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                     for (_ret_func, _ret_value, cell) in &call_summary.return_value_cells {
                         return_cells.insert(*cell as usize);
                     }
-                    fg.contextual_return_values.insert(context.clone(), return_values.into_iter().collect());
-                    fg.contextual_return_cells.insert(context.clone(), return_cells.into_iter().collect());
-                    fg.contextual_points_to_targets.insert(context.clone(), targets.into_iter().collect());
-                    fg.contextual_points_to_object_ids.insert(context.clone(), object_ids.into_iter().collect());
+                    fg.contextual_return_values
+                        .insert(context.clone(), return_values.into_iter().collect());
+                    fg.contextual_return_cells
+                        .insert(context.clone(), return_cells.into_iter().collect());
+                    fg.contextual_points_to_targets
+                        .insert(context.clone(), targets.into_iter().collect());
+                    fg.contextual_points_to_object_ids
+                        .insert(context.clone(), object_ids.into_iter().collect());
                 }
             }
         }
@@ -1020,7 +1386,10 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
         )
         .collect::<HashSet<_>>();
     let fallback_nodes = if covered_nodes.is_empty() {
-        fg.graph.node_indices().map(|node| node.index()).collect::<HashSet<_>>()
+        fg.graph
+            .node_indices()
+            .map(|node| node.index())
+            .collect::<HashSet<_>>()
     } else {
         fg.graph
             .node_indices()
@@ -1030,8 +1399,10 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
     };
     if !fallback_nodes.is_empty() {
         let context = CallContextKey::default();
-        let contextual_node_targets = compute_points_to_targets_fixpoint_for_allowed_nodes(fg, Some(&fallback_nodes));
-        let contextual_node_object_ids = compute_points_to_object_ids_fixpoint_for_allowed_nodes(fg, Some(&fallback_nodes));
+        let contextual_node_targets =
+            compute_points_to_targets_fixpoint_for_allowed_nodes(fg, Some(&fallback_nodes));
+        let contextual_node_object_ids =
+            compute_points_to_object_ids_fixpoint_for_allowed_nodes(fg, Some(&fallback_nodes));
         let mut targets = BTreeSet::<String>::new();
         let mut object_ids = BTreeSet::<u32>::new();
         for (node_idx, node_targets) in contextual_node_targets {
@@ -1063,10 +1434,24 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                 object_ids.extend(ids.iter().copied());
             }
             match &fg.graph[node] {
-                FlowNode::Value { func: value_func, value } | FlowNode::Param { func: value_func, value, .. } => {
-                    fg.contextual_value_points_to_targets
-                        .insert((context.clone(), value_func.0, value.0), merged_targets_vec.clone());
-                    if let Some(ids) = fg.contextual_node_points_to_object_ids.get(&(context.clone(), node_idx)).cloned() {
+                FlowNode::Value {
+                    func: value_func,
+                    value,
+                }
+                | FlowNode::Param {
+                    func: value_func,
+                    value,
+                    ..
+                } => {
+                    fg.contextual_value_points_to_targets.insert(
+                        (context.clone(), value_func.0, value.0),
+                        merged_targets_vec.clone(),
+                    );
+                    if let Some(ids) = fg
+                        .contextual_node_points_to_object_ids
+                        .get(&(context.clone(), node_idx))
+                        .cloned()
+                    {
                         fg.contextual_value_points_to_object_ids
                             .insert((context.clone(), value_func.0, value.0), ids);
                     }
@@ -1074,18 +1459,24 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                 FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. } => {
                     fg.contextual_cell_points_to_targets
                         .insert((context.clone(), node_idx), merged_targets_vec.clone());
-                    if let Some(ids) = fg.contextual_node_points_to_object_ids.get(&(context.clone(), node_idx)).cloned() {
-                        fg.contextual_cell_points_to_object_ids.insert((context.clone(), node_idx), ids);
+                    if let Some(ids) = fg
+                        .contextual_node_points_to_object_ids
+                        .get(&(context.clone(), node_idx))
+                        .cloned()
+                    {
+                        fg.contextual_cell_points_to_object_ids
+                            .insert((context.clone(), node_idx), ids);
                     }
                 }
                 _ => {}
             }
         }
-        fg.contextual_points_to_targets.insert(context.clone(), targets.into_iter().collect());
-        fg.contextual_points_to_object_ids.insert(context, object_ids.into_iter().collect());
+        fg.contextual_points_to_targets
+            .insert(context.clone(), targets.into_iter().collect());
+        fg.contextual_points_to_object_ids
+            .insert(context, object_ids.into_iter().collect());
     }
 }
-
 
 fn materialize_partitioned_points_to_state(fg: &mut FlowGraph, program: &Program) {
     materialize_contextual_solver_state(fg, program);
@@ -1114,7 +1505,10 @@ fn aggregate_partitioned_points_to_state(fg: &mut FlowGraph) {
     let mut covered_nodes = HashSet::<usize>::new();
     for (node_idx, targets) in contextual_target_entries {
         covered_nodes.insert(node_idx);
-        let mut merged = fg.node_points_to_targets.remove(&node_idx).unwrap_or_default();
+        let mut merged = fg
+            .node_points_to_targets
+            .remove(&node_idx)
+            .unwrap_or_default();
         merged.extend(targets);
         merged.sort();
         merged.dedup();
@@ -1122,14 +1516,21 @@ fn aggregate_partitioned_points_to_state(fg: &mut FlowGraph) {
     }
     for (node_idx, ids) in contextual_object_entries {
         covered_nodes.insert(node_idx);
-        let mut merged = fg.node_points_to_object_ids.remove(&node_idx).unwrap_or_default();
+        let mut merged = fg
+            .node_points_to_object_ids
+            .remove(&node_idx)
+            .unwrap_or_default();
         merged.extend(ids);
         merged.sort_unstable();
         merged.dedup();
         fg.node_points_to_object_ids.insert(node_idx, merged);
     }
 
-    let value_entries = fg.values.iter().map(|(&(func, value), &node)| (func, value, node.index())).collect::<Vec<_>>();
+    let value_entries = fg
+        .values
+        .iter()
+        .map(|(&(func, value), &node)| (func, value, node.index()))
+        .collect::<Vec<_>>();
     for (func, value, node_idx) in value_entries {
         if let Some(targets) = fg.node_points_to_targets.get(&node_idx).cloned() {
             fg.value_points_to_targets.insert((func, value), targets);
@@ -1170,18 +1571,31 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
             {
                 // The cell denotes its current contents. Earlier reads are
                 // linked to their reaching store separately below.
-                let visible = visible_direct_cell_store_records_before_edge(fg, edge.target(), None);
-                if !visible.iter().any(|record| record.0 == edge.id().index()) { continue; }
+                let visible =
+                    visible_direct_cell_store_records_before_edge(fg, edge.target(), None);
+                if !visible.iter().any(|record| record.0 == edge.id().index()) {
+                    continue;
+                }
             }
             EdgeKind::LoadField { .. } | EdgeKind::LoadIndex
                 if cell_allows_strong_update(fg, edge.source()) =>
             {
-                let visible = visible_direct_cell_store_records_before_edge(fg, edge.source(), Some(edge.id().index()));
+                let visible = visible_direct_cell_store_records_before_edge(
+                    fg,
+                    edge.source(),
+                    Some(edge.id().index()),
+                );
                 if !visible.is_empty() {
                     for (_, func, value) in visible {
                         if let Some(source) = fg.values.get(&(func, value)) {
-                            fg.sparse_successors.entry(source.index()).or_default().push(dst);
-                            fg.sparse_predecessors.entry(dst).or_default().push(source.index());
+                            fg.sparse_successors
+                                .entry(source.index())
+                                .or_default()
+                                .push(dst);
+                            fg.sparse_predecessors
+                                .entry(dst)
+                                .or_default()
+                                .push(source.index());
                         }
                     }
                     continue;
@@ -1223,7 +1637,12 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
     materialize_region_live_state(fg);
 }
 
-fn add_unique_summary_edge(fg: &mut FlowGraph, src: NodeIndex, dst: NodeIndex, rule_id: &str) -> bool {
+fn add_unique_summary_edge(
+    fg: &mut FlowGraph,
+    src: NodeIndex,
+    dst: NodeIndex,
+    rule_id: &str,
+) -> bool {
     for edge in fg.graph.edges_connecting(src, dst) {
         if let EdgeKind::Summary { rule_id: existing } = &edge.weight().kind {
             if existing == rule_id {
@@ -1250,9 +1669,12 @@ fn cell_is_rooted_at_other_formal(
     cell: NodeIndex,
 ) -> bool {
     let base = match fg.graph[cell] {
-        FlowNode::FieldCell { func: owner, base, .. }
-        | FlowNode::IndexCell { func: owner, base, .. }
-            if owner == func => base,
+        FlowNode::FieldCell {
+            func: owner, base, ..
+        }
+        | FlowNode::IndexCell {
+            func: owner, base, ..
+        } if owner == func => base,
         _ => return false,
     };
     fg.function_params.iter().any(|((owner, index), node)| {
@@ -1262,10 +1684,15 @@ fn cell_is_rooted_at_other_formal(
     })
 }
 
-fn connect_materialized_function_transfer_summaries(fg: &mut FlowGraph, program: &Program) -> usize {
+fn connect_materialized_function_transfer_summaries(
+    fg: &mut FlowGraph,
+    program: &Program,
+) -> usize {
     let mut pending_edges = Vec::<(NodeIndex, NodeIndex, String)>::new();
     for func in &program.functions {
-        let Some(summary) = fg.function_transfer_summary(func.id, 16, 4096, DemandEngine::Fixpoint, true) else {
+        let Some(summary) =
+            fg.function_transfer_summary(func.id, 16, 4096, DemandEngine::Fixpoint, true)
+        else {
             continue;
         };
         let Some(&ret_node) = fg.function_returns.get(&func.id) else {
@@ -1292,10 +1719,16 @@ fn connect_materialized_function_transfer_summaries(fg: &mut FlowGraph, program:
     added
 }
 
-fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, program: &Program) -> usize {
+fn connect_materialized_function_heap_effect_summaries(
+    fg: &mut FlowGraph,
+    program: &Program,
+) -> usize {
     let mut pending_edges = Vec::<(NodeIndex, NodeIndex, String)>::new();
+    let mut cell_object_id_index = cell_candidates_by_object_id(fg);
     for func in &program.functions {
-        let Some(summary) = fg.function_heap_effect_summary(func.id, 16, 4096, DemandEngine::Fixpoint, true) else {
+        let Some(summary) =
+            fg.function_heap_effect_summary(func.id, 16, 4096, DemandEngine::Fixpoint, true)
+        else {
             continue;
         };
         let Some(&ret_node) = fg.function_returns.get(&func.id) else {
@@ -1304,8 +1737,13 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
         for (index, cell) in &summary.param_to_read_cells {
             if let Some(&param_node) = fg.function_params.get(&(func.id, *index)) {
                 let cell = NodeIndex::new(*cell as usize);
-                if matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
-                    pending_edges.push((param_node, cell, "internal:function-heap-read".to_string()));
+                if matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
+                {
+                    pending_edges.push((
+                        param_node,
+                        cell,
+                        "internal:function-heap-read".to_string(),
+                    ));
                 }
             }
         }
@@ -1323,34 +1761,49 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                     .filter(|(path_index, _)| path_index == index)
                     .map(|(_, object_id)| *object_id)
                     .collect::<Vec<_>>();
-                candidates.extend(cell_candidates_for_object_ids(fg, &object_ids));
+                candidates.extend(cell_candidates_for_object_ids_indexed(
+                    &mut cell_object_id_index,
+                    &object_ids,
+                ));
                 candidates.extend(region_candidate_cells(fg, region));
                 for (path_index, path) in &summary.param_to_read_paths {
                     if path_index != index {
                         continue;
                     }
                     if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(existing_cells_for_relative_path_from_value(fg, func.id, *value, path));
+                        candidates.extend(existing_cells_for_relative_path_from_value(
+                            fg, func.id, *value, path,
+                        ));
                     }
                 }
                 candidates.sort_unstable_by_key(|node| node.index());
                 candidates.dedup_by_key(|node| node.index());
                 for cell in candidates {
-                    if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
+                    if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
+                    {
                         continue;
                     }
                     if cell_is_rooted_at_other_formal(fg, func.id, *index, cell) {
                         continue;
                     }
-                    pending_edges.push((param_node, cell, "internal:function-heap-read".to_string()));
+                    pending_edges.push((
+                        param_node,
+                        cell,
+                        "internal:function-heap-read".to_string(),
+                    ));
                 }
             }
         }
         for (index, cell) in &summary.param_to_write_cells {
             if let Some(&param_node) = fg.function_params.get(&(func.id, *index)) {
                 let cell = NodeIndex::new(*cell as usize);
-                if matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
-                    pending_edges.push((param_node, cell, "internal:function-heap-write".to_string()));
+                if matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
+                {
+                    pending_edges.push((
+                        param_node,
+                        cell,
+                        "internal:function-heap-write".to_string(),
+                    ));
                 }
             }
         }
@@ -1368,34 +1821,49 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                     .filter(|(path_index, _)| path_index == index)
                     .map(|(_, object_id)| *object_id)
                     .collect::<Vec<_>>();
-                candidates.extend(cell_candidates_for_object_ids(fg, &object_ids));
+                candidates.extend(cell_candidates_for_object_ids_indexed(
+                    &mut cell_object_id_index,
+                    &object_ids,
+                ));
                 candidates.extend(region_candidate_cells(fg, region));
                 for (path_index, path) in &summary.param_to_write_paths {
                     if path_index != index {
                         continue;
                     }
                     if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(existing_cells_for_relative_path_from_value(fg, func.id, *value, path));
+                        candidates.extend(existing_cells_for_relative_path_from_value(
+                            fg, func.id, *value, path,
+                        ));
                     }
                 }
                 candidates.sort_unstable_by_key(|node| node.index());
                 candidates.dedup_by_key(|node| node.index());
                 for cell in candidates {
-                    if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
+                    if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
+                    {
                         continue;
                     }
                     if cell_is_rooted_at_other_formal(fg, func.id, *index, cell) {
                         continue;
                     }
-                    pending_edges.push((param_node, cell, "internal:function-heap-write".to_string()));
+                    pending_edges.push((
+                        param_node,
+                        cell,
+                        "internal:function-heap-write".to_string(),
+                    ));
                 }
             }
         }
         for (index, cell) in &summary.param_to_return_cells {
             if let Some(_param_node) = fg.function_params.get(&(func.id, *index)) {
                 let cell = NodeIndex::new(*cell as usize);
-                if matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
-                    pending_edges.push((cell, ret_node, "internal:function-heap-return".to_string()));
+                if matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
+                {
+                    pending_edges.push((
+                        cell,
+                        ret_node,
+                        "internal:function-heap-return".to_string(),
+                    ));
                 }
             }
         }
@@ -1413,46 +1881,72 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                     .filter(|(path_index, _)| path_index == index)
                     .map(|(_, object_id)| *object_id)
                     .collect::<Vec<_>>();
-                candidates.extend(cell_candidates_for_object_ids(fg, &object_ids));
+                candidates.extend(cell_candidates_for_object_ids_indexed(
+                    &mut cell_object_id_index,
+                    &object_ids,
+                ));
                 candidates.extend(region_candidate_cells(fg, region));
                 for (path_index, path) in &summary.param_to_return_paths {
                     if path_index != index {
                         continue;
                     }
                     if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(existing_cells_for_relative_path_from_value(fg, func.id, *value, path));
+                        candidates.extend(existing_cells_for_relative_path_from_value(
+                            fg, func.id, *value, path,
+                        ));
                     }
                 }
                 candidates.sort_unstable_by_key(|node| node.index());
                 candidates.dedup_by_key(|node| node.index());
                 for cell in candidates {
-                    if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
+                    if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
+                    {
                         continue;
                     }
-                    pending_edges.push((cell, ret_node, "internal:function-heap-return".to_string()));
+                    pending_edges.push((
+                        cell,
+                        ret_node,
+                        "internal:function-heap-return".to_string(),
+                    ));
                 }
             }
         }
         for (_index, live_func, live_value) in &summary.param_to_return_live_values {
-            if let Some(&live_value_node) = fg.values.get(&(FunctionId(*live_func), ValueId(*live_value))) {
-                pending_edges.push((live_value_node, ret_node, "internal:function-live-return-value".to_string()));
+            if let Some(&live_value_node) = fg
+                .values
+                .get(&(FunctionId(*live_func), ValueId(*live_value)))
+            {
+                pending_edges.push((
+                    live_value_node,
+                    ret_node,
+                    "internal:function-live-return-value".to_string(),
+                ));
             }
         }
         for (ret_func, ret_value, region) in &summary.return_value_regions {
-            if let Some(&ret_value_node) = fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value))) {
+            if let Some(&ret_value_node) =
+                fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
+            {
                 let mut candidates = summary
                     .return_value_cells
                     .iter()
-                    .filter(|(path_func, path_value, _)| path_func == ret_func && path_value == ret_value)
+                    .filter(|(path_func, path_value, _)| {
+                        path_func == ret_func && path_value == ret_value
+                    })
                     .map(|(_, _, cell)| NodeIndex::new(*cell as usize))
                     .collect::<Vec<_>>();
                 let object_ids = summary
                     .return_value_objects
                     .iter()
-                    .filter(|(path_func, path_value, _)| path_func == ret_func && path_value == ret_value)
+                    .filter(|(path_func, path_value, _)| {
+                        path_func == ret_func && path_value == ret_value
+                    })
                     .map(|(_, _, object_id)| *object_id)
                     .collect::<Vec<_>>();
-                candidates.extend(cell_candidates_for_object_ids(fg, &object_ids));
+                candidates.extend(cell_candidates_for_object_ids_indexed(
+                    &mut cell_object_id_index,
+                    &object_ids,
+                ));
                 for (path_func, path_value, path) in &summary.return_value_paths {
                     if path_func != ret_func || path_value != ret_value {
                         continue;
@@ -1477,7 +1971,8 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                     })
                     .flatten();
                 for cell in candidates {
-                    if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
+                    if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
+                    {
                         continue;
                     }
                     if formal_index.is_some_and(|index| {
@@ -1485,19 +1980,31 @@ fn connect_materialized_function_heap_effect_summaries(fg: &mut FlowGraph, progr
                     }) {
                         continue;
                     }
-                    pending_edges.push((ret_value_node, cell, "internal:function-return-value-region".to_string()));
+                    pending_edges.push((
+                        ret_value_node,
+                        cell,
+                        "internal:function-return-value-region".to_string(),
+                    ));
                 }
             }
         }
         for cell in &summary.return_cells {
             let cell = NodeIndex::new(*cell as usize);
-            if matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id) {
+            if matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
+            {
                 pending_edges.push((cell, ret_node, "internal:function-heap-return".to_string()));
             }
         }
         for (live_func, live_value) in &summary.return_live_values {
-            if let Some(&live_value_node) = fg.values.get(&(FunctionId(*live_func), ValueId(*live_value))) {
-                pending_edges.push((live_value_node, ret_node, "internal:function-live-return-value".to_string()));
+            if let Some(&live_value_node) = fg
+                .values
+                .get(&(FunctionId(*live_func), ValueId(*live_value)))
+            {
+                pending_edges.push((
+                    live_value_node,
+                    ret_node,
+                    "internal:function-live-return-value".to_string(),
+                ));
             }
         }
     }
@@ -1532,13 +2039,8 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                     .call_meta
                     .get(&(func.id, inst.id))
                     .and_then(|meta| meta.callee_name.clone());
-                let ret_port = get_or_create_call_port(
-                    fg,
-                    func.id,
-                    inst.id,
-                    Port::Return,
-                    callee_name,
-                );
+                let ret_port =
+                    get_or_create_call_port(fg, func.id, inst.id, Port::Return, callee_name);
                 let mut port_nodes = BTreeMap::<String, NodeIndex>::new();
                 for ((call_func, call_inst, port), node) in &fg.call_ports {
                     if *call_func == func.id && *call_inst == inst.id {
@@ -1550,7 +2052,8 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                 // many region/object facts refer to the very same path.
                 let mut path_cache = HashMap::<(NodeIndex, String), Vec<NodeIndex>>::new();
                 let mut path_cells = |port: NodeIndex, path: &str| {
-                    path_cache.entry((port, path.to_string()))
+                    path_cache
+                        .entry((port, path.to_string()))
                         .or_insert_with(|| relative_path_candidate_cells_for_port(fg, port, path))
                         .clone()
                 };
@@ -1560,34 +2063,70 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                     }
                 }
                 for (src_name, dst_name) in &summary.port_to_port {
-                    if let (Some(src), Some(dst)) = (port_nodes.get(src_name), port_nodes.get(dst_name)) {
+                    if let (Some(src), Some(dst)) =
+                        (port_nodes.get(src_name), port_nodes.get(dst_name))
+                    {
                         pending_edges.push((*src, *dst, "internal:param".to_string()));
                     }
                 }
                 for (src_name, ret_func, ret_value) in &summary.port_to_return_values {
                     if let Some(src) = port_nodes.get(src_name) {
-                        if let Some(&ret_value_node) = fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value))) {
-                            pending_edges.push((*src, ret_value_node, "internal:return-value-source".to_string()));
-                            pending_edges.push((ret_value_node, ret_port, "internal:return-value".to_string()));
+                        if let Some(&ret_value_node) =
+                            fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
+                        {
+                            pending_edges.push((
+                                *src,
+                                ret_value_node,
+                                "internal:return-value-source".to_string(),
+                            ));
+                            pending_edges.push((
+                                ret_value_node,
+                                ret_port,
+                                "internal:return-value".to_string(),
+                            ));
                         }
                     }
                 }
                 for (src_name, live_func, live_value) in &summary.port_to_return_live_values {
                     if let Some(src) = port_nodes.get(src_name) {
-                        if let Some(&live_value_node) = fg.values.get(&(FunctionId(*live_func), ValueId(*live_value))) {
-                            pending_edges.push((*src, live_value_node, "internal:heap-live-return-source".to_string()));
-                            pending_edges.push((live_value_node, ret_port, "internal:heap-live-return".to_string()));
+                        if let Some(&live_value_node) = fg
+                            .values
+                            .get(&(FunctionId(*live_func), ValueId(*live_value)))
+                        {
+                            pending_edges.push((
+                                *src,
+                                live_value_node,
+                                "internal:heap-live-return-source".to_string(),
+                            ));
+                            pending_edges.push((
+                                live_value_node,
+                                ret_port,
+                                "internal:heap-live-return".to_string(),
+                            ));
                         }
                     }
                 }
                 for (ret_func, ret_value) in &summary.return_values {
-                    if let Some(&ret_value_node) = fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value))) {
-                        pending_edges.push((ret_value_node, ret_port, "internal:return-value".to_string()));
+                    if let Some(&ret_value_node) =
+                        fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
+                    {
+                        pending_edges.push((
+                            ret_value_node,
+                            ret_port,
+                            "internal:return-value".to_string(),
+                        ));
                     }
                 }
                 for (live_func, live_value) in &summary.return_live_values {
-                    if let Some(&live_value_node) = fg.values.get(&(FunctionId(*live_func), ValueId(*live_value))) {
-                        pending_edges.push((live_value_node, ret_port, "internal:heap-live-return".to_string()));
+                    if let Some(&live_value_node) = fg
+                        .values
+                        .get(&(FunctionId(*live_func), ValueId(*live_value)))
+                    {
+                        pending_edges.push((
+                            live_value_node,
+                            ret_port,
+                            "internal:heap-live-return".to_string(),
+                        ));
                     }
                 }
                 for cell in &summary.return_cells {
@@ -1595,29 +2134,49 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                     pending_edges.push((cell_node, ret_port, "internal:heap-return".to_string()));
                 }
                 for (ret_func, ret_value, cell) in &summary.return_value_cells {
-                    if let Some(&ret_value_node) = fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value))) {
-                        pending_edges.push((ret_value_node, NodeIndex::new(*cell as usize), "internal:return-value-region".to_string()));
+                    if let Some(&ret_value_node) =
+                        fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
+                    {
+                        pending_edges.push((
+                            ret_value_node,
+                            NodeIndex::new(*cell as usize),
+                            "internal:return-value-region".to_string(),
+                        ));
                     }
                 }
-                for (src_name, ret_func, ret_value, region) in &summary.port_to_return_value_regions {
-                    if let Some(&ret_value_node) = fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value))) {
+                for (src_name, ret_func, ret_value, region) in &summary.port_to_return_value_regions
+                {
+                    if let Some(&ret_value_node) =
+                        fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
+                    {
                         let mut candidates = summary
                             .return_value_cells
                             .iter()
-                            .filter(|(path_func, path_value, _)| path_func == ret_func && path_value == ret_value)
+                            .filter(|(path_func, path_value, _)| {
+                                path_func == ret_func && path_value == ret_value
+                            })
                             .map(|(_, _, cell)| NodeIndex::new(*cell as usize))
                             .collect::<Vec<_>>();
                         let object_ids = summary
                             .port_to_return_value_objects
                             .iter()
-                            .filter(|(path_src, path_func, path_value, _)| path_src == src_name && path_func == ret_func && path_value == ret_value)
+                            .filter(|(path_src, path_func, path_value, _)| {
+                                path_src == src_name
+                                    && path_func == ret_func
+                                    && path_value == ret_value
+                            })
                             .map(|(_, _, _, object_id)| *object_id)
                             .collect::<Vec<_>>();
                         candidates.extend(cell_candidates_for_object_ids(fg, &object_ids));
                         candidates.extend(region_candidate_cells(fg, region));
                         if let Some(src) = port_nodes.get(src_name) {
-                            for (path_src, path_func, path_value, path) in &summary.port_to_return_value_paths {
-                                if path_src == src_name && path_func == ret_func && path_value == ret_value {
+                            for (path_src, path_func, path_value, path) in
+                                &summary.port_to_return_value_paths
+                            {
+                                if path_src == src_name
+                                    && path_func == ret_func
+                                    && path_value == ret_value
+                                {
                                     candidates.extend(path_cells(*src, path));
                                 }
                             }
@@ -1625,16 +2184,24 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         candidates.sort_unstable_by_key(|node| node.index());
                         candidates.dedup_by_key(|node| node.index());
                         for cell in candidates {
-                            pending_edges.push((ret_value_node, cell, "internal:return-value-region".to_string()));
+                            pending_edges.push((
+                                ret_value_node,
+                                cell,
+                                "internal:return-value-region".to_string(),
+                            ));
                         }
                     }
                 }
                 for (ret_func, ret_value, region) in &summary.return_value_regions {
-                    if let Some(&ret_value_node) = fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value))) {
+                    if let Some(&ret_value_node) =
+                        fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
+                    {
                         let object_ids = summary
                             .return_value_objects
                             .iter()
-                            .filter(|(path_func, path_value, _)| path_func == ret_func && path_value == ret_value)
+                            .filter(|(path_func, path_value, _)| {
+                                path_func == ret_func && path_value == ret_value
+                            })
                             .map(|(_, _, object_id)| *object_id)
                             .collect::<Vec<_>>();
                         let mut candidates = cell_candidates_for_object_ids(fg, &object_ids);
@@ -1652,13 +2219,21 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         candidates.sort_unstable_by_key(|node| node.index());
                         candidates.dedup_by_key(|node| node.index());
                         for cell in candidates {
-                            pending_edges.push((ret_value_node, cell, "internal:return-region-value".to_string()));
+                            pending_edges.push((
+                                ret_value_node,
+                                cell,
+                                "internal:return-region-value".to_string(),
+                            ));
                         }
                     }
                 }
                 for (src_name, cell) in &summary.port_to_read_cells {
                     if let Some(src) = port_nodes.get(src_name) {
-                        pending_edges.push((*src, NodeIndex::new(*cell as usize), "internal:heap-read".to_string()));
+                        pending_edges.push((
+                            *src,
+                            NodeIndex::new(*cell as usize),
+                            "internal:heap-read".to_string(),
+                        ));
                     }
                 }
                 for (src_name, region) in &summary.port_to_read_regions {
@@ -1691,7 +2266,11 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                 }
                 for (src_name, cell) in &summary.port_to_write_cells {
                     if let Some(src) = port_nodes.get(src_name) {
-                        pending_edges.push((*src, NodeIndex::new(*cell as usize), "internal:heap-write".to_string()));
+                        pending_edges.push((
+                            *src,
+                            NodeIndex::new(*cell as usize),
+                            "internal:heap-write".to_string(),
+                        ));
                     }
                 }
                 for (src_name, region) in &summary.port_to_write_regions {
@@ -1753,8 +2332,16 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
                         candidates.sort_unstable_by_key(|node| node.index());
                         candidates.dedup_by_key(|node| node.index());
                         for cell in candidates {
-                            pending_edges.push((*src, cell, "internal:heap-return-source".to_string()));
-                            pending_edges.push((cell, ret_port, "internal:heap-return".to_string()));
+                            pending_edges.push((
+                                *src,
+                                cell,
+                                "internal:heap-return-source".to_string(),
+                            ));
+                            pending_edges.push((
+                                cell,
+                                ret_port,
+                                "internal:heap-return".to_string(),
+                            ));
                         }
                     }
                 }
@@ -1773,7 +2360,10 @@ fn connect_materialized_interprocedural_summaries(fg: &mut FlowGraph, program: &
 fn solver_iteration_cap(fg: &FlowGraph) -> usize {
     let graph_nodes = fg.graph.node_count().max(1);
     let graph_edges = fg.graph.edge_count().max(1);
-    graph_nodes.saturating_add(graph_edges).saturating_mul(4).max(64)
+    graph_nodes
+        .saturating_add(graph_edges)
+        .saturating_mul(4)
+        .max(64)
 }
 
 fn materialize_unified_analysis_state(fg: &mut FlowGraph) {
@@ -1788,7 +2378,10 @@ fn materialize_unified_analysis_state(fg: &mut FlowGraph) {
         if previous_signature == signature {
             break;
         }
-        assert!(iterations <= solver_iteration_cap(fg), "unified analysis failed to converge");
+        assert!(
+            iterations <= solver_iteration_cap(fg),
+            "unified analysis failed to converge"
+        );
         previous_signature = signature;
     }
 }
@@ -1806,10 +2399,17 @@ fn materialize_interprocedural_solver_closure(fg: &mut FlowGraph, program: &Prog
         materialize_unified_analysis_state(fg);
         materialize_partitioned_points_to_state(fg, program);
         let signature = analysis_state_signature(fg);
-        if added_function_edges == 0 && added_heap_edges == 0 && added_call_edges == 0 && previous_signature == signature {
+        if added_function_edges == 0
+            && added_heap_edges == 0
+            && added_call_edges == 0
+            && previous_signature == signature
+        {
             break;
         }
-        assert!(iterations <= solver_iteration_cap(fg), "interprocedural solver failed to converge");
+        assert!(
+            iterations <= solver_iteration_cap(fg),
+            "interprocedural solver failed to converge"
+        );
         previous_signature = signature;
     }
     fg.solver_closure_iterations = iterations;

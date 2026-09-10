@@ -22,7 +22,11 @@ fn sql_xpath_template_executes_from_bundle_and_rejects_invalid_queries() {
     )));
     std::fs::create_dir(&scratch.0).unwrap();
     let fixture = scratch.0.join("xpath.sql");
-    std::fs::write(&fixture, "SELECT one FROM dual;\nUPDATE sample SET value = 1;\n").unwrap();
+    std::fs::write(
+        &fixture,
+        "SELECT one FROM dual;\nUPDATE sample SET value = 1;\n",
+    )
+    .unwrap();
     let binary = scratch.0.join(if cfg!(windows) {
         "uniflow.exe"
     } else {
@@ -35,7 +39,12 @@ fn sql_xpath_template_executes_from_bundle_and_rejects_invalid_queries() {
         .current_dir(&scratch.0)
         .args(["check-baseline", "--language", "sql", "--input"])
         .arg(&fixture)
-        .args(["--sql-xpath-query", "//STATEMENT", "--sql-xpath-message", "Avoid statements"])
+        .args([
+            "--sql-xpath-query",
+            "//STATEMENT",
+            "--sql-xpath-message",
+            "Avoid statements",
+        ])
         .output()
         .unwrap();
     assert!(

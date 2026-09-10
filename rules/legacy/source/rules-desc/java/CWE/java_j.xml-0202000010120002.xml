@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010120002" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">异常处理</Category>
+				<Category type="DetailClassChin">泛化的抛出异常</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行抛出了泛化的异常。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行抛出了泛化的异常。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Java语言通过面向对象的异常处理机制来解决运行期间的错误，可以预防错误的程序代码或系统错误所造成的不可预期的结果发生。减少编程人员的工作，增加了程序的灵活性，增加程序的可读性和健壮性。如果程序只是抛出一个泛化的过于笼统的异常，不仅违反了该系统还会使调用者很难处理和修复发生的异常。  
+  
+**例如**：下面代码片段中，程序抛出了一个Exception异常，而不是具体的FileNotFoundException子类型异常，这样使得调用者很难理解和处理可能发生的异常。  
+```java
+public void doExchange() throws Exception {  
+    FileInputStream fis = new FileInputStream("filename.txt");  
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[不应泛化的抛出Exception或Throwable类型的异常。
+]]></Advice>
+			<References>
+				<Reference type="CWE">397:Declaration of Throws for Generic Exception</Reference>
+				<Reference type="CERT">ERR07-J:Do not throw RuntimeException, Exception, or Throwable</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+				<Reference type="SJ/T 11683-2017">6.4.6 方法声明抛出的异常过于宽泛</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>exception,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

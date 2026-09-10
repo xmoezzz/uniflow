@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110025" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts：禁用验证</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行禁用了验证。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Action表单映射禁用了表单的`validate()`方法。禁用了表单的`validate()`方法也就是禁用了struts校验器及所有由表单执行的自定义验证逻辑。  
+  
+**例如**：下面配置文件片段中禁用了验证的action表单映射。
+```xml
+...  
+<action path="/show"   
+        type="com.cn.test.action.ShowAction"  
+        name="ShowForm"  
+        scope="request"  
+        input=".show"  
+        validate="false">  
+</action>  
+...  
+```  
+输入检查是例如SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。以上代码禁用struts的表单验证可能会方便攻击者尝试一系列的攻击手段。
+]]></Description>
+			<Advice><![CDATA[开启Action表单映射的验证逻辑。
+]]></Advice>
+			<References>
+				<Reference type="CWE">109:Struts: Validator Turned Off</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

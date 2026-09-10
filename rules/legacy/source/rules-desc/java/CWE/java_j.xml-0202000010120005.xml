@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010120005" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">异常处理</Category>
+				<Category type="DetailClassChin">抑制ThreadDeath</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行将要捕获ThreadDeath。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行将要捕获ThreadDeath。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果异步终止了应用程序后需要将其清除，则应仅捕获`ThreadDeath`错误。如果捕获了`ThreadDeath`错误，则将其重新抛出非常重要，因为这样该线程才真正地终止。抛出`ThreadDeath`的目的是终止线程。如果`ThreadDeath`被抑制，则它可以阻止线程停止并导致意外行为，因为代码最初抛出`ThreadDeath`的目的是希望停止该线程。  
+  
+**例如**：下列代码捕获了`ThreadDeath`但未将其重新抛出。  
+```java
+try{  
+    //...  
+}catch(ThreadDeath td){  
+    //...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[如果捕获了`ThreadDeath`错误，则将其重新抛出非常重要，因为这样该线程才真正地终止。
+]]></Advice>
+			<References>
+				<Reference type="CWE">691:Insufficient Control Flow Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,exception</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

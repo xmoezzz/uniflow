@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130024" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">仅重写了restoreState()和saveState()中的一个</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在类中仅重写了restoreState()和saveState()中的一个。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[所有继承了StateHolder接口的类都必须同时实现或者同时都不实现`saveState(javax.faces.context.FacesContext)`和 `restoreState(javax.faces.context.FacesContext, java.lang.Object)`这两个方法，因为这两者得关系密切，不能分别存在继承层次结构中的不同层次中。
+]]></Description>
+			<Advice><![CDATA[继承StateHolder接口的类应同时实现`restoreState()`方法和`saveState()`方法。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

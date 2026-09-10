@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150310" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">并发规范</Category>  
+        <Category type="DetailClassChin">【推荐】继承于Thread的类应该重写run方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在不重写run方法的情况下扩展线程类是没有意义的，意味着线程即使运行也只是执行父类的`run`方法。  
+  
+**例如**：下面代码示例中，没有重写Thread 类中的`run`方法。  
+```java
+public class MyRunner extends Thread {  
+    public void doSometing() {...}  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[重写run方法或者不再继承于Thread。  
+  
+**例如**：下面代码示例中，重写了`run`方法。  
+```java
+public class MyRunner extends Thread {  
+    @Override  
+    public void run() {  
+        doSometing();  
+        ...  
+    }  
+    public void doSometing() {...}  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">383:J2EE Bad Practices: Direct Use of Threads</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Time and State</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

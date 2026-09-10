@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0502000010150302" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">ISO/IEC TR 24772</Category>  
+        <Category type="SubClassChin">并发规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用单例对象下的成员变量</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[`javax.servlet.http.HttpServlet`和`org.apache.struts.action.Action`的对象以及Spring框架下单例类（比如使用`@Controller`、`@Service`和`@Repository`注解的类默认都是单例类）都不是线程安全的。Web容器默认采用单实例多线程的方式来处理Http请求，单例对象将在一个多线程的环境中并发执行，这将导致单例对象成员变量访问的线程安全问题。  
+  
+**例1**：下面是一段JAVA EE的Servlet代码片断，变量`username`为成员变量，当LoginServlet的对象处理多个请求时，变量`username`将被多个请求共享，这将导致线程间数据泄露。  
+```java
+...  
+import javax.servlet.http.HttpServlet;  
+public class LoginServlet extends HttpServlet {  
+    String username;  
+    protected void doPost(HttpServletRequest req,HttpServletResponse res) {  
+        username = req.getParameter("username");  
+        ...  
+        out.println( " 欢迎您，"+username+" !");  
+    }  
+}  
+...
+```  
+**例2**：下面是一段使用Spring框架搭建的WEB服务中的Controller代码片断，变量`username`为成员变量，当User的对象处理多个请求时，变量`username`将被多个请求共享，这将导致线程间数据泄露。  
+```java
+@Controller  
+public class User{  
+	String username;  
+	@RequestMapping("/login", method = GET)  
+	public String greet(String username) {  
+		this.username= username;  
+		...
+        return " 欢迎您，"+username+" !";      
+	}  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[使用Java EE的Servlet,struts1的Action或Spring框架写的一些单例类时，必须保证其是线程安全的。修复方式举例如下：  
+  
+**例1**：下面代码示例，使用局部变量，因为局部变量在每个线程中都有各自的实例，从而保证线程安全。  
+```java
+...  
+import javax.servlet.http.HttpServlet;  
+public class LoginServlet extends HttpServlet {  
+    protected void doPost(HttpServletRequest req,HttpServletResponse res) {  
+        String username = req.getParameter("username");  
+        ...  
+        out.println(" 欢迎您，"+username+" !");  
+    }  
+}  
+...
+```  
+**例2**：下面代码示例，可以将User控制器设为多例，每一次请求将会新建一个User对象,从而保证线程安全。  
+```java
+@Controller  
+@Scope("prototype")  
+public class User{  
+String username;  
+    @RequestMapping("/login", method = GET)  
+    public String greet(String username) {  
+        this.username= username;  
+        ... 
+        return " 欢迎您，"+username+" !";      
+    }  
+}
+```  
+同样，也可以使用局部变量解决此问题。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">488:Exposure of Data Element to Wrong Session</Reference>  
+        <Reference type="CWE">362:Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')</Reference>  
+        <Reference type="CERT">MSC07-J:Prevent multiple instantiations of singleton objects</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 362</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 362</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:New Vulnerabilities Concurrent Data Access [CGX]</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Time and State</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>correctness,concurrency</Tag> 
+    </BugInfo>  
+    

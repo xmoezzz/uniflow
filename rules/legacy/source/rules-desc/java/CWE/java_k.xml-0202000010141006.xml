@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141006" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 09. 锁 (LCK)</Category>  
+        <Category type="DetailClassChin">LCK06-J：不要使用实例锁来保护共享静态数据</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[程序不应该使用实例锁来保护共享静态数据，原因在于实例锁在两个或者多个实例的情况下是无效的。因此，如果不使用一个静态的锁对象，会导致共享状态在并发进入时是不被保护的。与非受信代码交换的类的锁对象必须是private final的。  
+**不规范的代码样例1**：  
+```java
+public final class CountBoxes implements Runnable {
+    private static volatile int counter;
+    // . . .
+    private final Object lock = new Object();
+
+    @Override
+    public void run() {
+        synchronized (lock) {
+            counter++;
+            // . . .
+        }
+    }
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 2; i++) {
+            new Thread(new CountBoxes()).start();
+        }
+    }
+}
+```  
+代码通过一个非静态的锁对象来保护静态`counter`字段的进入。当启动两个Runnable任务时，它们创建了两个锁对象实例，并且分别基于每一个实例进行锁定。然而，这个代码不能防止线程得到一个不一致的`counter`的数值，这是因为`volatile`字段的递增操作不是原子性的。  
+**不规范的代码样例2**：  
+```java
+public final class CountBoxes implements Runnable {
+    private static volatile int counter;
+
+    // . . .
+    public synchronized void run() {
+        counter++;
+        // . . .
+    }
+    // . . .
+}
+```  
+代码使用了内置锁，这个内置锁是与每一个类实例相关联的，而不是与类本身关联的内置锁。因此，使用不同的Runnable实例创建出来的线程，可能会观察到不一致的`counter`数值。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public class CountBoxes implements Runnable {
+    private static int counter;
+    // . . .
+    private static final Object lock = new Object();
+
+    public void run() {
+        synchronized (lock) {
+            counter++;
+            // . . .
+        }
+    }
+    // . . .
+}
+```  
+代码通过静态对象实现的锁来保证递增操作的原子性。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">667:Improper Locking</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

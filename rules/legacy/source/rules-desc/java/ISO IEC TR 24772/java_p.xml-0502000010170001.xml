@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0502000010170001" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">ISO/IEC TR 24772</Category>  
+        <Category type="SubClassChin">5.1 数据清洗</Category>  
+        <Category type="DetailClassChin">A.2.1.1.2 预防SQL注入</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：SQL注入是一种数据库攻击手段。攻击者通过向应用程序提交恶意代码来改变原SQL语句的含义，进而执行任意SQL命令，达到入侵数据库乃至操作系统的目的。防止SQL注入的主要方法有：净化并验证非受信输入，采用参数化查询。  
+对于预防SQL注入的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+public void doPrivilegedAction(String username, char[] password) throws SQLException {
+    Connection connection = getConnection();
+    //...  
+    try {
+        String pwd = hashPassword(password);
+        String sqlString = "SELECT * FROM db_user WHERE username = '" + username + "' AND password = '" + pwd + "'";
+        Statement stmt = connection.createStatement();
+        ResultSet rs = stmt.executeQuery(sqlString);
+        // ...  
+    } finally {
+        try {
+            connection.close();
+        } catch (SQLException x) {
+            // ...  
+        }
+    }
+}
+```  
+在这个不规范的代码示例中，使用JDBC来认证用户，提交`stmt.executeQuery(sqlString)`查询的SQL为`sqlString`，它是通过一个拼接字符串组合而来，并且`sqlString`未经过净化或验证，当`pwd`为`' OR '1'='1` 时，`sqlString`就会变成： `SELECT * FROM db_user WHERE username='' AND password='' OR '1'='1'。Statement.executeQuery(String)`方法不能防止SQL注入，该代码将会引发SQL注入漏洞攻击。  
+**示例2**：  
+```java
+public void doPrivilegedAction(String username, char[] password) throws SQLException {
+    Connection connection = getConnection();
+    try {
+        String pwd = hashPassword(password);
+        if (username.length() > 8) {
+            // ...  
+        }
+        String sqlString = "select * from db_user where username=? and password=?";
+        PreparedStatement stmt = connection.prepareStatement(sqlString);
+        stmt.setString(1, username);
+        stmt.setString(2, pwd);
+        //...  
+    } finally {
+        try {
+            connection.close();
+        } catch (SQLException x) {
+            // ...  
+        }
+    }
+}
+```  
+在这个规范的代码示例中，采用`java.sql.PreparedStatement`执行参数化查询，可以避免含有注入代码的SQL语句提交执行。通过使用`prepareStatement`类的`set*()`方法，可以进行强类型检查。程序会正确的转义双引号内的输入数据，以减少SQL注入漏洞。类似的，对数据的增删改操作也必须使用`prepareStatement`。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">564:SQL Injection: Hibernate</Reference>  
+        <Reference type="CWE">89:Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')</Reference>  
+        <Reference type="CERT">IDS00-J:Prevent SQL injection</Reference>  
+        <Reference type="OWASP TOP 10">2017:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 89</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:SQL注入</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.1 数据清洗</BigClassChin>  
+       
+    </BugInfo>  
+    

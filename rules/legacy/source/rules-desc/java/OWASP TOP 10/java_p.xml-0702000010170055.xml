@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010170055" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">6.4 异常处理安全</Category>  
+        <Category type="DetailClassChin">A.3.4.3 不能允许异常泄露敏感信息</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：在异常传递的过程中，如果不对敏感信息进行过滤，会导致信息泄露，这将有助于攻击者实现对系统的攻击。  
+对于不能允许异常泄露敏感信息的情况，示例1、给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：   
+```java
+class ExceptionExample {
+    public static void main(String[] args) throws FileNotFoundException {
+        // Linux stores a user's home directory path in
+        // the environment variable $HOME, Windows in %APPDATA%
+        FileInputStream fis = new FileInputStream(System.getenv("APPDATA") + args[0]);
+    }
+}
+```  
+在这个不合规范的代码示例中，如果要求的文件不存在，将会抛出FileNotFoundException异常，通过不断的传递虚构的路径给程序，攻击者可以重建内部文件系统结构。  
+**示例2**：  
+```java
+class ExceptionExample {
+    public static void main(String[] args) {
+
+        File file = null;
+        try {
+            file = new File(System.getenv("APPDATA") + args[0]).getCanonicalFile();
+            if (!file.getPath().startsWith("c:\\homepath")) {
+                System.out.println("Invalid file");
+                return;
+            }
+        } catch (IOException x) {
+            System.out.println("Invalid file");
+            return;
+        }
+
+        try {
+            FileInputStream fis = new FileInputStream(file);
+        } catch (FileNotFoundException x) {
+            System.out.println("Invalid file");
+            return;
+        }
+    }
+}
+```  
+这个符合规范的方案实现了一个安全策略，用户只能打开`c:\homepath`中的文件。当文件不能打开或不在正确的目录内时，这个方案将会返回一个简洁的错误信息。`c:\homepath`目录外文件的任何信息都被屏蔽了。  
+这个方案还使用了`File.getCanonicalFile()`方法对文件进行标准化，简化了之后的对路径名进行比较的过程。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">600:Uncaught Exception in Servlet</Reference>  
+        <Reference type="CWE">431:Missing Handler</Reference>  
+        <Reference type="CWE">248:Uncaught Exception</Reference>  
+        <Reference type="CWE">209:Information Exposure Through an Error Message</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 209</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 209</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:信息通过错误消息泄露</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.3.4 异常处理安全</BigClassChin>  
+       
+    </BugInfo>  
+    

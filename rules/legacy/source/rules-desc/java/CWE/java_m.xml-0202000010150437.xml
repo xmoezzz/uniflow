@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150437" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】请求响应方法应该声明为public</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[使用`@Controller`注解的类的方法被`@RequestMapping`（还有`@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping`, `@PatchMapping`）注解进行注释，这个方法即使不是public的，匹配web请求时也会进行处理。  
+  
+**例如**：下面代码示例中使用了private的请求响应方法。
+```java  
+@RequestMapping("/login")  
+private String login(User user) {   
+...  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[将请求响应方法修饰符改为public或者将响应注解移除。  
+  
+**例如**：下面代码示例中使用了public 的请求响应方法。
+```java  
+@RequestMapping("/login")  
+public String login(User user) {  
+    ...  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>correctness,bad_practice</Tag> 
+    </BugInfo>  
+    

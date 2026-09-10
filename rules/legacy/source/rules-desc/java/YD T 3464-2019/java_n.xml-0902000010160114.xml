@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160114" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">7.5 文件系统</Category>  
+        <Category type="DetailClassChin">C.13.9 对读取一个字符或者字节的方法，使用int类型的返回值</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+读取一个字符或字节的方法应使用 int 类型的返回值。   
+2) 原理   
+抽象方法 `InputStream.read()`从一个输入源中读取一个简单字节，返回一个范围在 0〜255 的整数。仅当在读取到输入流末尾的时候，它会返回-1。类似地 `Reader.read()`方法读取一个单独的字符，返回范围在 0〜65535 的整数。仅当在读取到输入流的末尾时，它会返回-1。这两个方法都会被子类覆写。   
+通常会用这些方法来从一个流中读取一个字节或者字符。然而,在检査是否已经达到流末尾之前（这通过返回-1 来表示），许多开发者过早地将返回的 int 类型转换为 byte 或 char 类型。   
+3) 示例   
+  
+    **例 1** 这个不符合规则的代码示例将由`read()`方法返回的值直接转换为 byte 类型，并且将其与-1 进行比较，想通过这种比较来检査是否到达了流的末尾。   
+    ```java
+    FileInputStream in;   
+    //initialize stream byte data;   
+    while ((data = (byte) in.read()) != -1) {   
+        // . . .    
+    }
+    ```   
+    在这个不符合规则的代码示例中，如果`read()`方法返回 0xFF 的字节值，那么返回的字节值专用来表示以及达到流末尾的-1 的值是没有差别的，这个字节值在与-1 进行比较之前会被转换并且使用符号来扩展成为一个 int 类型。   
+    使用一个类型为 int 的变量来获取输入方法的 byte 的返回值。当`read()`方法的返回值不是-1 的时候，它会被安全地转换为 byte 类型。当`read()`方法返回 0xFF 时，会对 0x000000FF 和 0xFFFFFFFF 进行比较测试，并且这个测试会失败。   
+    ```java
+    FilelnputStream in;   
+    // initialize stream    
+    int inbuff;    
+    byte data;   
+    while ( (inbuff = in.read()) != -1) {   
+        data = (byte) inbuff;   
+        //…   
+    }
+    ```   
+      
+    **例 2** 这个不符合规则的代码示例将由`read()`方法返回的类型为 int 的值直接转换为 char 类型，它会与-1 进行比较，用来检测是否达到了流末尾。 它 将 c 的值转换为 0xFFFF 而非-1。因此，这个是否达到流末尾的测试总是不会返回 true。
+    ```java   
+    FileReader in;   
+    // initialize stream    
+    char c;   
+    while ((c = (char) in.read()) != -1) {   
+        // . . .    
+    }
+    ```   
+    使用一个类型为 int 的变量来获得字符输入方法的返回值。当由`read()`方法返回的值不是-1 的时候，它可以安全地转换为 char 类型。   
+    ```java
+    FileReader in;   
+    // initialize stream    
+    int inbuff;    
+    char data;   
+    while((inbuff = in.read()) != -1) {   
+      data = (char) inbuff;   
+        //... .   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.13 输入输出</BigClassChin>  
+       
+    </BugInfo>  
+    

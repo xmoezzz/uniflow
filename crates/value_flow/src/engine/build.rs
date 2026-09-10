@@ -132,8 +132,30 @@ where
         let mut abstract_index_cells: HashMap<(ValueId, String), NodeIndex> = HashMap::new();
 
         for block in &func.blocks {
-            for inst in &block.insts {
+            let mut successors = match &block.term {
+                uniflow_ir::Terminator::Goto(target) => vec![*target],
+                uniflow_ir::Terminator::Branch {
+                    then_bb, else_bb, ..
+                } => vec![*then_bb, *else_bb],
+                uniflow_ir::Terminator::Return(_)
+                | uniflow_ir::Terminator::Throw(_)
+                | uniflow_ir::Terminator::Unreachable => Vec::new(),
+            };
+            successors.extend(
+                func.exception_edges
+                    .iter()
+                    .filter(|edge| edge.from == block.id)
+                    .map(|edge| edge.unwind),
+            );
+            successors.sort_by_key(|block| block.0);
+            successors.dedup();
+            fg.block_successors
+                .insert((func.id, block.id), successors);
+
+            for (position, inst) in block.insts.iter().enumerate() {
                 fg.inst_spans.insert((func.id, inst.id), inst.span);
+                fg.inst_control_positions
+                    .insert((func.id, inst.id), (block.id, position));
                 match &inst.kind {
                     InstKind::ConstInt { .. } | InstKind::ConstString { .. } => {}
                     InstKind::Copy { dst, src } | InstKind::NumericStep { dst, src, .. } => {

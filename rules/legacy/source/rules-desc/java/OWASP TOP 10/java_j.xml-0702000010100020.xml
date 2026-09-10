@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100020" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：不安全bean声明</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行bean声明不安全。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果应用程序暴露远程接口的实体bean声明，它也可能暴露获取或设置bean数据的方法。这些方法可能被攻击者用来读取或改变敏感信息，或导致其它漏洞。  
+  
+**例如**：以下代码中，对实体bean的声明包含了一个远程接口：  
+```xml
+<ejb-jar>  
+    <enterprise-beans>  
+        <entity>  
+            <display-name>displayName</display-name>  
+            <ejb-name>entityEjbName</ejb-name>  
+            <home>Home</home>  
+            <remote>Remote</remote>    
+            <ejb-class>EjbClass</ejb-class>  
+            <persistence-type>Container</persistence-type>  
+            <prim-key-class>java.lang.Integer</prim-key-class>  
+            <reentrant>false</reentrant>  
+            <cmp-version>2.x</cmp-version>  
+            <abstract-schema-name>AbstractName</abstract-schema-name>  
+            <cmp-field>  
+                <field-name>field</field-name>  
+            </cmp-field>  
+            ...  
+        </entity>  
+        ...  
+    </enterprise-beans>  
+</ejb-jar>
+```
+]]></Description>
+			<Advice><![CDATA[不要在远程声明实体bean。
+]]></Advice>
+			<References>
+				<Reference type="CWE">9:J2EE Misconfiguration: Weak Access Permissions for EJB Methods</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A8 Failure to Restrict URL Access</Reference>
+				<Reference type="OWASP TOP 10">2007:A10 Failure to Restrict URL Access</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010150447" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】Cookie应该设置HttpOnly属性</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[Cookie设置HttpOnly属性意味着客户端脚本不允许读取cookie，对于防范跨站脚本攻击大有帮助，浏览器也不会将其发送给任何第三方。  
+  
+**例如**：下面代码示例中Cookie没有设置HttpOnly属性，HttpOnly属性默认为false。
+```java  
+...  
+Cookie cookie = new Cookie("myCookieName", value);  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[检查代码逻辑，当客户端不需要读取cookie时，将HttpOnly属性设为true。  
+  
+**例如**：下面代码示例中设置了HttpOnly属性为true。
+```java  
+...  
+Cookie cookie = new Cookie("myCookieName", value);  
+cookie.setHttpOnly(true);   
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M4 Unintended Data Leakage</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>security</Tag> 
+    </BugInfo>  
+    

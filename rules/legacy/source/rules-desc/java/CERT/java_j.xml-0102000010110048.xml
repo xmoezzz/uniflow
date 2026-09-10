@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110048" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">非同步方法覆盖同步方法</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的+'`'+${funcName}+'`'+方法为非同步方法且覆盖了同步方法。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在方法为非同步方法且覆盖了同步方法。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[子类在重写父类方法时，如果该方法在父类中是被`synchronized`声明，也就是说该方法是加锁的用来保证当多个线程访问同一实例时行为同步，子类重写该方法时也应该声明为`synchronized`，否则可能会发生意外行为。  
+  
+**例如**：下面代码片段中，子类重写父类`synchronizedMethod`方法时没有声明为`synchronized`。   
+```java
+public class Father {  
+    ...  
+    public synchronized void synchronizedMethod() {  
+        ...  
+    }  
+}  
+public class Child extends Father{  
+    ...  
+    public void synchronizedMethod() {  
+        ...  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[在子类中重写父类中的方法时，如果父类中的方法为`synchronized`，那么子类中也应该将该方法声明为`synchronized`。  
+        如果子类方法确无同步的必要或者在子类方法内部使用其他方式进行同步，可以使用注解`@SuppressWarnings("sync-override")`或者`@SuppressWarnings("all")`抑制。  
+
+**例1**：下面代码示例中：子类方法同样声明为synchronized。  
+```java
+public class Child extends Father{  
+    ...  
+    public synchronized void synchronizedMethod() {  
+       ...  
+    }  
+}
+```
+
+**例2**：下面代码示例中：子类方法不需要同步或在使用其他方式同步,使用了注解`@SuppressWarnings("sync-override")`。  
+```java
+public class Child extends Father{  
+    ...  
+    @SuppressWarnings("sync-override")
+    public  void synchronizedMethod() {  
+        ...  
+        //不需要同步或在使用其他方式同步  
+        ...  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CERT">TSM00-J:Do not override thread-safe methods with methods that are not thread-safe</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

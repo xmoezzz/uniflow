@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010020132" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">不安全的数据库</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行定义了不安全的数据库。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行定义了不安全的数据库。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[每个 Android应用程序都有指定的内部存储区域，而且默认情况下，只有该应用程序可以访问。通过将模式显式设置为`MODE_WORLD_WRITEABLE`或`MODE_WORLD_READABLE`，应用程序可以在其内部存储区域中创建其他应程序可以访问的文件。应用程序还可以访问全局可读取和写入的外部存储区域（例如 SD 卡）。由于无法控制对外部存储区域的访问，因此应用程序绝不应在外部存储区域中存储敏感信息。  
+    **例如**：在下面的示例中：使用`MODE_WORLD_READABLE`模式定义了数据库。  
+```java    ...  
+SQLiteDatabase db = context.openOrCreateDatabase("secret.db",MODE_WORLD_READABLE,factory,errorHandler);  
+...
+```  
+]]></Description>
+			<Advice><![CDATA[程不要将数据库模式显式设置为`MODE_WORLD_WRITEABLE`或`MODE_WORLD_READABLE`。
+]]></Advice>
+			<References>
+				<Reference type="CWE">94:Improper Control of Generation of Code ('Code Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 94</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 94</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

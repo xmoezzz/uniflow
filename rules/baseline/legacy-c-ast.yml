@@ -256,17 +256,17 @@ rules:
   matcher:
     c_declaration: unnamed_parameter
   standards: ['0701000010130008']
-  message: Unnamed function parameter.
+  message: The parameter types must be declared and accompanied by variable names in function declarations.
   translations:
     zh-CN:
       title: 函数参数缺少名称
-      message: 函数参数缺少名称。
+      message: 在函数声明中，必须声明参数类型并附带变量名。
     en:
       title: Unnamed function parameter
-      message: Unnamed function parameter.
+      message: The parameter types must be declared and accompanied by variable names in function declarations.
     zh-TW:
       title: 函式參數缺少名稱
-      message: 函式參數缺少名稱。
+      message: 在函式宣告中，參數型別必須宣告並附帶變數名稱。
 - id: LEGACY-C-AST-no-unnamed-struct
   title: Unnamed aggregate definition
   languages: [c, cpp]
@@ -482,8 +482,12 @@ rules:
   severity: warning
   confidence: high
   matcher: { c_style: if_else_braces }
-  standards: [LEGACY-MSG-0701000010130016, LEGACY-MSG-0601000010140019]
-  message: If and else bodies require braces.
+  standards: [LEGACY-MSG-0701000010130016, LEGACY-MSG-0601000010140019, LEGACY-MSG-0101000010110199]
+  message: Branch statement bodies must use braces.
+  translations:
+    zh-CN: { title: 分支语句主体必须使用大括号, message: 分支语句主体必须使用大括号。 }
+    en: { title: Branch bodies require braces, message: Branch statement bodies must use braces. }
+    zh-TW: { title: 分支陳述式主體必須使用大括號, message: 分支陳述式主體必須使用大括號。 }
 - id: LEGACY-C-AST-loop-body-braces
   title: Loop body requires braces
   languages: [c, cpp]
@@ -491,15 +495,23 @@ rules:
   confidence: high
   matcher: { c_style: loop_body_braces }
   standards: [LEGACY-MSG-0701000010130015, LEGACY-MSG-0601000010140018]
-  message: Loop body requires braces.
+  message: Loop statement bodies must use braces.
+  translations:
+    zh-CN: { title: 循环语句体必须使用大括号, message: while、for 和 do-while 循环语句体必须使用大括号。 }
+    en: { title: Loop bodies require braces, message: While, for, and do-while loop bodies must use braces. }
+    zh-TW: { title: 迴圈陳述式主體必須使用大括號, message: while、for 和 do-while 迴圈陳述式主體必須使用大括號。 }
 - id: LEGACY-C-AST-if-else-if-must-have-else
   title: Else-if chain needs final else
   languages: [c, cpp]
   severity: warning
   confidence: high
   matcher: { c_style: else_if_needs_else }
-  standards: [LEGACY-MSG-0601000010140024, LEGACY-MSG-0701000010130030]
-  message: Else-if chain needs final else.
+  standards: [LEGACY-MSG-0601000010140024, LEGACY-MSG-0701000010130030, LEGACY-MSG-0101000010110273, LEGACY-MSG-0901000010110273, LEGACY-MSG-0101000010110476, LEGACY-MSG-0901000010110476]
+  message: An if-else-if chain must have a final else branch.
+  translations:
+    zh-CN: { title: if-else if 语句必须有 else 分支, message: if-else if 语句必须使用最终的 else 分支。 }
+    en: { title: Else-if chain needs final else, message: An if-else-if chain must have a final else branch. }
+    zh-TW: { title: if-else if 陳述式必須有 else 分支, message: if-else if 陳述式必須使用最終的 else 分支。 }
 - id: LEGACY-C-AST-no-empty-switch
   title: Switch requires a label
   languages: [c, cpp]
@@ -507,7 +519,11 @@ rules:
   confidence: high
   matcher: { c_style: empty_switch }
   standards: [LEGACY-MSG-0701000010130032, LEGACY-MSG-0601000010140027]
-  message: Switch requires a label.
+  message: Empty switch statements are prohibited.
+  translations:
+    zh-CN: { title: 禁止空 switch 语句, message: 禁止空的 switch 语句。 }
+    en: { title: Empty switch statement, message: Empty switch statements are prohibited. }
+    zh-TW: { title: 禁止空 switch 陳述式, message: 禁止空的 switch 陳述式。 }
 - id: LEGACY-C-AST-switch-must-have-case
   title: Switch requires a non-default case
   languages: [c, cpp]
@@ -515,7 +531,11 @@ rules:
   confidence: high
   matcher: { c_style: switch_needs_case }
   standards: [LEGACY-MSG-0601000010140028, LEGACY-MSG-0701000010130034]
-  message: Switch requires a non-default case.
+  message: Switch statements containing only the default case are prohibited.
+  translations:
+    zh-CN: { title: 禁止仅包含 default 的 switch 语句, message: 禁止仅包含 default case 的 switch 语句。 }
+    en: { title: Switch contains only default, message: Switch statements containing only the default case are prohibited. }
+    zh-TW: { title: 禁止僅包含 default 的 switch 陳述式, message: 禁止僅包含 default case 的 switch 陳述式。 }
 - id: LEGACY-C-AST-no-empty-statement
   title: Empty statement prohibited
   languages: [c, cpp]
@@ -523,7 +543,11 @@ rules:
   confidence: high
   matcher: { c_style: empty_statement }
   standards: [LEGACY-MSG-0601000010140070]
-  message: Empty statement prohibited.
+  message: Avoid using empty statements.
+  translations:
+    zh-CN: { title: 避免使用空语句, message: 避免使用空语句。 }
+    en: { title: Avoid empty statements, message: Avoid using empty statements. }
+    zh-TW: { title: 避免使用空陳述式, message: 避免使用空陳述式。 }
 - id: LEGACY-C-AST-no-semicolon-after-for-if-while
   title: Control statement has an empty body
   languages: [c, cpp]
@@ -539,7 +563,11 @@ rules:
   confidence: high
   matcher: { c_style: break_in_loop }
   standards: [LEGACY-MSG-0601000010140079]
-  message: Break in a loop is prohibited.
+  message: Avoid using the break statement within loops.
+  translations:
+    zh-CN: { title: 避免在循环内使用 break, message: 避免在循环内使用 break 语句；switch 中的 break 不在此规则范围内。 }
+    en: { title: Avoid break within loops, message: Avoid using the break statement within loops; break statements inside switch statements are excluded. }
+    zh-TW: { title: 避免在迴圈內使用 break, message: 避免在迴圈內使用 break 陳述式；switch 中的 break 不在此規則範圍內。 }
 - id: LEGACY-C-AST-no-constant-in-loop-condition
   title: Numeric constant in restricted loop condition
   languages: [c, cpp]
@@ -601,9 +629,13 @@ rules:
   languages: [c, cpp]
   severity: warning
   confidence: high
-  matcher: { code_pattern: '\blong\s+long\b', exclude_preprocessor: true }
-  standards: [LEGACY-C-AST-no-long-long]
-  message: Use the project-approved fixed-width integer type.
+  matcher: { c_declaration: signed_long_long_variable }
+  standards: ['2401000010120098']
+  message: Mismatched argument type.
+  translations:
+    zh-CN: { title: 禁止有符号 long long 变量, message: 参数类型不匹配。 }
+    en: { title: Signed long long variable prohibited, message: Mismatched argument type. }
+    zh-TW: { title: 禁止有號 long long 變數, message: 參數型別不相符。 }
 - id: LEGACY-C-AST-number-literal-suffix-must-be-upper-case
   title: Lowercase integer literal suffix
   languages: [c, cpp]
@@ -633,9 +665,13 @@ rules:
   languages: [c, cpp]
   severity: warning
   confidence: high
-  matcher: { code_pattern: '\.\.\.', exclude_preprocessor: true }
-  standards: [LEGACY-C-AST-no-variadic-parameter]
-  message: Use a typed parameter representation instead of C varargs.
+  matcher: { c_declaration: variadic_function }
+  standards: ['0601000010140005', '0701000010130066', '0101000010110329']
+  message: Disallow defined variable function.
+  translations:
+    zh-CN: { title: 禁止可变参数函数, message: 不允许定义变量函数。 }
+    en: { title: Variadic function prohibited, message: Disallow defined variable function. }
+    zh-TW: { title: 禁止可變參數函式, message: 不允許定義變數函式。 }
 - id: LEGACY-C-AST-no-assignment-plus-minus
   title: Compound plus or minus assignment prohibited
   languages: [c, cpp]
@@ -662,12 +698,16 @@ rules:
   message: Make loop termination explicit.
 - id: LEGACY-C-AST-no-l-O-as-identifier
   title: Ambiguous single-letter identifier
-  languages: [c, cpp]
+  languages: [c]
   severity: warning
   confidence: high
-  matcher: { lexical_kind: identifier, lexical_pattern: '^(l|O)$' }
-  standards: [LEGACY-C-AST-no-l-O-as-identifier]
-  message: Avoid identifiers that can be confused with numeric literals.
+  matcher: { c_declaration: ambiguous_c_variable }
+  standards: ['0601000010140064', '0701000010130097']
+  message: Variable names should not mix uppercase 'O' and digit '0', '1' and lowercase 'l'.
+  translations:
+    zh-CN: { title: 易混淆的单字符变量名, message: 变量名中不能混用大写字母 ‘O’ 和数字 ‘0’，小写字母 ‘l’ 和数字 ‘1’。 }
+    en: { title: Ambiguous single-letter variable name, message: "Variable names should not mix uppercase 'O' and digit '0', '1' and lowercase 'l'." }
+    zh-TW: { title: 易混淆的單字元變數名稱, message: 變數名稱中不能混用大寫字母 ‘O’ 和數字 ‘0’，小寫字母 ‘l’ 和數字 ‘1’。 }
 - id: LEGACY-C-AST-no-absolute-include
   title: Absolute include path
   languages: [c, cpp]

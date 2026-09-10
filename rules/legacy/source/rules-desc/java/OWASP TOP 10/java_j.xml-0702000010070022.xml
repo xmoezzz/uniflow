@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010070022" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">忽略返回值</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行忽略了方法返回值。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行忽略了方法返回值。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[一般在开发过程中，程序员凭借经验可以断言某些用户事件或条件，例如某个函数永远不会执行失败。但是，攻击者往往会故意触发一些异常情况，导致冲破了程序员的断言，给系统带来了不稳定性，利用不正确的行为触发出发程序的漏洞。**例如**：程序调用删除权限函数，但不检查返回值判断是否成功删除权限，则程序将继续以更高权限运行。  
+  
+**例如**：在下面的代码片段中，程序没有对`read()`返回值做判断。  
+```java
+...  
+int bytesToRead = 1024;  
+byte[] byteArray = new byte[bytesToRead];  
+streamFileInput = new FileInputStream("C:\\file.txt");  
+streamFileInput.read(byteArray);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[程序应检查方法的返回值，确保方法返回的是期望的数据，再进行下一步操作。
+]]></Advice>
+			<References>
+				<Reference type="CWE">754:Improper Check for Unusual or Exceptional Conditions</Reference>
+				<Reference type="CWE">252:Unchecked Return Value</Reference>
+				<Reference type="CERT">EXP00-J:Do not ignore values returned by methods</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 754</Reference>
+				<Reference type="SJ/T 11683-2017">6.4.1 忽略方法的返回值</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.12 忽略无副作用方法的返回值</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

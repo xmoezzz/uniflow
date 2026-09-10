@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150450" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要使用“.”或者“|”作为正则表达式</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当使用`“.”`或者`“|”`作为正则表达式进行匹配时，会得到不符合预期的结果。  
+  
+**例如**：下列代码中，使用`“.”`或者`“|”`作为正则表达式进行匹配。  
+```java
+public static void main(String[] args) {  
+	String string = "hello. hi";  
+	String[] split = string.split(".");  //返回结果为空数组  
+	String replaceAll = string.replaceAll(".", "a");   //返回为aaaaaaaaa  
+	String abcd = "ab|cd".replaceAll("|", "/");   //返回为/a/b/|/c/d/  
+	String[] abcds= "ab|cd".split("|");  //返回为[, a, b, |, c, d]  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[明确程序逻辑，判断是否使用`“.”`或者`“|”`作为正则表达式。  
+  
+**例如**：下列代码中,使用转义符对`“.”`或者`“|”`进行转义。  
+```java
+public static void main(String[] args) {  
+	String string = "hello. hi";  
+	String[] split = string.split("\\.");  //返回结果为[hello,  hi]  
+	String replaceAll = string.replaceAll("\\.", "a");   //返回为helloa hi  
+	String abcd = "ab|cd".replaceAll("\\|", "/");   //返回为ab/cd  
+	String[] abcds= "ab|cd".split("\\|");  //返回为[ab, cd]  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

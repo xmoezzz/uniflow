@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0502000010130004" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">ISO/IEC TR 24772</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">表达式永远为false</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行表达式永远为false，判断没有存在的意义。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行表达式永远为false，判断没有存在的意义。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[表达式的计算结果永远为false，表明基于该表达式的代码快将永远不会被执行，是程序中的死代码或用于调试的代码，这些死代码会增加代码的阅读、理解和维护难度，甚至该段代码可能是调试过程中用来发现程序错误的，这样该代码块可能被攻击者利用。  
+  
+**例如**：下列代码中，if的条件表达式为false，if代码块永远都不会被执行。  
+```java
+...  
+if (false){  
+    //doSomething  
+}
+```
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，修改表达式判断条件或将此代码片段删除。
+]]></Advice>
+			<References>
+				<Reference type="CWE">570:Expression is Always False</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Programming Language Vulnerabilities Likely Incorrect Expression [KOA]</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.3 用于控制程序流程的条件表达式结果恒为真或假</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.15 instanceof类型检查的结果为常量</Reference>
+				<Reference type="SJ/T 11683-2017">6.6.22 不可达代码</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

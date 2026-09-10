@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010120004" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">异常处理</Category>
+				<Category type="DetailClassChin">finally代码块中的return语句</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行的返回指令会导致try块中抛出的异常丢失。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的返回指令会导致try块中抛出的异常丢失。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[finally语句块中的返回指令会导致try块中抛出的异常丢失。
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，删除finally语句块中的返回语句。
+]]></Advice>
+			<References>
+				<Reference type="CWE">584:Return Inside Finally Block</Reference>
+				<Reference type="CERT">ERR04-J:Do not exit abruptly from a finally block</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>
+				<Reference type="SJ/T 11683-2017">6.4.2 finally语句块中包含return语句</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,exception</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

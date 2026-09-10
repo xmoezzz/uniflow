@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010160007" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">5.2 数据净化</Category>  
+        <Category type="DetailClassChin">C.1.7 从格式字符串中排除用户输入</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+不能在格式字符串中使用非受信来源的字符串。   
+2) 原理   
+对Java格式字符串的解释要比对在像C语言这样的语言中更严格。当任何转换参数不能匹配相应的格式符时，标准类库实现会抛出一个相应的异常。这种方法降低了被恶意利用的可能性。然而，恶意用户输入可以利用格式字符串，并且造成信息泄露或者拒绝服务。因此，不能在格式字符串中使用非受信来源的字符串。   
+3) 示例   
+    这个不符合规则的代码示例展示了可能出现信息泄露的问题。它将信用卡的失效日期作为输入参数并将其用在格式字符串中。   
+    ```java
+    class Format {
+        static Calendar c = new GregorianCalendar(1995, GregorianCalendar.MAY, 23);
+    
+        public static void main(String[] args) {
+            // args[0] is the credit card expiration date
+            // args[0] can contain either %1$tm, %1$te or %1$tY as malicious
+            // arguments
+            // First argument prints 05 (May), second prints 23 (day)
+            // and third prints 1995 (year)
+            // Perform comparison with c, if it doesn’t match print the
+            // following line
+            System.out.printf(args[0] + " did not match! HINT: It was issued on %1$terd of some month", c);
+        }
+    }
+    ```   
+    如果没有经过正确输入验证，攻击者通过在输入语句中包含以下参数之一：`%1$tm`、 `%1$te`或 `%1$tY`，就可以判断验证中所用来和输入相对比的日期。   
+    该对应的符合规则的方案能够保证用户产生的输入会被排除在格式字符串之外。   
+    ```java
+    class Format {
+        static Calendar c = new GregorianCalendar(1995, GregorianCalendar.MAY, 23);
+    
+        public static void main(String[] args) {
+            // args[0] is the credit card expiration date
+            // Perform comparison with c,
+            // if it doesn't match print the following line
+            System.out.printf("%s did not match! " + " HINT: It was issued on %1$terd of some month", args[0], c);
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>  
+        <Reference type="CWE">134:Use of Externally-Controlled Format String</Reference>  
+        <Reference type="CERT">IDS06-J:Exclude unsanitized user input from format strings</Reference>  
+        <Reference type="OWASP TOP 10">2017:A9 Using Components with Known Vulnerabilities</Reference>  
+        <Reference type="OWASP TOP 10">2013:A9 Using Components with Known Vulnerabilities</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M1 Weak Server Side Controls</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.1 输入验证与数据净化</BigClassChin>  
+       
+    </BugInfo>  
+    

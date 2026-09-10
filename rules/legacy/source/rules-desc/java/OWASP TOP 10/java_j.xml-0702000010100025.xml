@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100025" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">Struts配置错误：缺少form-bean标签</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行缺少form-bean标签。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[struts使用form-bean标签将HTML形式映射至操作，如果`<action>`标签中的name属性与form-bean标签的名称不对应，则无法映射此操作。  
+  
+**例如**：如下配置文件中不包含DefaultForm的映射
+```xml
+<form-beans>  
+    <form-bean name="testbean" type="coreservlets.UserFormBean" />  
+</form-beans>  
+<action-mappings>  
+    <action path="/actions/register" type="coreservlets.RegisterAction" name="testbean" scope="request" />  
+    <action path="/GetApplicationsAction" type="org.posterita.struts.login.GoToHomePageAction" name="DefaultForm"  
+            scope="request" validate="true" parameter="action">     
+        <forward name="initChooseApplication" path="/Applications.do"/>  
+    </action>  
+</action-mappings>
+```  
+]]></Description>
+			<Advice><![CDATA[检查程序逻辑，增加相应的form-bean标签。
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

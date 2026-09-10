@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150454" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不要创建基本数据类型包装类</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[Java默认会对整数-128到127之间进行缓存，程序中采用`new Integer(int expression)`等基本数据类型包装类构造函数来创建对象，而参数的值在-128到127之间，该方法产生的额外对象将占用更多空间、降低性能。  
+  
+**例如**：下面代码示例中，使用了`new Integer(int expression)`来创建对象。  
+```java
+Integer integer = new Integer(100);
+```
+]]></Description>  
+      <Advice><![CDATA[使用valueOf方法来代替构造方法。  
+  
+**例如**：下面代码示例中，使用了`Integer.valueOf(int expression)`来创建对象 
+```java
+Integer integer = Integer.valueOf(100); //与Integer integer = 100相同
+``` 
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>performance,bad_practice</Tag> 
+    </BugInfo>  
+    

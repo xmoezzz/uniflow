@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110043" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">系统信息泄露：过于宽泛的Debug日志记录</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行设置了过于宽泛的Debug日志记录。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[日志中记录过于宽泛的Debug日志信息可能会泄露系统信息或危及用户隐私数据。
+]]></Description>
+			<Advice><![CDATA[建议程序日志中避免记录过于宽泛的Debug日志信息，以防止泄露系统信息。
+]]></Advice>
+			<References>
+				<Reference type="CWE">497:Exposure of System Data to an Unauthorized Control Sphere</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:信息通过调试日志文件泄露</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,log</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

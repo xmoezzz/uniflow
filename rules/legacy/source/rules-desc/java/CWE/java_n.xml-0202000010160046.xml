@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010160046" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.5.9 不要在嵌套类中暴露外部类的私有字段</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+禁止嵌套类将外部类的私有成员暴露给外部的类或者包。   
+2) 原理   
+嵌套类是指那些声明在另一个类或者接口代码块中的任何类。使用嵌套类易出错，除非其语义易理解。一个通用形式是，仅有嵌套类可以访问外部类的内容。不仅嵌套类可以访问外部类的私有字段，当嵌套类被声明为公有或者当它包含公有的方法或者构造方法时，同样的字段也可以被任何在同一个包里的其他类访问。因此，嵌套类禁止将外部类的私有成员暴露给外部的类或者包。   
+3) 示例   
+    1、不符合规则的代码示例，该示例将私有的（x, y)坐标通过`getPoint()`方法暴露给内部类。因此，属于同一个包的 AnotherClass 类同样可以访问这些坐标。   
+    ```java
+    class Coordinates {
+        private int x;
+        private int y;
+    
+        public class Point {
+            public void getPoint() {
+                System.out.println("(" + x + "," + y + ")");
+            }
+        }
+    }
+    
+    class AnotherClass {
+        public static void main(String[] args) {
+            Coordinates c = new Coordinates();
+            Coordinates.Point p = c.new Point();
+            p.getPoint();
+        }
+    }
+    ```   
+    对应的符合规则的解决方案是：使用私有的访问描述符来隐藏内部类以及所有包含的方法和构造函数。   
+    ```java
+    class Coordinates {
+        private int x;
+        private int y;
+    
+        private class Point {
+            private void getPoint() {
+                System.out.println("(" + x + "," + y + ")");
+            }
+        }
+    }
+    class AnotherClass {
+        public static void main(String[] args) {
+            Coordinates c = new Coordinates();
+            Coordinates.Point p = c.new Point();
+            p.getPoint();
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">492:Use of Inner Class Containing Sensitive Data</Reference> 
+      </References>  
+      <Obsolete>yes</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.5 面向对象</BigClassChin>  
+       
+    </BugInfo>  
+    

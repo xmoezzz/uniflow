@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010160031" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.4.8 不要尝试与NaN进行比较</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+不能和 NaN 进行直接比较，防止无序特性产生意外结果。   
+2) 原理   
+因为 NaN (Not-a-Number,非数值）是无序的，所以当一个或两个操作数是 NaN 时，数值 比较符 `<`、`<=`、`>=`和 `>=`会返回 false。当任意一个操作数是 NaN,相等运算符`==`会返回 false,当任意一个操作数是NaN，不等运算符`!=`会返回 true。因为无序的特性常常导致意外结果，所以不能和 NaN 进行直接比较。   
+3) 示例   
+    如下不符合规则的代码示例尝试和 NaN 进行直接比较。根据 NaN 的语义，所有和 NaN 的比较会返回 false (除`!=`运算符返回 true 之外）。因此，代码中的比较只会返回 false,并且不会输出`“result is NaN”`。   
+    ```java
+    public class NaNComparison {   
+        public static void main(String[] args) {    
+            double x = 0.0;   
+            double result = Math.cos(1/x); // returns NaN if input is infinity    
+            if (result == Double.NaN) { // comparison is always false!   
+                System.out.printIn("result is NaN");   
+            }   
+        }   
+    }
+    ```  
+    对应的符合规则的解决方案是：使用方法 `Double.isNaN()`来检测表达式是否是一个 NaN 数值。   
+    ```java
+    public class NaNComparison {   
+        public static void main(String[] args) {    
+            double x = 0.0;   
+            double result = Math.cos(1/x); // returns NaN when input is infinity    
+            if (Double.isNaN(result)) {   
+                System.out.println("result is NaN");   
+            }   
+        }   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">486:Comparison of Classes by Name</Reference>  
+        <Reference type="CERT">NUM07-J:Do not attempt comparisons with NaN</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.4 数值类型与运算</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100002" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：调试信息</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行调试级别不安全。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[当Tomcat调试级别在3级或以上时，可能会把敏感数据（包括密码）写入日志文件。如果程序使用Tomcat执行认证，Tomcat部署描述符文件会指定一个“Realm”用于认证。如下所示：  
+```xml
+<Realm className="org.apache.catalina.realm.JAASRealm"  
+    appName="SRN"  
+    userClassNames="com.srn.security.UserPrincipal"  
+    roleClassNames="com.srn.security.RolePrincipal"  
+    debug="3"/>  
+```
+此Realm标签具有一个名为debug的属性，为可选项，用来指明日志级别。数值越大，记录的日志信息越冗长。如果调试级别设置得过高，Tomcat会将所有的用户名和密码以明文形式写入日志文件中。Tomcat JAASRealm的相关调试信息的临界值为3（3或者更高表示有问题，2或者更低表示正常），但是这个临界值会因Tomcat提供的Realm类型的不同而有所不同。
+]]></Description>
+			<Advice><![CDATA[正确配置Tomcat级别，避免信息泄露。
+]]></Advice>
+			<References>
+				<Reference type="CWE">215:Information Exposure Through Debug Information</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,log</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

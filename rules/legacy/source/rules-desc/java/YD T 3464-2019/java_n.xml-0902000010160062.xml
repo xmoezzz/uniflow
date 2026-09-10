@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160062" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.6.13 不要使用析构函数</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+避免不恰当地使用析构函数，防止可回收对象的重新引用。   
+2) 原理   
+垃圾回收器在认为对象是不可达到的时候，在回收对象所占用空间之前会调用对象的终结方法。析构函数的执行提供了一种方式来释放资源，例如流、文件和网络连接。这些资源可能并不会由于垃圾回收器的执行而自动释放。   
+因为析构函数有太多的问题，所以限制它使用在某些特殊的情况中。   
+同时，必须避免在新的类中使用析构函数。   
+3) 示例   
+    当一个基类定义了`fmalize()`方法时，要确保可以分离立即回收的对象和依赖于析构函数的对象。这个符合规定的方案确保在对象不可达到时可以马上回收缓冲区。   
+    ```java
+    class MyFrame {   
+        private JFrame frame;   
+        private byte[] buffer = new byte[16 * 1024 * 1024]; // now decoupled   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">586:Explicit Call to Finalize()</Reference>  
+        <Reference type="CWE">568:finalize() Method Without super.finalize()</Reference>  
+        <Reference type="CERT">MET12-J:Do not use ﬁnalizers</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.18 调用finalize方法</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.6 方法</BigClassChin>  
+       
+    </BugInfo>  
+    

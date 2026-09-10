@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010110112" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">缺少组件权限</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行调用的方法缺少组件权限。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行调用的方法缺少组件权限。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序没有在`AndroidManifest.xml`文件中为该公共组件分配访问权限。任何应用程序都能访问`AndroidManifest.xml`文件中没有明确分配访问权限的公共组件。当Android应用程序中存在intent-filter时，Activity、Receiver以及Service组件的exported属性的默认值设为true，则说明组件是对外提供服务的，这样其他任何Android应用都可以访问该组件。  
+  
+**例如**：以下是一个存在intent-filter且未设置明确访问权限的Android Service示例。  
+```xml
+<service android:name=".MyService"/>   
+    <intent-filter android:label="myService">  
+        <action android:name=".myAction"/>   
+    </intent-filter>   
+    ...   
+</service> 
+```
+该Activity可能被恶意程序利用。
+]]></Description>
+			<Advice><![CDATA[应当去除没有明确访问权限的组件，除非该组件的真正目的是向所有人开放。开发人员应该显式定义清单文件中的访问权限，以防止组件被恶意程序应用。  
+  
+**例如**：以下是带有明确访问权限的Service组件示例。
+```xml
+<service android:name=".MyService" android:permission="FriendsOnly"/>   
+    <intent-filter android:label="myService"/>   
+        <action android:name=".myAction"/>   
+    </intent-filter>   
+    ...   
+</service>
+```  
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="CERT">DRD06:Do not act on malicious intents,DRD07-X:Protect exported services with strong permissions,DRD09:Restrict access to sensitive activities,DRD16-X:Explicitly define the exported attribute for private components</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

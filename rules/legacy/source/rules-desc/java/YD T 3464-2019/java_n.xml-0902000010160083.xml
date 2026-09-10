@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160083" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.3 并发程序安全</Category>  
+        <Category type="DetailClassChin">C.9.5 即使集合是可访问的，也不要基于集合视图使用同步</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+同时需要对集合视图进行迭代和可以进入后台集合的程序，应该基于后台的集合实现同步。   
+2) 原理   
+`java.util.Collections` 的接口文档中提到了在对集合视图进行迭代时，如果没有对可访问的集 合对象进行同步会产生以下后果：   
+当对任何一个集合视图进行迭代的时候，认为用户手动对返回的 map 进行同步是必要的。 如果不听从这条建议，会导致不确定的行为。   
+任何一个使用集合视图而不是后台集合作为锁对象的类，会面临两种不同的锁策略。当多个线程可以访问后台集合时可访问多个线程时，基于集合视图实现锁的类违反了线程安全的属性,同时也是不安全的。因此，同时需要对集合视图进行迭代和可以进入后台集合的程序，应该基于后台的集合实现同步，而基于视图进行同步违反了本条规则。   
+3) 示例   
+    如下不符合规则的代码示例，该示例创建了一个HashMap对象和两个视图对象：一个空的HashMap的同步视图，这个空的HashMap视图被`mapView`数据成员封装；另一个是被`setView`数据成员封装的map的索引的视图。它基于`setView`实现同步。   
+    ```java
+    private final Map<Integer, String> mapView = Collections.synchronizedMap(new HashMap<Integer, String>());
+    
+    private final Set<Integer> setView = mapView.keySet();
+    
+    public Map<Integer, String> getMap() {
+        return mapView;
+    }
+    
+    public void doSomething() {
+        synchronized (setView) { // Incorrectly synchronizes on setView
+            for (Integer k : setView) {
+                // . . .
+    ``` 
+    同步的语句使用了`setView`的内在锁而不是`mapView`的，另一个线程可以修改这个同步 map 并且使 k 迭代器无效。   
+       
+    对应的符合规则的解决方案（集合锁对象）是：基于`mapView`字段而不是基于`setView`字段实现同步。   
+    ```java
+    private final Map<Integer, String> mapView = Collections.synchronizedMap(new HashMap<Integer, String>());
+    private final Set<Integer> setView = mapView.keySet();
+    
+    public Map<Integer, String> getMap() {
+        return mapView;
+    }
+    
+    public void doSomething() {
+        synchronized (mapView) { // Synchronize on map, rather than set
+            for (Integer k : setView) {
+                // . . .
+    ``` 
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.9 锁</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010130026" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">SJ/T 11683-2017</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">使用equals()来判断字符串是否为空</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用了equals()来判断字符串是否为空。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用了equals()来判断字符串是否为空。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序中使用equals方法来判断字符串是否为空，这样会降低系统性能。
+]]></Description>
+			<Advice><![CDATA[使用判断字符串长度的方法，判断字符串是否为空，这样会提升系统性能。
+]]></Advice>
+			<References>
+				<Reference type="SJ/T 11683-2017">6.6.10 低效的空字符串判断</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>performance,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

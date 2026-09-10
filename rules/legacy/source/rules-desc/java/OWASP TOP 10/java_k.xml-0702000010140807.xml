@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010140807" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">Rule 07. 异常行为 (ERR)</Category>  
+        <Category type="DetailClassChin">ERR07-J：不要抛出RuntimeException、Exception、Throwable</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[方法禁止抛出RuntimeException、Exception、Throwable。抛出RuntimeException会产生微妙的错误，很少有方法能处理潜在的运行异常，例如：一个调用者不能通过检查异常来判断异常抛出的原因，从而不能进行有效的恢复操作。  
+风险评估：方法RuntimeException、Exception、Throwable可能掩盖其他异常。  
+**不规范的代码样例1**：  
+```java
+boolean isCapitalized(String s) {
+    if (s == null) {
+        throw new RuntimeException("Null String");
+    }
+    if (s.equals("")) {
+        return true;
+    }
+    String first = s.substring(0, 1);
+    String rest = s.substring(1);
+    return (first.equals(first.toUpperCase()) && rest.equals(rest.toLowerCase()));
+}
+```
+]]></Description>  
+      <Advice><![CDATA[方法可以抛出继承自RuntimeException、Exception的明确异常。  
+**规范的代码样例1**：  
+抛出明确的NullPointerException()。
+```java  
+boolean isCapitalized(String s) {
+    if (s == null) {
+        throw new NullPointerException();
+    }
+    if (s.equals("")) {
+        return true;
+    }
+    String first = s.substring(0, 1);
+    String rest = s.substring(1);
+    return (first.equals(first.toUpperCase()) && rest.equals(rest.toLowerCase()));
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">397:Declaration of Throws for Generic Exception</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.6 方法声明抛出的异常过于宽泛</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

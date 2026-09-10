@@ -1,0 +1,96 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141415" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 13. 输入输出 (FIO)</Category>  
+        <Category type="DetailClassChin">FIO15-J：当一个servle输出流提交后不要重置输出流</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当web servlet接收到来自客户端的请求时，它必须生成适当的响应。Java的HttpServlet提供HttpServletResponse对象捕捉到一个合适的回应。这种响应可以使用`getOutputStream()`提供的输出流或`getWriter()`方法返回的writer。  
+那么响应被提交指的是如果它的状态代码和HTML消息头已经被发送[J2EE API 2013]。在作出响应之后，会添加更多的数据到响应中，但是某些行为变得不可能。**例如**：不可能改变字符编码，因为编码包含在HTML头中。其中一些非法操作将会产生非法的异常，而另一些则没有效果。这些非法行为包括：  
+重新设置流或重新提交到流  
+刷新流或者writer的缓冲区  
+调用`getWriter()` 或 `getOutputStream()`  
+重定向一个HttpServletResponse到另外一个server  
+修改流的编码、内容类型或缓冲区大小  
+
+**不规范的代码样例1**：  
+```java
+public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+
+    PrintWriter out = response.getWriter();
+    try {
+        out.println("<html>");
+
+        // ... Write some response text
+
+        out.flush(); // Commits the stream
+
+        // ... More work
+
+    } catch (IOException x) {
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+}
+```
+上面不合规范的代码中，如果在刷新流之后出现IOException，则在catch子句执行时将提交流。因此，`sendError()`方法将抛出IllegalStateException。  
+**不规范的代码样例2**：  
+```java
+public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+
+    PrintWriter out = response.getWriter();
+    try {
+        out.println("<html>");
+
+        // ... Write some response text
+
+        out.flush(); // Commits the stream
+
+        // ... More work
+
+    } catch (IOException x) {
+        out.println(x.getMessage());
+        out.flush();
+    }
+}
+```
+上面不合规范的代码中，如果刷新流之后出现IOException,在catch语句中流将刷新。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+
+    try {
+        // Do work that doesn't require the output writer
+    } catch (IOException x) {
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+
+    PrintWriter out = response.getWriter();
+    try {
+        out.println("<html>");
+
+        // ... All work
+
+    } catch (IOException ex) {
+        out.println(ex.getMessage());
+    } finally {
+        out.flush();
+    }
+}
+```
+`sendError()`方法应该只在输出流或writer创建之前使用，因为它覆盖了任何输出。一旦创建了输出流或writer，错误应该与有效的HTML一起输出。这个合规的代码使用了两种策略，确保流在最后的子句中只刷新一次。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

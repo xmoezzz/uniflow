@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140403" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 02. 表达式 (EXP)</Category>  
+        <Category type="DetailClassChin">EXP03-J：不要使用相等操作符比较封装的基础数据类型</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[两个封装的基础数据类型的值是不能直接使用` == `或者` != `操作符来比较，因为这些操作符比较的是对象的引用而不是对象的值。考虑到自动封装会内存化或存储一些基础数据类型变量的值，程序员往往认为这条规则的要求是难以相信的。但是，引用比较和值的比较，对于那些完全内存化的变量是会产生相同的值，但没有完全内存化的变量则不会。  
+在Java语言规范5.1.7节“装箱转换”中关于自动封装时，哪些基础结构数据是要被内存化的：  
+>如果要装箱的p值为true、false、一个byte、一个在\u0000~\u007f之间的char或者一个位于-128~127之间的int或short数字，设r1和r2是p的任何两个装箱转化的结果，则始终有r1==r2。（设p为100，Integer r1 = 100，Integer r2 = 100，则r1一定等于r2）  
+
+在JVM中，对额外的数据的内存化是允许的，但不是必需的。所以，在内存比较宽松的实现中，有可能会对所有的char、short的值，甚至是值在-32K~+32K之间的int、long进行缓存。  
+完全内存化的封装后的基础数据类型：Boolean、Byte。  
+没有完全内存化的封装后的基础数据类型：Character、Short、Integer、Long、Float、Double。  
+在封装后的基础数据类型不是直接来自于其构造函数的情况下，即属于自动封装，可以：  
+1）如果使用 `==` 或者 `!=` 操作符来比较两个完全内存化的封装过的基础数据类型的值是允许的。  
+2）如果使用 `==` 或者 `!=` 操作符来比较两个没有完全内存化的封装过的基础数据类型的值，必须保证两个值处于对应类型的有效范围之内。  
+**不规范的代码样例1**：  
+代码定义了一个`compare()`方法，在方法内对传入的两个Integer对象进行了`==`比较，实际上比较的是这两个对象的地址而不是值。  
+```java
+static Comparator<Integer> cmp = new Comparator<Integer>()
+{
+    public int compare(Integer i, Integer j) {
+        return i < j ? -1 : (i == j ? 0 : 1);
+    }
+};
+```
+**不规范的代码样例2**：  
+一个Boolean类型的构造函数会返回一个新的对象实例，采用`==`比较`b1`、`b2`将会产生不可预期的结果。  
+```java
+public void exampleEqualOperator() {
+    Boolean b1 = new Boolean("true");
+    Boolean b2 = new Boolean("true");
+    if (b1 == b2) {
+        System.out.println("Never printed");
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[方案1：采用比较操作符`<、<=、>、>=`来比较封装后的基础数据类型，因为这些操作符会自动解封封装；  
+方案2：采用`equals`来比较两个封装后的基础数据类型。  
+**规范的代码样例1**：  
+```java
+public int compare(Integer i, Integer j) {  
+    return i < j ? -1 : (i > j ? 1 : 0);  
+}  
+```
+**规范的代码样例2**：  
+```java
+public class Wrapper {
+    public static void main(String[] args) {
+        Integer i1 = 100;
+        Integer i2 = 100;
+        Integer i3 = 1000;
+        Integer i4 = 1000;
+        System.out.println(i1.equals(i2));
+        System.out.println(!i1.equals(i2));
+        System.out.println(i3.equals(i4));
+        System.out.println(!i3.equals(i4));
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">754:Improper Check for Unusual or Exceptional Conditions</Reference>  
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

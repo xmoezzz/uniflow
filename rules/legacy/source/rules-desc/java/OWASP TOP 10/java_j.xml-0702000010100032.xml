@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100032" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">XML Schema配置错误：宽松的Processing</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行的Processing设置宽松。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果XML Schema不强制严格执行输入验证，会允许任意元素或属性通过验证。攻击者有可能将恶意文档注入至系统。当XML Schema中`processContents`被设为lax或skip时，不会对通配符元素和属性执行输入验证。  
+
+**例如**：下列配置文件中将`processContents`设为lax。
+```xml
+<?xml version="1.0"?>  
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"  >  
+  <xs:element name="User" >  
+    <xs:complexType>  
+      <xs:sequence>  
+        <xs:element name="userID" maxOccurs="1" />  
+        <xs:any namespace="http://userInfo" processContents="lax" minOccurs="1" maxOccurs="5"/>  
+      </xs:sequence>  
+    </xs:complexType>  
+  </xs:element>  
+</xs:schema>
+```  
+下列配置文件为系统含有`http://userInfo`的XML Schema文件：
+```xml
+<?xml version="1.0"?>  
+<xsd:schema targetNamespace="http://userInfo" xmlns:xsd="http://www.w3.org/2001/XMLSchema" >  
+  <xsd:element name="name" type="xsd:string"/>  
+</xsd:schema>  
+```  
+此XML Schema允许`http://userInfo`命名空间中的任意标签通过其验证，因此也允许下列XML通过验证。  
+```xml
+<?xml version="1.0"?>  
+<User xmlns:userInfo="http://userInfo">  
+  <userID>123</itemID>  
+  <userInfo:name>LI</userInfo:name>  
+  <userInfo:password>123456</userInfo:password>  
+</User>
+```
+User如果根据配置文件获取信息，将会提前被设置密码。
+]]></Description>
+			<Advice><![CDATA[将XML Schema中的processContents设为strict，对通配符元素和属性执行输入验证。  
+
+**例如**：下列配置文件中将`processContents`设为strict，能当遇到未定义的`userInfo:password`元素时验证失败。 
+```xml
+<?xml version="1.0"?>  
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"  >  
+  <xs:element name="User" >  
+    <xs:complexType>  
+      <xs:sequence>  
+        <xs:element name="userID" maxOccurs="1" />  
+        <xs:any namespace="http://userInfo" processContents="strict" minOccurs="1" maxOccurs="5"/>  
+      </xs:sequence>  
+    </xs:complexType>  
+  </xs:element>  
+</xs:schema>
+``` 
+]]></Advice>
+			<References>
+				<Reference type="CWE">20:Improper Input Validation</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 20</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 20</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

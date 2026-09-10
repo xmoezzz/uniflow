@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150439" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【推荐】不应该使用弱的SSL协议</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在安全性要求较高的系统中，使用弱的SSL协议，将无法保证敏感数据的保密性。  
+  
+**例如**：下面代码示例中使用了SSL协议。  
+```java
+...  
+context = SSLContext.getInstance("SSL");  
+...
+```
+]]></Description>  
+      <Advice><![CDATA[使用安全性更高的TLSv1.2或者DTLSv1.2来替代SSL协议。  
+  
+**例如**：下面代码示例中使用了TLSv1.2协议。  
+```java
+...  
+context = SSLContext.getInstance("TLSv1.2");  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">327:Inadequate Encryption Strength</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin/>  
+        
+        
+        
+        
+        
+      <Tag>security</Tag> 
+    </BugInfo>  
+    

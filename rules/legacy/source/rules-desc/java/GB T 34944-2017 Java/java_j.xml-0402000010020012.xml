@@ -1,0 +1,113 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010020012" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">XPath注入</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[XPath注入是指利用XPath解析器的松散输入和容错特性，能够在URL、表单或其它信息上附带恶意的XPath查询代码，以获得权限信息的访问权并更改这些信息。XPath注入与SQL注入类似，均是通过构造恶意的查询语句，对应用程序进行攻击。  
+  
+**例如**：以下代码片段中，可动态地构建并执行一个XPath查询，为指定的帐户`id`检索家庭地址。  
+```java
+...
+String id = request.getParameter("id");  
+String query = null;  
+if(id != null) {  
+    StringBuilder sb = new StringBuilder("/users/user[id='");  
+    sb.append(id);  
+    sb.append("']/address/text()");  
+    query = sb.toString();  
+}  
+DocumentBuilderFactory domFactory = DocumentBuilderFactory.newInstance();  
+domFactory.setNamespaceAware(true);  
+DocumentBuilder builder = domFactory.newDocumentBuilder();  
+Document doc = builder.parse("users.xml");  
+XPathFactory factory = XPathFactory.newInstance();  
+XPath xpath = factory.newXPath();  
+XPathExpression expr = xpath.compile(query);  
+Object result = expr.evaluate(doc, XPathConstants.NODESET);
+...
+```  
+正常情况下（例如搜索帐号为1的家庭地址），此代码所执行的查询如下所示：  
+`/users/user[id='1']/address/text()`  
+如果攻击者输入的字符串 为`1' or '1' = '1`，则该查询会变成：  
+`/users/user[id='1' or '1' = '1']/address/text()`  
+附加条件`1' or '1' = '1`会使where从句永远为true，因此该查询在逻辑上将等同于一个更为简化的查询：  
+`//address/text()`  
+这样就可以查询到文档中存储的所有家庭地址。
+]]></Description>
+			<Advice><![CDATA[造成XPath注入的根本原因在于攻击者能够改变XPath查询的上下文，导致程序员期望解释为数据的某个数值被解释为命令了。为了防止攻击者侵犯程序员的各种预设情况，可以使用白名单的方法，确保XPath查询中由用户控制的数值完全来自于预定的字符集合，不包含任何XPath元字符。如果由用户控制的数值要求它包含XPath元字符，则使用相应的编码机制转义或删除这些元字符，例如将用户输入参数中包含的xml特殊字符`<、>、&、\、"、'`等进行转义。。  
+  
+**例如**：以下代码片段中，将不可信赖的数据`id`转化为一个整型再用于构造XPath查询，避免了XPath注入攻击。  
+```java
+...
+String id = request.getParameter("id");  
+String query = null;  
+if(id != null) {  
+    Integer iAcctID = -1;  
+    try {  
+        iAcctID = Integer.parseInt(id);  
+    }  
+    catch (NumberFormatException e) {  
+        throw new InvalidParameterException();  
+    }  
+    StringBuilder sb = new StringBuilder("/accounts/account[acctID='");  
+    sb.append(iAcctID.toString());  
+    sb.append("']/email/text()");  
+    query = sb.toString();  
+}  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">643:Improper Neutralization of Data within XPath Expressions ('XPath Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:XPath注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发XPath注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在XPath注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在XPath注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发XPath注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

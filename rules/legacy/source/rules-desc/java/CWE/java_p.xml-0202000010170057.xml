@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170057" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.4 异常处理安全</Category>  
+        <Category type="DetailClassChin">A.3.4.5 不要在finally块中遗漏可检测异常</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：在finally块中调用会抛出异常的方法，如果没有捕获这样的异常会造成整个try块的非正常终止。这导致了在try块中抛出的异常丢失，从而阻碍了任何可能的恢复方法去处理这些问题。而且，由于异常改变了程序流程，因此可能不会执行finally程序段中在异常抛出后的任何语句。  
+对于不要在finally块中遗漏可检测异常的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+public class Operation {
+    public static void doOperation(String some_file) {
+        // ... code to check or set character encoding ...
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(some_file));
+            try {
+                // Do operations
+            } finally {
+                reader.close();
+                // ... Other cleanup code ...
+            }
+        } catch (IOException x) {
+            // Forward to handler
+        }
+    }
+} 
+```
+`reader.close()`会抛出IOException。如果抛出这个异常，程序将不会执行随后的代码。  
+对于在finally块中的会抛出异常的语句，应采用try-catch进行处理。Java7以后新增了try-with-resource新功能，它可以在异常发生时自动的关闭特定资源。  
+**示例2**：  
+```java
+public class Operation {
+    public static void doOperation(String some_file) {
+        // ... code to check or set character encoding ...
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(some_file));
+            try {
+                // Do operations
+            } finally {
+                try {
+                    reader.close();
+                } catch (IOException ie) {
+                    // log ie
+                }
+                // ... Other cleanup code ...
+            }
+        } catch (IOException x) {
+            // Forward to handler
+        }
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="CERT">ERR04-J:Do not exit abruptly from a finally block</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.4 异常处理安全</BigClassChin>  
+       
+    </BugInfo>  
+    

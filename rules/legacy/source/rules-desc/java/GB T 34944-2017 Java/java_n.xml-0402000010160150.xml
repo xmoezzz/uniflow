@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010160150" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">GB/T 34944-2017</Category>  
+        <Category type="SubClassChin">5.3 数据加密与保护</Category>  
+        <Category type="DetailClassChin">C.17.3 生成强随机数</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+java.util.Random 类不能用在安全关键应用或存在敏感数据的场合。   
+2) 原理   
+伪随机数生成器（Pseudorandom Number Generator, PRNG）使用确定的数据算法来生 成具有良好统计特性的数字序列，PRNG 通常起始于一个种子数字。算法使用这个种子生成输出数值和一个新种子，新种子用来生成下一个数值，然后依次类推。   
+Java API 提供 `java.util.Random` 类来实现 PRNG，这个 PRNG 是可移植和可重复的。如果`java.util.Random `类的两个实例使用相同的种子，会在所有 Java 实现中生成相同的数值序列。    
+种子有可能泄漏。`java.util.Random` 不能用在安全关键应用或存在敏感数据的场合。在这些场合应该使用更安全的随机数生成器，比如 `java.security.SecureRandom` 类。   
+3) 示例   
+    1.这个不符合规则的代码示例使用了 `java.util.Random` 类，一个指定的种子值生成一个相同的序列，这个数值序列是可被预测的。   
+    ```java
+    import java.util.Random;   
+    // . . .  *   
+    Random number = new Random(123L);   
+    //...   
+    for (int i = 0; i < 20; i++) {   
+        // Generate another random integer in the range [0, 20] int n = number.nextlnt(21);   
+        System.out.printIn(n);   
+    }
+    ```   
+    这个符合规则的代码示例使用 `java.security.SecureRandom `类来生成高质量的随机数。
+    ```java
+    import java.security.SecureRandom;   
+    import java.security.NoSuchAlgorithmException;   
+    // . . .    
+    public static void main (String args(1){ 
+        try {   
+            SecureRandom number = SecureRandom.getlnstance("SHA1PRNG"); // Generate 20 integers 0..20 
+            for (int i =   0; i < 20; i++) {   
+                System.out.println(number.nextlnt(21));   
+            }   
+        } catch (NoSuchAlgorithmException nsae) {   
+            // Forward to handler
+    ```   
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">338:Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)</Reference>  
+        <Reference type="CWE">330:Use of Insufficiently Random Values</Reference>  
+        <Reference type="CERT">MSC02-J:Generate strong random numbers</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 330</Reference>  
+        <Reference type="GB/T 34944-2017 Java">安全功能:不充分的随机数</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.17 其它</BigClassChin>  
+       
+    </BugInfo>  
+    

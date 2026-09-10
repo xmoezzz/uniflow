@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010110102" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">缺少Receiver权限</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行使用的方法缺少Receiver权限。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用的方法缺少Receiver权限。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果Android应用程序在发送广播时没有指定BroadcastReceiver的权限，则意味着任何BroadcastReceiver都可以访问该广播。当广播中包含有敏感数据时，恶意的BroadcastReceiver也可以进行了接收，可能会对应用程序造成危害。  
+  
+**例如**：下列代码片段中，发送广播时未指定BroadcastReceiver权限。  
+```java
+context.sendBroadcast(intent);
+```
+]]></Description>
+			<Advice><![CDATA[发送广播时最好明确指定广播接收器权限，这样可以限制仅具有所需权限的广播接收器能够接收到广播数据。  
+  
+**例如**：以下代码片段中，发送广播时明确指定了所需的广播接收器权限。
+```java
+context.sendBroadcast(intent, "permission.ALLOW_INCOMING");
+```  
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

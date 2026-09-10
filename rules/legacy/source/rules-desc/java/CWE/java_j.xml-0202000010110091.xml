@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110091" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">系统信息泄露：标准错误流</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[通过系统输出流（标准错误流）打印或日志功能将系统数据或调试信息输出到本地文件或屏幕时，在一些类似Eclipse的程序，为了让错误信息更加显眼，会将错误信息以红色文本的形式通过System.err输出到控制台上，更容易发生内部信息泄露。  
+  
+**例如**：下面代码片段中，`printStackTrace()`方法内部使用了标准错误流输出异常的堆栈信息，攻击者可能会利用这些堆栈信息制定相应的攻击计划。  
+```java
+try{  
+    ...  
+}catch(Exception e){  
+    e.printStackTrace();  
+}
+```
+]]></Description>
+			<Advice><![CDATA[程序不应通过系统输出流或程序日志将系统数据或调试信息输出程序。
+]]></Advice>
+			<References>
+				<Reference type="CWE">535:Information Exposure Through Shell Error Message</Reference>
+				<Reference type="CWE">526:Information Exposure Through Environmental Variables</Reference>
+				<Reference type="CWE">497:Exposure of System Data to an Unauthorized Control Sphere</Reference>
+				<Reference type="CWE">209:Information Exposure Through an Error Message</Reference>
+				<Reference type="CERT">ERR01-J:Do not allow exceptions to expose sensitive information,ENV02-J:Do not trust the values of environment variables</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:信息通过错误消息泄露</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,log,exception</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发系统信息泄露：标准错误流漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在系统信息泄露：标准错误流漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在系统信息泄露：标准错误流漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发系统信息泄露：标准错误流漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

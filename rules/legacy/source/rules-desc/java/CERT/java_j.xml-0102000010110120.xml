@@ -1,0 +1,77 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110120" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">用户信息泄露</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[该方法对隐私信息处理不当，会危及到用户隐私。  
+以下情况会危害到用户隐私：  
+1. 用户个人信息被写入程序中；  
+2. 用户数据被写入到外部介质，比如控制台、文件系统或者网络中。  
+**例如**：下列代码使用Android的SharedPreferences类存储用户数据  
+```java
+...  
+SharedPreferences userPre = this.getSharedPreferences("userPre", MODE_WORLD_READABLE);  
+SharedPreferences.Editor editor = userPre.editor();  
+editor.putString("password", socialSecurity);  
+...
+```  
+在默认情况下Android的SharedPreferences是应用程序专用的，其他应用程序无法访问，但是通过物理访问还是有可能访问到这些文件。在以上示例中：如果将模式设为`MODE_WORLD_READABLE`，则当前文件能够被其他应用读取。
+]]></Description>
+			<Advice><![CDATA[避免使用Android中的SharedPrefernces类存储敏感信息，避免将敏感信息存储到物理设备上。  
+1. 在用户身份验证的情况下，考虑使用服务器协商认证技术或者Android提供的AccountManager类；  
+2. 如果必须在设备上存储敏感信息，考虑使用加密存储，至少对入库前的数据进行加密；  
+3. 如果将敏感信息存储在preference文件中，模式不应该设为`MODE_WORLD_READABLE`以及`MODE_WORLD_WRITEABLE`。
+]]></Advice>
+			<References>
+				<Reference type="CWE">359:Exposure of Private Information ('Privacy Violation')</Reference>
+				<Reference type="CERT">DRD00:Do not store sensitive information on external storage (SD card) unless encrypted first,DRD11:Ensure that sensitive data is kept secure</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M2 Insecure Data Storage</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发用户信息泄露漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在用户信息泄露漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在用户信息泄露漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发用户信息泄露漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

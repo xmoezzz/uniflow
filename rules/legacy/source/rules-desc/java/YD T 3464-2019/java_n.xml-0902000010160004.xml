@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160004" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">5.2 数据净化</Category>  
+        <Category type="DetailClassChin">C.1.4 不要记录未经净化的用户输入</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+   
+不要将未经净化的用户输入写入日志，以防止向受信边界之外泄露敏感数据或违反本地的安全规则。   
+2) 原理：   
+当日志条目包含未经净化的用户输入时会引发记录注入漏洞。恶意用户会插入伪造的日志数据，从而让系统管理员以为是系统行为。例如，用户在将冗长的日志记录拆分成两份时，日志中使用的回车和换行符可能会被误解。记录注入攻击可以通过对任何非受信的发送到日志的输入进行净化和验证来阻止。   
+将未经净化的用户输入写入日志同样会导致向受信边界之外泄露敏感数据，或者在存储敏感数据的时候，违反了本地的安全规则。   
+3) 示例   
+    从这个不符合规则的代码示例中，可以看到在接收到非法请求的时候，会记录用户的用户名。这时没有执行任何输入净化。   
+    ```java
+    if (loginSuccessful) {   
+        logger.severe("User login succeeded for: " + username);   
+    } else {   
+        logger.severe("User login failed for: " + username);   
+    }
+    ```   
+    如果没有净化，那么可能会出现日志注入攻击。   
+    对应的符合规定的方案在登录之前会净化用户名输入，从而防止注入攻击。
+    ```java
+    if (!Pattern.matches("[A-Za-z0-9_]+", username)) {
+        // Unsanitized username
+        logger.severe("User login failed for unauthorized user");
+    } else if (loginSuccessful) {
+        logger.severe("User login succeeded for: " + username);
+    } else {
+        logger.severe("User login failed for: " + username);
+    }
+    ```   
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">117:Improper Output Neutralization for Logs</Reference>  
+        <Reference type="CERT">IDS03-J:Do not log unsanitized user input</Reference>  
+        <Reference type="OWASP TOP 10">2017:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.1 输入验证与数据净化</BigClassChin>  
+       
+    </BugInfo>  
+    

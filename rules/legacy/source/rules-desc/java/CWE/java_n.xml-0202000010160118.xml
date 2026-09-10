@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010160118" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">7.5 文件系统</Category>  
+        <Category type="DetailClassChin">C.13.13 为小端数据的读写提供方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+与使用 JNI 的其他语言一起工作时，应正确地处理相关的字节顺序问题。   
+2) 原理   
+在 Java 中，数据是按照大端字节序进行存储的（同样被称为网络字节编组）。这意味着，线性地从最高位到最低位表示数据。在 JDK1.4 之前的版本中，要求提供对相反的字节顺序进行管理的方法的定义，同时需要维护这些相反的字节顺序与采用小端（little-endian)字节序编码的系统的兼容性。在同时包括了大端字节序和小端字节序主机的网络化的环境中，或者与使用 JNI 的其他语言一起工作时，正确地处理相关的字节顺序问题是很重要的。不能处理字节顺序问题，会导致不可预期的程序行为。   
+3) 示例   
+    由类 java.io.DatalnputStream 和 java.io.DataOutputStream 定义的数据读取的方法（`readByte()、readShort()、readlnt()、readLong()、readFloat()`和 `readDouble()`）和对应的写方法仅对大端字节序数据进行操作。使用这些方法与传统的语言如 C 或者 C++进行互操作是不安全的，这些语言不能保证字节顺序。这个不符合规则的代码示例展示了这样的一个差别：   
+    ```java
+    try {   
+        DatalnputStream dis = null;    
+        try {   
+            dis = new DatalnputStream(new FilelnputStream("data"));   
+            //Little-endian data might be read as big-endian    
+            int serialNumber = dis.readlnt();   
+        } catch (IOException x) {   
+            //handle error   
+        } finally {   
+            if (dis != null) {   
+                try {   
+                    dis.close ();   
+                } catch (IOException e) {   
+                // handle error   
+                }   
+            }   
+        }
+    ```   
+    对应的符合规则的解决方案是：通过使用类 ByteBuffer 提供的方法来正确地从初始的输入数值中提取一个 int 值。它使用 ByteBuffer 来封装输入字节数组，设置字节顺序为小端字节序，并且提取出 int值，结果存储在 serialNumber 整数中。类 ByteBuffer 提供了类似的 get 和 put 方法来处理其他的数值类型。   
+    ```java
+    try (   
+        DatalnputStream dis = null;    
+        try {   
+            dis = new DatalnputStream( new FilelnputStream("data"));    
+            byte[] buffer = new byte[4];   
+            int bytesRead = dis.read(buffer); // Bytes are read into buffer   
+            if (bytesRead != 4) {   
+                throw new IOException("Unexpected End of Stream");   
+            }   
+            int serialNumber =ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN).getlnt();   
+        } finally {   
+            if (dis != null) {   
+                try {   
+                    dis.close ();   
+                } catch (IOException x) {   
+                    // handle error   
+                }   
+            }   
+        }   
+    } catch (IOException x) {   
+        //handle error   
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">198:Use of Incorrect Byte Ordering</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.13 输入输出</BigClassChin>  
+       
+    </BugInfo> 
+  

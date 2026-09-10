@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010100005" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：重复的Servlet映射</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行存在重复的Servlet映射。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[能是由于程序员开发过程中未删除先前的测试代码导致程序中存在使用相同URL模式的多个Servlet映射。重复的servlet映射毫无用处，因为当多个servlet映射使用相同URL模式时，仅会应用最后一个条目。  
+  
+**例如**：在以下示例中：两个不同的servlet映射使用了相同的URL模式`/servlet1/*`。 
+```xml
+<servlet-mapping>  
+    <servlet-name>Servlet1</servlet-name>  
+    <url-pattern>/servlet1/*</url-pattern>
+</servlet-mapping>
+<servlet-mapping>  
+    ...  
+    <servlet-name>Servlet2</servlet-name>  
+    <url-pattern>/servlet1/*</url-pattern>  
+</servlet-mapping>
+``` 
+]]></Description>
+			<Advice><![CDATA[删除多余的Servlet映射。
+]]></Advice>
+			<References>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

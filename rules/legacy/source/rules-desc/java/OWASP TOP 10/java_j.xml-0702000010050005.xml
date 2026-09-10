@@ -1,0 +1,101 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010050005" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">输入验证</Category>
+				<Category type="DetailClassChin">日志伪造</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[允许日志记录未经验证的用户输入，会导致日志伪造攻击。  
+  
+**例如**：下面代码片段中，在接收到非法用户请求时，未进行任何数据验证情况下，记录用户的用户名。   
+```java
+if (loginSuccessful) {  
+    logger.severe("User login succeeded for: " + username);  
+} else {  
+    logger.severe("User login failed for: " + username);  
+}
+```  
+如果没有经过净化处理，那么可能会出现日志注入攻击。当`username`是jack时，日志信息如下：
+```
+2013-7-30 java.util.logging.LogManager log  
+Server:User login failed for:jack  
+```  
+如果日志`username`是一个多行字符串，如下所示：  
+```
+jack  
+2013-7-30 java.util.logging.LogManager log  
+Server: User login succeeded for: Tom 
+```
+那么日志中将记录错误信息，内容如下：
+```
+2013-7-30 java.util.logging.LogManager log  
+Server:User login failed for:jack  
+2013-7-30 java.util.logging.LogManager log  
+Server: User login succeeded for: Tom
+```  
+]]></Description>
+			<Advice><![CDATA[防止日志伪造攻击可以采用白名单、黑名单或验证用户输入数据的方式对不可信赖的数据进行校验。  
+  
+**例如**：下面代码片段对`username`做验证处理，防止日志伪造攻击的发生。  
+```java
+if (!Pattern.matches("[A-Za-z0-9_]+", username)) {  
+    // Unsanitized username  
+    logger.severe("User login failed for unauthorized user");  
+} else if (loginSuccessful) {  
+    logger.severe("User login succeeded for: " + username);  
+} else {  
+    logger.severe("User login failed for: " + username);  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">117:Improper Output Neutralization for Logs</Reference>
+				<Reference type="CERT">IDS03-J:Do not log unsanitized user input</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,log</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发日志伪造漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在日志伪造漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在日志伪造漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发日志伪造漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010110121" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">请求外部存储权限</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行将会请求外部存储权限。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行将会请求外部存储权限。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[android程序在`AndroidManifest.xml`文件中申请将数据写入android外部存储的权限，这意味着程序将在外部存储中存储数据。然后外部存储中的文件能够被其他程序与用户随意读取，而且即使卸载了该应用程序，这些文件仍可能保留在外部存储中，因而提高了信息被盗用的风险，敏感信息不应该写入到外部存储中。  
+  
+**例如**：`AndroidManifest.xml`的`<uses-permission ...>`元素包含数据外部存储权限。
+```xml
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+```  
+]]></Description>
+			<Advice><![CDATA[避免将敏感数据写入到外部存储中。  
+1. 可以将敏感数据写入到SQLite数据库，程序内部的类可以通过名称访问创建的数据库，而程序外部将无法访问数据库。  
+
+    **例1**：通过创建SQLiteOpenHelper的子类并重写`OnCreate()`方法创建一个SQLite数据库。  
+    ```java
+    public class MyDbOpenHelper extends SQLiteOpenHelper {  
+        private static final int DATABASE_VERSION = 1;  
+        private static final String DB_NAME = "mydata.db";  
+        private static final String DICTIONARY_TABLE_NAME = "dictionary";  
+        private static final String DICTIONARY_TABLE_CREATE =  
+                "CREATE TABLE " + DICTIONARY_TABLE_NAME + " (" +  
+                KEY_WORD + " TEXT, " + KEY_DEFINITION + " TEXT);";  
+        public MyDbOpenHelper(Context context) {  
+            super(context, DB_NAME, null, DATABASE_VERSION);  
+        }  
+        @Override  
+        public void onCreate(SQLiteDatabase db) {  
+            db.execSQL(DICTIONARY_TABLE_CREATE);  
+        }  
+    } 
+    ``` 
+2. 可以将敏感数据写入到设备的内部存储中。默认情况下，保存在内部存储中的文件只能由写入它的程序读写，其他程序无法进行读写，而且当用户卸载程序时，相应的文件也会被删除，减少了敏感信息被盗用的风险。  
+
+    **例2**：下列代码创建并写入一个个人文件到内部存储中，`Context.MODE_PRIVATE`使创建的文件只能由该程序使用。  
+    ```java
+    String fileName = "testFile";  
+    String str = "this is a test file!";  
+    FileOutputStream fos = openFileOutput(fileName, Context.MODE_PRIVATE);  
+    try {  
+        fos.write(str.getBytes());  
+        fos.close();  
+    } catch (IOException e) {  
+        e.printStackTrace();  
+    }
+    ```
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

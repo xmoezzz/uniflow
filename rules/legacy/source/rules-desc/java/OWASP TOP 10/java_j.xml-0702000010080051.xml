@@ -1,0 +1,56 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010080051" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">弱密码签名：缺少必要加密步骤</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行在生成加密签名过程中，代码缺少必要的加密步骤。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行在生成加密签名过程中，代码缺少必要的加密步骤。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在生成加密签名过程中，代码缺少必要的步骤，会削弱所生成签名的强度。  
+  
+**例如**：下列代码片段中，缺少`update`的调用，导致创建不基于任何数据的签名。  
+```java
+...    
+Signature signetcheck = Signature.getInstance("SHA256withRSA");  
+signetcheck.initSign(key);    
+//signetcheck.update(message);  //lack of necessary steps  
+return signetcheck.sign();   
+...
+```
+]]></Description>
+			<Advice><![CDATA[在生成加密签名过程中，执行所有必需的步骤，确保不会削弱签名的强度。  
+  
+**例如**：下列代码片段中，添加`update`的调用。  
+```java
+...    
+Signature signetcheck = Signature.getInstance("SHA256withRSA");  
+signetcheck.initSign(key);    
+signetcheck.update(message);   
+return signetcheck.sign();   
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">325:Missing Required Cryptographic Step</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference>
+				<Reference type="GB/T 34944-2017 Java">安全功能:未使用盐值计算散列值</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

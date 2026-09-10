@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010020108" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">有风险的Android类加载</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了有风险的Android类加载。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了有风险的Android类加载。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[系统中有一些方法存在着一定风险，当方法所需的数据来源于不可信赖的数据源时，可能会导致Android类加载注入。攻击者利用这一点实施攻击的一般步骤是：  
+1. 应用程序从不受信任的的来源加载数据。  
+2. 通过使用字符串来表示要加载的类的目录。  
+3. 通过从库路径执行代码，攻击者能够获得之前没有的权限。  
+
+**例1**：以下代码根据输入变量`dexPath`的值来查找类加载目录。  
+```java
+public static void loadClass(String dexPath){  
+    ...  
+    DexClassLoader dexClassLoader = new DexClassLoader(dexPath, optimizedDirectory, null, getClassLoader());  
+    ...  
+}
+```  
+如果此代允许用户控制变量`dexPath`的值，那么由于程序没有验证该变量的值，因此攻击者可以构造特定的`dexPath`变量的值来指向他们无法访问的路径，从而达到越权访问的效果。  
+**例2**：以下代码使用可变更的`optimizedDirectory`来确定优化的dex文件写入目录。  
+```java
+public static void loadClass(String optimizedDirectory){  
+    ...  
+    DexClassLoader dexClassLoader = new DexClassLoader(dexPath, optimizedDirectory, null, getClassLoader());  
+    ...  
+}
+```  
+与例1同理，如果变量`optimizedDirectory`是外部可控的，那么攻击者可以利用这一点构造特定的输入值，来越权访问。
+]]></Description>
+			<Advice><![CDATA[确保从受信任的环境中加载数据；避免使用字符串来表示要加载的类的目录。  
+  
+**例如**：下列代码中从`actInfo.applicationInfo.sourceDir`获取`dexPath`。  
+```java
+...  
+String dexPath = actInfo.applicationInfo.sourceDir;    
+String optimizedDirectory = getApplicationInfo().dataDir;    
+DexClassLoader calssLoader = new DexClassLoader(dexPath, optimizedDirectory, null, getClassLoader());  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">114:Process Control</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

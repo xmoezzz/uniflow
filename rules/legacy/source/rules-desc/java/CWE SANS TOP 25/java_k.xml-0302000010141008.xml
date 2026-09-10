@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010141008" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 09. 锁 (LCK)</Category>  
+        <Category type="DetailClassChin">LCK08-J：在异常时保证释放已持有的锁</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[一个异常条件会阻碍释放锁，从而导致死锁。根据Java API描述：一个ReentrantLock是由一个成功的执行了锁定但是没有执行解锁操作的线程所拥有的，如果没有其他线程持有锁，一个调用Lock的线程会成功的获得锁并返回。  
+因此，一个在任何线程中没有被释放的锁会阻止其他线程得到这个锁。在发生异常条件的情况下，线程必须释放当前持有的锁。  
+风险评估：如果在异常条件下释放锁失败，会导致线程饥饿或死锁。  
+**不规范的代码样例1**：  
+```java
+public final class Client {
+    public void doSomething(File file) {
+        final Lock lock = new ReentrantLock();
+        InputStream in = null;
+        try {
+            lock.lock();
+            in = new FileInputStream(file);
+            // Perform operations on the open file
+            lock.unlock();
+        } catch (FileNotFoundException x) {
+            // Handle exception
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (IOException x) {
+                    // Handle exception
+                }
+            }
+        }
+    }
+}
+```  
+代码使用了ReentrantLock来保护资源，当打开的文件进行操作而发生异常时，却不能释放持有的锁。当发生异常时，控制权会移交给catch代码块，并且`unlock()`方法不会执行。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+public final class Client {
+    public void doSomething(File file) {
+        final Lock lock = new ReentrantLock();
+        InputStream in = null;
+        try {
+            lock.lock();
+            in = new FileInputStream(file);
+            // Perform operations on the open file
+            lock.unlock();
+        } catch (FileNotFoundException x) {
+            // Handle exception
+        } finally {
+            lock.unlock();
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (IOException x) {
+                    // Handle exception
+                }
+            }
+        }
+    }
+}
+```  
+代码使用了ReentrantLock来保护资源，当打开的文件进行操作而发生异常时或不发生异常时，程序都会走到finally代码块，`lock.unlock()`方法执行，可成功释放持有的锁。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 772</Reference>  
+        <Reference type="CWE">772:Missing Release of Resource after Effective Lifetime</Reference>  
+        <Reference type="CWE">667:Improper Locking</Reference>  
+        <Reference type="CWE">459:Incomplete Cleanup</Reference>  
+        <Reference type="CWE">411:Resource Locking Problems</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.1 资源泄漏</Reference>  
+        <Reference type="SJ/T 11683-2017">6.8.2 获取锁后没有释放锁</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010100050" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP MOBILE TOP 10</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">构建配置错误：Maven仓库外部依赖</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行使用Maven仓库外部依赖。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[Maven仓库外部依赖，这会导致攻击者能够将恶意代码插入最终产品中，或者控制编译计算机。采用Maven时，开发人员将具体指定依赖的名称和版本，而不是列出从中检索依赖的URL，Maven依靠其底层配置来识别要从中检索依赖的服务器。通用组件使得开发人员不必花时间检测依赖的具体位置。  
+  
+**例如**：下面Maven pom.xml文件，开发人员名称和版本来指定多个外部依赖：
+```xml
+<dependencies>   
+    <dependency>  
+        <groupId>commons-lang</groupId>  
+        <artifactId>commons-lang</artifactId>  
+        <version>2.6</version>  
+    </dependency>  
+    <dependency>  
+        <groupId>commons-logging</groupId>  
+        <artifactId>commons-logging</artifactId>  
+        <version>1.1.3</version>  
+    </dependency>  
+</dependencies> 
+```  
+攻击者可能会危害托管依赖的服务器，也可能危害DNS服务器，编译计算机用它将对托管依赖的服务器主机名的请求重定向到被攻击者控制的计算机。这两种攻击情形都会导致攻击者能够将恶意的依赖版本注入到一个未受到危害的计算机上所运行的编译中。
+]]></Description>
+			<Advice><![CDATA[可采取以下两种方式修复：  
+1. 是完全避免采用自动化构建管理系统。手动管理依赖排除Maven仓库外部依赖。  
+2. 综合了手动依赖管理方法和全自动化解决方法，这是现在流行的一种做法。手动编译过程的最大优势是减小了攻击机会，它可以通过从内部复制外部依赖服务器来实现一个半自动化系统。这样，任何需要利用外部依赖的构建系统都能用硬编码的内部IP地址来指向内部服务器，以此避开基于DNS的攻击风险。如果添加了新的依赖并发布了新的版本，可以一次性下载，并将其包含在内部存储库中。这一解决方法减小了攻击机会，并且使组织能够充分利用现有的内部网络安全基础架构。  
+Maven实现方式是，在pom.xml中对一个内部存储库的IP地址进行硬编码。在pom.xml中明确指定IP地址可确保编译使用其相应的内部存储库，内部存储库与具体的项目相关联。或者，也可以在settings.xml中指定IP地址，这样使得多个项目更容易共享配置。  
+
+**例如**：以下pom.xml片段使用显式内部IP地址，也可以用在settings.xml：
+```xml
+...
+    <repositories>  
+        <repository>  
+            <releases>  
+                <enabled>true</enabled>  
+                <updatePolicy>always</updatePolicy>  
+                <checksumPolicy>warn</checksumPolicy>  
+            </releases>  
+            <snapshots>  
+                <enabled>true</enabled>  
+                <updatePolicy>never</updatePolicy>  
+                <checksumPolicy>fail</checksumPolicy>  
+            </snapshots>  
+            <id>Internal</id>  
+            <name>Internal Repository</name>  
+            <url>http://172.24.62.194/maven</url>  
+            <layout>default</layout>  
+        </repository>  
+    </repositories>  
+    <pluginRepositories>  
+    </pluginRepositories>
+...
+```  
+]]></Advice>
+			<References>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

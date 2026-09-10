@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010020138" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Android程序：缺少网络安全配置</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+中缺少网络安全配置。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序可以通过设置网络安全配置在安全的声明性配置文件中自定义其网络安全设置，而无需修改应用程序代码。缺少网络安全配置将会存在着被攻击的风险。
+]]></Description>
+			<Advice><![CDATA[设置网络安全配置以减少受到被攻击的风险。
+  
+**例如**：下列配置文件中设置了网络安全配置。
+```xml
+<application  
+    ...  
+    android:networkSecurityConfig="@xml/network_security_config">  
+    ...  
+</application>
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">297:Improper Validation of Certificate with Host Mismatch</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP TOP 10">2004:A3 Broken Authentication and Session Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M3 Insufficient Transport Layer Protection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

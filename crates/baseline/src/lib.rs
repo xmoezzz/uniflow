@@ -1,5 +1,6 @@
 mod c_style;
 mod hir_scan;
+mod java_config;
 mod java_style;
 mod migration;
 mod semgrep_compat;
@@ -11,6 +12,7 @@ pub use c_declaration_rules::CDeclarationCheck;
 mod c_expression_rules;
 pub use c_expression_rules::CExpressionCheck;
 mod sql_style;
+pub use java_config::{JavaConfigCheck, JavaProjectCheck};
 pub use java_style::JavaStyleCheck;
 pub use sql_style::{OracleFormsBlock, OracleFormsMetadata, SqlStyleCheck};
 
@@ -231,6 +233,11 @@ pub struct BaselineMatcher {
     /// Java structural source check. Uses the shared token/statement index,
     /// independently of HIR type resolution and without executing legacy DSLs.
     pub java_style: Option<JavaStyleCheck>,
+    /// Structured checks for Java project auxiliary files such as
+    /// AndroidManifest.xml. These files are not parsed as Java source.
+    pub java_config: Option<JavaConfigCheck>,
+    /// Cross-file Java/framework configuration check evaluated once per project.
+    pub java_project: Option<JavaProjectCheck>,
     pub c_style: Option<CStyleCheck>,
     pub c_macro: Option<CMacroCheck>,
     pub c_declaration: Option<CDeclarationCheck>,
@@ -257,6 +264,9 @@ pub struct BaselineMatcher {
     /// Regex that must occur somewhere in the same comment-free source file as
     /// the structured match, for module/import context such as `require 'jwt'`.
     pub required_file_pattern: String,
+    /// Structured match is disabled when any source or auxiliary project file
+    /// contains this regex (for example, a required Android permission).
+    pub forbidden_project_pattern: String,
     /// Regex matched against a normalized Java import path.
     pub import_path_pattern: String,
     /// Regex matched against one lexical token of the selected kind. Unlike a
@@ -362,6 +372,8 @@ pub struct BaselineMatcher {
     pub parameter_args: Vec<usize>,
     /// Call must occur within a catch body; nested functions start a new context.
     pub inside_catch: bool,
+    /// Report only when this receiver has not previously received the named call.
+    pub missing_prior_receiver_call: String,
     /// Regex constraints for qualified identifier/field paths in positional arguments.
     pub arg_path_patterns: BTreeMap<usize, String>,
     /// Regex over a positional argument's comment-free token spelling.
@@ -372,6 +384,9 @@ pub struct BaselineMatcher {
     pub enclosing_param_type_pattern: String,
     /// Report only when the return value is discarded.
     pub ignored_return: bool,
+    /// Regex over the declared type of the variable receiving this call's
+    /// result. Discarded, returned, and compound-expression uses do not match.
+    pub assigned_target_type_pattern: String,
     /// Report calls only when they are not nested in a loop statement.
     pub outside_loop: bool,
     /// Report calls only when nested in a loop statement.
@@ -399,6 +414,8 @@ pub struct BaselineMatcher {
     pub sql_wildcard_query_argument: bool,
     /// Regex selecting resource variable types for function-scoped close analysis.
     pub unreleased_resource_type_pattern: String,
+    /// Report receiver use after close/release/recycle for variables of this type.
+    pub resource_use_after_release_type_pattern: String,
     /// Require a call to occur within an `if` condition (not merely any loop condition).
     pub inside_if_condition: bool,
     /// Report a call only when execution has a later lexical statement in its method.
@@ -428,6 +445,15 @@ pub struct BaselineMatcher {
     pub assignment_value_not_string_pattern: String,
     /// Regex for the declared catch-clause exception type.
     pub catch_type_pattern: String,
+    /// Report matching catches that do not rethrow the caught symbol.
+    pub catch_must_rethrow: bool,
+    /// Report matching catches whose body has no executable statements.
+    pub catch_must_handle: bool,
+    /// Report catch clauses whose body has no executable HIR statements.
+    pub empty_catch: bool,
+    /// Report equals/compareTo/Comparator.compare implementations that never
+    /// test their contract parameter(s) against null.
+    pub missing_contract_null_check: bool,
     /// Report only for direct self-assignment, such as `p = realloc(p, n)`.
     pub self_assignment: bool,
     /// Argument indexes that must be references to automatic variables
@@ -452,6 +478,45 @@ pub struct BaselineMatcher {
     pub equality_require_identifier_operands: bool,
     /// An equality/inequality whose direct operand is another equality.
     pub nested_equality: bool,
+    /// Report integer division or remainder whose denominator is constant zero.
+    pub division_by_literal_zero: bool,
+    /// Report array/index access with a constant negative index.
+    pub negative_literal_array_index: bool,
+    /// Report Optional.get unless the receiver is guarded by isPresent in the current branch.
+    pub optional_get_without_is_present: bool,
+    pub lock_acquired_twice_type_pattern: String,
+    pub lock_released_twice_type_pattern: String,
+    pub unreleased_lock_type_pattern: String,
+    /// Report Thread.sleep calls while an explicit Lock is held in the same function.
+    pub sleep_while_lock_held: bool,
+    /// Report File.createTempFile results that are not deleted in the function.
+    pub temporary_file_not_deleted: bool,
+    /// Report the racy createTempFile/delete/mkdir directory construction sequence.
+    pub temp_file_directory_conversion: bool,
+    /// Report member/index access through a symbol proven null on the current path.
+    pub definite_null_dereference: bool,
+    /// Report unchecked dereference of a known nullable API result.
+    pub nullable_return_dereference: bool,
+    /// Report a null comparison made redundant by a prior allocation or dereference.
+    pub redundant_null_check: bool,
+    /// Report explicit primitive numeric casts to a narrower representation.
+    pub numeric_narrowing_cast: bool,
+    /// Report int/long to float and long to double precision-losing casts.
+    pub integer_to_float_precision_loss: bool,
+    /// Report ObjectOutputStream.writeObject for a known project class that is not Serializable.
+    pub serialize_non_serializable_argument: bool,
+    /// Report when this zero-based argument is a known project class that does not implement Serializable.
+    pub non_serializable_arg: Option<usize>,
+    /// Report equals calls on a known project class that does not override equals.
+    pub receiver_class_missing_equals: bool,
+    /// Report assignment to the enhanced-for iteration symbol.
+    pub foreach_item_reassigned: bool,
+    /// Report Process.waitFor when stdout/stderr cannot be proven redirected or drained.
+    pub external_process_wait_without_io_drain: bool,
+    /// Report a write followed by another access to the same symbol in one expression.
+    pub conflicting_side_effects_in_expression: bool,
+    /// Report unsafe console/stack-trace logging of security exceptions.
+    pub unsafe_security_exception_logging: bool,
     /// Type of a declared variable directly compared in a loop condition.
     pub loop_condition_type_pattern: String,
     pub loop_condition_exclude_parameters: bool,
@@ -478,6 +543,8 @@ pub struct ArgumentReferenceConstraint {
 impl BaselineMatcher {
     pub(crate) fn is_structured(&self) -> bool {
         self.java_style.is_some()
+            || self.java_config.is_some()
+            || self.java_project.is_some()
             || self.c_style.is_some()
             || self.c_macro.is_some()
             || self.c_declaration.is_some()
@@ -498,10 +565,32 @@ impl BaselineMatcher {
     pub(crate) fn requires_hir(&self) -> bool {
         !self.call_alternatives.is_empty()
             || self.nested_equality
+            || self.division_by_literal_zero
+            || self.negative_literal_array_index
+            || self.optional_get_without_is_present
+            || !self.lock_acquired_twice_type_pattern.is_empty()
+            || !self.lock_released_twice_type_pattern.is_empty()
+            || !self.unreleased_lock_type_pattern.is_empty()
+            || self.sleep_while_lock_held
+            || self.temporary_file_not_deleted
+            || self.temp_file_directory_conversion
+            || self.definite_null_dereference
+            || self.nullable_return_dereference
+            || self.redundant_null_check
+            || self.numeric_narrowing_cast
+            || self.integer_to_float_precision_loss
+            || self.serialize_non_serializable_argument
+            || self.non_serializable_arg.is_some()
+            || self.receiver_class_missing_equals
+            || self.foreach_item_reassigned
+            || self.external_process_wait_without_io_drain
+            || self.conflicting_side_effects_in_expression
+            || self.unsafe_security_exception_logging
             || self.equality_constant_result.is_some()
             || self.equality_require_identifier_operands
             || !self.loop_condition_type_pattern.is_empty()
             || !self.callee.is_empty()
+            || !self.missing_prior_receiver_call.is_empty()
             || !self.constructor_type.is_empty()
             || !self.receiver_type_pattern.is_empty()
             || !self.receiver_path_pattern.is_empty()
@@ -543,6 +632,7 @@ impl BaselineMatcher {
             || !self.equal_arg_pairs.is_empty()
             || !self.enclosing_param_type_pattern.is_empty()
             || self.ignored_return
+            || !self.assigned_target_type_pattern.is_empty()
             || self.outside_loop
             || self.inside_loop
             || self.return_in_finally
@@ -553,6 +643,7 @@ impl BaselineMatcher {
             || self.redundant_reassignment
             || self.sql_wildcard_query_argument
             || !self.unreleased_resource_type_pattern.is_empty()
+            || !self.resource_use_after_release_type_pattern.is_empty()
             || self.inside_if_condition
             || self.call_not_last_statement
             || self.string_self_concatenation_in_loop
@@ -562,6 +653,8 @@ impl BaselineMatcher {
             || !self.field_receiver_type_pattern.is_empty()
             || !self.field_receiver_path_pattern.is_empty()
             || !self.catch_type_pattern.is_empty()
+            || self.empty_catch
+            || self.missing_contract_null_check
             || self.self_assignment
             || !self.automatic_var_args.is_empty()
             || self.assignment_operand_in_logical
@@ -815,9 +908,8 @@ impl BaselinePack {
                     "baseline rule {} mixes Semgrep compatibility matching with a source regex",
                     rule.id
                 );
-                semgrep_compat::validate(&rule.matcher.semgrep_compat_yaml).with_context(|| {
-                    format!("invalid Semgrep compatibility rule {}", rule.id)
-                })?;
+                semgrep_compat::validate(&rule.matcher.semgrep_compat_yaml)
+                    .with_context(|| format!("invalid Semgrep compatibility rule {}", rule.id))?;
             }
             if !rule.matcher.callee.is_empty() {
                 Regex::new(&rule.matcher.callee).with_context(|| {
@@ -867,6 +959,11 @@ impl BaselinePack {
                     format!("invalid required-file regex for baseline rule {}", rule.id)
                 })?;
             }
+            if !rule.matcher.forbidden_project_pattern.is_empty() {
+                Regex::new(&rule.matcher.forbidden_project_pattern).with_context(|| {
+                    format!("invalid forbidden-project regex for baseline rule {}", rule.id)
+                })?;
+            }
             if !rule.matcher.equality_operand_path_pattern.is_empty() {
                 Regex::new(&rule.matcher.equality_operand_path_pattern).with_context(|| {
                     format!(
@@ -903,6 +1000,10 @@ impl BaselinePack {
                 &rule.matcher.loop_condition_type_pattern,
                 &rule.matcher.enclosing_param_type_pattern,
                 &rule.matcher.unreleased_resource_type_pattern,
+                &rule.matcher.resource_use_after_release_type_pattern,
+                &rule.matcher.lock_acquired_twice_type_pattern,
+                &rule.matcher.lock_released_twice_type_pattern,
+                &rule.matcher.unreleased_lock_type_pattern,
                 &rule.matcher.receiver_chain_root_type_pattern,
                 &rule.matcher.receiver_path_pattern,
                 &rule.matcher.field_name_pattern,
@@ -1018,12 +1119,7 @@ impl BaselinePack {
         path: &Path,
         source: &str,
     ) -> Vec<BaselineFinding> {
-        self.scan_text_with_options(
-            language,
-            path,
-            source,
-            &BaselineScanOptions::default(),
-        )
+        self.scan_text_with_options(language, path, source, &BaselineScanOptions::default())
     }
 
     pub fn scan_text_with_options(
@@ -1048,6 +1144,7 @@ impl BaselinePack {
         let code_only = strip_literals_preserve_layout(&sanitized);
         let java_imports = collect_java_imports(&code_only);
         let java_syntax = (*language == Language::Java
+            && path.extension().and_then(|value| value.to_str()) == Some("java")
             && self
                 .rules
                 .iter()
@@ -1117,6 +1214,15 @@ impl BaselinePack {
                 }
                 continue;
             }
+            if let Some(check) = rule.matcher.java_config {
+                findings.extend(
+                    check
+                        .offsets(path, source)
+                        .into_iter()
+                        .map(|offset| finding_at_offset(rule, path, source, offset)),
+                );
+                continue;
+            }
             if let Some(check) = rule.matcher.sql_style {
                 if let Some(syntax) = &sql_syntax {
                     findings.extend(
@@ -1143,7 +1249,7 @@ impl BaselinePack {
                 if let Some(syntax) = &c_syntax {
                     findings.extend(
                         check
-                            .offsets(syntax)
+                            .offsets(source, syntax)
                             .into_iter()
                             .map(|offset| finding_at_offset(rule, path, source, offset)),
                     );
@@ -2103,7 +2209,7 @@ mod tests {
     fn builtin_pack_is_valid_and_has_expected_rule_count() {
         let pack = builtin_security_pack().expect("built-in baseline pack");
         assert_eq!(pack.id, "uniflow-security-1.0");
-        assert_eq!(pack.rules.len(), 1058);
+        assert_eq!(pack.rules.len(), 1761);
         let mut ids = HashSet::new();
         assert!(pack.rules.iter().all(|rule| ids.insert(rule.id.as_str())));
     }

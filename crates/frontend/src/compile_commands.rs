@@ -33,8 +33,9 @@ impl CompileCommandDatabase {
     pub fn load(path: &Path) -> Result<Self> {
         let text = fs::read_to_string(path)
             .with_context(|| format!("failed to read compile database from {}", path.display()))?;
-        let raw = serde_json::from_str::<Vec<RawCompileCommand>>(&text)
-            .with_context(|| format!("failed to decode compile database from {}", path.display()))?;
+        let raw = serde_json::from_str::<Vec<RawCompileCommand>>(&text).with_context(|| {
+            format!("failed to decode compile database from {}", path.display())
+        })?;
         let mut entries = BTreeMap::new();
         for command in raw {
             let file = if command.file.is_absolute() {
@@ -104,7 +105,8 @@ fn parse_compile_arguments(directory: &Path, args: &[String]) -> CompileCommandO
                 value
             };
             if let Some((name, value)) = value.split_once('=') {
-                out.defines.insert(name.to_string(), Some(value.to_string()));
+                out.defines
+                    .insert(name.to_string(), Some(value.to_string()));
             } else if !value.is_empty() {
                 out.defines.insert(value.to_string(), None);
             }
@@ -126,8 +128,12 @@ fn parse_compile_arguments(directory: &Path, args: &[String]) -> CompileCommandO
         } else if let Some(path) = arg.strip_prefix("-I").filter(|path| !path.is_empty()) {
             out.include_paths.push(resolve_path(directory, path));
         } else if let Some(path) = arg.strip_prefix("/I").filter(|path| !path.is_empty()) {
-            out.include_paths.push(resolve_path(directory, path.trim_matches('"')));
-        } else if let Some(standard) = arg.strip_prefix("-std=").or_else(|| arg.strip_prefix("/std:")) {
+            out.include_paths
+                .push(resolve_path(directory, path.trim_matches('"')));
+        } else if let Some(standard) = arg
+            .strip_prefix("-std=")
+            .or_else(|| arg.strip_prefix("/std:"))
+        {
             out.language_standard = Some(standard.to_string());
         } else if let Some(target) = arg.strip_prefix("--target=") {
             out.target_triple = Some(target.to_string());
@@ -227,7 +233,12 @@ mod tests {
 
         let msvc = parse_compile_arguments(
             Path::new("C:/project"),
-            &["cl.exe".into(), "/DWIN32".into(), "/Iinclude".into(), "/std:c++latest".into()],
+            &[
+                "cl.exe".into(),
+                "/DWIN32".into(),
+                "/Iinclude".into(),
+                "/std:c++latest".into(),
+            ],
         );
         assert!(msvc.defines.contains_key("WIN32"));
         assert_eq!(msvc.language_standard.as_deref(), Some("c++latest"));

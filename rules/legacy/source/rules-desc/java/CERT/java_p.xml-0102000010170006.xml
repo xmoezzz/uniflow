@@ -1,0 +1,98 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170006" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">5.1 数据清洗</Category>  
+        <Category type="DetailClassChin">A.2.1.1.7 预防XML外部实体攻击</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：XML文档可以从一个很小的逻辑块（实体）开始动态构建。实体可以是内部的、外部的或者基于参数的。外部实体运行是将外部文件中的XML包含进来。攻击者可以通过操作实例的URI，使其指向特定的在当前文件系统中保存的文件，从而造成拒绝服务或程序崩溃，比如：指定`/dev/random`或者`/dev/tty`作为输入的URI，这可能造成永久阻塞程序或者程序崩溃。  
+对于预防XML外部实体攻击的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+class XXE {
+    private static void receiveXMLStream(InputStream inStream, DefaultHandler defaultHandler)
+            throws ParserConfigurationException, SAXException, IOException {
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+        SAXParser saxParser = factory.newSAXParser();
+        saxParser.parse(inStream, defaultHandler);
+    }
+
+    public static void main(String[] args) throws ParserConfigurationException, SAXException, IOException {
+        try {
+            receiveXMLStream(new FileInputStream("evil.xml"), new DefaultHandler());
+        } catch (java.net.MalformedURLException mue) {
+            System.err.println("Malformed URL Exception: " + mue);
+        }
+    }
+}
+```  
+上面的代码尝试对`evil.xml`进行解析，并且报告相关错误后退出。然而，SAX或者DOM解析器会尝试访问在SYSTEM属性中标识的URL，这意味着它将读取一个本地的`/dev/try`文件的内容。在POSIX系统中，读取这个文件会导致程序阻塞，直到可以通过计算机控制台得到输入数据为止。攻击者可以使用这一类的恶意XML文件来导致系统挂起。  
+如果`evil.xml`文件中包含以下文本，程序会受到远程XXE攻击。  
+```xml
+<?xml version="1.0"?>  
+<!DOCTYPE foo SYSTEM "file:/dev/tty">  
+<foo>bar</foo>  
+```
+使用EntityResolver方案来防止XML外部实体注入。  
+**示例2**：  
+```java
+class CustomResolver implements EntityResolver {
+    public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
+
+        // Check for known good entities
+        String entityPath = "file:/Users/onlinestore/good.xml";
+        if (systemId.equals(entityPath)) {
+            System.out.println("Resolving entity: " + publicId + " " + systemId);
+            return new InputSource(entityPath);
+        } else {
+            // Disallow unknown entities by returning a blank path
+            return new InputSource();
+        }
+    }
+}
+```  
+针对不规范的代码示例的解决方案是，定义一个CustomResolver类，这个类实现了`org.xml.sax.EntityResolver`接口。它可以让SAX应用定制对外部实体的处理。这个定制的处理器使用的是一个为外部实体定义的简单的白名单。当输入不是任何指定的、安全的实体源路径时，`resolverEntity()`方法会返回一个空的InputSource对象。  
+`setEntityResolver()`方法可以将对应的SAX驱动实例注册进来。当解析恶意输入时，这个由自定义解析器返回的空的InputStream对象会抛出`java.net.MalformedURLException`异常。需要注意的是，必须创建一个XMLReader对象，以便通过这个对象来设置自定义的实体解析器。  
+```java
+class XXE {
+    private static void receiveXMLStream(InputStream inStream, DefaultHandler defaultHandler)
+            throws ParserConfigurationException, SAXException, IOException {
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+        SAXParser saxParser = factory.newSAXParser();
+        // To set the Entity Resolver, an XML reader needs to be created
+        XMLReader reader = saxParser.getXMLReader();
+        reader.setEntityResolver(new CustomResolver());
+        reader.setErrorHandler(defaultHandler);
+        InputSource is = new InputSource(inStream);
+        reader.parse(is);
+    }
+
+    public static void main(String[] args) throws ParserConfigurationException, SAXException, IOException {
+        receiveXMLStream(new FileInputStream("evil.xml"), new DefaultHandler());
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 611</Reference>  
+        <Reference type="CWE">611:Improper Restriction of XML External Entity Reference ('XXE')</Reference>  
+        <Reference type="CERT">IDS17-J:Prevent XML External Entity Attacks</Reference>  
+        <Reference type="OWASP TOP 10">2017:A4 XML External Entities (XXE)</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.1 数据清洗</BigClassChin>  
+       
+    </BugInfo>  
+    

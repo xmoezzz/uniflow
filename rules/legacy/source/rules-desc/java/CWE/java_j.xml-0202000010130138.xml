@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010130138" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">过大的内存分配</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行内存分配过大。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行内存分配过大。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[如果程序分配了过大的内存，将会造成内存浪费，甚至有可能会造成OutOfMemoryError异常抛出，进而导致应用程序崩溃。  
+  
+**例1**：用户过大的设置了数组的大小，造成内存浪费，甚至有可能会造成OutOfMemoryError异常抛出。  
+```java
+...  
+int[] array = new int[1024];  
+...
+```  
+**例2**：用户过大的设置了集合类的大小，造成内存浪费，甚至有可能会造成OutOfMemoryError异常抛出  
+```java
+...  
+List<String> list = new ArrayList(1024);  
+...
+```
+]]></Description>
+			<Advice><![CDATA[合理分配数组大小，或者使用集合类替代，并合理设置集合类大小，充分利用集合类的自动扩容机制，防止内存浪费以及避免出现OutOfMemoryError异常。
+]]></Advice>
+			<References>
+				<Reference type="CWE">789:Uncontrolled Memory Allocation</Reference>
+				<Reference type="CWE">398:Indicator of Poor Code Quality</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>memory,bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

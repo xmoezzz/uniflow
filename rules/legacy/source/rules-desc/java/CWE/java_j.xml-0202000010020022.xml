@@ -1,0 +1,111 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010020022" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">有风险的命令执行</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了有风险的命令执行。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了有风险的命令执行。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[命令注入是指，在应用程序执行的命令中包含来源于不可信数据时，程序本身没有对这些不可信数据做正确、合理的验证和过滤，导致系统执行恶意命令。系统库中的一些方法存在这样的风险，当传入方法的参数包含非可信数据源时，可能导致系统执行注入命令。  
+  
+**例1**：以下代码通过`Runtime.exec()`方法执行Windows的dir命令，列出目录列表。  
+```java
+import java.io.*;  
+public class DirList {  
+    public static void main(String[] args) throws Exception {
+        Process proc = Runtime.getRuntime().exec("cmd.exe /c dir " + args[0]);
+        int result = proc.waitFor();  
+        if (result != 0) {  
+            System.out.println("process error: " + result);  
+        }  
+        InputStream in = (result == 0) ? proc.getInputStream() : proc.getErrorStream();  
+        int c;  
+        while ((c = in.read()) != -1) {  
+            System.out.print((char) c);  
+        }  
+    }  
+}
+```  
+攻击者可以通过以下命令利用该程序：  
+`java -Ddir='dummy & echo bad' DirList`  
+该命令实际上执行了两条命令：  
+`cmd.exe /c dir dummy & echo bad`  
+  
+**例2**：以下代码片段来自一个Web应用程序，该段代码通过运行rmanDB.bat脚本启动Oracle数据库备份，然后运行cleanup.bat脚本删除一些临时文件。脚本文件rmanDB.bat接受一个命令行参数，其中指明需要执行的备份类型。   
+```java
+...  
+String cmd = new String("cmd.exe /K \"c:\\util\\rmanDB.bat "+backuptype+"&& c:\\utl\\cleanup.bat\"");  
+System.Runtime.getRuntime().exec(cmd);  
+...
+```  
+该段代码没有对来自用户请求中的参数`backuptype`做任何校验。
+通常情况下，`Runtime.exec()`函数不会执行多条命令，但在上面的例子里，黑客为了注入多条执行命令，通过`“&&”`分隔符号来拼接多条命令，以达到依次执行指定命令的目的。
+]]></Description>
+			<Advice><![CDATA[防止命令注入的方法如下：  
+1. 程序对非受信的用户输入数据进行净化，删除不安全的字符。  
+2. 创建一份安全字符串列表，限定用户的输入只能在该列表的允许范围内。
+3. 不要让用户直接控制eval()、exec()、readObject()等函数的参数。
+
+**例1**：下面代码片段中，使用正则表达式匹配用户的输入。  
+```java
+...  
+if (!Pattern.matches("[0-9A-Za-z@.]+", dir)) {  
+    // Handle error  
+}  
+...
+```  
+  
+**例2**：下面代码片段中，通过限定用户输入来防止命令注入。  
+```java
+...  
+String btype = null;  
+// only allow integer choices  
+int number = Integer.parseInt(request.getParameter("backuptype"));   
+switch (number) {  
+    case 1:   
+        btype = "tables"  
+        break; // Option 1  
+    case 2:   
+        btype = "users"  
+        break; // Option 2  
+    case 3:   
+        btype = "full"  
+        break; // Option 3  
+    default: // invalid  
+        break;   
+}  
+if (btype == null) {  
+    // handle error  
+}
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">78:Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')</Reference>
+				<Reference type="CWE">77:Improper Neutralization of Special Elements used in a Command ('Command Injection')</Reference>
+				<Reference type="CERT">IDS07-J:Sanitize untrusted data passed to the Runtime.exec() method</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 78</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 78</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 78</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:命令注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

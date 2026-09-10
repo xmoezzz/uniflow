@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010020005" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">有风险的SQL查询：MyBatis</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行进行了有风险的MyBatis查询。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行进行了有风险的MyBatis查询。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[SQL注入是一种数据库攻击手段。攻击者通过向应用程序提交恶意代码来改变原SQL语句的含义，进而执行任意SQL命令，达到入侵数据库乃至操作系统的目的。在Mybatis Mapper Xml中，`#`变量名称创建参数化查询SQL语句,不会导致SQL注入。而`$`变量名称直接使用SQL指令，而`$`变量名称直接使用SQL指令，将会存在一定风险，当SQL指令所需的数据来源于不可信赖的数据源时，可能会导致SQL注入。  
+  
+**例如**：以下代码片段采用`$`变量名称动态地构造并执行了SQL查询。  
+```xml
+<!--select user information by name-->  
+<select id="queryByUserName" resultMap="userResultMap" parameterType="String">  
+    select * from db_user where user_name=${username}  
+</select>  
+```
+如果攻击者能够替代username中的任意字符串，它们可以使用下面的关于username的字符串进行SQL注入。  
+`validuser' OR '1'='1`   
+当其注入到命令时，命令就会变成：  
+`select * from db_user where user_name ='validuser' OR '1'='1'`。即使所输入字符串不是来源于不可信赖的数据源，程序仍然存在着一定风险。
+]]></Description>
+			<Advice><![CDATA[造成SQL注入攻击的根本原因在于攻击者可以改变SQL查询的上下文，使程序员原本要作为数据解析的数值，被篡改为命令了。防止SQL注入的方法如下：  
+1. 正确使用参数化API进行SQL查询。  
+2. 如果构造SQL指令时需要动态加入约束条件，可以通过创建一份合法字符串列表，使其对应于可能要加入到SQL指令中的不同元素，来避免SQL注入攻击。  
+ 
+**例如**：以下代码片段采用`#`变量名称，创建参数化查询SQL语句。  
+```xml
+<!--select user information by name-->  
+<select id="queryByUserName" resultMap="userResultMap" parameterType="String">  
+    select * from db_user where user_name=#{username}  
+</select>
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">89:Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')</Reference>
+				<Reference type="CERT">IDS00-J:Prevent SQL injection</Reference>
+				<Reference type="OWASP TOP 10">2017:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2013:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2010:A1 Injection</Reference>
+				<Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>
+				<Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 89</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>
+				<Reference type="GB/T 34944-2017 Java">数据处理:SQL注入</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

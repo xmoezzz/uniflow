@@ -207,7 +207,7 @@ fn connect_rule_summaries(
                 &rule.id,
                 &rule.flows,
                 call_info.arg_count.unwrap_or(0),
-                call.receiver,
+                call,
             );
         }
     }
@@ -224,7 +224,7 @@ fn connect_rule_summaries(
                 &rule.id,
                 &rule.flows,
                 call_info.arg_count.unwrap_or(0),
-                call.receiver,
+                call,
             );
         }
     }
@@ -238,7 +238,7 @@ fn connect_flow_specs(
     rule_id: &str,
     flows: &[FlowSpec],
     arg_count: usize,
-    receiver: Option<ValueId>,
+    call: &CallInst,
 ) {
     for flow in flows {
         for from_port in expand_port(&flow.from, arg_count) {
@@ -247,7 +247,7 @@ fn connect_flow_specs(
                     fg,
                     func,
                     inst,
-                    receiver,
+                    call.receiver,
                     from_port.clone(),
                     Some(callee_name.to_string()),
                 ) else {
@@ -257,8 +257,8 @@ fn connect_flow_specs(
                     fg,
                     func,
                     inst,
-                    receiver,
-                    to_port,
+                    call.receiver,
+                    to_port.clone(),
                     Some(callee_name.to_string()),
                 ) else {
                     continue;
@@ -272,6 +272,34 @@ fn connect_flow_specs(
                         },
                     },
                 );
+
+                // A flow into a receiver or argument models a write through a
+                // mutable call port. Join that output back into the underlying
+                // SSA value so a later call using the same object observes the
+                // mutation (for example Map.put(value) followed by a bulk sink).
+                let written_value = match &to_port {
+                    Port::Receiver => call.receiver,
+                    Port::Arg(index) => call.args.get(*index).copied(),
+                    Port::NamedArg(name) => call
+                        .arg_names
+                        .iter()
+                        .position(|candidate| candidate.as_deref() == Some(name.as_str()))
+                        .and_then(|index| call.args.get(index).copied()),
+                    Port::Return
+                    | Port::NamedArgOrAll(_)
+                    | Port::Member(_)
+                    | Port::ArgsFrom(_)
+                    | Port::ArgsRange { .. } => None,
+                };
+                if let Some(value) = written_value {
+                    fg.graph.add_edge(
+                        to,
+                        value_node(fg, func, value),
+                        FlowEdge {
+                            kind: EdgeKind::CallPortToValue,
+                        },
+                    );
+                }
             }
         }
     }

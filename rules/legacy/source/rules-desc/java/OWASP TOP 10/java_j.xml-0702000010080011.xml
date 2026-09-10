@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010080011" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">密码管理</Category>
+				<Category type="DetailClassChin">弱加密</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行加密方式较弱。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行加密方式较弱。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在安全性要求较高的系统中，使用不安全的加密算法（如DES、3DES、RC4、RC5等），将无法保证敏感数据的保密性。  
+  
+**例如**：下面代码片段中，采用DES对数据进行加密。  
+```java
+BufferedReader bufread2 = null;  
+InputStreamReader inread2 = null;  
+try {  
+    inread2 = new InputStreamReader(System.in);  
+    bufread2 = new BufferedReader(inread2);  
+    String str = bufread2.readLine();  
+    /* FLAW: Insecure cryptographic algorithm (DES) */  
+    Cipher des = Cipher.getInstance("DES");  
+    SecretKey key = KeyGenerator.getInstance("DES").generateKey();  
+    des.init(Cipher.ENCRYPT_MODE, key);  
+    byte[] enc_str = des.doFinal(str.getBytes());  
+    IO.writeLine(IO.toHex(enc_str));  
+} catch(IOException e) {  
+    log_bsnk.warning("Error reading from console");  
+} finally{  
+    ...  
+}  
+...
+```
+]]></Description>
+			<Advice><![CDATA[在安全性要求较高的系统中，建议应使用安全的加密算法（如AES、RSA)对敏感数据进行加密。  
+  
+**例如**：下面代码片段中，使用AES取代DES保证数据完整性。  
+```java
+BufferedReader bufread2 = null;  
+InputStreamReader inread2 = null;  
+try {  
+    inread2 = new InputStreamReader(System.in);  
+    bufread2 = new BufferedReader(inread2);  
+    String str = bufread2.readLine();  
+    /* FIX: Secure cryptographic algorithm (AES) */  
+    Cipher aes = Cipher.getInstance("AES");  
+    KeyGenerator kg = KeyGenerator.getInstance("AES");  
+    kg.init(128);  
+    SecretKey key = kg.generateKey();  
+    aes.init(Cipher.ENCRYPT_MODE, key);  
+    byte[] enc_str = aes.doFinal(str.getBytes());  
+    IO.writeLine(IO.toHex(enc_str));  
+} catch(IOException e) {  
+    log_gsnk.warning("Error reading from console");  
+} finally{  
+    ...  
+}  
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">327:Use of a Broken or Risky Cryptographic Algorithm</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Porous Defenses - CWE ID 327</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 327</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 327</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Missing Required Cryptographic Step [XZS]</Reference>
+				<Reference type="GB/T 34944-2017 Java">安全功能:使用已破解或危险的加密算法</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

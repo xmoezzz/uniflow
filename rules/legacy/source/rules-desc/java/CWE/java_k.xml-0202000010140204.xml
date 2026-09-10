@@ -1,0 +1,167 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140204" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 00. 输入验证和数据处理 (IDS)</Category>  
+        <Category type="DetailClassChin">IDS04-J：从ZipInputStream安全解压文件</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[通过对`java.util.ZipInputStream`的输入进行检查，可以防止消耗过多的系统资源。当需要解压一个小文件，比如zip、gif或者gzip编码的HTTP内容，会消耗过多的资源时，并且在压缩率极高的情况下，Zip算法的实现本身就会导致zip炸弹的出现。  
+**不规范的代码样例1**：  
+```java
+static final int BUFFER = 512;
+// ...
+
+public final void unzip(String filename) throws java.io.IOException {
+    FileInputStream fis = new FileInputStream(filename);
+    ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+    ZipEntry entry;
+    try {
+        while ((entry = zis.getNextEntry()) != null) {
+            System.out.println("Extracting: " + entry);
+            int count;
+            byte data[] = new byte[BUFFER];
+            // Write the files to the disk
+            FileOutputStream fos = new FileOutputStream(entry.getName());
+            BufferedOutputStream dest = new BufferedOutputStream(fos, BUFFER);
+            while ((count = zis.read(data, 0, BUFFER)) != -1) {
+                dest.write(data, 0, count);
+            }
+            dest.flush();
+            dest.close();
+            zis.closeEntry();
+        }
+    } finally {
+        zis.close();
+    }
+}
+```  
+这个不符合规则的代码示例，它不能检查解压一个文件时所消耗的资源。它会允许操作完成，或者直至本地资源耗尽为止。  
+**不规范的代码样例2(getSize())**：
+```java
+static final int BUFFER = 512;
+static final int TOOBIG = 0x6400000; // 100MB
+// ...
+
+public final void unzip(String filename) throws java.io.IOException {
+    FileInputStream fis = new FileInputStream(filename);
+    ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+    ZipEntry entry;
+    try {
+        while ((entry = zis.getNextEntry()) != null) {
+            System.out.println("Extracting: " + entry);
+            int count;
+            byte data[] = new byte[BUFFER];
+            // Write the files to the disk, but only if the file is not insanely big
+            if (entry.getSize() > TOOBIG) {
+                throw new IllegalStateException("File to be unzipped is huge.");
+            }
+            if (entry.getSize() == -1) {
+                throw new IllegalStateException("File to be unzipped might be huge.");
+            }
+            FileOutputStream fos = new FileOutputStream(entry.getName());
+            BufferedOutputStream dest = new BufferedOutputStream(fos, BUFFER);
+            while ((count = zis.read(data, 0, BUFFER)) != -1) {
+                dest.write(data, 0, count);
+            }
+            dest.flush();
+            dest.close();
+            zis.closeEntry();
+        }
+    } finally {
+        zis.close();
+    }
+}
+```  
+这个不符合规则的代码示例，使用`ZipEntry.getSize()`方法在解压之前，判断zip文档中需解压文件的大小。然而，攻击者可以伪造ZIP文档中未压缩的文件的大小，因此通过getSize()返回的值是不可靠的。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+static final int BUFFER = 512;
+static final int TOOBIG = 0x6400000; // Max size of unzipped data, 100MB
+static final int TOOMANY = 1024; // Max number of files
+// ...
+
+private String validateFilename(String filename, String intendedDir) throws java.io.IOException {
+    File f = new File(filename);
+    String canonicalPath = f.getCanonicalPath();
+
+    File iD = new File(intendedDir);
+    String canonicalID = iD.getCanonicalPath();
+
+    if (canonicalPath.startsWith(canonicalID)) {
+        return canonicalPath;
+    } else {
+        throw new IllegalStateException("File is outside extraction target directory.");
+    }
+}
+
+public final void unzip(String filename) throws java.io.IOException {
+    FileInputStream fis = new FileInputStream(filename);
+    ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis));
+    ZipEntry entry;
+    int entries = 0;
+    long total = 0;
+    try {
+        while ((entry = zis.getNextEntry()) != null) {
+            System.out.println("Extracting: " + entry);
+            int count;
+            byte data[] = new byte[BUFFER];
+            // Write the files to the disk, but ensure that the filename is valid,
+            // and that the file is not insanely big
+            String name = validateFilename(entry.getName(), ".");
+            if (entry.isDirectory()) {
+                System.out.println("Creating directory " + name);
+                new File(name).mkdir();
+                continue;
+            }
+            FileOutputStream fos = new FileOutputStream(name);
+            BufferedOutputStream dest = new BufferedOutputStream(fos, BUFFER);
+            while (total + BUFFER <= TOOBIG && (count = zis.read(data, 0, BUFFER)) != -1) {
+                dest.write(data, 0, count);
+                total += count;
+            }
+            dest.flush();
+            dest.close();
+            zis.closeEntry();
+            entries++;
+            if (entries > TOOMANY) {
+                throw new IllegalStateException("Too many files to unzip.");
+            }
+            if (total > TOOBIG) {
+                throw new IllegalStateException("File being unzipped is too big.");
+            }
+        }
+    } finally {
+        zis.close();
+    }
+}
+```
+在这个符合规范的解决方案方案中，代码在提取条目之前验证每个条目的名称。如果名称无效，那么整个提取就会被中止。 另外一个符合规范的解决方案也可以跳过该条目并继续提取过程，或者甚至可以将条目提取到某个安全的位置。  
+此外，while循环中的代码将跟踪zip归档中每个条目的未压缩文件大小，同时提取条目。如果提取的条目太大，在本例中为100MB，则会抛出异常。代码不使用`ZipEntry.getSize()`方法, 因为它返回的值是不可靠的。最后，代码还计算存档中文件条目的数量，如果有超过1024个条目，则抛出一个异常。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">73:External Control of File Name or Path</Reference>  
+        <Reference type="CWE">23:Relative Path Traversal</Reference>  
+        <Reference type="CWE">22:Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')</Reference>  
+        <Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>  
+        <Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>  
+        <Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>  
+        <Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M8 Security Decisions Via Untrusted Inputs</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Risky Resource Management - CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Risky Resource Management - CWE ID 22</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 73</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

@@ -27,19 +27,15 @@ fn detects_representative_expanded_rules() {
     )
     .contains(&"UF-PY-YAML-UNSAFE-LOAD".to_string()));
 
-    assert!(ids(
-        Language::Java,
-        "Security.java",
-        "http.csrf().disable();\n"
-    )
-    .contains(&"UF-JAVA-SPRING-CSRF-DISABLE".to_string()));
+    assert!(
+        ids(Language::Java, "Security.java", "http.csrf().disable();\n")
+            .contains(&"UF-JAVA-SPRING-CSRF-DISABLE".to_string())
+    );
 
-    assert!(ids(
-        Language::Cpp,
-        "owner.cpp",
-        "std::shared_ptr<Node>(this);\n"
-    )
-    .contains(&"UF-CPP-SHARED-PTR-THIS".to_string()));
+    assert!(
+        ids(Language::Cpp, "owner.cpp", "std::shared_ptr<Node>(this);\n")
+            .contains(&"UF-CPP-SHARED-PTR-THIS".to_string())
+    );
 }
 
 #[test]

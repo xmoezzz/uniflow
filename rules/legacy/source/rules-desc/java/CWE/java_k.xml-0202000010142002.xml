@@ -1,0 +1,164 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010142002" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 04. 字符和字符串 (STR)</Category>  
+        <Category type="DetailClassChin">STR02-J：当比较local相关的数据时，指定恰当的local</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当locale没有明确指定的时候，使用locale相关的方法处理与local相关的数据会产生意想不到的结果。编程语言标识符、协议关键字以及HTML标签通常会指定Locale.ENGLISH作为一个特定的locale。在不同的locale环境中运行程序可能会导致意外的程序行为，甚至允许攻击者绕过输入过滤器。由于这些原因，在比较数据时，如果可能与locale方法相关，则应指定相应的locale。  
+  
+例如下面程序代码：  
+```java
+public class Example {
+    public static void main(String[] args) {
+        System.out.println("Title".toUpperCase());
+    }
+}
+```  
+在英文locale环境下： 
+```   
+% java Example  
+TITLE  
+%  
+```  
+然而，大多数语言使用拉丁字母的i的大写形式是I,但土耳其语言环境是个**例外**：有一个点的i大写形式也有一个点 (İ)， 没有点的ı大写形式没有点 (I)。在土耳其locale（API 2006）会产生下面预期之外的结果：  
+```  
+% java -Duser.language=tr Example  
+TİTLE  
+%  
+```   
+许多程序只使用依赖于locale方法来输出信息，如果locale相关的数据，程序没有显示设置locale,则可以安全地依赖于默认的locale设置。  
+**不规范的代码样例1**：      
+```java
+public static void processTag(String tag) {
+    if (tag.toUpperCase().equals("SCRIPT")) {
+        return;
+    }
+    // Process tag
+}
+```  
+在英语locale中 "script" 大写转换成 "SCRIPT"，而在土耳其locale环境中， 将"script"大写转换成"SCRİPT"。   
+**不规范的代码样例2**：  
+```java
+import java.io.*;
+
+public class PrintMyself {
+    private static String inputFile = "PrintMyself.java";
+    private static String outputFile = "PrintMyself.txt";
+
+    public static void main(String[] args) throws IOException {
+        BufferedReader reader = new BufferedReader(new FileReader(inputFile));
+        PrintWriter writer = new PrintWriter(new FileWriter(outputFile));
+        int line = 0;
+        while (reader.ready()) {
+            line++;
+            writer.println(line + ": " + reader.readLine());
+        }
+        reader.close();
+        writer.close();
+    }
+
+}
+```  
+代码示例读取自己的源代码，并打印出来。如果程序使用参数 `-Dfile.encoding=UTF16` 运行，但其源文件以UTF8存储，程序在输出文件中将保存垃圾。   
+**不规范的代码样例3**：  
+```java
+import java.util.Date;  
+import java.text.DateFormat;  
+import java.util.Locale;  
+   
+// ...  
+   
+public static void isJune(Date date) {
+    String myString = DateFormat.getDateInstance().format(date);
+    System.out.println("The date is " + myString);
+    if (myString.startsWith("Jun ")) {
+        System.out.println("Enjoy June!");
+    } else {
+        System.out.println("It's not June.");
+    }
+}
+```  
+该程序在美国语言环境的平台上的表现与预期一样:
+```
+The date is Jun 20, 2014  
+Enjoy June!  
+```  
+但是在其他地区却失败了。例如：德国地区的输出(指定-Duser.language = de)  
+```  
+The date is 20.06.2014  
+It's not June.
+```
+]]></Description>  
+      <Advice><![CDATA[在比较数据时，如果可能与locale设置相关，则应指定相应的locale。  
+**规范的代码样例1**：  
+```java
+public static void processTag(String tag) {
+    if (tag.toUpperCase(Locale.ENGLISH).equals("SCRIPT")) {
+        return;
+    }
+    // Process tag
+}
+```  
+代码中将locale设置为英文，从而避免意外的情况。  
+**规范的代码样例2**：  
+```java
+public static void processTag(String tag) {
+    Locale.setDefault(Locale.ENGLISH);
+
+    if (tag.toUpperCase().equals("SCRIPT")) {
+        return;
+    }
+    // Process tag
+}
+```  
+代码中在程序进行字符串比较前，将默认的locale设置为英文。  
+**规范的代码样例3**：  
+```java
+public static void processTag(String tag) {
+    if (tag.equalsIgnoreCase("SCRIPT")) {
+        return;
+    }
+    // Process tag
+}
+```  
+这个规范的代码通过不区分大小写的比较绕过locale。`String.equalsIgnoreCase()`方法创建临时规范形式的字符串,它执行适当的比较而不依赖当前locale环境 [Schindler 12]。  
+**规范的代码样例4**：   
+```java
+public static void main(String[] args) throws IOException {
+    Charset encoding = Charset.forName("UTF8");
+    BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(inputFile), encoding));
+    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(outputFile), encoding));
+
+    int line = 0;
+
+    /* Rest of code unchanged */
+```  
+在这个规范的代码中，输入和输出文件都使用UTF8显式地编码。不管默认的编码是什么，这个程序都是正确的。  
+**规范的代码样例5**：  
+```java
+String myString = DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.US).format(rightNow.getTime());  
+/* Rest of code unchanged */
+```  
+这个规范的代码规定日期以一种英语格式打印，不管当前的语言环境。  
+**规范的代码样例6**：  
+```java
+if (rightNow.get(Calendar.MONTH) == Calendar.JUNE) {  
+/* Rest of code unchanged */
+```  
+这个规范的代码检查日期的月份属性，而不格式化它。尽管日期表示因文化而异，但 Calendar 日期的内容却不一样。因此，该代码在任何地区都可以工作。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">474:Use of Function with Inconsistent Implementations</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170045" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">6.2 并发程序安全</Category>  
+        <Category type="DetailClassChin">A.3.2.13 不要使用非线程安全方法来覆写线程安全方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：当一个依赖于基类提供线程安全的客户无意中对子类的实例进行操作时，如果使用对并发不安全的方法来覆写线程安全的方法，会导致不恰当的同步。比如，如果子类提供了对并发操作不安全的实现，那么可能会违反一个被覆写的同步方法的合约。这样的覆写很容易造成难以诊断的错误。因此，程序禁止使用非并发安全的方法来覆写线程安全方法。  
+对于不要使用非线程安全方法来覆写线程安全方法的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+示例1（同步方法）：  
+```java
+class Base {
+    public synchronized void doSomething() {
+        // ...
+    }
+}
+
+class Derived extends Base {
+    @Override
+    public void doSomething() {
+        // ...
+    }
+}
+```  
+这个不符合规范的代码示例在Derived类中使用了一个非同步的方法覆写了Base类中的同步方法`doSomething`。  
+Base类中的`doSomething()`方法可以安全的被多个线程使用，但这并不适用于Derived子类的实例。  
+因为接受Base实例的线程同时也接受它的子类的实例，所以可能很难诊断这个程序的错误。因此，客户可能不会意识到他们是在对继承了线程安全的类的非线程安全的子类实例进行操作。  
+示例2（同步方法）：  
+```java
+class Base {
+    public synchronized void doSomething() {
+        // ...
+    }
+}
+
+class Derived extends Base {
+    @Override
+    public synchronized void doSomething() {
+        // ...
+    }
+}
+``` 
+这个符合规范的方案同步了基类中的`doSomething()`方法。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CERT">TSM00-J:Do not override thread-safe methods with methods that are not thread-safe</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>A.3.2 并发程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

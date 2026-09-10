@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150402" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">并发规范</Category>  
+        <Category type="DetailClassChin">【推荐】不要在JavaEE程序中直接使用线程</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[JAVA EE标准禁止在某些环境下使用Web应用程序中的线程管理，因为此时使用线程管理非常容易出错。线程管理起来很困难，并且可能还会以不可预知的方式干扰应用程序容器。即使容器没有受到干扰，线程管理通常还会导致各种难以发现的错误，如死锁、竞争条件及其他同步错误等。  
+  
+**例如**：下面代码片段中，在Servlet的`doGet()`方法中，直接创建了一个线程对象。  
+```java
+public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {  
+    // Perform servlet tasks.  
+    ...  
+    // Create a new thread to handle background processing.  
+    Runnable r = new Runnable() {  
+        public void run() {  
+            // Process and store request statistics.  
+            ...  
+        }  
+    };  
+    new Thread(r).start();  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[建议使用框架（如EJB、Spring等）的相同功能的方法，取代直接使用线程管理。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">383:J2EE Bad Practices: Direct Use of Threads</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Time and State</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

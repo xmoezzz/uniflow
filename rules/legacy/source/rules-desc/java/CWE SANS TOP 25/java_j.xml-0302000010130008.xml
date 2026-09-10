@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0302000010130008" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">null引用</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行可能会发生空指针异常。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行可能会发生空指针异常。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序间接引用了可能为null的变量，从而引发空指针异常。  
+  
+**例如**：下面代码片段中，在使用变量data之前没有判断它是否为null。  
+```java
+...  
+Data data = null  
+...  
+data.setId(id);    
+...
+```
+]]></Description>
+			<Advice><![CDATA[程序在间接引用可能为null的对象之前应对其进行判断。  
+  
+**例如**：下面代码片段中，程序data设置为null，使用之前进行判断是否为null。  
+```java
+...
+Data  data = null   
+...  
+if(data != null){  
+    data.setId(id);   
+}   
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 476</Reference>
+				<Reference type="CWE">476:NULL Pointer Dereference</Reference>
+				<Reference type="CERT">EXP01-J:Never dereference null pointers</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+				<Reference type="SJ/T 11683-2017">6.2.5 使用变量时变量恒为null</Reference>
+				<Reference type="SJ/T 11683-2017">6.7.1 null解引用</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments>
+					<CodeFragment id="1" name="1.函数返回null"/>
+					<CodeFragment id="2" name="2.变量被赋值为null"/>
+					<CodeFragment id="3" name="3.变量为null的分支"/>
+					<CodeFragment id="4" name="4.变量不为null的分支"/>
+					<CodeFragment id="5" name="5.对null变量进行解引用、成员访问或方法调用"/>
+					<CodeFragment id="6" name="6.对非null变量进行解引用、成员访问或方法调用"/>
+					<CodeFragment id="7" name="7.程序异常或崩溃"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.变量被赋值为非null"/>
+				</CodeFragments>
+				<Relationships>
+					<Relationship fromId="1" toId="2" name="函数返回null赋值给变量"/>
+					<Relationship fromId="1" toId="5" name="使用变量"/>
+					<Relationship fromId="2" toId="5" name="使用变量"/>
+					<Relationship fromId="2" toId="3" name="判断分支语句条件，进入变量为null的分支"/>
+					<Relationship fromId="2" toId="4" name="判断分支语句条件，进入变量不为null的分支"/>
+					<Relationship fromId="3" toId="5" name="对变量进行操作"/>
+					<Relationship fromId="4" toId="6" name="对变量进行操作"/>
+					<Relationship fromId="5" toId="7" name="操作执行后"/>
+					<Relationship fromId="6" toId="8" name="操作执行后"/>
+					<Relationship fromId="2" toId="9" name="变量赋值"/>
+					<Relationship fromId="3" toId="9" name="变量赋值"/>
+					<Relationship fromId="9" toId="6" name="操作执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

@@ -1,0 +1,107 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160009" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">5.2 数据净化</Category>  
+        <Category type="DetailClassChin">C.1.9 净化传递给正则表达式的非受信数据</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+非受信的输入应该在使用前进行净化，从而防止发生正则表达式注入   
+2) 原理   
+正则表达式在匹配文本字符串时被广泛使用。在 Java 中，必须注意不能误用强大的正则表达式功能。攻击者也许会通过提供一个恶意输入对初始的正则表达式进行修改，比如使其不符合程序规定的正则表达的要求。这种攻击方式称为正则注入（regex injection），它可以影响程序控制流、导致信息泄露，并引起绝服务漏洞。   
+当用户必须指定正则表达式作为输入时，必须注意需要保证初始的正则表达式没有被无限制修改。在用户输入字符串提交给正则解析之前，进行白名单字符处理（比如字母和数字）是一个很好的输入净化策略。开发人员必须仅仅提供最有限的正则表达式功能给用户，从而减少被误用的可能。   
+3) 示例   
+    这个不符合规则的代码示例将日志文件周期性地载入内存，它通过将关键词作为参数传给`suggestSearches()` 方法来获得关键词搜索建议。   
+    ```java
+    public class Keywords {
+        private static ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        private static CharBuffer log;
+        private static final Object lock = new Object();
+        // Map log file into memory, and periodically reload
+        static {
+            try {
+                FileChannel channel = new FileInputStream("path").getChannel();
+                // Get the file’s size and map it into memory
+                int size = (int) channel.size();
+                final MappedByteBuffer mappedBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, size);
+                Charset charset = Charset.forName("ISO-8859-15");
+                final CharsetDecoder decoder = charset.newDecoder();
+                log = decoder.decode(mappedBuffer); // Read file into char buffer
+                Runnable periodicLogRead = new Runnable() {
+                    @Override
+                    public void run() {
+                        synchronized (lock) {
+                            try {
+                                log = decoder.decode(mappedBuffer);
+                            } catch (CharacterCodingException e) {
+                                // Forward to handler
+                            }
+                        }
+                    }
+                };
+                scheduler.scheduleAtFixedRate(periodicLogRead, 0, 5, TimeUnit.SECONDS);
+            } catch (Throwable t) {
+                // Forward to handler
+            }
+        }
+    }
+    
+    public static Set<String> suggestSearches(String search) {
+        synchronized (lock) {
+            Set<String> searches = new HashSet<String>();
+            // Construct regex dynamically from user string
+            String regex = "(.*? +public\\[\\d+\\] +.*" + search + ".*)";
+            Pattern keywordPattern = Pattern.compile(regex);
+            Matcher logMatcher = keywordPattern.matcher(log);
+            while (logMatcher.find()) {
+                String found = logMatcher.group(1);
+                searches.add(found);
+            }
+            return searches;
+        }
+    }
+    ```  
+    这段代码允许受信用户在公共日志信息中搜索`“error”`关键词。然而，这样会导致前面提到的通过正则注入进行的恶意攻击。   
+    这个对应的符合规定的方案过滤搜索字符串中的非字母数字的字符（除了空格和单引号外），这种方案可以阻止正则表达式注入。   
+    ```java
+    public class Keywords {
+        // ...
+        public static Set<String> suggestSearches(String search) {
+            synchronized (lock) {
+                Set<String> searches = new HashSet<String>();
+                StringBuilder sb = new StringBuilder(search.length());
+                for (int i = 0; i < search.length(); ++i) {
+                    char ch = search.charAt(i);
+                    if (Character.isLetterOrDigit(ch) || ch == ' ' || ch == '\\') {
+                        sb.append(ch);
+                    }
+                }
+                search = sb.toString();
+                // Construct regex dynamically from user string
+                String regex = "(.*? +public\\[\\d+\\] +.*" + search + ".*)";
+                // ...
+            }
+        }
+    }
+    ```  
+    另一个减少这种漏洞的方法是，在匹配前过滤敏感信息。这样的方案要求每一次日志文件定期更新时都要进行过滤，从而会产生额外的复杂性和性能损失。如果日志格式变化了，但类的设计没有反映这些变化，那么敏感数据依然可能被暴露。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">730:OWASP Top Ten 2004 Category A9 - Denial of Service</Reference>  
+        <Reference type="CWE">185:Incorrect Regular Expression</Reference>  
+        <Reference type="CERT">IDS08-J:Sanitize untrusted data included in a regular expression</Reference>  
+        <Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>C.1 输入验证与数据净化</BigClassChin>  
+       
+    </BugInfo>  
+    

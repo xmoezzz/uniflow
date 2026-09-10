@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100014" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">配置管理</Category>
+				<Category type="DetailClassChin">JavaEE配置错误：缺少数据传输限制</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行缺少数据传输限制。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[web.xml安全限制通常是基于角色的访问控制，`<user-data-constraint>`这个可选的元素指明在访问相关资源时使用何种传输层保护。  
+在`<user-data-constraint>`标签中，`<transport-guarantee>`标签定义了三种通信保密处理级别：  
+1. NONE表示应用程序不要求任何传输保护。  
+2. INTEGRAL表示应用程序在客户端和服务器之间传送的数据不可发生任何改变。  
+3. CONFIDENTIAL表示应用程序防止其他实体查看传输数据的内容。  
+
+**例如**：以下安全限制未指定传输保护。  
+```xml
+<security-constraint>  
+    <display-name>baseporject</display-name>     
+    <web-resource-collection>     
+        <web-resource-name>baseproject</web-resource-name>     
+        <url-pattern>*.jsp</url-pattern>     
+        <url-pattern>*.do</url-pattern>        
+        <http-method>POST</http-method>     
+    </web-resource-collection>     
+    <auth-constraint>     
+        <description>baseproject</description>     
+        <role-name>AllRole</role-name>     
+    </auth-constraint>   
+</security-constraint>
+```
+]]></Description>
+			<Advice><![CDATA[在定义授权限制时指定CONFIDENTIAL传输保护。一旦对应用程序的信息流进行加密，就不允许未经加密的信息流进入该应用程序，否则会话cookie或其他敏感信息可能会在不安全的通道传输。  
+  
+**例如**：以下安全限制指定CONFIDENTIAL类型的传输保护。
+```xml
+<security-constraint>  
+    <display-name> baseporject</display-name>  
+    <web-resource-collection>  
+        <web-resource-name>baseproject</web-resource-name>  
+        <url-pattern>*.jsp</url-pattern>  
+        <url-pattern>*.do</url-pattern>  
+        <http-method>POST</http-method>  
+    </web-resource-collection>  
+    <auth-constraint>  
+        <description>baseproject</description>  
+        <role-name>AllRole</role-name>  
+    </auth-constraint>  
+    <user-data-constraint>  
+         <transport-guarantee>CONFIDENTIAL</transport-guarantee>  
+    </user-data-constraint>  
+</security-constraint>
+```  
+]]></Advice>
+			<References>
+				<Reference type="CWE">5:J2EE Misconfiguration: Data Transmission Without Encryption</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

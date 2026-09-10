@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010050009" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码注入</Category>
+				<Category type="DetailClassChin">资源注入</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[使用用户输入控制资源标识符，借此攻击者可以访问或修改其他受保护的系统资源。当满足以下两个条件时，就会发生资源注入：  
+1. 攻击者可以指定已使用的标识符来访问系统资源。**例如**：攻击者能够指定用来连接到网络资源的端口号。   
+2. 攻击者可以通过指定特定资源来获取某种权限，而这种权限在一般情况下是不可能获得的。**例如**：程序可能会允许攻击者把敏感信息传输到第三方服务器。  
+
+**例1**：下面的代码片段从HTTP请求获取端口号，并使用此端口号创建一个套接字，而不进行任何验证。使用代理的用户可以修改此端口并获得与服务器的直接连接。    
+```java
+String port = request.getParameter("port");  
+...  
+ServerSocket serverSocket = new ServerSocket(port);  
+Socket socket = serverSocket.accept();   
+...
+```  
+这种利用用户输入影响的资源可能存在风险。  
+**例2**：下面的代码利用WebView的File域协议读取任意可读文件或受害应用的私有文件。  
+```java
+WebView webView=(WebView) findViewById(R.id.webView);  
+String url= getIntent().getData().toString();  
+webView.loadUrl(url);
+```  
+查看hosts文件：`adb shell am start -n com.mytest/.MainActivity -d file:///system/etc/hosts ` 
+查看应用私有文件：`adb shell am start -n /data/data/com.cn.test/databases/user.db`
+]]></Description>
+			<Advice><![CDATA[为了避免资源注入漏洞攻击，可以采用黑名单或白名单策略。黑名单会有选择地拒绝或避免潜在的危险字符。但是，任何这样一份黑名单都不可能是完整的，而且将随着时间的推移而过时。比较好的方法是创建白名单，允许其中的字符出现在资源名称中，且只接受完全由这些被认可的字符所组成的输入。
+]]></Advice>
+			<References>
+				<Reference type="CWE">99:Improper Control of Resource Identifiers ('Resource Injection')</Reference>
+				<Reference type="OWASP TOP 10">2017:A5 Broken Access Control</Reference>
+				<Reference type="OWASP TOP 10">2013:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2010:A4 Insecure Direct Object References</Reference>
+				<Reference type="OWASP TOP 10">2007:A4 Insecure Direct Object Reference</Reference>
+				<Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发资源注入漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在资源注入漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在资源注入漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发资源注入漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		

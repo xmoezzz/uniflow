@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010100101" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">APP可被debug</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行设定APP可被debug。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行设定APP可被debug。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在`AndroidManifest.xml`中，\<application\>标签中可以设置`attribute android:debuggable`，其值为`true`或`false`。当debuggable属性为`true`时，表示该程序可调试。调试二进制码只能用于开发或测试环境中，因为已编译的二进制码中包含有关于自身的详细的调试信息，如果用于生产环境中，这些调试信息能够帮助攻击者了解系统并制定攻击计划，从而对应用程序所采用的框架、数据库或其他资源发动攻击。
+]]></Description>
+			<Advice><![CDATA[在`AndroidManifest.xml`中，将\<application\>标签的debuggable属性定义为false。
+]]></Advice>
+			<References>
+				<Reference type="CWE">11:ASP.NET Misconfiguration: Creating Debug Binary</Reference>
+				<Reference type="CERT">DRD10-X:Do not release apps that are debuggable</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M10 Lack of Binary Protections</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

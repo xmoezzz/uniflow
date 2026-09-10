@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010110113" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Content Provider组件暴露</Category>
+			</Categories>
+			<BugServerity>3</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序没有为该provider组件明确定义exported属性或相关权限。  
+如果在`AndroidManifest.xml`中公共组件没有明确地分配访问权限，则表示任何应用程序都能访问它们。  
+导出的`Content Provider`组件可以被第三方app任意调用，导致敏感信息泄露，并可能受到目录遍历、SQL注入等攻击风险.  
+只有在`android:minSdkVersion`或`android:targetSdkVersion`中某一属性设为`16`或者更高的应用程序中，`content provider`中exported属性默认值才为`false`，然而对于其他情况下的应用程序，该默认值为`true`，表示可以导出`android content provider`。  
+**例如**：以下是无明确访问权限或exported标志的content provider示例。  
+```xml
+<provider android:name=".MyProvider"/>
+```
+]]></Description>
+			<Advice><![CDATA[为防止恶意应用程序误用相关组件，开发人员应该在`AndroidManifest.xml`文件中显示定义组件的访问权限和exported标志属性。  
+  
+**例如**：以下是具有明确访问权限的content provider示例。  
+```xml
+<provider android:name=".MyProvider" android:permission="content.permission.READ_AND_WRITE_CONTENT"/> 
+```  
+或者，明确设定provider为私有：  
+```xml
+<provider android:name=".MyProvider" android:exported="false"/>
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">285:Improper Authorization</Reference>
+				<Reference type="CWE">265:Privilege / Sandbox Issues</Reference>
+				<Reference type="CERT">DRD01-X:Limit the accessibility of an app's sensitive content provider,DRD06:Do not act on malicious intents,DRD07-X:Protect exported services with strong permissions,DRD09:Restrict access to sensitive activities ,DRD16-X:Explicitly define the exported attribute for private components</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A2 Broken Access Control</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M5 Poor Authorization and Authentication</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Porous Defenses - CWE ID 285</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Porous Defenses - CWE ID 285</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

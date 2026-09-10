@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0802000010140504" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">SJ/T 11683-2017</Category>  
+        <Category type="SubClassChin">Rule 03. 数据类型与运算 (NUM)</Category>  
+        <Category type="DetailClassChin">NUM04-J：不要使用浮点数进行精细计算</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[Java语言提供两种基本浮点数据类型：float和double。它们是根据IEEE754标准确立的，该标准为32位单精度类型和64位双精度类型定义了数值和相关操作。float和double各自有固定的位数来标示尾数。所以，用浮点数来精确的表示无理数是不可能的（**例如**：圆周率π）。此外，这两个类型利用二进制来表示尾数，这意味着这些类型不能精确的表达许多有限的小数，如：0.1。  
+当需要进行精确的计算时，如货币兑换、数据统计，不能使用浮点类型，而应该使用其他完整表达数据的方式。如：BigDecimal。  
+当然，浮点类型可以运用在对计算精度要求不高的情况中，但是必须顾及最大的累计计算误差并确保误差在可接受的范围内。  
+在大多数情况下，静态分析来判断代码是否受精度不足的影响是不能的，本条准则提供的警告信息，对于程序员分析程序是有帮助的。  
+**不规范的代码样例1**：  
+```java
+double dollar = 1.00;  
+double dime = 0.10;  
+int number = 7;  
+System.out.println("A dollar less " + number + " dimes is $" +(dollar - number * dime) );
+```  
+这段代码进行了一些简单的货币计算。因为`0.10`不能用Java的浮点类型来精确表达，所以，大多数的平台上会输出以下信息：  
+`A dollar less 7 dimes is $0.29999999999999993`
+]]></Description>  
+      <Advice><![CDATA[需要精确计算的数值，可以改变计量单位，进而可以使用整型进行计算；或采用`java.math.BigDecimal`类型来计算。  
+**规范的代码样例1**：改变计量单位  
+```java
+long dollar = 100;  
+long dime = 10;  
+int number = 7;  
+System.out.println("A dollar less " + number + " dimes is "+(dollar - number * dime) + " cents" );
+```  
+采用100美分表示1美元，即可采用整数来进行计算。  
+代码将输出：`A dollar less 7 dimes is 30 cents ` 
+
+**规范的代码样例2**：采用`java.math.BigDecimal`  
+```java
+BigDecimal dollar = new BigDecimal("1.0");  
+BigDecimal dime = new BigDecimal("0.1");  
+int number = 7;  
+System.out.println("A dollar less " + number + " dimes is $" +(dollar.subtract(new BigDecimal(number).multiply(dime) )) );
+```  
+代码将输出：`A dollar less 7 dimes is $0.3`
+]]></Advice>  
+      <References> 
+        <Reference type="SJ/T 11683-2017">6.6.6 浮点数的相等或不等比较</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

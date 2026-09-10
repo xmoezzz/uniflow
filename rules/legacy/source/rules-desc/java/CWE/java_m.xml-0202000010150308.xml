@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150308" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">并发规范</Category>  
+        <Category type="DetailClassChin">【强制】getter方法和setter方法应该成对同步</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当`getter`/`setter`对的一个方法同步时，相对应的方法也应该同步。当调用者访问不一致的方法状态时，在运行时未能同步可能导致不一致的行为。  
+  
+**例如**：下面代码示例中，`getter`方法和`setter`方法没有成对同步。  
+```java
+public class User {  
+    String name;  
+    int age;  
+  
+    public synchronized void setName(String name) {  
+        this.name = name;  
+    }  
+  
+    public String getName() { //对应的setName方法使用了synchronized修饰进行同步
+        return this.name;  
+    }  
+  
+    public void setAge(int age) { //对应的getAge方法使用了synchronized块进行同步
+        this.age = age;  
+    }  
+  
+    public int getAge() {  
+        synchronized (this) {  
+            return this.age;  
+        }  
+    }  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[成对的`getter`方法和`setter`方法当有一个方法进行同步时，都需要进行同步。  
+  
+**例如**：下面代码示例中，`getter`方法和`setter`方法成对同步。  
+```java
+public class User {  
+    String name;  
+    int age;  
+  
+    public synchronized void setName(String name) {  
+        this.name = name;  
+    }  
+  
+    public synchronized String getName() {  
+        return this.name;  
+    }  
+  
+    public void setAge(int age) {  
+        synchronized (this) {  
+            this.age = age;  
+        }  
+    }  
+  
+    public int getAge() {  
+        synchronized (this) {  
+            return this.age;  
+        }  
+    }  
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>bad_practice</Tag> 
+    </BugInfo>  
+    

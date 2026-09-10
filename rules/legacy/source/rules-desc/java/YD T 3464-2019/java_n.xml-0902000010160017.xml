@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160017" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.2.3 将所有增强for 语句的循环变量声明为final 类型</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+将所有增强 for 语句的循环变量声明为 final 类型。   
+2) 原理   
+    与基本的 for语句不同，在增强的 for语句中，给循环变量赋值会影响循环的迭代次序。因此应避免对 for 循环中的循环变量赋值。   
+    增强的 for 循环通常采用以下形式：   
+    ```java
+    for (ObjType obj : someIterableItem) {   
+        // ...   
+    }
+    ```    
+    等价于以下形式的基本 for 循环：   
+    ```java
+    for (Iterator myIterator = someIterableItem.iterator(); myIterator.hasNext();) {   
+        ObjType obj = myIterator.next();   
+        // ...   
+    }
+    ```   
+    给循环变量赋值的动作，等价于修改循环体的局部变量的值。   
+    应将所有 for 语句的循环变量声明为 final，这个 final声明可让 Java 编译器做一个标志，拒绝对这个循环变量进行任何赋值。   
+3) 示例   
+    1.这个不符合规则的代码示例想使用增强型的 for循环处理对象集合。此外，它还想跳过对集合中某一个元素的处理。代码执行的结果：需要跳过的元素跳过了，但是它之后的元素被处理了两次。   
+    ```java
+    Collection<ProcessObj> processThese = // ...   
+    for (ProcessObj processMe: processThese) {   
+        if (someCondition) { // found the item to skip   
+            someCondition = false;   
+            processMe = processMe.getNext(); // attempt to skip to next item   
+        }   
+        processMe.doTheProcessing(); // process the object   
+    }
+    ```  
+     
+    对应的符合规则的代码示例：能够正确处理集合中的每一个对象，并且每一个对象只被处理一次。
+    ```java
+    Collection<ProcessObj> processThese = // ...   
+    for (final ProcessObj processMe: processThese) {   
+        if (someCondition) { // found the item to skip   
+            someCondition = false;   
+            continue; // skip by continuing to next iteration   
+        }   
+        processMe.doTheProcessing(); // process the object   
+    }
+    ```   
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References/>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.2 声明和初始化</BigClassChin>  
+       
+    </BugInfo>  
+    

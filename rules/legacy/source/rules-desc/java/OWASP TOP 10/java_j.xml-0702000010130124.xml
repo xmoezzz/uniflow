@@ -1,0 +1,85 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010130124" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">OWASP TOP 10</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">可序列化类中存在可序列化的敏感信息</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行为可序列化的敏感信息且所在类为可序列化类。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行为可序列化的敏感信息且所在类为可序列化类。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在可序列化类中存在敏感信息，当对象被序列化时，类中的敏感信息将会存储。攻击者可能会序列化该对象，并获取敏感信息。  
+  
+**例如**：下列代码中类实现了序列化，且存在敏感信息`password`。攻击者获取该对象序列化的文件后，将会获取此用户密码。  
+```java
+class Person implements Serializable{  
+    private String name;  
+    private String password;  
+    public Person(String name,String password) {  
+        this.setName(name);  
+        this.setPassword(password);  
+    }     
+    ...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[在存在敏感信息的可序列化类中，当序列化对象时，忽略，拒绝或者加密敏感信息。  
+  
+**例1**：以下代码敏感信息使用transient关键字修饰，将不会参与序列化过程：  
+```java
+class Person implements Serializable{  
+    private String name;  
+    private transient String password;  
+    public Person(String name,String password) {  
+        this.setName(name);  
+        this.setPassword(password);  
+    }     
+    ...  
+}
+```  
+**例2**：以下代码将会在序列化时拒绝序列化：  
+```java
+class Person implements Serializable{  
+    private String name;  
+    private String password;  
+    public Person(String name,String password) {  
+        this.setName(name);  
+        this.setPassword(password);  
+    }     
+    ...  
+    private final void writeObject(ObjectOutputStream out) throws IOException  
+    {  
+        throw new NotSerializableException();  
+    }        
+    private final void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException  
+    {  
+        throw new NotSerializableException();  
+    }     
+    private final void readObjectNoData() throws ObjectStreamException  
+    {  
+        throw new NotSerializableException();  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">499:Serializable Class Containing Sensitive Data</Reference>
+				<Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>
+				<Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>
+				<Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>
+				<Reference type="GB/T 34944-2017 Java">不充分的封装:可序列化的类包含敏感数据</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,password,bad_practice</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

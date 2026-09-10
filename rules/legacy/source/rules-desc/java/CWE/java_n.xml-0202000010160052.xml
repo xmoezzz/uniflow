@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010160052" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.6.3 不要使用弃用的或过时的类和方法</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+不要在新代码中使用弃用的或过时的类和方法。同时必须避免在多线程应用中使用具有特殊限制的类和方法。   
+2) 原理   
+Java SE 6文档提供了一个完整的弃用 API的列表。Java还提供了`@deprecated`注释来表示弃用的成员、方法和类。 不应该使用过时的字段、方法和类。Java没有提供注释来说明过时。然而，一些类和方法是被注明为过时的。此外，一些类和方法强调了使用它们时，具有特殊的限制。例如，抽象类`java.text.Format`的所有子类是非线程安全的。必须避免在多线程应用中使用这些类。   
+3) 示例   
+    不能使用以下的方法和类：
+     
+    | 类或者方法 | 替换 | 规则|
+    | :------: | :------: | :------: |
+    | java.lang.Character.isJaveLetter() | java.lang.Character.isJavaIdentifierStart() |  |
+    | java.lang.Character.isJaveLetterOrDigit() | java.lang.Character.isJavaIdentifierPart() |  |
+    | java.lang.Character.isSpace() | java.lang.Character.isWhitespace() |  |
+    | java.lang.Class.newlnstance() | java.lang.reflect.Constructor.newInstance() | ERR06-J |
+    | java.util.Date （多个方法） | java.util.Calendar |  |
+    | java.util.Dictionary  | java.util.Map<K,V>  |  |
+    | java.util.Proerties.save() | java.util.Properties.store() |  |
+    | java.lang.Thread.run() | java.lang.Thread.start() |  |
+    | java.lang.Thread.stop() | java.lang.Thread.interrupt() |  |
+    | java.lang.ThreadGroup （多个方法） | java.util.concurrent.Executor |  |
+    Java 虚拟机 Profiler Interface (JVM PI)和 JVM Debug Interface (JVM DI)也是被弃用的，它们已经被 JVM Tool Interface (JVM TI)所替代。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">477:Use of Obsolete Functions</Reference>  
+        <Reference type="CERT">MET02-J:Do not use deprecated or obsolete classes or methods</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Programming Language Vulnerabilities Dead and Deactivated Code [XYQ]</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.6 方法</BigClassChin>  
+       
+    </BugInfo>  
+    

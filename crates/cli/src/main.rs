@@ -7,8 +7,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use uniflow_baseline::{
-    audit_legacy_rule_tree, builtin_pack_manifest, builtin_security_pack, bundled_legacy_raw_assets,
-    decrypt_legacy_rule_tree, BaselineScanOptions, OracleFormsMetadata,
+    audit_legacy_rule_tree, builtin_pack_manifest, builtin_security_pack,
+    bundled_legacy_raw_assets, decrypt_legacy_rule_tree, BaselineScanOptions, OracleFormsMetadata,
 };
 use uniflow_cache::{build_project_with_cache_options, load_project_cache, save_project_cache};
 use uniflow_checker_api::{event_kind, CheckerFinding};
@@ -16,8 +16,8 @@ use uniflow_checker_host::{
     CheckerFailurePolicy, CheckerHostOptions, CheckerIsolation, CheckerManager,
 };
 use uniflow_frontend::{
-    collect_source_files, parse_project_sources_with_options, parse_source_with_options,
-    FrontendOptions,
+    collect_auxiliary_files, collect_source_files, parse_project_sources_with_options,
+    parse_source_with_options, FrontendOptions,
 };
 use uniflow_hir::Language;
 use uniflow_ir::{sample_java_sql_program, validate_program};
@@ -659,7 +659,10 @@ fn main() -> Result<()> {
                 write_text_file(&path, &json)?;
             }
             if let Some(path) = metadata_report_out {
-                write_text_file(&path, &serde_json::to_string_pretty(&compilation.metadata_report)?)?;
+                write_text_file(
+                    &path,
+                    &serde_json::to_string_pretty(&compilation.metadata_report)?,
+                )?;
             }
             println!(
                 "compiled {} sources, {} sinks, {} sanitizers, {} propagators; {} deferred features",
@@ -670,31 +673,47 @@ fn main() -> Result<()> {
                 compilation.diagnostics.len()
             );
         }
-        Command::EnrichLegacyJvmBaseline { input, knowledge, output, metadata_report_out } => {
+        Command::EnrichLegacyJvmBaseline {
+            input,
+            knowledge,
+            output,
+            metadata_report_out,
+        } => {
             let text = fs::read_to_string(&input)?;
             let mut document: serde_yaml::Value = serde_yaml::from_str(&text)?;
             let mut pack = uniflow_baseline::BaselinePack::from_yaml_str(&text)?;
-            let mut catalog = uniflow_models::LegacyJvmKnowledgeCatalog::from_tree(Path::new(&knowledge))?;
+            let mut catalog =
+                uniflow_models::LegacyJvmKnowledgeCatalog::from_tree(Path::new(&knowledge))?;
             let mut names = std::collections::BTreeMap::new();
             let mut metadata = Vec::new();
             for rule in &pack.rules {
                 names.insert(rule.id.clone(), rule.id.clone());
                 for standard in &rule.standards {
                     if let Some(id) = standard.strip_prefix("LEGACY-MSG-") {
-                        for id in id.split(',') { catalog.add_rule_mapping(&rule.id, "ast", id.trim())?; }
+                        for id in id.split(',') {
+                            catalog.add_rule_mapping(&rule.id, "ast", id.trim())?;
+                        }
                     }
                 }
-                metadata.push(serde_yaml::from_value::<uniflow_rules::RuleMetadata>(serde_yaml::to_value(rule)?)?);
+                metadata.push(serde_yaml::from_value::<uniflow_rules::RuleMetadata>(
+                    serde_yaml::to_value(rule)?,
+                )?);
             }
             let report = catalog.enrich(&mut metadata, &names);
             for (rule, metadata) in pack.rules.iter_mut().zip(metadata) {
-                rule.translations = serde_yaml::from_value(serde_yaml::to_value(metadata.translations)?)?;
+                rule.translations =
+                    serde_yaml::from_value(serde_yaml::to_value(metadata.translations)?)?;
                 rule.standards = metadata.standards;
                 rule.cwe = metadata.cwe;
             }
             pack.validate()?;
-            for (value, rule) in document.get_mut("rules").and_then(serde_yaml::Value::as_sequence_mut)
-                .context("baseline document has no rules sequence")?.iter_mut().zip(&pack.rules) {
+            for (value, rule) in document
+                .get_mut("rules")
+                .and_then(serde_yaml::Value::as_sequence_mut)
+                .context("baseline document has no rules sequence")?
+                .iter_mut()
+                .zip(&pack.rules)
+            {
                 value["translations"] = serde_yaml::to_value(&rule.translations)?;
                 value["standards"] = serde_yaml::to_value(&rule.standards)?;
                 value["cwe"] = serde_yaml::to_value(&rule.cwe)?;
@@ -887,6 +906,13 @@ fn main() -> Result<()> {
                 &entries,
                 &FrontendOptions::default(),
             )?;
+            for file in collect_auxiliary_files(language.clone(), &roots)? {
+                let path = file.to_string_lossy().to_string();
+                let source = fs::read_to_string(&file).with_context(|| {
+                    format!("failed to read auxiliary project file {}", file.display())
+                })?;
+                source_by_path.insert(path, source);
+            }
             let options = BaselineScanOptions {
                 oracle_forms_metadata: forms_metadata
                     .as_deref()

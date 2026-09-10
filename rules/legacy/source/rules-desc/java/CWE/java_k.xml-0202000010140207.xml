@@ -1,0 +1,135 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010140207" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 00. 输入验证和数据处理 (IDS)</Category>  
+        <Category type="DetailClassChin">IDS07-J：净化传递给Runtime.exec()方法的非受信数据</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[外部程序通常被系统调用来完成某种需要的功能。这是一种重用的形式，也被认为是一种简单基于组件的软件工程方法。在应用没有净化非受信的输入并且在执行外部程序时使用这种数据，就会导致产生命令和参数注入漏洞。  
+每一个Java应用都有一个唯一的Runtime类的实例，通过它可以提供一个应用和应用运行环境的接口。当前的Runtime对象可以通过`Runtime.getRuntime()`方法获得。`Runtime.getRuntime()`的语义定义并不严格，所以最好仅仅使用它的那些必要的行为，然而，在通常情况下，它应当被命令直接调用，而不应通过shell来调用。如果需要使用shell来调用它，可以在POSIX中使用`/bin/sh`或者在Windows平台中使用cmd.exe的方式。作为`exec()`的另一种形式，它会使用StringTokenizer来分隔从命令行读入的字符串。在Windows平台中，在处理这些符号时，它们会被连接成一个单一的参数字符串。  
+因而，除非显式地调用命令行解释器，否则是不会产生命令行注入攻击的。然而，当参数中包含那些以空格、双引号或者其他以- /开头的用来表示分支的字符时，就可能发生参数注入攻击。  
+任何源于程序受信边界之外的字符串数据，在当前平台作为命令来执行之前，都必须经过净化。  
+**不规范的代码样例1（Windows）**：
+```java
+class DirList {
+    public static void main(String[] args) throws Exception {
+        String dir = System.getProperty("dir");
+        Runtime rt = Runtime.getRuntime();
+        Process proc = rt.exec("cmd.exe /C dir " + dir);
+        int result = proc.waitFor();
+        if (result != 0) {
+            System.out.println("process error: " + result);
+        }
+        InputStream in = (result == 0) ? proc.getInputStream() : proc.getErrorStream();
+        int c;
+        while ((c = in.read()) != -1) {
+            System.out.print((char) c);
+        }
+    }
+}  
+```  
+该代码示例使用dir命令列出目录列表。这是通过`Runtime.exec()`方法调用Windows的dir命令来实现的。因为`Runtime.exec()`方法接受源于运行环境的未经净化的数据，所以这些代码会引起命令注入攻击。  
+攻击者可以通过以下命令利用该程序：  
+`java -Ddir='dummy & echo bad' Java`   
+该命令实际上执行的是两条命令：  
+`cmd.exe /C dir dummy & echo bad`   
+第一条命令会列出并不存在的dummy文件夹，并且在控制台上输出bad。  
+**不规范的代码样例2（POSIX）**：  
+```java
+class DirList {
+    public static void main(String[] args) throws Exception {
+        String dir = System.getProperty("dir");
+        Runtime rt = Runtime.getRuntime();
+        Process proc = rt.exec(new String[] { "sh", "-c", "ls " + dir });
+        int result = proc.waitFor();
+        if (result != 0) {
+            System.out.println("process error: " + result);
+        }
+        InputStream in = (result == 0) ? proc.getInputStream() : proc.getErrorStream();
+        int c;
+        while ((c = in.read()) != -1) {
+            System.out.print((char) c);
+        }
+    }
+}
+```  
+这一个代码示例只是使用了POSIX中的ls命令。与Windows版本的唯一区别在于传入`Runtime.exec()`的参数。  
+攻击者可以通过使用与上例中一样的命令取得同样的效果。这个命令实际执行的是：  
+`sh -c 'ls dummy & echo bad'`
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1（净化）**：  
+符合规则的方案会对非受信的用户输入进行净化，这种净化只允许一小组列入白名单的字符出现在参数中，并传给`Runtime.exec()`方法，其他所有的字符都会被排除掉。  
+ ```java
+// ...    
+if (!Pattern.matches("[0-9A-Za-z@.]+", dir)) {    
+    // Handle error    
+}    
+// ...
+```   
+尽管这是一个符合规则的方案，这个净化方案会拒绝合法的目录。同时，因为命令行解释器调用是依赖于系统的，所以很难有一个方案可以应付所有Java程序可以运行的平台上的命令行注入。  
+**规范的代码样例2（限定用户选择）**：  
+这个符合规则的方案通过只向`Runtime.exec()`方法输入那些受信的字符串来防止命令注入。当用户可以控制使用哪一个字符串时，用户就可以不向`Runtime.exec()`方法直接提供字符串数据。  
+```java
+// ...    
+String dir = null;
+// only allow integer choices
+int number = Integer.parseInt(System.getproperty("dir"));
+switch (number) {
+case 1:
+    dir = "data1";
+    break; // Option 1
+case 2:
+    dir = "data2";
+    break; // Option 2
+default: // invalid
+    break;
+}
+if (dir == null) {
+    // handle error
+}
+```   
+这个方案将可能罗列出的目录直接写出来了。  
+如果有许多可用目录这个方案很快会变得不好管理。一个更富可伸缩性的方案是从一个属性文件中读取所有允许的目录至java.util.Properties对象中。  
+**规范的代码样例3（避免使用Runtime.exec()）**： 
+```java
+import java.io.File;
+class DirList {
+    public static void main(String[] args) throws Exception {
+        File dir = new File(System.getProperty("dir"));
+        if (!dir.isDirectory()) {
+            System.out.println("Not a directory");
+        } else {
+            for (String file : dir.list()) {
+                System.out.println(file);
+            }
+        }
+    }
+} 
+``` 
+当通过执行系统命令可以完成的任务也可以用其他方式完成时，最好避免用执行系统命令的方式。这个符合规则的方案使用`File.list()`方法来提供目录列表，从而消除了命令或参数注入攻击发生的可能性。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">78:Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')</Reference>  
+        <Reference type="CWE">77:Improper Neutralization of Special Elements used in a Command ('Command Injection')</Reference>  
+        <Reference type="OWASP TOP 10">2017:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>  
+        <Reference type="CWE/SANS TOP 25">2019:CWE ID 78</Reference>  
+        <Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 78</Reference>  
+        <Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 78</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference>  
+        <Reference type="GB/T 34944-2017 Java">数据处理:命令注入</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0902000010160121" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">YD/T 3464-2019</Category>  
+        <Category type="SubClassChin">6.2 面对对象程序安全</Category>  
+        <Category type="DetailClassChin">C.14.1 在类的演化过程中维护其序列化的兼容性</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+程序必须在类演化过程中维护序列化的兼容性。   
+2) 原理   
+将 Serializable 功能覆写的类实现使用的是默认的序列化格式。在类发生变化的时候，由旧版本的类的使用者产生的字节流会与新的不兼容。程序必须在类演化过程中维护序列化的兼容性。一个可以接受的方式是使用自定义的序列化格式，除了新演化版本之外，这种格式还可减轻维护原始序列化格式和对应类的必要性。   
+3) 示例   
+    1、一个不符合规则的代码示例，该示例实现了一个 Game Weapon 类，类包含了一个可序列化字段`numofWeapons`，并且使用了默认的序列化格式。任何对该类内部表示的改变都会破坏现存的序列化格式。   
+    ```java
+    class GameWeapon implements Serializable { 
+        int numOfWeapons = 10;   
+        public String toString () {   
+            return String.valueOf(numOfWeapons);
+        }
+    ```   
+    因为这个类不能提供一个`serialVersionUID`，,所以 Java 虚拟机会通过自定义的实现方法赋予它一个。如果这个类的定义改变了，那么`serialVersionUID`同样也会改变。因此，当版本 IDs 不同时，JVM 会拒绝将一个类定义与其对象的序列化格式联系起来。   
+    对应的符合规定的解决方案中，类有显式的`serialVersionUID`，这个`serialVersionUID`包含了一个在这个类的版本中独一无二的数值。具有相同类名和版本 ID 的序列化对象，JVM 会忠实地进行反序列化。   
+    ```java
+    class GameWeapon implements Serializable {   
+        private static final long serialVersionUID = 24L;   
+        int numOfWeapons = 10;   
+        public String toString() {   
+            return String.valueOf(numOfWeapons);
+    ```   
+    另一个符合规则的解决方案是：维护原始的序列化格式并且允许类进行演化的方法是通过`serialPersistentFields`来使用自定义的序列化。static和 transient 标识符指定了哪些字段不应当被序列化，而`serialPersistentFields`字段指定了哪些字段应当被序列化。它使得类不需要在类实现中定义序列化字段，将当前实现与整个逻辑解耦。新的字段可以很容易地增加进来，而不会破坏各个版本之间的兼容性。   
+    ```java
+    class WeaponStore implements Serializable {
+        int numOfWeapons = 10; // Total number of weapons
+    }
+    
+    public class GameWeapon implements Serializable {
+        WeaponStore ws = new WeaponStore();
+        private static final ObjectStreamField[] serialPersistentFields = {
+                new ObjectStreamField("ws", WeaponStore.class) };
+    
+        private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+            ObjectInputStream.GetField gf = ois.readFields();
+            this.ws = (WeaponStore) gf.get("ws", ws);
+        }
+    
+        private void writeObject(ObjectOutputStream oos) throws IOException {
+            ObjectOutputStream.PutField pf = oos.putFields();
+            pf.put("ws", ws);
+            oos.writeFields();
+        }
+    
+        public String toString() {
+            return String.valueOf(ws);
+        }
+    }
+    ```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">589:Call to Non-ubiquitous API</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.14 序列化</BigClassChin>  
+       
+    </BugInfo>  
+    

@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150408" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">代码质量</Category>  
+        <Category type="DetailClassChin">【强制】不要使用==或!=比较字符串</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[程序中使用==或!=比较两个字符串是否相等，其实比较的是两个对象在内存中的地址值，而不是字符串的值。  
+  
+**例如**：下列代码中将`request`中获取的参数值与`"admin"`用`==`做比较，`dosomething()`方法将永远不会被执行。
+```java
+...  
+String username = (String)request.getAttribute("usernamae");  
+if(username == "admin"){  
+    dosomething();  
+}  
+...
+```  
+]]></Description>  
+      <Advice><![CDATA[程序对字符串进行比较，应采用`equals()`方法，而不是`==`或`!=`方法。  
+  
+**例如**：下列代码中使用`equals()`方法进行字符串的对比。  
+```java
+...  
+String username = (String)request.getAttribute("usernamae");  
+if(username.equals("admin")){  
+    dosomething();  
+}  
+...
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">597:Use of Wrong Operator in String Comparison</Reference>  
+        <Reference type="SJ/T 11683-2017">6.6.11 使用"=="运算符比较字符串</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>Code Quality</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>correctness,bad_practice</Tag> 
+    </BugInfo>  
+    

@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010130022" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">API误用</Category>
+				<Category type="DetailClassChin">缺少对方法返回值的null检查</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行方法返回值可能为null。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行方法返回值可能为null。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[程序没有对有可能返回null的方法返回值进行检查，可能会导致NullPointException。  
+  
+**例如**：下列代码片段中，未对`getenv()`方法的返回值data进行null检查，可能会抛出NullPointException。
+```java  
+String data = System.getenv("ADD");  
+if (data.equalsIgnoreCase("XXX") ){  
+...  
+}
+```
+]]></Description>
+			<Advice><![CDATA[程序应对可能返回null的方法的返回值进行检查，避免产生NullPointException。
+]]></Advice>
+			<References>
+				<Reference type="CWE">690:Unchecked Return Value to NULL Pointer Dereference</Reference>
+				<Reference type="CERT">EXP01-J:Never dereference null pointers</Reference>
+				<Reference type="OWASP TOP 10">2004:A9 Application Denial of Service</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>correctness,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

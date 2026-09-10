@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010150102" language="Java"> 
+      <Type>std</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">API误用</Category>  
+        <Category type="DetailClassChin">【推荐】类需要实现equals()</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[在没有重写`equals()`方法的类（或接口）上调用`equals()`方法，会导致调用继承自`java.lang.Object`的`equals()`方法，尽管可以合法的使用`Object.equals()`，但是`Object.equals()`将比较两个对象的内存地址，而不是比较对象的成员变量。  
+  
+**例如**：下列代码中PersonTeam类未实现`equals()`方法，当使用`equals()`方法时是通过两个对象的内存地址比较。  
+```java
+public class PersonTeam{  
+    private int tid;  
+    public int getTeamID(){  
+        return tid;  
+    }  
+    public void setTeamID(int newTid){  
+        tid = newTid;  
+    }  
+ }  
+...  
+public class CompareTeam{  
+    public boolean compareTeams(PersonTeam t1, PersonTeam t2){  
+        return t1.equals(t2);   
+    }  
+}
+```
+]]></Description>  
+      <Advice><![CDATA[使用`equals()`方法比较对象的成员信息，需要重写Object的`equals()`方法，或者直接使用`==`来比较是否是同一个对象。  
+  
+**例1**：下列代码中PersonTeam类实现`equals()`方法，当使用`equals()`方法时是通过两个对象的`tid`比较。  
+```java
+public class PersonTeam{  
+    private int tid;  
+    public int getTeamID(){  
+        return tid;  
+    }  
+    public void setTeamID(int newTid){  
+        tid = newTid;  
+    }  
+    @Override  
+    public boolean equals(Object obj) {  
+        if (this == obj)  
+            return true;  
+        if (obj == null)  
+            return false;  
+        if (getClass() != obj.getClass())  
+            return false;  
+        PersonTeam other = (PersonTeam) obj;  
+        if (tid != other.tid)  
+            return false;  
+        return true;  
+    }  
+}  
+...  
+public class CompareTeam{  
+    public boolean compareTeams(PersonTeam t1, PersonTeam t2){  
+        return t1.equals(t2);   
+    }  
+}
+```  
+  
+**例2**：下列代码中PersonTeam类未实现`equals()`方法，直接使用`==`比较，判断是否是同一个对象。  
+```java
+public boolean compareTeams(PersonTeam t1, PersonTeam t2){  
+    return t1 == t2;   
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">398:Indicator of Poor Code Quality</Reference>  
+        <Reference type="SJ/T 11683-2017">6.3.4 equals方法的错误使用</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <EnClassChin>API Abuse</EnClassChin>  
+        
+        
+        
+        
+        
+      <Tag>correctness,bad_practice</Tag> 
+    </BugInfo>  
+    

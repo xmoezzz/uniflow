@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010141500" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 14. 序列化 (SER)</Category>  
+        <Category type="DetailClassChin">SER00-J：在类的演化过程中维护其序列化的兼容性</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[当一个特定的类对象序列化之后，对这个类的代码重构就会成为问题。特别的，现存的序列化格式（编码表示）会成为对象发布API的一部分，并且为今后长期提供支持。从安全的角度上看，这是很麻烦的。这不仅会产生无效的代码，而且会强制提供者为整个产品的生命周期维护一个兼容性的代码基础。  
+那些将Serializable功能覆写的类实现使用的是默认的序列化格式。在类发生变化的时候，由旧版本的类的使用者产生的字节流会与新的不兼容。程序必须在类的演化过程中维护序列化的兼容性。一个可以接受的方式是使用者自定义序列化格式，除了新演化版本之外，这种格式还减轻了维护原始序列化格式和对应类的必要性。  
+风险评估：违反该条准则会限制类的扩展性，而导致兼容性问题。    
+**不规范的代码样例1**：  
+类GameWeapon实现了Serializable接口，而且包含了一个可序列化字段`numOfWeapons`，并使用了默认的序列化格式。任何对该类内部表示的改变都会破坏线程的序列化格式。因为这个类不能提供一个`serialVersionUID`，所以JVM会通过默认的实现方法赋予它一个。如果这个类的定义改变了，那么`serialVersionUID`同样也会改变。因此，当版本IDs不同的时候，JVM会拒绝将一个类定义与其对象的序列化格式联系起来。  
+```java
+class GameWeapon implements Serializable {
+    int numOfWeapons = 10;
+
+    public String toString() {
+        return String.valueOf(numOfWeapons);
+    }
+}
+```  
+**不规范的代码样例2**：  
+类GameWeapon间接实现了Serializable接口，而且包含了一个可序列化字段`numOfWeapons`，并使用了默认的序列化格式。任何对该类内部表示的改变都会破坏线程的序列化格式。因为这个类不能提供一个`serialVersionUID`，所以JVM会通过默认的实现方法赋予它一个。如果这个类的定义改变了，那么`serialVersionUID`同样也会改变。因此，当版本IDs不同的时候，JVM会拒绝将一个类定义与其对象的序列化格式联系起来。  
+```java
+public class SuperSer implements Serializable {
+    // ...
+}
+
+class GameWeapon extends SuperSer {
+    int numOfWeapons = 10;
+
+    public String toString() {
+        return String.valueOf(numOfWeapons);
+    }
+}
+```
+]]></Description>  
+      <Advice><![CDATA[在实现序列化接口的类中定义一个`serialVersionUID`，或者采用`serialPersistentFields`方式。  
+**规范的代码样例1**：  
+在实现序列化接口的类中，显示的定义一个`serialVersionUID`，这个`serialVersionUID`包含了一个在这个类的版本中独一无二的数值。对具有相同类名和版本ID的序列化对象，JVM会进行反序列化。  
+```java
+class GameWeapon implements Serializable {
+    private static final long serialVersionUID = 24L;
+    int numOfWeapons = 10;
+
+    public String toString() {
+        return String.valueOf(numOfWeapons);
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">589:Call to Non-ubiquitous API</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+       
+    </BugInfo>  
+    

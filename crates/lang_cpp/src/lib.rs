@@ -119,9 +119,17 @@ fn collect_cpp_lambda_binds_block(
                 collect_cpp_lambda_binds_expr(iterable, symbol_names, out);
                 collect_cpp_lambda_binds_block(body, symbol_names, out);
             }
-            Stmt::For { init, cond, update, body, .. } => {
+            Stmt::For {
+                init,
+                cond,
+                update,
+                body,
+                ..
+            } => {
                 collect_cpp_lambda_binds_block(init, symbol_names, out);
-                if let Some(cond) = cond { collect_cpp_lambda_binds_expr(cond, symbol_names, out); }
+                if let Some(cond) = cond {
+                    collect_cpp_lambda_binds_expr(cond, symbol_names, out);
+                }
                 collect_cpp_lambda_binds_block(update, symbol_names, out);
                 collect_cpp_lambda_binds_block(body, symbol_names, out);
             }
@@ -575,7 +583,9 @@ fn attach_cpp_semantics(program: &mut uniflow_hir::Program, index: &semantics::S
     fn collect_block_symbols(block: &Block, out: &mut Vec<SymbolId>) {
         for stmt in &block.stmts {
             match stmt {
-                Stmt::For { init, update, body, .. } => {
+                Stmt::For {
+                    init, update, body, ..
+                } => {
                     collect_block_symbols(init, out);
                     collect_block_symbols(update, out);
                     collect_block_symbols(body, out);
@@ -977,10 +987,19 @@ fn inject_cpp_raii_cleanup(
                     collect_expr_ids(cond, max_expr, max_stmt);
                     collect_block_ids(body, max_expr, max_stmt);
                 }
-                Stmt::For { id, init, cond, update, body, .. } => {
+                Stmt::For {
+                    id,
+                    init,
+                    cond,
+                    update,
+                    body,
+                    ..
+                } => {
                     *max_stmt = (*max_stmt).max(id.0);
                     collect_block_ids(init, max_expr, max_stmt);
-                    if let Some(cond) = cond { collect_expr_ids(cond, max_expr, max_stmt); }
+                    if let Some(cond) = cond {
+                        collect_expr_ids(cond, max_expr, max_stmt);
+                    }
                     collect_block_ids(update, max_expr, max_stmt);
                     collect_block_ids(body, max_expr, max_stmt);
                 }

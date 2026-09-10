@@ -17,16 +17,29 @@ fn rules() -> &'static RuleSet {
         // Select actual bundled rules, retaining their original conditions;
         // these are not simplified replacements defined by the testcase.
         let focused = RuleSet {
-            sources: legacy.sources.into_iter().filter(|r| r.id == SOURCE).collect(),
+            sources: legacy
+                .sources
+                .into_iter()
+                .filter(|r| r.id == SOURCE)
+                .collect(),
             sinks: legacy.sinks.into_iter().filter(|r| r.id == SINK).collect(),
-            sink_conditions: legacy.sink_conditions.into_iter().filter(|r| r.sink_rule_id == SINK).collect(),
-            call_conditions: legacy.call_conditions.into_iter().filter(|r| r.rule_id == SOURCE || r.rule_id == SINK).collect(),
+            sink_conditions: legacy
+                .sink_conditions
+                .into_iter()
+                .filter(|r| r.sink_rule_id == SINK)
+                .collect(),
+            call_conditions: legacy
+                .call_conditions
+                .into_iter()
+                .filter(|r| r.rule_id == SOURCE || r.rule_id == SINK)
+                .collect(),
             ..Default::default()
         };
         assert_eq!(focused.sources.len(), 1);
         assert_eq!(focused.sinks.len(), 1);
         assert_eq!(focused.sink_conditions.len(), 1);
-        focused.validate().unwrap(); focused
+        focused.validate().unwrap();
+        focused
     })
 }
 
@@ -36,7 +49,9 @@ fn check(body: &str, expected: usize) {
     let ir = lower_program(&hir);
     let findings = analyze(&build(&ir, rules()), rules());
     assert_eq!(findings.len(), expected, "{body}\n{findings:#?}");
-    assert!(findings.iter().all(|finding| finding.source_rule_id == SOURCE && finding.sink_rule_id == SINK));
+    assert!(findings
+        .iter()
+        .all(|finding| finding.source_rule_id == SOURCE && finding.sink_rule_id == SINK));
 }
 
 #[test]
@@ -46,7 +61,10 @@ fn bundled_java_sql_rule_checks_casts_and_conditional_result() {
 
 #[test]
 fn bundled_java_sql_rule_checks_array_store_and_load() {
-    check("values[0]=request.getQueryString(); statements[0].executeQuery(values[0]);", 1);
+    check(
+        "values[0]=request.getQueryString(); statements[0].executeQuery(values[0]);",
+        1,
+    );
 }
 
 #[test]

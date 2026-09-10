@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010090008" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CERT</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">在循环外调用wait()和await()</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行在循环外调用wait()和await()。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行在循环外调用wait()和await()。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[在while循环外使用`wait()`和`await()`方法可能导致无限期阻塞拒绝服务。  
+  
+**例如**：下面不符合规则的代码，可能遇到恶意通知、虚假唤醒等问题。
+```java
+synchronized (object) {  
+    if (<condition does not hold>) {  
+        object.wait();  
+    }  
+    // Proceed when condition holds  
+}
+```  
+]]></Description>
+			<Advice><![CDATA[`wait()`和`await()`方法应始终在循环中使用。  
+  
+**例如**：下面这段符合规则的代码在while循环中调用`wait()`方法，从而在`wait()`调用的前后都对条件进行检查。
+```java
+synchronized (object) {  
+    while (<condition does not hold>) {  
+        object.wait();  
+    }  
+    // Proceed when condition holds  
+}
+```  
+]]></Advice>
+			<References>
+				<Reference type="CERT">THI03-J:Always invoke wait() and await() methods inside a loop</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>concurrency,bad_practice</Tag>
+			<DomainType>bug</DomainType>
+		</BugInfo>
+		

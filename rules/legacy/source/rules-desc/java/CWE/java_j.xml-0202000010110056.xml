@@ -1,0 +1,62 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110056" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">嵌套类中暴露外部类的私有字段</Category>
+			</Categories>
+			<BugServerity>2</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行所在类中暴露了外部类的私有字段。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[嵌套类禁止将外部类的私有成员暴露给外部的类或者包。  
+  
+**例如**：下面代码示例将私有的（x, y）坐标通过`getPoint()`方法暴露给内部类。因此，属于同一个包的AnotherClass类同样可以访问这些坐标。  
+```java
+class Coordinates {  
+    private int x;  
+    private int y;  
+    public class Point {  
+        public void getPoint() {  
+            System.out.println("(" + x + "," + ")");  
+        }  
+    }  
+}  
+public class AnotherClass {  
+    public static void main(String[] args) {  
+        Coordinates c = new Coordinates();  
+        Coordinates.Point p = c.new Point();  
+        p.getPoint();  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[使用私有的访问描述符来隐藏内部类，以及所有包含的方法和构造函数。  
+  
+**例如**：以下代码使用私有的访问描述符来隐藏内部类。  
+```java
+class Coordinates {  
+    private int x;  
+    private int y;  
+    private class Point {  
+        private void getPoint() {  
+            System.out.println("(" + x + "," + ")");  
+        }  
+    }  
+}
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">492:Use of Inner Class Containing Sensitive Data</Reference>
+				<Reference type="CERT">OBJ08-J:Do not expose private members of an outer class from within a nested class</Reference>
+			</References>
+			<Obsolete>yes</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>not</Security>
+
+
+
+			<Tag>bad_practice</Tag>
+			<DomainType>quality</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110084" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">SSL连接时服务器身份验证禁用</Category>
+			</Categories>
+			<BugServerity>5</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行SSL连接时服务器不进行身份验证。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行SSL连接时服务器不进行身份验证。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[当进行SSL连接时，服务器身份验证处于禁用状态。在某些使用SSL连接的库中，默认情况下不验证服务器证书。这相当于信任所有证书。  
+  
+**例如**：下面代码片段没有明确地验证服务器证书。  
+```java
+SimpleEmail email = new SimpleEmail();  
+email.setHostName("`smtp.testemail.`com");  
+email.setCharset("UTF-8");  
+email.setSmtpPort(25);  
+email.setAuthenticator(new DefaultAuthenticator(name, pwd));  
+email.setSSLOnConnect(true);  
+email.setFrom("test@163.com");  
+email.setSubject("测试主题");  
+email.setMsg("邮件内容");  
+email.addTo("admin@163.com");  
+email.send();
+```  
+当尝试连接到`smtp.testemail.com:25`时，此应用程序将随时接受颁发给`hackedserver.com`的证书。此时，当服务器被黑客攻击发生SSL连接中断时，应用程序可能会泄漏用户敏感信息。
+]]></Description>
+			<Advice><![CDATA[当进行SSL连接时，应该进行服务器验证检查。根据所使用的库，验证服务器身份并建立安全的SSL连接。  
+  
+**例如**：下面代码示例中：明确验证服务器证书。  
+```java
+SimpleEmail email = new SimpleEmail();  
+email.setHostName("smtp.testemail.com");  
+email.setCharset("UTF-8");  
+email.setSmtpPort(25);  
+email.setAuthenticator(new DefaultAuthenticator(name, pwd));  
+email.setSSLCheckServerIdentity(true);  
+email.setSSLOnConnect(true);  
+email.setFrom("test@163.com");  
+email.setSubject("测试主题");  
+email.setMsg("邮件内容");  
+email.addTo("admin@163.com");  
+email.send();
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">297:Improper Validation of Certificate with Host Mismatch</Reference>
+				<Reference type="OWASP TOP 10">2010:A9 Insufficient Transport Layer Protection</Reference>
+				<Reference type="OWASP TOP 10">2007:A9 Insecure Communications</Reference>
+				<Reference type="OWASP MOBILE TOP 10">2014:M3 Insufficient Transport Layer Protection</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010030004" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">跨站脚本</Category>
+				<Category type="DetailClassChin">跨站请求伪造</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行会发生+${categoryName}+的风险。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[跨站请求伪造(CSRF)是伪造客户端请求的一种攻击，攻击者可以在用户不知情的情况下代表经过身份验证的用户执行操作。  
+  
+**例如**：以下代码片段实现远程服务，有可能遭受跨站请求伪造攻击。  
+```java
+public interface MyService extends RemoteService {  
+    public String myMethod(String s);  
+}  
+public class MyServiceImpl extends MyService {  
+    public String myMethod(String s){  
+        ...  
+    }  
+}
+```
+]]></Description>
+			<Advice><![CDATA[GWT中包含默认的CSRF保护,通过生成会话cookie值的MD5散列值并将使用生成的散列值作为XSRF token，从会话身份验证cookie派生出XSRF token。  
+  
+**例如**：以下代码片段添加`@XsrfProtect`来意味着将对该接口的所有方法执行CSRF token验证。  
+```java
+@XsrfProtect  
+public interface MyService extends RemoteService {  
+    public String myMethod(String s);  
+}  
+public class MyServiceImpl extends MyService {  
+    public String myMethod(String s){  
+        ...  
+    }  
+}
+```  
+这样，服务器端程序响应用户请求前先验证token，判断请求的合法性。而对于token，越难被猜出攻击者攻击成功的概率就越低。
+]]></Advice>
+			<References>
+				<Reference type="CWE">352:Cross-Site Request Forgery (CSRF)</Reference>
+				<Reference type="OWASP TOP 10">2013:A8 Cross-Site Request Forgery (CSRF)</Reference>
+				<Reference type="OWASP TOP 10">2010:A5 Cross-Site Request Forgery (CSRF)</Reference>
+				<Reference type="OWASP TOP 10">2007:A5 Cross Site Request Forgery (CSRF)</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 352</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 352</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 352</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 352</Reference>
+				<Reference type="GB/T 34944-2017 Java">Web问题:跨站请求伪造</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

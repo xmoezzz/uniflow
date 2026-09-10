@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010110011" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">CWE</Category>
+				<Category type="SubClassChin">代码质量</Category>
+				<Category type="DetailClassChin">Struts2：Action存在重复的校验文件</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行中Action存在重复的校验文件。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[检测发现单个Struts2的Action定义了多个`ActionClass-validation.xml`校验文件，这样将导致Struts2在做Action字段校验的过程中，可能发生重复解析相应的`ActionClass-validation.xml`文件，降低系统效率，甚至在验证时会发生逻辑冲突达不到预期效果从而诱发程序异常。  
+默认情况下，如果重复定义Struts2的校验器配置文件，那么Struts2框架会自动地任意选择一个来作为进行输入验证的配置，放弃另外一个。但通常这不是程序员所期望的，这中情况可能是验证逻辑没有得到维护，或存在其他更难察觉的验证错误。验证逻辑的维护是至关重要的，验证逻辑必须与应用程序的其余部分保持同步。  
+输入检查是例如SQL注入、跨站脚本攻击、任意文件操纵等常见漏洞的基本防范手段。缺少输入验证或者输入验证不完整都可能导致程序易于被以上攻击手段攻击。
+]]></Description>
+			<Advice><![CDATA[删除程序中重复的校验器文件。
+]]></Advice>
+			<References>
+				<Reference type="CWE">101:Struts Validation Problems</Reference>
+				<Reference type="OWASP TOP 10">2017:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2013:A5 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2010:A6 Security Misconfiguration</Reference>
+				<Reference type="OWASP TOP 10">2004:A10 Insecure Configuration Management</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>not</Default>
+			<WhiteList>not</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security,correctness</Tag>
+			<DomainType>security</DomainType>
+		</BugInfo>
+		

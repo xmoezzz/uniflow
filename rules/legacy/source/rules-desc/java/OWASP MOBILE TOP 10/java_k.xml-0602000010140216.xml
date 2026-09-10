@@ -1,0 +1,169 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0602000010140216" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP MOBILE TOP 10</Category>  
+        <Category type="SubClassChin">Rule 00. 输入验证和数据处理 (IDS)</Category>  
+        <Category type="DetailClassChin">IDS16-J：预防XML注入</Category> 
+      </Categories>  
+      <BugServerity>5</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[如果用户有能力使用结构化XML文档做为输入，那么他能够通过在数据字段中插入XML标签来重写这个XML文档的内容。当XML解析器会将这些标签按照正常标签进行解析。下面是一段在线商店的XML代码，主要用于查询后台数据库。  
+```xml
+<item>
+	<description>Widget</description>
+	<price>500.0</price>
+	<quantity>1</quantity>
+</item> 
+``` 
+恶意用户可以在`<quantity>`元素中输入以下字符串：`1</quantity><price>1.0</price><quantity>1`  
+会生成以下的XML文档：  
+```xml
+<item>
+	<description>Widget</description>
+	<price>500.0</price>
+	<quantity>1</quantity><price>1.0</price><quantity>1</quantity>
+</item>  
+```
+通过使用简单的API解析器`（org.xml.sax and javax.xml.parsers.SAXParser）`可以解析该XML文件，如果解析XML的代码获取的是最后一个元素`<price>`的值，那么商品价格就被设置为1.0。  
+**不规范的代码样例1**：  
+```java
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+public class OnlineStore {
+    private static void createXMLStreamBad(final BufferedOutputStream outStream, final String quantity)
+            throws IOException {
+        String xmlString = "<item>\n<description>Widget</description>\n" + "<price>500</price>\n" + "<quantity>"
+                + quantity + "</quantity></item>";
+        outStream.write(xmlString.getBytes());
+        outStream.flush();
+    }
+}
+```
+上面的代码样例中：一个方法简单的使用了字符串拼接来创建一个XML查询，然后将其发送到服务器。在这时就有可能出现XML注入问题，因为这个方法没有进行任何输入验证。
+]]></Description>  
+      <Advice><![CDATA[当XML可能已经载入还未处理的输入数据时，一般情况下使用XML模板或者DTD验证XML。如果还没有创建这样的XML字符串，那么在创建XML之前处理输入，这种方式性能较高。  
+**规范的代码样例1**：输入验证  
+下面代码的解决方案是验证`quantity`是一个无符号整数。 
+```java
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+public class OnlineStore {
+    private static void createXMLStream(final BufferedOutputStream outStream, final String quantity)
+            throws IOException, NumberFormatException {
+        // Write XML string only if quantity is an unsigned integer (count).  
+        int count = Integer.parseUnsignedInt(quantity);
+        String xmlString = "<item>\n<description>Widget</description>\n" + "<price>500</price>\n" + "<quantity>" + count
+                + "</quantity></item>";
+        outStream.write(xmlString.getBytes());
+        outStream.flush();
+    }
+}
+``` 
+**规范的代码样例2**：XML模板  
+更为通用的验证XML，防止注入的方法是：使用文档类型定义（Document Type Definition， DTD）或者schema来验证。schema必须严格定义，从而防止通过注入的方式将一个合法的XML文档变成错误的文档。以下是用来对样例2进行验证的schema模板：  
+```xml
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="item" >
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="description" type="xs:string" />
+				<xs:element name="price" type="xs:decimal" />
+				<xs:element name="quantity" type="xs:nonNegativeInteger" />
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema> 
+``` 
+在schema.xsd文件中可以得到XML模板。下面解决方案使用这个模板来防止XML注入。它同时需要使用在IDS17-J中定义的CustomResolver类来防止XXE攻击。  
+```java
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringReader;
+
+import javax.xml.XMLConstants;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import javax.xml.transform.stream.StreamSource;
+import javax.xml.validation.Schema;
+import javax.xml.validation.SchemaFactory;
+
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.SAXParseException;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.DefaultHandler;
+
+public class OnlineStore {
+
+    private static void createXMLStream(final BufferedOutputStream outStream, final String quantity)
+            throws IOException {
+        String xmlString;
+        xmlString = "<item>\n<description>Widget</description>\n" + "<price>500.0</price>\n" + "<quantity>" + quantity
+                + "</quantity></item>";
+        InputSource xmlStream = new InputSource(new StringReader(xmlString));
+// Build a validating SAX parser using our schema  
+        SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+        DefaultHandler defHandler = new DefaultHandler() {
+            public void warning(SAXParseException s) throws SAXParseException {
+                throw s;
+            }
+
+            public void error(SAXParseException s) throws SAXParseException {
+                throw s;
+            }
+
+            public void fatalError(SAXParseException s) throws SAXParseException {
+                throw s;
+            }
+        };
+        StreamSource ss = new StreamSource(new File("schema.xsd"));
+        try {
+            Schema schema = sf.newSchema(ss);
+            SAXParserFactory spf = SAXParserFactory.newInstance();
+            spf.setSchema(schema);
+            SAXParser saxParser = spf.newSAXParser();
+            // To set the custom entity resolver,
+            // an XML reader needs to be created
+            XMLReader reader = saxParser.getXMLReader();
+            reader.setEntityResolver(new CustomResolver());
+            saxParser.parse(xmlStream, defHandler);
+        } catch (ParserConfigurationException x) {
+            throw new IOException("Unable to validate XML", x);
+        } catch (SAXException x) {
+            throw new IOException("Invalid quantity", x);
+        }
+// Our XML is valid, proceed  
+        outStream.write(xmlString.getBytes());
+        outStream.flush();
+    }
+}
+```
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">112:Missing XML Validation</Reference>  
+        <Reference type="CWE">91:XML Injection (aka Blind XPath Injection)</Reference>  
+        <Reference type="OWASP TOP 10">2017:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2013:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2010:A1 Injection</Reference>  
+        <Reference type="OWASP TOP 10">2007:A2 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A6 Injection Flaws</Reference>  
+        <Reference type="OWASP TOP 10">2004:A1 Unvalidated Input</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M7 Client Side Injection</Reference>  
+        <Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Injection [RST]</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

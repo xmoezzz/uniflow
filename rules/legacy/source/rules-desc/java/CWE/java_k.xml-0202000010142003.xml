@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010142003" language="Java"> 
+      <Type>cert</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">Rule 04. 字符和字符串 (STR)</Category>  
+        <Category type="DetailClassChin">STR03-J：不要将noncharacter数据编码成字符串</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[程序员越来越多地将字符串看作是存储和传递任意数据的一种方式。例如：一个真实的系统将加密密码的二进制值存储在数据库中。非字符数据可能不能作为字符串表示，因为在大多数字符集中，不是所有的位模式都表示有效字符。因此，程序员不能将非字符数据转换成字符串。  
+**不规范的代码样例1**：  
+```java
+BigInteger x = new BigInteger("530500452766");  
+byte[] byteArray = x.`toByteArray()`;  
+String s = new String(byteArray);  
+byteArray = s.getBytes();  
+x = new BigInteger(byteArray);
+```  
+这个不合规范的代码示例尝试将BigInteger的值转换为字符串，然后将其恢复为BigInteger值。用`toByteArray()`方法返回这个BigInteger的字节数组。字节数组是大端字节顺序：最重要的字节在零元素中。该程序使用`String(byte[] bytes)`构造函数从字节数组创建字符串。当给定的字节在默认字符集中无效时，此构造函数的行为是未指定的。尽管Java API[API 2014]文档声称`String(byte[], Charset)`方法总是用这个字符集的默认替换字符串替换不规范的不能映射的字符序列，指定字符集作为字符串也有未指明的行为，无论如何，将字符串转换回BigInteger不太可能重现原始值。
+]]></Description>  
+      <Advice><![CDATA[**规范的代码样例1**：  
+```java
+BigInteger x = new BigInteger("530500452766");  
+String s = x.toString();  // Valid character data  
+byte[] byteArray = s.getBytes();  
+String ns = new String(byteArray);   
+x = new BigInteger(ns);
+```  
+这个符合规范的代码首先生成BigInteger对象的字符串表示，然后将字符串对象转换为字节数组。然后，这个过程被逆转。因为字符串对象中的文本表示是由BigInteger类生成的，它包含默认字符集中的有效字符数据。  
+**规范的代码样例2**：  
+```java
+BigInteger x = new BigInteger("530500452766");  
+byte[] byteArray = x.toByteArray();  
+String s = Base64.getEncoder().encodeToString(byteArray);  
+byteArray = Base64.getDecoder().decode(s);  
+x = new BigInteger(byteArray);
+```  
+尽管Java并没有提供一个字符集来保证无损耗的字节数据编码，但是还有许多其他的解决方案可以安全地将一个任意的字节数组转换成字符串和返回。Java 8引入了`java.util.Base64`类，为Base64编码方案提供编码器和解码器。这个符合规范的方案使用Base64安全地将一个数字转换为字符串，而不破坏数据。
+]]></Advice>  
+      <References> 
+        <Reference type="CWE">486:Comparison of Classes by Name</Reference>  
+        <Reference type="CWE">320:Key Management Errors</Reference>  
+        <Reference type="OWASP TOP 10">2017:A3 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2013:A6 Sensitive Data Exposure</Reference>  
+        <Reference type="OWASP TOP 10">2010:A7 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2007:A8 Insecure Cryptographic Storage</Reference>  
+        <Reference type="OWASP TOP 10">2004:A8 Insecure Storage</Reference>  
+        <Reference type="OWASP MOBILE TOP 10">2014:M6 Broken Cryptography</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>yes</WhiteList>  
+      <Security>yes</Security>  
+       
+    </BugInfo>  
+    

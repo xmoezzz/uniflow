@@ -1,0 +1,132 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0102000010170004" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CERT</Category>  
+        <Category type="SubClassChin">5.1 数据清洗</Category>  
+        <Category type="DetailClassChin">A.2.1.1.5 不要信任隐藏字段的内容</Category> 
+      </Categories>  
+      <BugServerity>1</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：HTML允许web表单中的字段可见或隐藏。隐藏字段向web服务器提供值，但不应被用户修改其内容。但是，攻击者仍然可以通过特殊方式来修改隐藏字段。  
+对于不信任隐藏字段的内容的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+public class SampleServlet extends HttpServlet {
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println("<html>");
+        String visible = request.getParameter("visible");
+        String hidden = request.getParameter("hidden");
+        if (visible != null || hidden != null) {
+            out.println("Visible Parameter:");
+            out.println(sanitize(visible));
+            out.println("<br>Hidden Parameter:");
+            out.println(hidden);
+        } else {
+            out.println("<p>");
+            out.print("<form action=\"");
+            out.print("SampleServlet\" ");
+            out.println("method=POST>");
+            out.println("Parameter:");
+            out.println("<input type=text size=20 name=visible>");
+            out.println("<br>");
+            out.println("<input type=hidden name=hidden value=\'a benign value\'>");
+            out.println("<input type=submit>");
+            out.println("</form>");
+        }
+    }
+
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        doGet(request, response);
+    }
+
+    // Filter the specified message string for characters
+    // that are sensitive in HTML.
+    public static String sanitize(String message) {
+        // ...
+    }
+}
+```
+上面代码演示了一个servlet，它接受一个可见的字段和一个隐藏的字段，并将其返回给用户。在传递给浏览器之前，可见的参数是经过验证处理的，但是隐藏的字段没有验证。  
+当输入参数`param1`时，web页面将显示以下内容: 
+```
+Visible Parameter: param1  
+Hidden Parameter: a benign value 
+``` 
+但是，攻击者可以通过在URL中编码来为隐藏参数提供一个值，如下:  
+`http://localhost:8080/sample/SampleServlet?visible=dummy&hidden=%3Cfont%20color=red%3ESurprise%3C/font%3E!!!`  
+当这个URL被提供给浏览器时，浏览器会显示: 
+``` 
+Visible Parameter: dummy   
+Hidden Parameter: Surprise!!!  
+``` 
+**示例2**： 
+```java 
+public class SampleServlet extends HttpServlet {
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println("<html>");
+
+        String visible = request.getParameter("visible");
+        String hidden = request.getParameter("hidden");
+
+        if (visible != null || hidden != null) {
+            out.println("Visible Parameter:");
+            out.println(sanitize(visible));
+            out.println("<br>Hidden Parameter:");
+            out.println(sanitize(hidden)); // Hidden variable sanitized
+        } else {
+            out.println("<p>");
+            out.print("<form action=\"");
+            out.print("SampleServlet\" ");
+            out.println("method=POST>");
+            out.println("Parameter:");
+            out.println("<input type=text size=20 name=visible>");
+            out.println("<br>");
+
+            out.println("<input type=hidden name=hidden value=\'a benign value\'>");
+            out.println("<input type=submit>");
+            out.println("</form>");
+        }
+    }
+
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        doGet(request, response);
+    }
+
+    // Filter the specified message string for characters
+    // that are sensitive in HTML.
+    public static String sanitize(String message) {
+        // ...
+    }
+}
+```
+上面代码片段对隐藏字段进行净化，因此，当恶意URL进入浏览器时，servlet产生以下内容:
+```  
+Visible Parameter: dummy   
+Hidden Parameter: <font color=red>Surprise</font>!!!
+```
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">642:External Control of Critical State Data</Reference>  
+        <Reference type="CWE">472:External Control of Assumed-Immutable Web Parameter</Reference>  
+        <Reference type="CERT">IDS14-J:Do not trust the contents of hidden form fields</Reference>  
+        <Reference type="CWE/SANS TOP 25">2009:Risky Resource Management - CWE ID 642</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.2.1 数据清洗</BigClassChin>  
+       
+    </BugInfo>  
+    

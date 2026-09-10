@@ -8,7 +8,7 @@
         "c",
         "cpp"
       ],
-      "rule_count": 90
+      "rule_count": 262
     },
     {
       "id": "python-security",
@@ -73,7 +73,7 @@
       "languages": [
         "java"
       ],
-      "rule_count": 130,
+      "rule_count": 463,
       "source_rule_count": 130,
       "remaining_rule_count": 0
     },
@@ -106,8 +106,8 @@
         "javascript",
         "ruby"
       ],
-      "rule_count": 135,
-      "source_rule_count": 135,
+      "rule_count": 162,
+      "source_rule_count": 162,
       "remaining_rule_count": 0
     },
     {
@@ -142,5 +142,5 @@
       "remaining_rule_count": 0
     }
   ],
-  "rule_count": 1229
+  "rule_count": 1761
 }

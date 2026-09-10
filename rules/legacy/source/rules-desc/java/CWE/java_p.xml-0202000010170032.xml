@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0202000010170032" language="Java"> 
+      <Type>guide</Type>  
+      <Categories> 
+        <Category type="ClassChin">CWE</Category>  
+        <Category type="SubClassChin">6.1 面向对象程序安全</Category>  
+        <Category type="DetailClassChin">A.3.1.6 不要增加可被覆写方法和被隐藏方法的可访问性</Category> 
+      </Categories>  
+      <BugServerity>2</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[规范说明：如果增加了被覆写方法和被隐藏方法的可访问性，恶意子类将拥有这些受限制的方法更大的访问权限。因此，程序只能在必要的时候对方法进行覆写，并且必须尽可能的将方法声明为final以避免恶意扩展。如果不能将方法声明为final的，程序必须防止增加被覆写方法的访问性。扩展允许弱化可访问性的限制，这会危及Java应用的安全性。  
+对于不要增加可被覆写方法和被隐藏方法的可访问性的情况，示例1给出了不规范用法（java语言）示例。示例2给出了规范用法（java语言）示例。  
+**示例1**：  
+```java
+class Super {
+    protected void doLogic() {
+        System.out.println("Super invoked");
+    }
+}
+
+public class Sub extends Super {
+    public void doLogic() {
+        System.out.println("Sub invoked");
+        // Do sensitive operations
+    }
+}
+```  
+对于实现了`java.lang.Cloneable`接口的类，应该将方法`Object.clone()`的可访问性增加为public。  
+**示例2**：  
+```java
+class Super {
+    protected final void doLogic() {
+        System.out.println("Super invoked");
+    }
+}
+```  
+声明方法为final的。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">487:Reliance on Package-level Scope</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>yes</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>yes</Security>  
+      <BigClassChin>A.3.1 面向对象程序安全</BigClassChin>  
+       
+    </BugInfo>  
+    

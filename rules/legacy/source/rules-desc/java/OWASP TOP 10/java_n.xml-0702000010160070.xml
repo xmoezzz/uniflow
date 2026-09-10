@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0702000010160070" language="Java"> 
+      <Type>YD/T 3464-2019</Type>  
+      <Categories> 
+        <Category type="ClassChin">OWASP TOP 10</Category>  
+        <Category type="SubClassChin">6.4 错误处理安全</Category>  
+        <Category type="DetailClassChin">C.7.8 不要拋出 RuntimeException、Exception 或 Throwable</Category> 
+      </Categories>  
+      <BugServerity>3</BugServerity>  
+      <DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行违反+'`'+${categoryName}+'`'+规范。" th:remove="tag"></p>]]></DynamicDescription>
+      <Description><![CDATA[1) 规定   
+方法禁止抛出 RuntimeException、Exception 或是 ```java
+Throwable。   
+2) 原理   
+处理上述异常需要捕捉 RimtimeException，这是不被允许的。而且，抛出 RuntimeException 会产生微妙的错误，例如，一个调用者不能通过检查异常来判断异常抛出的原因，从而不能尝试恢复操作。   
+方法可以抛出继承 Exception 或 RuntimeException 的明确异常。要注意，对一个单独的 throw 语句创建一个异常类是允许的。   
+当抛出 RuntimeException、Exception 或 Throwable 时，在要求类捕捉预期的异常的同时，必须捕捉预料外的异常。   
+3) 示例   
+    如下不符合规则的代码示例在 `doSomething()`方法声明的 throws 语句中指定了 Exception 类。
+    ```java
+    private void doSomething() throws Exception {   
+        // . . .   
+    } 
+    ```   
+    对应的符合规则的解决方案是：在 `doSomething()`方法声明的 throws 语句中指定一个更具体的异常类。
+    ```java
+    private void doSomething() throws IOException {   
+        // . . .    
+    }
+    ```   
+   
+4) 特例   
+通过过滤异常来符合安全策略的类是允许将具体的异常转化成通用异常的。在某些情况下，根据安全策略的需求，这样的转化可能会导致抛出 RuntimeException、Exception 或 Throwable。
+]]></Description>  
+      <Advice><![CDATA[]]></Advice>  
+      <References> 
+        <Reference type="CWE">397:Declaration of Throws for Generic Exception</Reference>  
+        <Reference type="CERT">ERR07-J:Do not throw RuntimeException, Exception, or Throwable</Reference>  
+        <Reference type="OWASP TOP 10">2007:A6 Information Leakage and Improper Error Handling</Reference>  
+        <Reference type="OWASP TOP 10">2004:A7 Improper Error Handling</Reference>  
+        <Reference type="SJ/T 11683-2017">6.4.6 方法声明抛出的异常过于宽泛</Reference> 
+      </References>  
+      <Obsolete>not</Obsolete>  
+      <Default>not</Default>  
+      <WhiteList>not</WhiteList>  
+      <Security>not</Security>  
+      <BigClassChin>C.7 异常行为</BigClassChin>  
+       
+    </BugInfo>  
+    

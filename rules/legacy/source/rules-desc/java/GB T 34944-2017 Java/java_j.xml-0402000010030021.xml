@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='utf-8'?>
+<BugInfo xmlns="http://www.codesafe.cn/schema/rules" id="0402000010030021" language="Java">
+			<Type>bug</Type>
+			<Categories>
+				<Category type="ClassChin">GB/T 34944-2017</Category>
+				<Category type="SubClassChin">跨站脚本</Category>
+				<Category type="DetailClassChin">有风险的反射型XSS</Category>
+			</Categories>
+			<BugServerity>1</BugServerity>
+			<DynamicDescription><![CDATA[<p th:if="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的+'`'+${funcName}+'`'+方法中的第+'`'+${line}+'`'+行有可能导致反射型XSS。" th:remove="tag"></p>
+<p th:unless="${funcNameisEmpty}" th:text="在+'`'+${fileName}+'`'+的第+'`'+${line}+'`'+行有可能导致反射型XSS。" th:remove="tag"></p>]]></DynamicDescription>
+			<Description><![CDATA[应用程序通过Web请求获取不可信赖的数据，在未检验数据是否包含恶意代码的情况下，直接将其继续传递给用户，这样应用程序很容易受到反射型XSS攻击。  
+  
+**例如**：下面JSP代码片段的功能是从HTTP请求中读取雇员的ID（eid），从HTTP请求中读取输入的用户名(username)并显示到页面。   
+```java
+<%
+String name= request.getParameter("username"); %>  
+...
+姓名: <%= name%>  
+...
+```  
+如果`name`里有包含恶意代码，那么Web浏览器在响应页面的过程中，它会解析并执行该恶意代码，因此应用程序将受到反射型XSS攻击。
+]]></Description>
+			<Advice><![CDATA[为了避免反射型XSS攻击，建议采用以下方法进行防御：  
+1.对用户的输入进行合理验证（如年龄只能是数字），对特殊字符（如`<、>、'、"`以及`<script>、javascript`等进行过滤。  
+2.对需要置于HTML上下文中的包含非可信数据的内容（HTML标签、HTML属性、JavaScript脚本、CSS、URL），对所有不可信数据进行恰当的输出编码。  
+ **例如**：采用OWASP ESAPI库对页面输出内容做数据编码处理，下面给出了部分库中所提供的API。  
+```java
+//HTML encode  
+ESAPI.encoder().encodeForHTML(inputData);  
+//HTML attribute encode  
+ESAPI.encoder().encodeForHTMLAttribute(inputData);   
+//JavaScript encode  
+ESAPI.encoder().encodeForJavaScript(inputData);  
+//CSS encode  
+ESAPI.encoder().encodeForCSS(inputData);  
+//URL encode  
+ESAPI.encoder().encodeForURL(inputData);  
+```
+3.设置HttpOnly属性，避免攻击者利用跨站脚本漏洞进行Cookie劫持攻击。下面是在Java EE中，给Cookie添加HttpOnly的代码：  
+```java
+...  
+response.setHeader("Set-Cookie","cookiename=cookievalue; path=/; Domain=domainvaule; Max-age=seconds; HttpOnly");   
+...
+```
+]]></Advice>
+			<References>
+				<Reference type="CWE">83:Improper Neutralization of Script in Attributes in a Web Page</Reference>
+				<Reference type="CWE">82:Improper Neutralization of Script in Attributes of IMG Tags in a Web Page</Reference>
+				<Reference type="CWE">81:Improper Neutralization of Script in an Error Message Web Page</Reference>
+				<Reference type="CWE">80:Improper Neutralization of Script-Related HTML Tags in a Web Page (Basic XSS)</Reference>
+				<Reference type="CWE">79:Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</Reference>
+				<Reference type="OWASP TOP 10">2017:A7 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2013:A3 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2010:A2 Cross-Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2007:A1 Cross Site Scripting (XSS)</Reference>
+				<Reference type="OWASP TOP 10">2004:A4 Cross Site Scripting</Reference>
+				<Reference type="CWE/SANS TOP 25">2019:CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2011:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2010:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="CWE/SANS TOP 25">2009:Insecure Interaction - CWE ID 79</Reference>
+				<Reference type="ISO/IEC TR 24772">2013:Application Vulnerabilities Cross-site Scripting [XYT]</Reference>
+				<Reference type="GB/T 34944-2017 Java">Web问题:跨站脚本</Reference>
+			</References>
+			<Obsolete>not</Obsolete>
+			<Default>yes</Default>
+			<WhiteList>yes</WhiteList>
+			<Security>yes</Security>
+
+
+
+			<Tag>security</Tag>
+			<DomainType>security</DomainType>
+			<FormalizationData version="0.1">
+				<CodeFragments xmlns="">
+					<CodeFragment id="1" name="1.从外部数据源返回触发有风险的反射型XSS漏洞的不可信数据"/>
+					<CodeFragment id="2" name="2.过滤函数"/>
+					<CodeFragment id="3" name="3.传递函数"/>
+					<CodeFragment id="4" name="4.中断函数"/>
+					<CodeFragment id="5" name="5.存在有风险的反射型XSS漏洞的爆发函数"/>
+					<CodeFragment id="6" name="6.不存在有风险的反射型XSS漏洞的其他函数"/>
+					<CodeFragment id="7" name="7.触发有风险的反射型XSS漏洞"/>
+					<CodeFragment id="8" name="8.程序执行正常"/>
+					<CodeFragment id="9" name="9.数据验证净化"/>
+					<CodeFragment id="10" name="10.数据传递中断"/>
+				</CodeFragments>
+				<Relationships xmlns="">
+					<Relationship fromId="1" toId="2" name="不可信数据传给过滤函数"/>
+					<Relationship fromId="1" toId="3" name="不可信数据传给传递函数"/>
+					<Relationship fromId="1" toId="4" name="不可信数据传给中断函数"/>
+					<Relationship fromId="1" toId="5" name="不可信数据直接传给爆发函数"/>
+					<Relationship fromId="1" toId="6" name="不可信数据直接传给其他函数"/>
+					<Relationship fromId="2" toId="9" name="执行后数据状态"/>
+					<Relationship fromId="3" toId="5" name="不可信数据经过传递函数传给爆发函数"/>
+					<Relationship fromId="3" toId="6" name="不可信数据经过传递函数传给其他函数"/>
+					<Relationship fromId="4" toId="10" name="执行后数据状态"/>
+					<Relationship fromId="5" toId="7" name="函数执行后"/>
+					<Relationship fromId="6" toId="8" name="函数执行后"/>
+				</Relationships>
+			</FormalizationData>
+		</BugInfo>
+		
