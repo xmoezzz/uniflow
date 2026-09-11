@@ -4,6 +4,20 @@ mod tests {
     use uniflow_parser_core::SourceParser;
 
     #[test]
+    fn resolver_shares_project_index_without_copying_it() {
+        let index = Arc::new(JavaProjectIndex::default());
+        let resolver = JavaResolver::new(
+            None,
+            "Example".to_string(),
+            "Example".to_string(),
+            Some(Arc::clone(&index)),
+        );
+        assert_eq!(Arc::strong_count(&index), 2);
+        drop(resolver);
+        assert_eq!(Arc::strong_count(&index), 1);
+    }
+
+    #[test]
     fn parses_java_package_receiver_and_fields() {
         let src = r#"
             package demo.app;

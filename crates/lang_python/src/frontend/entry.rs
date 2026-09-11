@@ -1,5 +1,5 @@
 pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
-    let index = PyProjectIndex::build(entries);
+    let index = Arc::new(PyProjectIndex::build(entries));
     let mut project = uniflow_hir::ProgramMerger::new(Language::Python);
     for (path, source) in entries {
         // Python executes imported modules before the importing module's
@@ -7,8 +7,9 @@ pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
         // recursive import side effects are visible while preserving the
         // source-order snapshots stored for other modules.
         let module_name = python_module_name_from_path(path);
-        let mut effective_index = index.clone();
+        let mut effective_index = (*index).clone();
         effective_index.apply_imported_module_effects(&module_name, &mut HashSet::new());
+        let effective_index = Arc::new(effective_index);
         let parsed = parse_python_file(path, source, Some(&effective_index))?;
         project.merge(parsed);
     }
@@ -69,7 +70,11 @@ fn python_module_name_from_path(path: &str) -> String {
     }
 }
 
-fn parse_python_file(path: &str, source: &str, project_index: Option<&PyProjectIndex>) -> Result<Program> {
+fn parse_python_file(
+    path: &str,
+    source: &str,
+    project_index: Option<&Arc<PyProjectIndex>>,
+) -> Result<Program> {
     let module_name = python_module_name_from_path(path);
     let standalone = project_index.is_none();
     let local_entries;
@@ -78,7 +83,7 @@ fn parse_python_file(path: &str, source: &str, project_index: Option<&PyProjectI
         Some(index)
     } else {
         local_entries = vec![(path.to_string(), source.to_string())];
-        local_index = PyProjectIndex::build(&local_entries);
+        local_index = Arc::new(PyProjectIndex::build(&local_entries));
         Some(&local_index)
     };
     let mut builder = ModuleBuilder::new(Language::Python, path, &module_name);

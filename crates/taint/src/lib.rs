@@ -7,8 +7,8 @@ use uniflow_rules::{
     RuleTranslations, TaintCondition,
 };
 use uniflow_value_flow::{
-    DemandEngine, DemandQuery, DemandSeed, EdgeKind, FlowGraph, FlowNode, QueryCompleteness,
-    SparseDirection,
+    DemandEngine, DemandQuery, DemandReachability, DemandSeed, EdgeKind, FlowGraph, FlowNode,
+    QueryCompleteness, SparseDirection,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -75,6 +75,34 @@ struct LabelTransformEdge {
 
 type LabelTransformMap = HashMap<usize, Vec<LabelTransformEdge>>;
 
+// A reachability result holds one bit-vector slot per flow-graph node. Keeping
+// a result for every modeled sink makes peak memory grow with
+// `synthetic_sinks × graph_nodes`, which is prohibitive for the bundled Java
+// catalog. A small FIFO cache keeps nearby sink queries hot without allowing a
+// rule-heavy project to retain an unbounded number of whole-graph slices.
+const MAX_BACKWARD_DEMAND_CACHE_ENTRIES: usize = 16;
+
+struct BoundedBackwardDemandCache {
+    entries: Vec<(usize, DemandReachability)>,
+}
+
+impl BoundedBackwardDemandCache {
+    fn get_or_insert_with(
+        &mut self,
+        sink: usize,
+        compute: impl FnOnce() -> DemandReachability,
+    ) -> &DemandReachability {
+        if let Some(position) = self.entries.iter().position(|(cached, _)| *cached == sink) {
+            return &self.entries[position].1;
+        }
+        if self.entries.len() == MAX_BACKWARD_DEMAND_CACHE_ENTRIES {
+            self.entries.remove(0);
+        }
+        self.entries.push((sink, compute()));
+        &self.entries.last().expect("inserted demand result").1
+    }
+}
+
 // A project can have hundreds of broad source and sink models. Materializing a
 // witness (labels, locations, and every edge) for their Cartesian product is
 // not useful to a reviewer and used to exhaust memory before the CLI could
@@ -116,27 +144,55 @@ fn default_true() -> bool {
 }
 
 pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
+    let source_seeds = collect_source_seeds(flow);
+    let sink_seeds = collect_sink_seeds(flow);
+    if source_seeds.is_empty() || sink_seeds.is_empty() {
+        let mut findings = lifetime_findings(flow);
+        findings.extend(native_dataflow_findings(flow, rules));
+        return findings;
+    }
     let matcher_index = TaintMatcherIndex::new(rules);
     let label_transforms = build_label_transform_map(flow, rules, &matcher_index);
     let receiver_side_labels = build_receiver_side_labels(flow, rules, &matcher_index);
-    let source_seeds = collect_source_seeds(flow);
-    let sink_seeds = collect_sink_seeds(flow);
-    let mut backward_cache = HashMap::new();
+    let mut backward_cache = BoundedBackwardDemandCache {
+        entries: Vec::with_capacity(MAX_BACKWARD_DEMAND_CACHE_ENTRIES),
+    };
     let mut kind_transform_cache = HashMap::<(String, String), bool>::new();
     let mut findings = Vec::new();
     let mut seen = HashSet::new();
     let mut result_limit_reached = false;
 
-    'sources: for source in source_seeds {
+    // Several bundled models can mark the same output port as different taint
+    // kinds. Their witness labels remain distinct, but the forward graph slice
+    // is identical. Compute that slice once per output port and process each
+    // source model against it while the bit-vector is still live.
+    let mut source_groups: HashMap<usize, (usize, Vec<SourceSeed>)> = HashMap::new();
+    for (position, source) in source_seeds.into_iter().enumerate() {
+        let key = flow
+            .graph
+            .edges(source.node)
+            .next()
+            .map(|edge| edge.target().index())
+            .unwrap_or_else(|| source.node.index());
+        let group = source_groups.entry(key).or_insert_with(|| (position, Vec::new()));
+        group.1.push(source);
+    }
+    let mut source_groups = source_groups.into_values().collect::<Vec<_>>();
+    source_groups.sort_unstable_by_key(|(first_position, _)| *first_position);
+
+    'sources: for (_, sources) in source_groups {
+        let representative = sources
+            .first()
+            .expect("a source group is created from at least one source");
         let forward_query = DemandQuery {
-            seeds: vec![DemandSeed::Node(source.node.index())],
+            seeds: vec![DemandSeed::Node(representative.node.index())],
             direction: SparseDirection::Forward,
             engine: DemandEngine::Fixpoint,
             include_heap: true,
         };
         let forward_plan = flow.solver_plan_for_query(&forward_query);
         let forward_nodes = flow.one_shot_node_reachability(
-            source.node,
+            representative.node,
             forward_plan.query.direction,
             forward_plan.query.engine,
             forward_plan.max_depth,
@@ -144,97 +200,99 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
             forward_plan.query.include_heap,
         );
 
-        for sink in sink_seeds
-            .iter()
-            .filter(|sink| forward_nodes.contains(sink.node.index()))
-        {
-            if findings.len() >= MAX_MATERIALIZED_TAINT_FINDINGS {
-                result_limit_reached = true;
-                break 'sources;
-            }
-            let kind_key = (
-                normalize_kind(&source.kind).to_string(),
-                normalize_kind(&sink.kind).to_string(),
-            );
-            let kind_reachable = *kind_transform_cache
-                .entry(kind_key.clone())
-                .or_insert_with(|| kind_can_transform_to(rules, &kind_key.0, &kind_key.1));
-            if !kind_reachable {
-                continue;
-            }
-            if !source_event_can_reach_sink(flow, source.node, sink.node) {
-                continue;
-            }
-            // A forward demand summary tells us which nodes may be influenced by the source.  A
-            // sink-specific backward summary removes nodes that cannot contribute to this sink.
-            // The witness search is therefore constrained to the bidirectional demand slice,
-            // rather than falling back to an unrestricted whole-graph taint traversal.
-            let backward_query = DemandQuery {
-                seeds: vec![DemandSeed::Node(sink.node.index())],
-                direction: SparseDirection::Backward,
-                engine: DemandEngine::Fixpoint,
-                include_heap: true,
-            };
-            let backward_plan = flow.solver_plan_for_query(&backward_query);
-            let backward_nodes = backward_cache.entry(sink.node.index()).or_insert_with(|| {
-                flow.one_shot_node_reachability(
+        for source in sources {
+            for sink in sink_seeds
+                .iter()
+                .filter(|sink| forward_nodes.contains(sink.node.index()))
+            {
+                if findings.len() >= MAX_MATERIALIZED_TAINT_FINDINGS {
+                    result_limit_reached = true;
+                    break 'sources;
+                }
+                let kind_key = (
+                    normalize_kind(&source.kind).to_string(),
+                    normalize_kind(&sink.kind).to_string(),
+                );
+                let kind_reachable = *kind_transform_cache
+                    .entry(kind_key.clone())
+                    .or_insert_with(|| kind_can_transform_to(rules, &kind_key.0, &kind_key.1));
+                if !kind_reachable {
+                    continue;
+                }
+                if !source_event_can_reach_sink(flow, source.node, sink.node) {
+                    continue;
+                }
+                // A forward demand summary tells us which nodes may be influenced by the source.
+                // A sink-specific backward summary removes nodes that cannot contribute to this
+                // sink. The witness search is therefore constrained to the bidirectional demand
+                // slice, rather than falling back to an unrestricted whole-graph taint traversal.
+                let backward_query = DemandQuery {
+                    seeds: vec![DemandSeed::Node(sink.node.index())],
+                    direction: SparseDirection::Backward,
+                    engine: DemandEngine::Fixpoint,
+                    include_heap: true,
+                };
+                let backward_plan = flow.solver_plan_for_query(&backward_query);
+                let backward_nodes = backward_cache.get_or_insert_with(sink.node.index(), || {
+                    flow.one_shot_node_reachability(
+                        sink.node,
+                        backward_plan.query.direction,
+                        backward_plan.query.engine,
+                        backward_plan.max_depth,
+                        backward_plan.max_visits,
+                        backward_plan.query.include_heap,
+                    )
+                });
+
+                let context_limit = forward_plan
+                    .max_depth
+                    .max(backward_plan.max_depth)
+                    .clamp(8, 32);
+                let Some((path, context_truncated, _sink_labels)) = find_contextual_path_to_sink(
+                    flow,
+                    rules,
+                    &label_transforms,
+                    &receiver_side_labels,
+                    &source,
+                    &sink,
+                    &forward_nodes,
+                    backward_nodes,
+                    context_limit,
+                ) else {
+                    continue;
+                };
+
+                let mut completeness = merge_completeness(
+                    forward_nodes.completeness,
+                    backward_nodes.completeness,
+                );
+                if context_truncated {
+                    completeness =
+                        merge_completeness(completeness, QueryCompleteness::ContextLimitReached);
+                }
+                let finding = build_finding(
+                    flow,
+                    &source.rule_id,
+                    &sink.rule_id,
+                    &source.kind,
+                    &sink.kind,
                     sink.node,
-                    backward_plan.query.direction,
-                    backward_plan.query.engine,
-                    backward_plan.max_depth,
-                    backward_plan.max_visits,
-                    backward_plan.query.include_heap,
-                )
-            });
-
-            let context_limit = forward_plan
-                .max_depth
-                .max(backward_plan.max_depth)
-                .clamp(8, 32);
-            let Some((path, context_truncated, _sink_labels)) = find_contextual_path_to_sink(
-                flow,
-                rules,
-                &label_transforms,
-                &receiver_side_labels,
-                &source,
-                &sink,
-                &forward_nodes,
-                backward_nodes,
-                context_limit,
-            ) else {
-                continue;
-            };
-
-            let mut completeness = merge_completeness(
-                forward_nodes.completeness,
-                backward_nodes.completeness,
-            );
-            if context_truncated {
-                completeness =
-                    merge_completeness(completeness, QueryCompleteness::ContextLimitReached);
-            }
-            let finding = build_finding(
-                flow,
-                &source.rule_id,
-                &sink.rule_id,
-                &source.kind,
-                &sink.kind,
-                sink.node,
-                &path,
-                completeness,
-                rules.metadata_for(&sink.rule_id),
-            );
-            let key = (
-                finding.source_rule_id.clone(),
-                finding.sink_rule_id.clone(),
-                finding.source_kind.clone(),
-                finding.sink_kind.clone(),
-                finding.source_location.clone(),
-                finding.sink_location.clone(),
-                finding.path_labels.clone(),
-            );
-            if seen.insert(key) {
-                findings.push(finding);
+                    &path,
+                    completeness,
+                    rules.metadata_for(&sink.rule_id),
+                );
+                let key = (
+                    finding.source_rule_id.clone(),
+                    finding.sink_rule_id.clone(),
+                    finding.source_kind.clone(),
+                    finding.sink_kind.clone(),
+                    finding.source_location.clone(),
+                    finding.sink_location.clone(),
+                    finding.path_labels.clone(),
+                );
+                if seen.insert(key) {
+                    findings.push(finding);
+                }
             }
         }
     }
@@ -1307,6 +1365,18 @@ mod tests {
     };
     use uniflow_value_flow::build;
 
+    #[test]
+    fn backward_demand_cache_has_a_fixed_capacity() {
+        let mut cache = BoundedBackwardDemandCache {
+            entries: Vec::with_capacity(MAX_BACKWARD_DEMAND_CACHE_ENTRIES),
+        };
+        for sink in 0..(MAX_BACKWARD_DEMAND_CACHE_ENTRIES + 3) {
+            cache.get_or_insert_with(sink, DemandReachability::default);
+        }
+        assert_eq!(cache.entries.len(), MAX_BACKWARD_DEMAND_CACHE_ENTRIES);
+        assert!(cache.entries.iter().all(|(sink, _)| *sink >= 3));
+    }
+
     fn analyze_source(language: Language, path: &str, source: &str) -> Vec<TaintFinding> {
         let rules = default_models_for(language.clone());
         let hir = parse_source(language, path, source).expect("source should parse");
@@ -1343,6 +1413,58 @@ mod tests {
         let ir = lower_program(&hir);
         let flow = build(&ir, &rules);
         analyze(&flow, &rules)
+    }
+
+    #[test]
+    fn colocated_source_models_keep_individual_findings() {
+        let language = Language::Rust;
+        let mut rules = RuleSet {
+            sources: vec![SourceRule {
+                id: "source-a".to_string(),
+                language: Some(language.clone()),
+                matcher: ApiMatcher {
+                    exact: Some("taint_source".to_string()),
+                    ..ApiMatcher::default()
+                },
+                out: Port::Return,
+                kind: "test-data".to_string(),
+            }],
+            sinks: vec![SinkRule {
+                id: "test-sink".to_string(),
+                language: Some(language.clone()),
+                matcher: ApiMatcher {
+                    exact: Some("sink".to_string()),
+                    ..ApiMatcher::default()
+                },
+                inputs: vec![Port::Arg(0)],
+                kind: "test-data".to_string(),
+            }],
+            ..RuleSet::default()
+        };
+        rules.sources.push(SourceRule {
+            id: "source-b".to_string(),
+            language: Some(language.clone()),
+            matcher: ApiMatcher {
+                exact: Some("taint_source".to_string()),
+                ..ApiMatcher::default()
+            },
+            out: Port::Return,
+            kind: "test-data".to_string(),
+        });
+        let hir = parse_source(
+            language,
+            "colocated.rs",
+            "fn run() { let value = taint_source(); sink(value); }",
+        )
+        .expect("source should parse");
+        let flow = build(&lower_program(&hir), &rules);
+        let findings = analyze(&flow, &rules);
+        let source_ids = findings
+            .iter()
+            .map(|finding| finding.source_rule_id.as_str())
+            .collect::<HashSet<_>>();
+        assert!(source_ids.contains("source-a"));
+        assert!(source_ids.contains("source-b"));
     }
 
     #[test]

@@ -18,8 +18,8 @@ use uniflow_checker_host::{
     CheckerFailurePolicy, CheckerHostOptions, CheckerIsolation, CheckerManager,
 };
 use uniflow_frontend::{
-    collect_auxiliary_files, collect_source_files, parse_project_sources_with_options,
-    parse_source_with_options, FrontendOptions,
+    collect_auxiliary_files, collect_source_files, parse_project_files_with_options,
+    parse_project_sources_with_options, parse_source_with_options, FrontendOptions,
 };
 use uniflow_hir::Language;
 use uniflow_ir::{sample_java_sql_program, validate_program};
@@ -1124,23 +1124,20 @@ fn main() -> Result<()> {
                     "parse-project",
                     format!("{} source files", files.len()),
                     |multi| {
-                        let file_bar = multi.add(ProgressBar::new(files.len() as u64));
-                        file_bar.set_style(file_style());
-                        file_bar.set_message("reading source files");
-                        let mut entries = Vec::with_capacity(files.len());
-                        for file in &files {
-                            let label = file.display().to_string();
-                            file_bar.set_message(shorten_path(&label));
-                            let source = fs::read_to_string(file).with_context(|| {
-                                format!("failed to read source from {}", file.display())
-                            })?;
-                            entries.push((label, source));
-                            file_bar.inc(1);
-                        }
-                        file_bar.finish_with_message(format!("read {} files", files.len()));
-                        parse_project_sources_with_options(
+                        // Keep project parsing file-backed. The previous CLI path
+                        // first loaded every source into `Vec<(String, String)>`
+                        // and then handed that complete snapshot to the frontend,
+                        // causing large scans to retain all source text until HIR
+                        // construction finished. The frontend already owns the
+                        // project-file loading path, including header expansion
+                        // and compile-database handling, so let it read files as
+                        // needed instead of duplicating the source buffer.
+                        let _file_bar = multi.add(ProgressBar::new(files.len() as u64));
+                        _file_bar.set_style(file_style());
+                        _file_bar.set_message("parsing source files");
+                        parse_project_files_with_options(
                             language.clone(),
-                            &entries,
+                            &files,
                             &frontend_options,
                         )
                     },
@@ -1330,11 +1327,16 @@ fn run_and_print_with_progress(
         },
     )?;
 
-    let force_full_flow = dump_graph
-        || dump_call_report
-        || dump_stats
-        || checker_manager.has_subscriber(event_kind::FLOW_SUMMARY)
-        || checker_manager.has_subscriber(event_kind::CALL);
+    // Statistics describe whichever analysis plan was selected and do not
+    // require the legacy global closure.  Keep `--dump-stats` on the normal
+    // rule-driven path so it remains safe to use when investigating a large
+    // project; graph/call dumps still explicitly request full materialization.
+    let force_full_flow = flow_requires_full_materialization(
+        dump_graph,
+        dump_call_report,
+        checker_manager.has_subscriber(event_kind::FLOW_SUMMARY),
+        checker_manager.has_subscriber(event_kind::CALL),
+    );
     let capabilities = if force_full_flow {
         AnalysisCapabilities::full()
     } else {
@@ -1638,20 +1640,13 @@ fn source_file_payload(path: &str, language: &Language, source: String) -> serde
     })
 }
 
-fn shorten_path(path: &str) -> String {
-    const MAX_LEN: usize = 80;
-    if path.chars().count() <= MAX_LEN {
-        return path.to_string();
-    }
-    let tail: String = path
-        .chars()
-        .rev()
-        .take(MAX_LEN - 3)
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect();
-    format!("...{}", tail)
+fn flow_requires_full_materialization(
+    dump_graph: bool,
+    dump_call_report: bool,
+    flow_summary_subscriber: bool,
+    call_subscriber: bool,
+) -> bool {
+    dump_graph || dump_call_report || flow_summary_subscriber || call_subscriber
 }
 
 #[cfg(test)]
@@ -1687,6 +1682,15 @@ mod tests {
                 Language::Shell,
             ]
         );
+    }
+
+    #[test]
+    fn dump_stats_does_not_force_global_flow_materialization() {
+        assert!(!flow_requires_full_materialization(false, false, false, false));
+        assert!(flow_requires_full_materialization(true, false, false, false));
+        assert!(flow_requires_full_materialization(false, true, false, false));
+        assert!(flow_requires_full_materialization(false, false, true, false));
+        assert!(flow_requires_full_materialization(false, false, false, true));
     }
 
     #[test]

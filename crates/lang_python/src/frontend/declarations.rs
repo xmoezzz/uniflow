@@ -236,12 +236,13 @@ fn parse_class(
     known_classes: &HashSet<String>,
     class_field_index: &HashMap<String, HashMap<String, String>>,
     module_name: &str,
-    project_index: Option<&PyProjectIndex>,
+    project_index: Option<&Arc<PyProjectIndex>>,
 ) -> Class {
+    let project_index_ref = project_index.map(Arc::as_ref);
     let mut methods = Vec::new();
     let mut field_map = HashMap::<String, Field>::new();
     let mut field_types = HashMap::<String, String>::new();
-    let qualified_class_name = qualify_class_name(module_name, &class.name, project_index);
+    let qualified_class_name = qualify_class_name(module_name, &class.name, project_index_ref);
     let hir_class_name = if project_index.is_some() {
         qualified_class_name.clone()
     } else {
@@ -263,7 +264,12 @@ fn parse_class(
         }
         if let Some((name, annotation, value)) = parse_class_body_annotated_field(line) {
             let inferred =
-                normalize_python_annotation_type(&annotation, module_name, imports, project_index)
+                normalize_python_annotation_type(
+                    &annotation,
+                    module_name,
+                    imports,
+                    project_index_ref,
+                )
                     .or_else(|| {
                         value.as_deref().and_then(|expr| {
                             infer_simple_python_type(
@@ -299,7 +305,7 @@ fn parse_class(
                     &right,
                     module_name,
                     imports,
-                    project_index,
+                    project_index_ref,
                     known_classes,
                 )
                 .or_else(|| {
@@ -348,7 +354,7 @@ fn parse_class(
                 .bases
                 .iter()
                 .map(|base| {
-                    qualify_type_name(module_name, base, imports, project_index)
+                    qualify_type_name(module_name, base, imports, project_index_ref)
                         .unwrap_or_else(|| base.clone())
                 })
                 .collect::<Vec<_>>(),
@@ -420,7 +426,7 @@ fn parse_class(
             .bases
             .iter()
             .map(|base| {
-                qualify_type_name(module_name, base, imports, project_index)
+                qualify_type_name(module_name, base, imports, project_index_ref)
                     .unwrap_or_else(|| base.clone())
             })
             .collect(),
@@ -440,7 +446,7 @@ fn parse_function(
     class_field_types: &HashMap<String, String>,
     class_field_index: &HashMap<String, HashMap<String, String>>,
     module_name: &str,
-    project_index: Option<&PyProjectIndex>,
+    project_index: Option<&Arc<PyProjectIndex>>,
     qualified_name: Option<&str>,
     outer_env: Option<&PyEnv>,
 ) -> ParsedFunction {
@@ -620,7 +626,7 @@ struct PyEnv {
     current_module: String,
     current_function: String,
     synthetic_functions: Vec<uniflow_hir::Function>,
-    project_index: PyProjectIndex,
+    project_index: Arc<PyProjectIndex>,
     executed_modules: HashSet<String>,
 }
 

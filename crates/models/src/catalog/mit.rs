@@ -5,12 +5,28 @@ const CODEQL_MODELS: &str = include_str!("../../../../rules/mit/codeql-security.
 
 pub fn mit_models_for(language: Language) -> Result<RuleSet> {
     let mut merged = RuleSet::default();
-    for text in [PYSA_MODELS, MARIANA_MODELS, INFER_MODELS, CODEQL_MODELS] {
+    // These files are embedded for distribution, but parsing and validating all
+    // of them for every scan made a Java (or Python) one-file analysis pay for
+    // unrelated language catalogs. Select the catalogs that can contain models
+    // for this language before deserializing them. CodeQL is deliberately kept
+    // alongside each supported language because it is the cross-language pack.
+    for text in mit_assets_for(&language) {
         merged.merge(RuleSet::from_yaml_str(text)?);
     }
+    // The shared CodeQL catalog contains entries for multiple languages, so
+    // keep the established language boundary after parsing only that shared
+    // file plus the language-specific one.
     retain_language(&mut merged, &language);
-    merged.validate()?;
     Ok(merged)
+}
+
+fn mit_assets_for(language: &Language) -> &'static [&'static str] {
+    match language {
+        Language::Python => &[PYSA_MODELS, CODEQL_MODELS],
+        Language::Java => &[MARIANA_MODELS, CODEQL_MODELS],
+        Language::C | Language::Cpp => &[INFER_MODELS, CODEQL_MODELS],
+        _ => &[],
+    }
 }
 
 fn retain_language(rules: &mut RuleSet, language: &Language) {

@@ -7,7 +7,10 @@ struct JavaResolver {
     wildcard_imports: Vec<String>,
     static_exact_imports: HashMap<String, Vec<String>>,
     static_wildcard_imports: Vec<String>,
-    project_index: Option<JavaProjectIndex>,
+    // Every file in a project consults the same class/member index. Keeping
+    // this behind Arc avoids cloning the complete index once per parser and
+    // once per file during project analysis.
+    project_index: Option<Arc<JavaProjectIndex>>,
 }
 
 impl JavaResolver {
@@ -15,7 +18,7 @@ impl JavaResolver {
         package_name: Option<String>,
         simple_class_name: String,
         class_name: String,
-        project_index: Option<JavaProjectIndex>,
+        project_index: Option<Arc<JavaProjectIndex>>,
     ) -> Self {
         Self {
             package_name,

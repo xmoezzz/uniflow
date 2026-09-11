@@ -1854,6 +1854,7 @@ impl<'a> Pg<'a> {
     /// Read a type name: qualifiers, generics, pointers, arrays, nullable marks.
     pub fn type_text(&mut self) -> String {
         let mut out = String::new();
+        let mut generic_depth = 0usize;
         loop {
             self.cur.skip_newlines();
             let token = self.cur.current().clone();
@@ -1875,9 +1876,32 @@ impl<'a> Pg<'a> {
                 self.cur.advance();
                 continue;
             }
+            if word == "," && generic_depth != 0 {
+                out.push(',');
+                self.cur.advance();
+                continue;
+            }
+            if word == "<" {
+                generic_depth += 1;
+                out.push('<');
+                self.cur.advance();
+                continue;
+            }
+            if word == ">" {
+                generic_depth = generic_depth.saturating_sub(1);
+                out.push('>');
+                self.cur.advance();
+                continue;
+            }
+            if word == ">>" && generic_depth != 0 {
+                generic_depth = generic_depth.saturating_sub(2);
+                out.push_str(">>");
+                self.cur.advance();
+                continue;
+            }
             if matches!(
                 word.as_str(),
-                "*" | "&" | "[" | "]" | "<" | ">" | "." | "::" | "?" | "!" | "_"
+                "*" | "&" | "[" | "]" | "." | "::" | "?" | "!" | "_"
             ) {
                 out.push_str(&word);
                 self.cur.advance();

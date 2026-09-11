@@ -310,6 +310,41 @@ fn resolve_dynamic_internal_calls(
                         connect_internal_call(fg, func.id, inst.id, call, callee_func, ret_node);
                     }
                 }
+                // Several frontends intentionally give a closure *value* a
+                // stable synthetic type (for example
+                // `Owner.method.__lambda_12_8`) while retaining the source
+                // level name of the generated function (`append`, `lambda`,
+                // etc.).  A type-name lookup therefore cannot resolve these
+                // calls, even though the IR has an exact construction span
+                // for both the closure value and its generated body.  Match
+                // that span only as a fallback: it is precise, linear in the
+                // small set of generated functions, and avoids materializing
+                // a whole-program closure/points-to summary merely to bind a
+                // captured callback.
+                if resolved_targets.is_empty() {
+                    for callee_func in closure_functions_at_value_span(
+                        fg,
+                        func_index,
+                        func.id,
+                        *callee_value,
+                        existing_meta.arg_count,
+                    ) {
+                        if !resolved_targets
+                            .iter()
+                            .any(|existing| existing == &callee_func.name)
+                        {
+                            resolved_targets.push(callee_func.name.clone());
+                            connect_internal_call(
+                                fg,
+                                func.id,
+                                inst.id,
+                                call,
+                                callee_func,
+                                ret_node,
+                            );
+                        }
+                    }
+                }
                 if resolved_targets.is_empty() {
                     for callee_func in func_index.resolve_call(&existing_meta) {
                         if !resolved_targets
@@ -347,6 +382,72 @@ fn resolve_dynamic_internal_calls(
             }
         }
     }
+}
+
+/// Resolve a generated closure body from the span of its constructed value.
+///
+/// This deliberately does not use general function-name fallback: matching a
+/// source span is the invariant emitted by descriptor, Java and Objective-C
+/// lowering for synthetic closures.  It prevents unrelated same-arity
+/// functions from becoming dynamic-call targets while keeping closure capture
+/// flow available on the lightweight, rule-driven solver path.
+fn closure_functions_at_value_span<'a>(
+    fg: &FlowGraph,
+    func_index: &FunctionIndex<'a>,
+    caller: FunctionId,
+    value: ValueId,
+    arg_count: usize,
+) -> Vec<&'a Function> {
+    let Some(value_span) = fg.value_spans.get(&(caller, value)) else {
+        return Vec::new();
+    };
+    let is_synthetic_closure = fg
+        .value_types
+        .get(&(caller, value))
+        .is_some_and(|ty| ty.contains("__lambda_") || ty.contains("__block_"))
+        || fg
+            .value_constants
+            .get(&(caller, value))
+            .is_some_and(|constant| constant == "<lambda>" || constant == "<block>");
+    if !is_synthetic_closure {
+        return Vec::new();
+    }
+
+    // The callable may have been copied from the allocation into a named
+    // local before invocation.  In that case the call value's span covers the
+    // declaration while the generated body is anchored at the lambda/block
+    // expression.  Follow only explicit copy/phi predecessors to recover the
+    // allocation span; this is bounded to the local SSA component and does
+    // not turn dynamic resolution into a graph-wide demand query.
+    let mut spans = vec![
+        (value_span.file, value_span.start_byte, value_span.end_byte),
+    ];
+    let Some(&seed) = fg.values.get(&(caller, value)) else {
+        return Vec::new();
+    };
+    let mut pending = vec![seed];
+    let mut visited = HashSet::new();
+    while let Some(node) = pending.pop() {
+        if !visited.insert(node) {
+            continue;
+        }
+        if let FlowNode::Value { func, value } | FlowNode::Param { func, value, .. } = fg.graph[node]
+        {
+            if let Some(span) = fg.value_spans.get(&(func, value)) {
+                let key = (span.file, span.start_byte, span.end_byte);
+                if !spans.contains(&key) {
+                    spans.push(key);
+                }
+            }
+        }
+        for edge in fg.graph.edges_directed(node, petgraph::Direction::Incoming) {
+            if matches!(edge.weight().kind, EdgeKind::Assign | EdgeKind::Phi) {
+                pending.push(edge.source());
+            }
+        }
+    }
+
+    func_index.closure_functions_at_spans(&spans, arg_count)
 }
 
 /// Follow explicit value/cell edges, including actual/formal heap-cell

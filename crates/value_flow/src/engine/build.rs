@@ -42,6 +42,7 @@ impl AnalysisCapabilities {
 
         let mut program_has_heap = false;
         let mut program_has_dynamic_calls = false;
+        let mut program_has_receiver_calls = false;
         for function in &program.functions {
             for block in &function.blocks {
                 for inst in &block.insts {
@@ -50,8 +51,9 @@ impl AnalysisCapabilities {
                         | InstKind::StoreField { .. }
                         | InstKind::LoadIndex { .. }
                         | InstKind::StoreIndex { .. } => program_has_heap = true,
-                        InstKind::Call(call) if matches!(call.callee, Callee::Dynamic(_)) => {
-                            program_has_dynamic_calls = true;
+                        InstKind::Call(call) => {
+                            program_has_dynamic_calls |= matches!(call.callee, Callee::Dynamic(_));
+                            program_has_receiver_calls |= call.receiver.is_some();
                         }
                         _ => {}
                     }
@@ -59,7 +61,11 @@ impl AnalysisCapabilities {
             }
         }
 
-        let heap = program_has_heap || rules_require_heap(rules);
+        // Member-port rules only create a field cell when a call has a
+        // receiver.  Do not let the presence of such a rule in the bundled
+        // catalog force points-to/heap materialization for a program that has
+        // neither a heap instruction nor a receiver call.
+        let heap = program_has_heap || (program_has_receiver_calls && rules_require_heap(rules));
         let dynamic_calls = program_has_dynamic_calls;
         let points_to = heap || dynamic_calls;
         Self {
@@ -152,9 +158,8 @@ pub fn build_with_progress<F>(program: &Program, rules: &RuleSet, mut on_progres
 where
     F: FnMut(BuildProgress),
 {
-    // The public build API is the compatibility path: preserve the historical
-    // fully materialized graph semantics. Rule-driven callers that need lazy
-    // planning should use `build_for_rules_with_progress`.
+    // The public build API keeps the historical fully materialized graph
+    // semantics. Rule-driven scans use `build_for_rules_with_progress`.
     let capabilities = AnalysisCapabilities::full();
     build_with_capabilities(program, rules, capabilities, &mut on_progress)
 }
@@ -1199,6 +1204,7 @@ struct FunctionIndex<'a> {
     simple_arity: HashMap<(String, usize), Vec<&'a Function>>,
     owner_method: HashMap<(String, String), Vec<&'a Function>>,
     owner_method_arity: HashMap<(String, String, usize), Vec<&'a Function>>,
+    closure_span_arity: HashMap<(u32, u32, u32, usize), Vec<&'a Function>>,
     type_hierarchy: HashMap<String, Vec<String>>,
 }
 
@@ -1238,6 +1244,16 @@ impl<'a> FunctionIndex<'a> {
                 index
                     .exact_arity
                     .entry((func.name.clone(), *arity))
+                    .or_default()
+                    .push(func);
+                index
+                    .closure_span_arity
+                    .entry((
+                        func.span.file,
+                        func.span.start_byte,
+                        func.span.end_byte,
+                        *arity,
+                    ))
                     .or_default()
                     .push(func);
             }
@@ -1325,6 +1341,22 @@ impl<'a> FunctionIndex<'a> {
             span: Span::default(),
         };
         self.resolve_call(&meta)
+    }
+
+    fn closure_functions_at_spans(
+        &self,
+        spans: &[(u32, u32, u32)],
+        arg_count: usize,
+    ) -> Vec<&'a Function> {
+        let mut out = Vec::new();
+        for &(file, start, end) in spans {
+            if let Some(functions) = self.closure_span_arity.get(&(file, start, end, arg_count)) {
+                out.extend(functions.iter().copied());
+            }
+        }
+        out.sort_by(|left, right| left.name.cmp(&right.name));
+        out.dedup_by(|left, right| left.name == right.name);
+        out
     }
 
     fn resolve_call(&self, meta: &CallMeta) -> Vec<&'a Function> {

@@ -96,30 +96,38 @@ pub fn parse_project_sources_with_options(
     entries: &[(String, String)],
     options: &FrontendOptions,
 ) -> Result<Program> {
+    // The borrowed public API cannot take ownership of the caller's sources,
+    // but the parser must own them while building Java/Python project indexes.
+    // Route through the owned implementation so preprocessing replaces each
+    // owned source buffer instead of materializing a second prepared vector.
+    parse_project_owned_sources_with_options(language, entries.to_vec(), options)
+}
+
+fn parse_project_owned_sources_with_options(
+    language: Language,
+    mut entries: Vec<(String, String)>,
+    options: &FrontendOptions,
+) -> Result<Program> {
     if entries.is_empty() {
         bail!("no supported source files found");
     }
 
     let database = load_compile_database(options)?;
-    let prepared_entries = entries
-        .iter()
-        .map(|(path, source)| {
-            let resolved = options.with_compile_command(
-                database
-                    .as_ref()
-                    .and_then(|database| database.options_for(Path::new(path))),
-            );
-            (
-                path.clone(),
-                prepare_source(&language, source, &resolved).into_owned(),
-            )
-        })
-        .collect::<Vec<_>>();
+    for (path, source) in &mut entries {
+        let resolved = options.with_compile_command(
+            database
+                .as_ref()
+                .and_then(|database| database.options_for(Path::new(path))),
+        );
+        if let std::borrow::Cow::Owned(prepared) = prepare_source(&language, source, &resolved) {
+            *source = prepared;
+        }
+    }
 
     match language {
-        Language::Java => parse_java_project_sources(&prepared_entries),
-        Language::Python => parse_python_project_sources(&prepared_entries),
-        Language::C | Language::Cpp => parse_c_family_project_sources(language, &prepared_entries),
+        Language::Java => parse_java_project_sources(&entries),
+        Language::Python => parse_python_project_sources(&entries),
+        Language::C | Language::Cpp => parse_c_family_project_sources(language, &entries),
         Language::CSharp
         | Language::ObjC
         | Language::ObjCpp
@@ -132,7 +140,7 @@ pub fn parse_project_sources_with_options(
         | Language::Php
         | Language::Ruby
         | Language::Rust
-        | Language::Shell => parse_descriptor_project_sources(language, &prepared_entries),
+        | Language::Shell => parse_descriptor_project_sources(language, &entries),
         Language::Unknown => bail!("language must be specified"),
     }
 }
@@ -264,6 +272,65 @@ mod tests {
 
         assert_eq!(paths, expected);
     }
+
+    #[test]
+    fn file_backed_descriptor_project_parse_merges_each_input_file() {
+        let fixture_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures");
+        let files = vec![
+            fixture_root.join("streaming_a.js"),
+            fixture_root.join("streaming_b.js"),
+        ];
+        let program = parse_project_files_with_options(
+            Language::JavaScript,
+            &files,
+            &FrontendOptions::default(),
+        )
+        .expect("file-backed descriptor project parse");
+
+        assert_eq!(program.files.len(), 2);
+        let paths = program
+            .files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            paths,
+            vec![
+                files[0].to_string_lossy().as_ref(),
+                files[1].to_string_lossy().as_ref(),
+            ]
+        );
+    }
+
+    #[test]
+    fn indexed_project_languages_preserve_all_modules_after_owned_preprocessing() {
+        let cases = [
+            (
+                Language::Java,
+                vec![
+                    ("First.java".to_string(), "class First {}".to_string()),
+                    ("Second.java".to_string(), "class Second {}".to_string()),
+                ],
+            ),
+            (
+                Language::Python,
+                vec![
+                    ("first.py".to_string(), "def first():\n    return 1\n".to_string()),
+                    ("second.py".to_string(), "def second():\n    return 2\n".to_string()),
+                ],
+            ),
+        ];
+        for (language, entries) in cases {
+            let program = parse_project_sources_with_options(
+                language,
+                &entries,
+                &FrontendOptions::default(),
+            )
+            .expect("indexed project parse");
+            assert_eq!(program.files.len(), entries.len());
+        }
+    }
 }
 
 pub fn parse_project_files(language: Language, files: &[PathBuf]) -> Result<Program> {
@@ -288,13 +355,66 @@ pub fn parse_project_files_with_options(
         }
     }
 
+    // Most frontends do not need a whole-project source snapshot: their
+    // project parser is exactly a `ProgramMerger` over independently parsed
+    // files.  Keeping `Vec<(path, source)>` here used one copy for the raw
+    // sources and another for preprocessed entries, which made even a normal
+    // project scan retain the entire repository in memory.  Stream these
+    // languages one file at a time instead. Java and Python deliberately stay
+    // on their indexed path below because their project indices resolve
+    // imports/types across files before any module is parsed.
+    if streams_project_files(&language) {
+        let database = load_compile_database(options)?;
+        let mut project = ProgramMerger::new(language.clone());
+        for file in &all_files {
+            let source = fs::read_to_string(file)
+                .with_context(|| format!("failed to read source from {}", file.display()))?;
+            let resolved = options.with_compile_command(
+                database
+                    .as_ref()
+                    .and_then(|database| database.options_for(file)),
+            );
+            let prepared = prepare_source(&language, &source, &resolved);
+            project.merge(parse_prepared_source(
+                language.clone(),
+                &file.to_string_lossy(),
+                prepared.as_ref(),
+            )?);
+        }
+        return Ok(project.finish());
+    }
+
     let mut entries = Vec::with_capacity(all_files.len());
     for file in &all_files {
         let source = fs::read_to_string(file)
             .with_context(|| format!("failed to read source from {}", file.display()))?;
         entries.push((file.to_string_lossy().to_string(), source));
     }
-    parse_project_sources_with_options(language, &entries, options)
+    parse_project_owned_sources_with_options(language, entries, options)
+}
+
+/// Languages whose public project parsing contract is a merge of independent
+/// translation units. Java and Python are intentionally excluded: their
+/// project indices need to inspect all modules before parsing either one.
+fn streams_project_files(language: &Language) -> bool {
+    matches!(
+        language,
+        Language::C
+            | Language::Cpp
+            | Language::CSharp
+            | Language::ObjC
+            | Language::ObjCpp
+            | Language::Kotlin
+            | Language::Swift
+            | Language::Go
+            | Language::JavaScript
+            | Language::Jsp
+            | Language::Sql
+            | Language::Php
+            | Language::Ruby
+            | Language::Rust
+            | Language::Shell
+    )
 }
 
 pub fn parse_project_paths(language: Language, inputs: &[PathBuf]) -> Result<Program> {

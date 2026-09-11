@@ -87,7 +87,7 @@ impl JavaProjectIndex {
         }
         index.finalize();
 
-        let snapshot = index.clone();
+        let snapshot = Arc::new(index.clone());
         for (path, source) in entries {
             let stripped = strip_c_like_comments(source);
             let package_name = parse_package(&stripped);
@@ -103,7 +103,7 @@ impl JavaProjectIndex {
                     package_name.clone(),
                     class_decl.simple_name.clone(),
                     class_name.clone(),
-                    Some(snapshot.clone()),
+                    Some(Arc::clone(&snapshot)),
                 ),
             );
             let class_body = extract_class_body(&stripped).unwrap_or(stripped.as_str());
@@ -238,11 +238,11 @@ impl JavaProjectIndex {
 }
 
 pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
-    let index = JavaProjectIndex::from_sources(entries);
+    let index = Arc::new(JavaProjectIndex::from_sources(entries));
     let parser = JavaParser::default();
     let mut project = uniflow_hir::ProgramMerger::new(Language::Java);
     for (path, source) in entries {
-        let parsed = parser.parse_file_with_index(path, source, Some(&index))?;
+        let parsed = parser.parse_file_with_index(path, source, Some(Arc::clone(&index)))?;
         project.merge(parsed);
     }
     Ok(project.finish())
@@ -253,7 +253,7 @@ impl JavaParser {
         &self,
         path: &str,
         source: &str,
-        project_index: Option<&JavaProjectIndex>,
+        project_index: Option<Arc<JavaProjectIndex>>,
     ) -> Result<Program> {
         let source = strip_c_like_comments(source);
         let package_name = parse_package(&source);
@@ -272,7 +272,7 @@ impl JavaParser {
                 package_name.clone(),
                 simple_class_name.clone(),
                 class_name.clone(),
-                project_index.cloned(),
+                project_index,
             ),
         );
 

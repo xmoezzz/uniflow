@@ -1911,6 +1911,34 @@ mod tests {
     }
 
     #[test]
+    fn member_port_rules_do_not_enable_heap_without_a_heap_site() {
+        let hir = PythonParser
+            .parse_file(
+                "local.py",
+                "def handle(input):\n    return input\n",
+            )
+            .expect("parse local flow");
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            sources: vec![SourceRule {
+                id: "member-source".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    exact: Some("unused".to_string()),
+                    ..ApiMatcher::default()
+                },
+                out: Port::Member("state".to_string()),
+                kind: "test".to_string(),
+            }],
+            ..RuleSet::default()
+        };
+
+        let capabilities = super::AnalysisCapabilities::for_rules(&ir, &rules);
+        assert!(!capabilities.heap);
+        assert!(!capabilities.points_to);
+    }
+
+    #[test]
     fn default_build_keeps_full_solver_semantics() {
         let hir = PythonParser
             .parse_file(

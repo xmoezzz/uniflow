@@ -770,7 +770,7 @@ fn seed_project_inference_env(
     env.current_function = current_class
         .map(|owner| format!("{owner}.{}", func.name))
         .unwrap_or_else(|| format!("{module_name}.{}", func.name));
-    env.project_index = index.clone();
+    env.project_index = Arc::new(index.clone());
     env.executed_modules.insert(module_name.to_string());
     // Make project-wide class and monkey-patched field knowledge available to
     // every function.  Restricting this map to the current class caused calls
@@ -1045,4 +1045,3 @@ fn apply_project_summary_with_alias_bindings(
         populate_precise_container_slots_from_expr(env, alias, &expr_text, imports, known_classes);
     }
 }
-

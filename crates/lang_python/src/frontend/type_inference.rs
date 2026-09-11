@@ -813,7 +813,7 @@ fn apply_project_module_import_line_effects(
     for path in line_imports.aliases.values() {
         for imported_module in import_effect_modules_for_alias_path(index, path) {
             if env.executed_modules.insert(imported_module.clone()) {
-                env.project_index
+                Arc::make_mut(&mut env.project_index)
                     .apply_imported_module_effects(&imported_module, &mut HashSet::new());
             }
         }
@@ -1269,7 +1269,7 @@ fn infer_project_module_bindings(
     let mut env = PyEnv::default();
     env.current_module = module_name.to_string();
     env.current_function = format!("{module_name}.<module>");
-    env.project_index = index.clone();
+    env.project_index = Arc::new(index.clone());
     env.executed_modules.insert(module_name.to_string());
     if let Some(classes) = index.classes_by_module.get(module_name) {
         for class_name in classes {

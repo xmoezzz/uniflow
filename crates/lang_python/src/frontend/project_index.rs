@@ -64,7 +64,12 @@ impl PyProjectIndex {
                 index.module_exports_all.insert(module_name.clone(), exports_all);
             }
             index.module_imports.insert(module_name.clone(), imports.clone());
-            module_entries.push((module_name.clone(), imports.clone(), source.clone()));
+            // Module-level inference only lives for this index-build call.
+            // Borrow the project source instead of cloning every module body:
+            // large Python repositories previously held the input entries,
+            // their preprocessing buffers, and this third full-source copy at
+            // the same time.
+            module_entries.push((module_name.clone(), imports.clone(), source.as_str()));
             if !imports.aliases.is_empty() {
                 index
                     .module_reexports
@@ -913,4 +918,3 @@ impl PyProjectIndex {
         self.resolve_canonical_member_path(&mapped, visited)
     }
 }
-

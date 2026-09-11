@@ -16,6 +16,24 @@ mod tests {
     }
 
     #[test]
+    fn mit_catalog_selection_is_language_scoped() {
+        // Keep a one-file scan from parsing unrelated embedded YAML packs.
+        // The shared CodeQL catalog is intentionally paired with the
+        // language-specific catalog for C/C++, Java, and Python.
+        assert_eq!(mit_assets_for(&Language::C).len(), 2);
+        assert_eq!(mit_assets_for(&Language::Cpp).len(), 2);
+        assert_eq!(mit_assets_for(&Language::Java).len(), 2);
+        assert_eq!(mit_assets_for(&Language::Python).len(), 2);
+        assert!(mit_assets_for(&Language::Java)
+            .iter()
+            .any(|asset| *asset == MARIANA_MODELS));
+        assert!(mit_assets_for(&Language::Java)
+            .iter()
+            .any(|asset| *asset == CODEQL_MODELS));
+        assert!(mit_assets_for(&Language::JavaScript).is_empty());
+    }
+
+    #[test]
     fn every_supported_language_has_valid_default_models() {
         let languages = [
             Language::C,

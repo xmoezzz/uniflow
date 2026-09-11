@@ -779,9 +779,25 @@ impl<'a> FunctionLoweringContext<'a> {
                     })
                 });
                 let callee = match &call.target {
-                    CallTarget::Named(name) if external_receiver_name.is_some() => Callee::Static(
-                        format!("{}.{}", external_receiver_name.as_deref().unwrap(), name),
-                    ),
+                    CallTarget::Named(name) if external_receiver_name.is_some() => {
+                        let receiver_name = external_receiver_name.as_deref().unwrap();
+                        // Descriptor frontends normally retain a qualified
+                        // target (`os.getenv`) *and* lower the module as the
+                        // receiver.  Do not qualify that target a second time
+                        // (`os.os.getenv`): besides losing the canonical API
+                        // identity it prevents source/sink models from
+                        // matching.  Unqualified targets still need the
+                        // receiver prefix for imported external symbols.
+                        let already_qualified = name == receiver_name
+                            || name
+                                .strip_prefix(receiver_name)
+                                .is_some_and(|suffix| suffix.starts_with('.'));
+                        Callee::Static(if already_qualified {
+                            name.clone()
+                        } else {
+                            format!("{receiver_name}.{name}")
+                        })
+                    }
                     CallTarget::Named(name) if self.owner.current_import_aliases.contains_key(name) => {
                         Callee::Static(self.owner.current_import_aliases[name].clone())
                     }

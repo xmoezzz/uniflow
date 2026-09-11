@@ -4,6 +4,18 @@ mod tests {
     use uniflow_hir::{CallTarget, Program, TypeId};
     use uniflow_parser_core::SourceParser;
 
+    #[test]
+    fn function_environment_shares_project_index_without_copying_it() {
+        let index = Arc::new(PyProjectIndex::default());
+        let env = PyEnv {
+            project_index: Arc::clone(&index),
+            ..PyEnv::default()
+        };
+        assert_eq!(Arc::strong_count(&index), 2);
+        drop(env);
+        assert_eq!(Arc::strong_count(&index), 1);
+    }
+
     fn type_name(program: &Program, ty: TypeId) -> Option<&str> {
         program
             .types
@@ -369,7 +381,7 @@ def make_db():
 ", "app");
         let env = PyEnv {
             current_module: "app".to_string(),
-            project_index: index.clone(),
+            project_index: Arc::new(index.clone()),
             ..Default::default()
         };
         assert_eq!(resolve_imported_name("repo", &imports, &env).as_deref(), Some("pkg.repo"));
@@ -401,7 +413,7 @@ value = repo_mod.make_db()
 ", "app");
         let env = PyEnv {
             current_module: "app".to_string(),
-            project_index: index,
+            project_index: Arc::new(index),
             ..Default::default()
         };
         assert_eq!(resolve_imported_name("repo_mod", &imports, &env).as_deref(), Some("pkg.repo"));
@@ -435,7 +447,7 @@ value = root_pkg.repo.make_db()
 ", "app");
         let env = PyEnv {
             current_module: "app".to_string(),
-            project_index: index,
+            project_index: Arc::new(index),
             ..Default::default()
         };
         assert_eq!(resolve_prefixed_imported_name("root_pkg.repo", &imports, &env).as_deref(), Some("pkg.repo"));
@@ -561,7 +573,7 @@ db = DB()
 ", "app");
         let env = PyEnv {
             current_module: "app".to_string(),
-            project_index: index,
+            project_index: Arc::new(index),
             ..Default::default()
         };
         assert_eq!(resolve_dotted_type("svc.db", &imports, &env, &HashSet::new()).as_deref(), Some("db.DB"));
@@ -626,7 +638,7 @@ from service import vals
         );
         let env = PyEnv {
             current_module: "app".to_string(),
-            project_index: index,
+            project_index: Arc::new(index),
             ..Default::default()
         };
         assert_eq!(resolve_dotted_type("get_conn", &imports, &env, &HashSet::new()).as_deref(), Some("db.DB"));

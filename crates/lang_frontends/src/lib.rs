@@ -1254,6 +1254,22 @@ mod tests {
     }
 
     #[test]
+    fn rust_turbofish_constructor_keeps_a_concrete_callee() {
+        let program = parse_file(
+            Language::Rust,
+            "turbofish.rs",
+            "fn run() { let map: HashMap<usize, String> = HashMap::<usize, String>::new(); }",
+        )
+        .expect("Rust source should parse");
+        let rendered = format!("{program:#?}");
+        assert!(rendered.contains("HashMap"));
+        assert!(
+            !rendered.contains("Unknown"),
+            "turbofish must not become an unknown dynamic callee: {rendered}"
+        );
+    }
+
+    #[test]
     fn rust_let_keeps_call_initializer() {
         let program = parse_file(
             Language::Rust,

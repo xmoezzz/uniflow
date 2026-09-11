@@ -850,8 +850,12 @@ impl<'a> Pg<'a> {
                 };
                 continue;
             }
+            if self.skip_rust_turbofish() {
+                continue;
+            }
             let member_like = self.cur.at(".") || self.d.member_ops.contains(&token.text.as_str());
             if member_like {
+                let rust_static_path = self.d.language == Language::Rust && token.text == "::";
                 self.cur.advance();
                 self.cur.skip_newlines();
                 if self.cur.at("(") {
@@ -885,6 +889,16 @@ impl<'a> Pg<'a> {
                             type_name,
                             args,
                             span,
+                        }
+                    } else if rust_static_path {
+                        // Rust's `::` selects an associated item or a module
+                        // item, never an instance method. Retain the complete
+                        // static path as a named callee instead of leaving its
+                        // leading identifier as an undefined receiver value.
+                        if let Some(base) = self.qualified_name(&expr) {
+                            self.call(&format!("{base}.{field}"), None, args, span)
+                        } else {
+                            self.method_call(expr, field, args, span)
                         }
                     } else {
                         self.method_call(expr, field, args, span)
@@ -1044,6 +1058,37 @@ impl<'a> Pg<'a> {
             break;
         }
         Ok(expr)
+    }
+
+    /// Consume Rust's `::<T, U>` call-site generic arguments. They affect
+    /// type checking but not the data-flow callee identity, so the HIR keeps
+    /// the surrounding path/call and omits the type arguments. Without this
+    /// special case the generic `<`/`>` tokens are parsed as comparisons and
+    /// can leave an `Unknown` expression as the dynamic call target.
+    fn skip_rust_turbofish(&mut self) -> bool {
+        if self.d.language != Language::Rust
+            || !self.cur.at("::")
+            || self.cur.peek(1).text != "<"
+        {
+            return false;
+        }
+        self.cur.advance();
+        self.cur.advance();
+        let mut depth = 1usize;
+        while !self.cur.eof() && depth != 0 {
+            match self.cur.advance().as_str() {
+                "<" => depth += 1,
+                ">" => depth = depth.saturating_sub(1),
+                // The lexer keeps nested generic closers together. This is
+                // valid for e.g. `Vec::<Option<Result<T, E>>>::new()`.
+                ">>" => depth = depth.saturating_sub(2),
+                _ => {}
+            }
+        }
+        if depth != 0 {
+            self.cur.error("unterminated Rust turbofish type arguments");
+        }
+        true
     }
 
     fn qualified_name(&self, expr: &Expr) -> Option<String> {
