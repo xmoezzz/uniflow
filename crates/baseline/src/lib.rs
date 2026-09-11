@@ -227,6 +227,11 @@ impl BaselineRule {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct BaselineMatcher {
+    /// Metadata-only marker for rules whose executable implementation lives in
+    /// the unified native dataflow engine. Such rules are bundled in the
+    /// baseline pack for rule metadata/localization, but the baseline frontend
+    /// must not attempt to execute them a second time.
+    pub native_dataflow: bool,
     /// Alternative call signatures for one rule. Each alternative carries its
     /// own receiver, arity and argument constraints; findings are emitted once.
     pub call_alternatives: Vec<BaselineMatcher>,
@@ -542,7 +547,8 @@ pub struct ArgumentReferenceConstraint {
 
 impl BaselineMatcher {
     pub(crate) fn is_structured(&self) -> bool {
-        self.java_style.is_some()
+        self.native_dataflow
+            || self.java_style.is_some()
             || self.java_config.is_some()
             || self.java_project.is_some()
             || self.c_style.is_some()
@@ -1284,9 +1290,22 @@ impl BaselinePack {
                 {
                     findings.extend(
                         check
-                            .offsets(index, declarations, syntax)
+                            .offsets(source, index, declarations, syntax)
                             .into_iter()
-                            .map(|offset| finding_at_offset(rule, path, source, offset)),
+                            .map(|offset| {
+                                let mut finding = finding_at_offset(rule, path, source, offset);
+                                let arguments = check.message_arguments(
+                                    source,
+                                    offset,
+                                    index,
+                                    declarations,
+                                    syntax,
+                                );
+                                if !arguments.is_empty() {
+                                    interpolate_finding_message(&mut finding, &arguments);
+                                }
+                                finding
+                            }),
                     );
                 }
                 continue;
@@ -1526,6 +1545,31 @@ fn finding_at_offset(
         cwe: rule.cwe.clone(),
         standards: rule.standards.clone(),
         translations: rule.translations.clone(),
+    }
+}
+
+fn interpolate_finding_message(finding: &mut BaselineFinding, arguments: &[String]) {
+    fn interpolate(message: &mut String, arguments: &[String]) {
+        for (index, argument) in arguments.iter().enumerate() {
+            let positional = format!("{{{index}}}");
+            if message.contains(&positional) {
+                *message = message.replace(&positional, argument);
+            } else {
+                *message = message.replacen("{}", argument, 1);
+            }
+        }
+    }
+
+    interpolate(&mut finding.message, arguments);
+    for localized in [
+        finding.translations.zh_cn.as_mut(),
+        finding.translations.en.as_mut(),
+        finding.translations.zh_tw.as_mut(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        interpolate(&mut localized.message, arguments);
     }
 }
 

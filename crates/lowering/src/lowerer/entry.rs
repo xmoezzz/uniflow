@@ -8,6 +8,43 @@ pub fn lower_program(program: &Program) -> IrProgram {
     lowerer.finish()
 }
 
+fn propagate_value_array_extents(
+    blocks: &[BasicBlock],
+    extents: &mut IndexMap<ValueId, Vec<Option<ValueId>>>,
+) {
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for inst in blocks.iter().flat_map(|block| block.insts.iter()) {
+            let propagated = match &inst.kind {
+                InstKind::Copy { dst, src }
+                | InstKind::Move { dst, src }
+                | InstKind::Cast { dst, src, .. } => {
+                    extents.get(src).cloned().map(|dims| (*dst, dims))
+                }
+                InstKind::LoadIndex { dst, base, .. } => extents.get(base).and_then(|dims| {
+                    (dims.len() > 1).then(|| (*dst, dims[1..].to_vec()))
+                }),
+                InstKind::Phi { dst, inputs } if !inputs.is_empty() => {
+                    extents.get(&inputs[0]).cloned().and_then(|candidate| {
+                        inputs[1..]
+                            .iter()
+                            .all(|input| extents.get(input) == Some(&candidate))
+                            .then_some((*dst, candidate))
+                    })
+                }
+                _ => None,
+            };
+            if let Some((dst, dims)) = propagated {
+                if extents.get(&dst) != Some(&dims) {
+                    extents.insert(dst, dims);
+                    changed = true;
+                }
+            }
+        }
+    }
+}
+
 fn lambda_function_name(enclosing_function: &str, id: uniflow_hir::ExprId, line_no: u32) -> String {
     format!("{enclosing_function}.__lambda_{}_{}", line_no, id.0)
 }
@@ -280,6 +317,19 @@ fn remap_ir_span(source_maps: &[SourceMap], span: uniflow_hir::Span) -> uniflow_
         .map_or(span, |map| map.remap_span(span))
 }
 
+fn span_has_source_origin(
+    source_origins: &[SourceOriginRange],
+    span: uniflow_hir::Span,
+    kind: SourceOriginKind,
+) -> bool {
+    source_origins.iter().any(|origin| {
+        origin.kind == kind
+            && origin.file.0 == span.file
+            && span.start_byte < origin.end_byte
+            && origin.start_byte < span.end_byte
+    })
+}
+
 struct Lowerer {
     language: Language,
     source_files: Vec<IrSourceFile>,
@@ -296,6 +346,7 @@ struct Lowerer {
     lambda_captures: HashMap<String, Vec<String>>,
     type_hierarchy: IndexMap<String, Vec<String>>,
     source_maps: Vec<SourceMap>,
+    source_origins: Vec<SourceOriginRange>,
 }
 
 impl Lowerer {
@@ -376,6 +427,7 @@ impl Lowerer {
             lambda_captures,
             type_hierarchy,
             source_maps: program.source_maps.clone(),
+            source_origins: program.source_origins.clone(),
         }
     }
 
@@ -506,12 +558,48 @@ impl Lowerer {
 
     fn finish(mut self) -> IrProgram {
         for function in &mut self.functions {
+            let macro_values = function
+                .value_spans
+                .iter()
+                .filter_map(|(value, span)| {
+                    span_has_source_origin(
+                        &self.source_origins,
+                        *span,
+                        SourceOriginKind::MacroExpansion,
+                    )
+                    .then_some(*value)
+                })
+                .collect::<Vec<_>>();
+            let macro_insts = function
+                .blocks
+                .iter()
+                .flat_map(|block| block.insts.iter())
+                .filter_map(|instruction| {
+                    span_has_source_origin(
+                        &self.source_origins,
+                        instruction.span,
+                        SourceOriginKind::MacroExpansion,
+                    )
+                    .then_some(instruction.id)
+                })
+                .collect::<Vec<_>>();
+            for value in macro_values {
+                function.mark_value_source_origin(value, SourceOriginKind::MacroExpansion);
+            }
+            for inst in macro_insts {
+                function.mark_instruction_source_origin(inst, SourceOriginKind::MacroExpansion);
+            }
             function.span = remap_ir_span(&self.source_maps, function.span);
             for span in function.value_spans.values_mut() {
                 *span = remap_ir_span(&self.source_maps, *span);
             }
             for block in &mut function.blocks {
                 for instruction in &mut block.insts {
+                    if let InstKind::Call(call) = &mut instruction.kind {
+                        for span in &mut call.arg_spans {
+                            *span = remap_ir_span(&self.source_maps, *span);
+                        }
+                    }
                     instruction.span = remap_ir_span(&self.source_maps, instruction.span);
                 }
             }
@@ -643,6 +731,39 @@ impl Lowerer {
             }
         }
 
+        let mut extent_prelude = Vec::new();
+        for param in &func.params {
+            let array_extents = ctx
+                .owner
+                .program_symbols
+                .get(&param.symbol)
+                .map(|symbol| symbol.array_extents.clone())
+                .unwrap_or_default();
+            let Some(base) = value_map.get(&param.symbol).copied() else {
+                continue;
+            };
+            if array_extents.is_empty() {
+                continue;
+            }
+            let mut lowered_extents = Vec::with_capacity(array_extents.len());
+            for extent in array_extents {
+                let value = extent.map(|extent| {
+                    ctx.lower_expr(
+                        &extent,
+                        &mut extent_prelude,
+                        &mut value_map,
+                        &mut symbol_types,
+                        &mut locals,
+                        &mut value_types,
+                        &mut value_spans,
+                    )
+                    .0
+                });
+                lowered_extents.push(value);
+            }
+            ctx.value_array_extents.insert(base, lowered_extents);
+        }
+
         let initializer_insts = ctx.lower_cpp_initializers(
             func,
             &value_map,
@@ -658,16 +779,23 @@ impl Lowerer {
             &mut value_types,
             &mut value_spans,
         );
-        if !initializer_insts.is_empty() {
+        if !extent_prelude.is_empty() || !initializer_insts.is_empty() {
             if let Some(entry) = blocks.first_mut() {
-                let mut combined = initializer_insts;
+                let mut combined = extent_prelude;
+                combined.extend(initializer_insts);
                 combined.append(&mut entry.insts);
                 entry.insts = combined;
             }
         }
         value_map = final_value_map;
         let exception_edges = std::mem::take(&mut ctx.exception_edges);
+        let mut value_array_extents = std::mem::take(&mut ctx.value_array_extents);
+        let source_case_blocks = std::mem::take(&mut ctx.source_case_blocks);
+        let source_break_blocks = std::mem::take(&mut ctx.source_break_blocks);
+        let source_return_blocks = std::mem::take(&mut ctx.source_return_blocks);
+        let source_switch_blocks = std::mem::take(&mut ctx.source_switch_blocks);
         drop(ctx);
+        propagate_value_array_extents(&blocks, &mut value_array_extents);
         for (symbol_id, value) in &value_map {
             if let Some(symbol) = self.program_symbols.get(symbol_id) {
                 let semantics = symbol.cpp_value_semantics();
@@ -759,8 +887,43 @@ impl Lowerer {
                 .collect::<Vec<_>>()
                 .join("\u{1f}"),
         );
+        for (block, span, from_macro) in source_case_blocks {
+            let span = remap_ir_span(&self.source_maps, span);
+            attrs.insert(
+                format!("uniflow.source-cfg.case.{}", block.0),
+                format!(
+                    "{},{},{},{},{},{},{},{}",
+                    span.file,
+                    span.start_byte,
+                    span.end_byte,
+                    span.start_line,
+                    span.start_col,
+                    span.end_line,
+                    span.end_col,
+                    u8::from(from_macro)
+                ),
+            );
+        }
+        for block in source_break_blocks {
+            attrs.insert(
+                format!("uniflow.source-cfg.break.{}", block.0),
+                "1".to_string(),
+            );
+        }
+        for block in source_return_blocks {
+            attrs.insert(
+                format!("uniflow.source-cfg.return.{}", block.0),
+                "1".to_string(),
+            );
+        }
+        for block in source_switch_blocks {
+            attrs.insert(
+                format!("uniflow.source-cfg.switch.{}", block.0),
+                "1".to_string(),
+            );
+        }
 
-        self.functions.push(Function {
+        let mut lowered_function = Function {
             id: function_id,
             name: func.name.clone(),
             params,
@@ -776,7 +939,11 @@ impl Lowerer {
             cpp_initializers: func.cpp_initializers.clone(),
             value_cpp,
             exception_edges,
-        });
+        };
+        for (value, extents) in value_array_extents {
+            lowered_function.set_value_array_extents(value, &extents);
+        }
+        self.functions.push(lowered_function);
     }
 
     fn type_name_for(&self, ty: Option<TypeId>) -> Option<String> {

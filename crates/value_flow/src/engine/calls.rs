@@ -1,8 +1,272 @@
+// Kept out of the build while downstream worktrees update. The active index
+// below is the shared rules-layer implementation used by both flow building
+// and taint analysis.
+#[cfg(any())]
+mod superseded_api_rule_index {
+use super::*;
+
+#[derive(Default)]
+struct ApiRuleIndex {
+    exact_callee: HashMap<String, Vec<usize>>,
+    exact_receiver: HashMap<String, Vec<usize>>,
+    exact_receiver_method: HashMap<String, HashMap<String, Vec<usize>>>,
+    exact_method: HashMap<String, Vec<usize>>,
+    fallback: Vec<usize>,
+}
+
+impl ApiRuleIndex {
+    fn new<'a>(matchers: impl Iterator<Item = &'a ApiMatcher>) -> Self {
+        let mut index = Self::default();
+        for (position, matcher) in matchers.enumerate() {
+            let finite_callees = matcher
+                .exact
+                .as_ref()
+                .map(|exact| vec![exact.clone()])
+                .or_else(|| {
+                    matcher
+                        .regex
+                        .as_deref()
+                        .and_then(finite_anchored_regex_literals)
+                });
+            if let Some(callees) = finite_callees {
+                for callee in callees {
+                    index
+                        .exact_callee
+                        .entry(callee)
+                        .or_default()
+                        .push(position);
+                }
+                continue;
+            }
+
+            let finite_methods = if let Some(method) = &matcher.method_name {
+                Some(vec![method.clone()])
+            } else {
+                matcher
+                    .method_regex
+                    .as_deref()
+                    .and_then(finite_anchored_regex_literals)
+            };
+
+            let finite_receivers = matcher
+                .receiver_type
+                .as_ref()
+                .map(|receiver| vec![receiver.clone()])
+                .or_else(|| {
+                    matcher
+                        .receiver_regex
+                        .as_deref()
+                        .and_then(finite_anchored_regex_literals)
+                });
+
+            if let Some(receivers) = finite_receivers {
+                if let Some(methods) = finite_methods {
+                    for receiver in receivers {
+                        for method in &methods {
+                            index
+                                .exact_receiver_method
+                                .entry(receiver.clone())
+                                .or_default()
+                                .entry(method.clone())
+                                .or_default()
+                                .push(position);
+                        }
+                    }
+                } else {
+                    // A receiver is sufficient to rule out every other call,
+                    // even when another matcher constraint is non-finite.
+                    for receiver in receivers {
+                        index
+                            .exact_receiver
+                            .entry(receiver)
+                            .or_default()
+                            .push(position);
+                    }
+                }
+            } else if let Some(methods) = finite_methods {
+                for method in methods {
+                    index
+                        .exact_method
+                        .entry(method)
+                        .or_default()
+                        .push(position);
+                }
+            } else {
+                index.fallback.push(position);
+            }
+        }
+        index
+    }
+
+    fn for_each_candidate(&self, call: &CallInfo, mut visit: impl FnMut(usize)) {
+        for &position in &self.fallback {
+            visit(position);
+        }
+        if let Some(positions) = self.exact_callee.get(&call.callee_name) {
+            for &position in positions {
+                visit(position);
+            }
+        }
+        let mut visit_receiver = |receiver: &str| {
+            if let Some(positions) = self.exact_receiver.get(receiver) {
+                for &position in positions {
+                    visit(position);
+                }
+            }
+            if let Some(method) = &call.method_name {
+                if let Some(positions) = self
+                    .exact_receiver_method
+                    .get(receiver)
+                    .and_then(|methods| methods.get(method))
+                {
+                    for &position in positions {
+                        visit(position);
+                    }
+                }
+            }
+        };
+        if let Some(receiver) = call.receiver_type.as_deref() {
+            visit_receiver(receiver);
+        }
+        for receiver in &call.receiver_type_candidates {
+            if call.receiver_type.as_deref() != Some(receiver.as_str()) {
+                visit_receiver(receiver);
+            }
+        }
+        if let Some(method) = &call.method_name {
+            if let Some(positions) = self.exact_method.get(method) {
+                for &position in positions {
+                    visit(position);
+                }
+            }
+        }
+    }
+}
+
+fn finite_anchored_regex_literals(expression: &str) -> Option<Vec<String>> {
+    const MAX_LITERALS: usize = 256;
+    let anchored_start = expression.starts_with('^') || expression.starts_with("\\A");
+    let anchored_end = expression.ends_with('$') || expression.ends_with("\\z");
+    if !anchored_start || !anchored_end {
+        return None;
+    }
+    let hir = regex_syntax::Parser::new().parse(expression).ok()?;
+    let bytes = finite_hir_language(&hir, MAX_LITERALS)?;
+    let mut literals = bytes
+        .into_iter()
+        .map(String::from_utf8)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    literals.sort();
+    literals.dedup();
+    (!literals.is_empty()).then_some(literals)
+}
+
+fn finite_hir_language(
+    hir: &regex_syntax::hir::Hir,
+    limit: usize,
+) -> Option<Vec<Vec<u8>>> {
+    use regex_syntax::hir::HirKind;
+
+    match hir.kind() {
+        HirKind::Empty | HirKind::Look(_) => Some(vec![Vec::new()]),
+        HirKind::Literal(literal) => Some(vec![literal.0.to_vec()]),
+        HirKind::Class(_) => None,
+        HirKind::Capture(capture) => finite_hir_language(&capture.sub, limit),
+        HirKind::Concat(parts) => {
+            let mut product = vec![Vec::new()];
+            for part in parts {
+                let suffixes = finite_hir_language(part, limit)?;
+                product = concatenate_languages(&product, &suffixes, limit)?;
+            }
+            Some(product)
+        }
+        HirKind::Alternation(branches) => {
+            let mut language = Vec::new();
+            for branch in branches {
+                language.extend(finite_hir_language(branch, limit)?);
+                if language.len() > limit {
+                    return None;
+                }
+            }
+            Some(language)
+        }
+        HirKind::Repetition(repetition) => {
+            let maximum = usize::try_from(repetition.max?).ok()?;
+            let minimum = usize::try_from(repetition.min).ok()?;
+            if maximum > 8 || minimum > maximum {
+                return None;
+            }
+            let unit = finite_hir_language(&repetition.sub, limit)?;
+            let mut power = vec![Vec::new()];
+            let mut language = Vec::new();
+            if minimum == 0 {
+                language.push(Vec::new());
+            }
+            for count in 1..=maximum {
+                power = concatenate_languages(&power, &unit, limit)?;
+                if count >= minimum {
+                    language.extend(power.iter().cloned());
+                    if language.len() > limit {
+                        return None;
+                    }
+                }
+            }
+            Some(language)
+        }
+    }
+}
+
+fn concatenate_languages(
+    prefixes: &[Vec<u8>],
+    suffixes: &[Vec<u8>],
+    limit: usize,
+) -> Option<Vec<Vec<u8>>> {
+    if prefixes.len().checked_mul(suffixes.len())? > limit {
+        return None;
+    }
+    let mut result = Vec::with_capacity(prefixes.len() * suffixes.len());
+    for prefix in prefixes {
+        for suffix in suffixes {
+            if prefix.len().checked_add(suffix.len())? > 256 {
+                return None;
+            }
+            let mut value = Vec::with_capacity(prefix.len() + suffix.len());
+            value.extend_from_slice(prefix);
+            value.extend_from_slice(suffix);
+            result.push(value);
+        }
+    }
+    Some(result)
+}
+}
+
+struct RuleMatcherIndex<'a> {
+    propagators: ApiMatcherIndex<'a>,
+    summaries: ApiMatcherIndex<'a>,
+    sources: ApiMatcherIndex<'a>,
+    sinks: ApiMatcherIndex<'a>,
+}
+
+impl<'a> RuleMatcherIndex<'a> {
+    fn new(rules: &'a RuleSet) -> Self {
+        Self {
+            propagators: ApiMatcherIndex::new(
+                rules.propagators.iter().map(|rule| &rule.matcher),
+            ),
+            summaries: ApiMatcherIndex::new(rules.summaries.iter().map(|rule| &rule.matcher)),
+            sources: ApiMatcherIndex::new(rules.sources.iter().map(|rule| &rule.matcher)),
+            sinks: ApiMatcherIndex::new(rules.sinks.iter().map(|rule| &rule.matcher)),
+        }
+    }
+}
+
 fn resolve_dynamic_internal_calls(
     fg: &mut FlowGraph,
     program: &Program,
     func_index: &FunctionIndex<'_>,
     rules: &RuleSet,
+    rule_index: &RuleMatcherIndex<'_>,
 ) {
     for func in &program.functions {
         let ret_node = *fg
@@ -73,15 +337,20 @@ fn resolve_dynamic_internal_calls(
                         updated.method_name = info.method_name;
                     }
                     fg.call_meta.insert((func.id, inst.id), updated.clone());
-                    connect_rule_summaries(fg, rules, func.id, inst.id, call, &updated);
-                    attach_rule_sources_and_sinks(fg, rules, func.id, inst.id, call, &updated);
+                    connect_rule_summaries(
+                        fg, rules, rule_index, func.id, inst.id, call, &updated,
+                    );
+                    attach_rule_sources_and_sinks(
+                        fg, rules, rule_index, func.id, inst.id, call, &updated,
+                    );
                 }
             }
         }
     }
 }
 
-/// Follow explicit local value/cell edges, not the region overlay. A known
+/// Follow explicit value/cell edges, including actual/formal heap-cell
+/// bindings, but not the region overlay. A known
 /// callable address does not need a singleton *heap* points-to set. The latter
 /// also contains its container and must not be used to reject the address.
 fn explicit_local_callee_names(fg: &FlowGraph, func: FunctionId, value: ValueId) -> Vec<String> {
@@ -92,14 +361,14 @@ fn explicit_local_callee_names(fg: &FlowGraph, func: FunctionId, value: ValueId)
     while let Some(node) = pending.pop() {
         if !visited.insert(node) { continue; }
         match &fg.graph[node] {
-            FlowNode::Value { func: owner, value } | FlowNode::Param { func: owner, value, .. } if *owner == func => {
+            FlowNode::Value { func: owner, value } | FlowNode::Param { func: owner, value, .. } => {
                 if let Some(name) = fg.value_types.get(&(*owner, *value)) {
                     if fg.function_names.values().any(|candidate| candidate == name) {
                         names.insert(name.clone());
                     }
                 }
             }
-            FlowNode::FieldCell { func: owner, .. } | FlowNode::IndexCell { func: owner, .. } if *owner == func => {}
+            FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. } => {}
             _ => continue,
         }
         for edge in fg.graph.edges_directed(node, petgraph::Direction::Incoming) {
@@ -185,6 +454,7 @@ fn looks_like_project_callable_type(name: &str) -> bool {
 fn connect_rule_summaries(
     fg: &mut FlowGraph,
     rules: &RuleSet,
+    rule_index: &RuleMatcherIndex<'_>,
     func: FunctionId,
     inst: InstId,
     call: &CallInst,
@@ -194,7 +464,8 @@ fn connect_rule_summaries(
         return;
     };
 
-    for rule in &rules.propagators {
+    rule_index.propagators.for_each_candidate(&call_info, |position| {
+        let rule = &rules.propagators[position];
         if language_matches(&rule.language, &fg.language)
             && rule.matcher.matches_call(&call_info)
             && rules.call_condition_matches(&rule.id, &call_info)
@@ -210,8 +481,9 @@ fn connect_rule_summaries(
                 call,
             );
         }
-    }
-    for rule in &rules.summaries {
+    });
+    rule_index.summaries.for_each_candidate(&call_info, |position| {
+        let rule = &rules.summaries[position];
         if language_matches(&rule.language, &fg.language)
             && rule.matcher.matches_call(&call_info)
             && rules.call_condition_matches(&rule.id, &call_info)
@@ -227,7 +499,7 @@ fn connect_rule_summaries(
                 call,
             );
         }
-    }
+    });
 }
 
 fn connect_flow_specs(
@@ -308,6 +580,7 @@ fn connect_flow_specs(
 fn attach_rule_sources_and_sinks(
     fg: &mut FlowGraph,
     rules: &RuleSet,
+    rule_index: &RuleMatcherIndex<'_>,
     func: FunctionId,
     inst: InstId,
     call: &CallInst,
@@ -317,7 +590,8 @@ fn attach_rule_sources_and_sinks(
         return;
     };
 
-    for rule in &rules.sources {
+    rule_index.sources.for_each_candidate(&call_info, |position| {
+        let rule = &rules.sources[position];
         if language_matches(&rule.language, &fg.language)
             && rule.matcher.matches_call(&call_info)
             && rules.call_condition_matches(&rule.id, &call_info)
@@ -379,9 +653,10 @@ fn attach_rule_sources_and_sinks(
                 }
             }
         }
-    }
+    });
 
-    for rule in &rules.sinks {
+    rule_index.sinks.for_each_candidate(&call_info, |position| {
+        let rule = &rules.sinks[position];
         if language_matches(&rule.language, &fg.language)
             && rule.matcher.matches_call(&call_info)
             && rules.call_condition_matches(&rule.id, &call_info)
@@ -421,7 +696,7 @@ fn attach_rule_sources_and_sinks(
                 );
             }
         }
-    }
+    });
 }
 
 fn attach_unused_return_sinks(
@@ -439,7 +714,7 @@ fn attach_unused_return_sinks(
         return;
     };
     for rule in &rules.unused_return_sinks {
-        if !language_matches(&rule.language, &fg.language)
+            if !language_matches(&rule.language, &fg.language)
             || !rules.sources.iter().any(|source| {
                 language_matches(&source.language, &fg.language)
                     && source.kind == rule.source_kind
@@ -447,35 +722,35 @@ fn attach_unused_return_sinks(
                     && source.matcher.matches_call(&call_info)
                     && rules.call_condition_matches(&source.id, &call_info)
             })
-        {
-            continue;
-        }
-        let sink = fg.graph.add_node(FlowNode::SyntheticSink {
-            func,
-            inst,
-            rule_id: rule.id.clone(),
-            kind: rule.kind.clone(),
-            input: Port::Return,
-        });
-        fg.synthetic_sinks.push(sink);
-        let return_port = get_or_create_rule_port(
-            fg,
-            func,
-            inst,
-            call.receiver,
-            Port::Return,
-            meta.callee_name.clone(),
-        )
-        .expect("return ports do not require a receiver");
-        fg.graph.add_edge(
-            return_port,
-            sink,
-            FlowEdge {
-                kind: EdgeKind::Sink {
-                    rule_id: rule.id.clone(),
+            {
+                continue;
+            }
+            let sink = fg.graph.add_node(FlowNode::SyntheticSink {
+                func,
+                inst,
+                rule_id: rule.id.clone(),
+                kind: rule.kind.clone(),
+                input: Port::Return,
+            });
+            fg.synthetic_sinks.push(sink);
+            let return_port = get_or_create_rule_port(
+                fg,
+                func,
+                inst,
+                call.receiver,
+                Port::Return,
+                meta.callee_name.clone(),
+            )
+            .expect("return ports do not require a receiver");
+            fg.graph.add_edge(
+                return_port,
+                sink,
+                FlowEdge {
+                    kind: EdgeKind::Sink {
+                        rule_id: rule.id.clone(),
+                    },
                 },
-            },
-        );
+            );
     }
 }
 
@@ -706,9 +981,12 @@ fn function_uses_value(func: &Function, value: ValueId) -> bool {
             InstKind::ConstInt { .. } | InstKind::ConstString { .. } => false,
             InstKind::Copy { src, .. }
             | InstKind::NumericStep { src, .. }
+            | InstKind::NumericNeg { src, .. }
             | InstKind::Move { src, .. }
-            | InstKind::Cast { src, .. } => *src == value,
+            | InstKind::Cast { src, .. }
+            | InstKind::Deref { src, .. } => *src == value,
             InstKind::Lifetime { value: used, .. } => *used == value,
+            InstKind::Compare { lhs, rhs, .. } => *lhs == value || *rhs == value,
             InstKind::Phi { inputs, .. } => inputs.contains(&value),
             InstKind::LoadField { base, .. } => *base == value,
             InstKind::StoreField { base, src, .. } => *base == value || *src == value,

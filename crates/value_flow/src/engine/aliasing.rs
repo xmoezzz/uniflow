@@ -157,11 +157,10 @@ fn compute_object_identity_representatives(func: &Function) -> (HashMap<ValueId,
                             .as_deref()
                             .is_some_and(looks_like_constructor_name)
                 }),
-                InstKind::LoadField { dst, .. } | InstKind::LoadIndex { dst, .. } => Some(*dst).filter(|dst| {
-                    func.value_types
-                        .get(dst)
-                        .is_some_and(|ty| is_object_like_type(ty))
-                }),
+                // A heap load is not an allocation site. Its identity comes
+                // from the reaching stored object(s), which are resolved once
+                // cell alias/strong-update facts are available in the solver.
+                InstKind::LoadField { .. } | InstKind::LoadIndex { .. } => None,
                 _ => None,
             };
             if let Some(dst) = seeded {
@@ -307,13 +306,28 @@ fn inferred_shape_point_classes_for_node(fg: &FlowGraph, node: NodeIndex) -> Vec
 
 fn normalized_memory_region(path: &str) -> String {
     let trimmed = path.trim();
-    let compact = trimmed
-        .replace("field:", ".")
-        .replace("index:", "[")
-        .replace('.', ".")
-        .replace("[", "[")
-        .replace("]", "]");
-    format!("mem:{}", compact)
+    let mut compact = String::with_capacity(trimmed.len().saturating_add(4));
+    compact.push_str("mem:");
+    let mut cursor = 0usize;
+    while cursor < trimmed.len() {
+        let tail = &trimmed[cursor..];
+        let field = tail.find("field:");
+        let index = tail.find("index:");
+        let (offset, pattern_len, replacement) = match (field, index) {
+            (Some(field), Some(index)) if field <= index => (field, "field:".len(), '.'),
+            (Some(_), Some(index)) => (index, "index:".len(), '['),
+            (Some(field), None) => (field, "field:".len(), '.'),
+            (None, Some(index)) => (index, "index:".len(), '['),
+            (None, None) => {
+                compact.push_str(tail);
+                break;
+            }
+        };
+        compact.push_str(&tail[..offset]);
+        compact.push(replacement);
+        cursor += offset + pattern_len;
+    }
+    compact
 }
 
 fn memory_region_seed_for_value(fg: &FlowGraph, func: FunctionId, value: ValueId) -> Vec<String> {
@@ -376,19 +390,17 @@ fn memory_region_related(left: &str, right: &str) -> bool {
     memory_region_has_boundary_prefix(left, right) || memory_region_has_boundary_prefix(right, left)
 }
 
-fn memory_region_ancestor_chain(region: &str) -> Vec<String> {
+fn memory_region_ancestor_chain(region: &str) -> Vec<&str> {
     let mut out = Vec::new();
-    let mut current = region.trim().to_string();
+    let mut current = region.trim();
     while !current.is_empty() {
-        if !out.iter().any(|existing| existing == &current) {
-            out.push(current.clone());
-        }
+        out.push(current);
         if let Some(idx) = current.rfind('[') {
-            current.truncate(idx);
+            current = &current[..idx];
             continue;
         }
         if let Some(idx) = current.rfind('.') {
-            current.truncate(idx);
+            current = &current[..idx];
             continue;
         }
         break;
@@ -415,6 +427,15 @@ where
     stable_hash_value(&entries)
 }
 
+fn stable_hash_set_contents<T>(set: &HashSet<T>) -> u64
+where
+    T: Ord + Clone + Hash,
+{
+    let mut values = set.iter().cloned().collect::<Vec<_>>();
+    values.sort();
+    stable_hash_value(&values)
+}
+
 fn analysis_state_signature(fg: &FlowGraph) -> Vec<u64> {
     vec![
         fg.graph.edge_count() as u64,
@@ -433,16 +454,35 @@ fn analysis_state_signature(fg: &FlowGraph) -> Vec<u64> {
             + fg.contextual_points_to_object_ids.values().map(|values| values.len()).sum::<usize>()
             + fg.abstract_objects.len()
             + fg.object_seed_ids.len()) as u64,
+        fg.strong_update_cells.len() as u64,
+        fg.cell_write_generations.values().map(|values| values.len()).sum::<usize>() as u64,
         stable_hash_map_contents(&fg.object_shape_paths),
         stable_hash_map_contents(&fg.node_memory_regions),
         stable_hash_map_contents(&fg.value_memory_regions),
         stable_hash_map_contents(&fg.cell_memory_regions),
         stable_hash_map_contents(&fg.node_points_to_classes),
+        stable_hash_map_contents(&fg.value_points_to_classes),
+        stable_hash_map_contents(&fg.cell_points_to_classes),
         stable_hash_map_contents(&fg.node_points_to_targets),
+        stable_hash_map_contents(&fg.value_points_to_targets),
+        stable_hash_map_contents(&fg.cell_points_to_targets),
+        stable_hash_map_contents(&fg.points_to_object_ids),
         stable_hash_map_contents(&fg.node_points_to_object_ids),
+        stable_hash_map_contents(&fg.value_points_to_object_ids),
+        stable_hash_map_contents(&fg.cell_points_to_object_ids),
+        stable_hash_map_contents(&fg.contextual_node_points_to_targets),
+        stable_hash_map_contents(&fg.contextual_value_points_to_targets),
+        stable_hash_map_contents(&fg.contextual_cell_points_to_targets),
+        stable_hash_map_contents(&fg.contextual_node_points_to_object_ids),
+        stable_hash_map_contents(&fg.contextual_value_points_to_object_ids),
+        stable_hash_map_contents(&fg.contextual_cell_points_to_object_ids),
         stable_hash_map_contents(&fg.contextual_points_to_targets),
         stable_hash_map_contents(&fg.contextual_points_to_object_ids),
+        stable_hash_map_contents(&fg.contextual_return_values),
+        stable_hash_map_contents(&fg.contextual_return_cells),
         stable_hash_map_contents(&fg.abstract_objects) ^ stable_hash_map_contents(&fg.object_seed_ids),
+        stable_hash_set_contents(&fg.strong_update_cells),
+        stable_hash_map_contents(&fg.cell_write_generations),
         stable_hash_map_contents(&fg.cell_live_values),
         stable_hash_map_contents(&fg.cell_live_regions),
         stable_hash_map_contents(&fg.region_live_values),
@@ -536,31 +576,45 @@ fn insert_abstract_object_seed(fg: &mut FlowGraph, seed: &AbstractObjectSeed) ->
 }
 
 fn abstract_object_seeds_for_value(fg: &FlowGraph, func: FunctionId, value: ValueId) -> Vec<AbstractObjectSeed> {
-    let mut out = BTreeSet::new();
+    let mut out = Vec::new();
     if let Some(site) = value_identity_site(fg, func, value) {
-        out.insert(AbstractObjectSeed::ValueSite(site.trim().to_string()));
+        out.push(AbstractObjectSeed::ValueSite(site.trim().to_string()));
     }
     for region in value_root_memory_regions(fg, func, value) {
-        out.insert(AbstractObjectSeed::ValueRootRegion(region));
+        out.push(AbstractObjectSeed::ValueRootRegion(region));
     }
     for region in fg.value_memory_regions_of(func, value) {
-        out.insert(AbstractObjectSeed::ValueRegion(region));
+        out.push(AbstractObjectSeed::ValueRegion(region));
     }
-    out.into_iter().collect()
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+fn abstract_object_non_memory_seeds_for_cell(
+    fg: &FlowGraph,
+    cell: NodeIndex,
+) -> Vec<AbstractObjectSeed> {
+    let mut out = Vec::new();
+    if let Some(key) = cell_abstract_identity_key(fg, cell) {
+        out.push(AbstractObjectSeed::CellIdentity(key));
+    }
+    for region in fg.cell_memory_regions_of(cell) {
+        out.push(AbstractObjectSeed::CellRegion(region));
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
 }
 
 fn abstract_object_seeds_for_cell(fg: &FlowGraph, cell: NodeIndex) -> Vec<AbstractObjectSeed> {
-    let mut out = BTreeSet::new();
-    if let Some(key) = cell_abstract_identity_key(fg, cell) {
-        out.insert(AbstractObjectSeed::CellIdentity(key));
-    }
+    let mut out = abstract_object_non_memory_seeds_for_cell(fg, cell);
     if let Some(unit) = precise_memory_unit_key_for_cell(fg, cell) {
-        out.insert(AbstractObjectSeed::MemoryUnit(unit));
+        out.push(AbstractObjectSeed::MemoryUnit(unit));
     }
-    for region in fg.cell_memory_regions_of(cell) {
-        out.insert(AbstractObjectSeed::CellRegion(region));
-    }
-    out.into_iter().collect()
+    out.sort_unstable();
+    out.dedup();
+    out
 }
 
 fn abstract_object_seeds_for_node(fg: &FlowGraph, node: NodeIndex) -> Vec<AbstractObjectSeed> {
@@ -575,19 +629,25 @@ fn abstract_object_seeds_for_node(fg: &FlowGraph, node: NodeIndex) -> Vec<Abstra
     }
 }
 
-fn seeded_abstract_object_seeds(fg: &FlowGraph) -> BTreeSet<AbstractObjectSeed> {
+fn seeded_abstract_object_seeds_by_node(
+    fg: &FlowGraph,
+) -> (
+    BTreeSet<AbstractObjectSeed>,
+    Vec<(usize, Vec<AbstractObjectSeed>)>,
+) {
     let mut seeds = BTreeSet::new();
-    for (&(func, value), _) in &fg.values {
-        for seed in abstract_object_seeds_for_value(fg, func, value) {
-            seeds.insert(seed);
+    let mut seeds_by_node = Vec::new();
+    for node in fg.graph.node_indices() {
+        let node_seeds = abstract_object_seeds_for_node(fg, node);
+        if node_seeds.is_empty() {
+            continue;
         }
-    }
-    for cell in all_cell_nodes(fg) {
-        for seed in abstract_object_seeds_for_cell(fg, cell) {
-            seeds.insert(seed);
+        for seed in &node_seeds {
+            seeds.insert(seed.clone());
         }
+        seeds_by_node.push((node.index(), node_seeds));
     }
-    seeds
+    (seeds, seeds_by_node)
 }
 
 fn canonical_abstract_object_keys_for_value(fg: &FlowGraph, func: FunctionId, value: ValueId) -> Vec<String> {
@@ -615,25 +675,171 @@ fn direct_seed_object_targets_for_node(fg: &FlowGraph, node: NodeIndex) -> Vec<S
     canonical_abstract_object_keys_for_node(fg, node)
 }
 
-fn materialize_abstract_object_catalog(fg: &mut FlowGraph) {
-    fg.points_to_object_ids.clear();
-    fg.object_seed_ids.clear();
-    fg.abstract_objects.clear();
-    fg.abstract_object_seed_nodes.clear();
-    for seed in seeded_abstract_object_seeds(fg) {
+fn abstract_object_catalog_input_snapshot(fg: &FlowGraph) -> AbstractObjectCatalogInputSnapshot {
+    let mut nodes = Vec::new();
+    for node in fg.graph.node_indices() {
+        match &fg.graph[node] {
+            FlowNode::Value { func, value } | FlowNode::Param { func, value, .. } => {
+                let (shape_paths, shape_labels) = fg
+                    .values
+                    .get(&(*func, *value))
+                    .map(|value_node| {
+                        (
+                            fg.object_shape_paths
+                                .get(&value_node.index())
+                                .cloned()
+                                .unwrap_or_default(),
+                            fg.object_shape_labels
+                                .get(&value_node.index())
+                                .cloned()
+                                .unwrap_or_default(),
+                        )
+                    })
+                    .unwrap_or_default();
+                nodes.push(AbstractObjectCatalogNodeInput::Value {
+                    node: node.index(),
+                    func: *func,
+                    value: *value,
+                    identity_site: value_identity_site(fg, *func, *value)
+                        .map(str::trim)
+                        .map(str::to_string),
+                    value_type: fg.value_types.get(&(*func, *value)).cloned(),
+                    shape_paths,
+                    shape_labels,
+                    value_regions: fg
+                        .value_memory_regions
+                        .get(&(*func, *value))
+                        .cloned()
+                        .unwrap_or_default(),
+                });
+            }
+            FlowNode::FieldCell {
+                func,
+                base,
+                field,
+                ..
+            } => {
+                nodes.push(AbstractObjectCatalogNodeInput::FieldCell {
+                    node: node.index(),
+                    func: *func,
+                    base: *base,
+                    field: field.clone(),
+                    base_identity_site: value_identity_site(fg, *func, *base)
+                        .map(str::trim)
+                        .map(str::to_string),
+                    cell_regions: fg
+                        .cell_memory_regions
+                        .get(&node.index())
+                        .cloned()
+                        .unwrap_or_default(),
+                });
+            }
+            FlowNode::IndexCell {
+                func,
+                base,
+                abstract_key,
+                ..
+            } => {
+                nodes.push(AbstractObjectCatalogNodeInput::IndexCell {
+                    node: node.index(),
+                    func: *func,
+                    base: *base,
+                    abstract_key: abstract_key.clone(),
+                    base_identity_site: value_identity_site(fg, *func, *base)
+                        .map(str::trim)
+                        .map(str::to_string),
+                    cell_regions: fg
+                        .cell_memory_regions
+                        .get(&node.index())
+                        .cloned()
+                        .unwrap_or_default(),
+                });
+            }
+            _ => {}
+        }
+    }
+    AbstractObjectCatalogInputSnapshot { nodes }
+}
+
+fn materialize_abstract_object_catalog(fg: &mut FlowGraph) -> bool {
+    let input_snapshot = abstract_object_catalog_input_snapshot(fg);
+    if fg.abstract_object_catalog_input_snapshot.as_ref() == Some(&input_snapshot) {
+        return false;
+    }
+
+    let previous_points_to_object_ids = std::mem::take(&mut fg.points_to_object_ids);
+    let previous_object_seed_ids = std::mem::take(&mut fg.object_seed_ids);
+    let previous_abstract_objects = std::mem::take(&mut fg.abstract_objects);
+    let previous_abstract_object_seed_nodes = std::mem::take(&mut fg.abstract_object_seed_nodes);
+
+    // Memory-unit identity is derived from the base value's stable object id.
+    // Build all catalog-independent seeds first so ValueSite ids exist before
+    // asking cells for their memory-unit keys. The previous single-pass cold
+    // rebuild cleared `points_to_object_ids` and then tried to derive those
+    // keys from the just-cleared map, silently dropping every MemoryUnit seed.
+    let nodes = fg.graph.node_indices().collect::<Vec<_>>();
+    let mut base_seeds = Vec::with_capacity(nodes.len().saturating_mul(2));
+    let mut seeds_by_node = Vec::<(usize, Vec<AbstractObjectSeed>)>::with_capacity(nodes.len());
+    let mut cell_positions = Vec::<(NodeIndex, usize)>::new();
+    for node in nodes {
+        let node_seeds = match &fg.graph[node] {
+            FlowNode::Value { func, value } | FlowNode::Param { func, value, .. } => {
+                abstract_object_seeds_for_value(fg, *func, *value)
+            }
+            FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. } => {
+                let position = seeds_by_node.len();
+                cell_positions.push((node, position));
+                abstract_object_non_memory_seeds_for_cell(fg, node)
+            }
+            _ => Vec::new(),
+        };
+        base_seeds.extend(node_seeds.iter().cloned());
+        seeds_by_node.push((node.index(), node_seeds));
+    }
+    base_seeds.sort_unstable();
+    base_seeds.dedup();
+    for seed in base_seeds {
         insert_abstract_object_seed(fg, &seed);
     }
-    for node in fg.graph.node_indices() {
-        let mut seeded_ids = BTreeSet::new();
-        for seed in abstract_object_seeds_for_node(fg, node) {
-            let id = insert_abstract_object_seed(fg, &seed);
-            seeded_ids.insert(id);
+
+    // With ValueSite ids present, memory-unit keys are now stable and can be
+    // materialized deterministically in their own collision-ordered pass.
+    let mut memory_unit_seeds = Vec::with_capacity(cell_positions.len());
+    for (cell, position) in cell_positions {
+        let Some(unit) = precise_memory_unit_key_for_cell(fg, cell) else {
+            continue;
+        };
+        let seed = AbstractObjectSeed::MemoryUnit(unit);
+        memory_unit_seeds.push(seed.clone());
+        seeds_by_node[position].1.push(seed);
+    }
+    memory_unit_seeds.sort_unstable();
+    memory_unit_seeds.dedup();
+    for seed in memory_unit_seeds {
+        insert_abstract_object_seed(fg, &seed);
+    }
+
+    for (node_idx, node_seeds) in seeds_by_node {
+        let mut seeded_ids = Vec::new();
+        for seed in node_seeds {
+            if let Some(id) = fg.object_seed_ids.get(&seed).copied() {
+                seeded_ids.push(id);
+            }
         }
+        seeded_ids.sort_unstable();
+        seeded_ids.dedup();
         if !seeded_ids.is_empty() {
             fg.abstract_object_seed_nodes
-                .insert(node.index(), seeded_ids.into_iter().collect());
+                .insert(node_idx, seeded_ids);
         }
     }
+
+    fg.abstract_object_catalog_input_snapshot = Some(input_snapshot);
+    fg.abstract_object_catalog_rebuilds = fg.abstract_object_catalog_rebuilds.saturating_add(1);
+    fg.points_to_object_ids != previous_points_to_object_ids
+        || fg.object_seed_ids != previous_object_seed_ids
+        || fg.abstract_objects != previous_abstract_objects
+        || fg.abstract_object_seed_nodes != previous_abstract_object_seed_nodes
 }
 
 fn abstract_object_kind_for_target(target: &str) -> String {
@@ -790,12 +996,26 @@ fn compute_literal_index_keys(func: &Function, language: &Language) -> HashMap<V
                     InstKind::ConstInt { dst, value } => (*dst, LiteralState::Known(value.to_string())),
                     InstKind::ConstString { dst, value } => (*dst, LiteralState::Known(value.clone())),
                     InstKind::Copy { dst, src } | InstKind::Move { dst, src } | InstKind::Cast { dst, src, .. } => (*dst, state(src)),
+                    InstKind::Deref { dst, .. } => (*dst, LiteralState::Varying),
+                    InstKind::Compare { dst, .. } => (*dst, LiteralState::Varying),
                     InstKind::NumericStep { dst, src, increment } => {
                         let next = match state(src) {
                             LiteralState::Known(value) => value.parse::<i64>().ok()
                                 .and_then(|value| numeric_step_literal(value, *increment,
                                     func.value_types.get(dst).map(String::as_str)))
                                 .map(|v| LiteralState::Known(v.to_string())).unwrap_or(LiteralState::Varying),
+                            other => other,
+                        };
+                        (*dst, next)
+                    }
+                    InstKind::NumericNeg { dst, src } => {
+                        let next = match state(src) {
+                            LiteralState::Known(value) => value
+                                .parse::<i64>()
+                                .ok()
+                                .and_then(i64::checked_neg)
+                                .map(|value| LiteralState::Known(value.to_string()))
+                                .unwrap_or(LiteralState::Varying),
                             other => other,
                         };
                         (*dst, next)

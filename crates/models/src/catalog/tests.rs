@@ -119,6 +119,31 @@ mod tests {
     }
 
     #[test]
+    fn analysis_catalog_defers_and_selectively_attaches_legacy_metadata() {
+        let mut java = legacy_analysis_models_for(Language::Java)
+            .expect("bundled Java executable legacy models");
+        assert_eq!(java.sources.len(), 1_643);
+        assert_eq!(java.sinks.len(), 4_515);
+        assert_eq!(java.propagators.len(), 3_240);
+        assert!(java.metadata.is_empty());
+
+        let report_id = java
+            .sinks
+            .first()
+            .map(|sink| java.report_id_for_sink(&sink.id).to_string())
+            .expect("Java legacy catalog has a sink");
+        attach_legacy_metadata_for_ids(
+            &Language::Java,
+            &mut java,
+            &HashSet::from([report_id.clone()]),
+        )
+        .expect("selective legacy metadata hydration");
+        assert_eq!(java.metadata.len(), 1);
+        assert_eq!(java.metadata[0].id, report_id);
+        assert!(!java.metadata[0].title.is_empty());
+    }
+
+    #[test]
     fn bundled_legacy_native_catalogs_have_exact_migrated_counts() {
         let cpp = legacy_models_for(Language::Cpp).expect("bundled C/C++ legacy rules");
         assert_eq!(cpp.sources.len(), 942);

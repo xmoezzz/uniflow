@@ -27,11 +27,26 @@ pub struct FlowGraph {
     pub lifetime_states: HashMap<(FunctionId, ValueId), LifetimeState>,
     pub lifetime_block_states: HashMap<(FunctionId, BlockId, ValueId), LifetimeState>,
     pub lifetime_diagnostics: Vec<LifetimeDiagnostic>,
+    /// Path-sensitive nullness facts immediately before an instruction. Only
+    /// definite facts are materialized; absence means `Unknown`.
+    #[serde(default)]
+    pub nullness_before_insts: HashMap<(FunctionId, InstId, ValueId), NullnessState>,
+    /// Diagnostics emitted by native unified-dataflow checkers. These are
+    /// intentionally distinct from lifetime diagnostics so reporting can keep
+    /// the originating rule metadata, standards, localization, and finding kind.
+    #[serde(default)]
+    pub native_dataflow_diagnostics: Vec<NativeDataflowDiagnostic>,
     pub value_cpp: HashMap<(FunctionId, ValueId), uniflow_hir::CppValueSemantics>,
     pub field_cells: HashMap<(FunctionId, ValueId, String), NodeIndex>,
     pub index_cells: HashMap<(FunctionId, ValueId, String), NodeIndex>,
     pub sparse_successors: HashMap<usize, Vec<usize>>,
     pub sparse_predecessors: HashMap<usize, Vec<usize>>,
+    /// Symmetric connectivity for transfers that preserve the identity of the
+    /// referenced value/object. This is deliberately narrower than sparse
+    /// taint/value-flow adjacency: sources, sinks, arbitrary summaries, and
+    /// base-object projection edges must not collapse points-to partitions.
+    #[serde(default)]
+    pub identity_neighbors: HashMap<usize, Vec<usize>>,
     pub heap_value_successors: HashMap<usize, Vec<usize>>,
     pub heap_value_predecessors: HashMap<usize, Vec<usize>>,
     pub heap_object_successors: HashMap<usize, Vec<usize>>,
@@ -69,6 +84,10 @@ pub struct FlowGraph {
     pub object_seed_ids: HashMap<AbstractObjectSeed, u32>,
     pub abstract_objects: HashMap<u32, AbstractObjectInfo>,
     pub abstract_object_seed_nodes: HashMap<usize, Vec<u32>>,
+    #[serde(skip)]
+    abstract_object_catalog_input_snapshot: Option<AbstractObjectCatalogInputSnapshot>,
+    #[serde(skip)]
+    abstract_object_catalog_rebuilds: usize,
     pub node_points_to_object_ids: HashMap<usize, Vec<u32>>,
     pub value_points_to_object_ids: HashMap<(FunctionId, ValueId), Vec<u32>>,
     pub cell_points_to_object_ids: HashMap<usize, Vec<u32>>,
@@ -101,6 +120,8 @@ pub struct FlowGraph {
     #[serde(skip)]
     pub demand_query_summary_cache:
         RefCell<HashMap<(DemandQuery, usize, usize), SparseValueSummary>>,
+    #[serde(skip)]
+    demand_query_scc_cache: RefCell<HashMap<bool, DemandQuerySccIndex>>,
     #[serde(skip)]
     pub contextual_call_summary_cache: RefCell<
         HashMap<
@@ -248,11 +269,14 @@ impl Default for FlowGraph {
             lifetime_states: HashMap::new(),
             lifetime_block_states: HashMap::new(),
             lifetime_diagnostics: Vec::new(),
+            nullness_before_insts: HashMap::new(),
+            native_dataflow_diagnostics: Vec::new(),
             value_cpp: HashMap::new(),
             field_cells: HashMap::new(),
             index_cells: HashMap::new(),
             sparse_successors: HashMap::new(),
             sparse_predecessors: HashMap::new(),
+            identity_neighbors: HashMap::new(),
             heap_value_successors: HashMap::new(),
             heap_value_predecessors: HashMap::new(),
             heap_object_successors: HashMap::new(),
@@ -282,6 +306,8 @@ impl Default for FlowGraph {
             object_seed_ids: HashMap::new(),
             abstract_objects: HashMap::new(),
             abstract_object_seed_nodes: HashMap::new(),
+            abstract_object_catalog_input_snapshot: None,
+            abstract_object_catalog_rebuilds: 0,
             node_points_to_object_ids: HashMap::new(),
             value_points_to_object_ids: HashMap::new(),
             cell_points_to_object_ids: HashMap::new(),
@@ -304,6 +330,7 @@ impl Default for FlowGraph {
             demand_call_summary_cache: RefCell::new(HashMap::new()),
             demand_fixpoint_summary_cache: RefCell::new(HashMap::new()),
             demand_query_summary_cache: RefCell::new(HashMap::new()),
+            demand_query_scc_cache: RefCell::new(HashMap::new()),
             contextual_call_summary_cache: RefCell::new(HashMap::new()),
             function_summary_cache: RefCell::new(HashMap::new()),
             contextual_demand_query_cache: RefCell::new(HashMap::new()),
@@ -321,6 +348,14 @@ impl Default for FlowGraph {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+struct DemandQuerySccIndex {
+    components: Vec<Vec<usize>>,
+    node_to_component: Vec<usize>,
+    successors: HashMap<usize, Vec<usize>>,
+    predecessors: HashMap<usize, Vec<usize>>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LifetimeState {
     Uninitialized,
@@ -334,6 +369,33 @@ pub enum LifetimeState {
     MaybeDestroyed,
     Escaped,
     Unknown,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NullnessState {
+    DefinitelyNull,
+    DefinitelyNonNull,
+    #[default]
+    Unknown,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NativeDataflowDiagnostic {
+    pub rule_id: String,
+    pub severity: String,
+    pub message: String,
+    #[serde(default)]
+    pub message_args: Vec<String>,
+    pub function: FunctionId,
+    pub instruction: Option<InstId>,
+    pub value: ValueId,
+    pub span: Span,
+    #[serde(default = "default_native_finding_kind")]
+    pub finding_kind: String,
+}
+
+fn default_native_finding_kind() -> String {
+    "native-dataflow".to_string()
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -477,6 +539,41 @@ pub enum AbstractObjectSeed {
     SyntheticSink(String),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct AbstractObjectCatalogInputSnapshot {
+    nodes: Vec<AbstractObjectCatalogNodeInput>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum AbstractObjectCatalogNodeInput {
+    Value {
+        node: usize,
+        func: FunctionId,
+        value: ValueId,
+        identity_site: Option<String>,
+        value_type: Option<String>,
+        shape_paths: Vec<String>,
+        shape_labels: Vec<String>,
+        value_regions: Vec<String>,
+    },
+    FieldCell {
+        node: usize,
+        func: FunctionId,
+        base: ValueId,
+        field: String,
+        base_identity_site: Option<String>,
+        cell_regions: Vec<String>,
+    },
+    IndexCell {
+        node: usize,
+        func: FunctionId,
+        base: ValueId,
+        abstract_key: String,
+        base_identity_site: Option<String>,
+        cell_regions: Vec<String>,
+    },
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FlowStats {
     pub files: usize,
@@ -547,6 +644,29 @@ pub struct SparseTraversal {
     pub frontier_cutoff: bool,
     #[serde(default)]
     pub completeness: QueryCompleteness,
+}
+
+/// Compact one-shot reachability result for analyses that only need node
+/// membership and completeness. Unlike `SparseTraversal`, this intentionally
+/// does not retain traversal layers or materialized value/call summaries.
+#[derive(Clone, Debug, Default)]
+pub struct DemandReachability {
+    reachable: Vec<bool>,
+    pub completeness: QueryCompleteness,
+}
+
+impl DemandReachability {
+    pub fn contains(&self, node: usize) -> bool {
+        self.reachable.get(node).copied().unwrap_or(false)
+    }
+
+    pub fn len(&self) -> usize {
+        self.reachable.iter().filter(|reachable| **reachable).count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        !self.reachable.iter().any(|reachable| *reachable)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]

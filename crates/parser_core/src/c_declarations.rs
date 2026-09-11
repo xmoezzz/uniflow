@@ -8,6 +8,8 @@ use std::ops::Range;
 #[derive(Clone, Debug)]
 pub enum DerivedDeclarator {
     Pointer,
+    Reference,
+    RvalueReference,
     MemberPointer,
     Array { size: Range<usize> },
     Function { parameters: Range<usize> },
@@ -17,6 +19,7 @@ pub enum DerivedDeclarator {
 pub struct CDeclarator {
     pub name: Option<String>,
     pub qualified_name: Option<String>,
+    pub name_range: Option<Range<usize>>,
     pub range: Range<usize>,
     pub derived: Vec<DerivedDeclarator>,
     pub initializer: Option<Range<usize>>,
@@ -42,17 +45,39 @@ pub struct CFunctionDefinition {
     pub parameters: Range<usize>,
     pub name: String,
     pub qualified_name: String,
+    pub name_range: Range<usize>,
     pub return_type: String,
+    pub return_derived: Vec<DerivedDeclarator>,
     pub returns_void: bool,
     pub is_global: bool,
+    pub is_static: bool,
     pub is_noreturn: bool,
+    pub context: CFunctionContext,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CFunctionContext {
+    TranslationUnit,
+    Namespace {
+        name: String,
+        qualified_name: String,
+    },
+    Record {
+        qualified_name: String,
+    },
+    Other,
 }
 
 #[derive(Clone, Debug)]
 pub struct CParameter {
     pub range: Range<usize>,
     pub type_name: String,
+    /// True when the written parameter type contains a C++ placeholder `auto`
+    /// whose type is still undeduced at the declaration site. This mirrors
+    /// Clang's `Type::isUndeducedType()` predicate used by legacy checkers.
+    pub undeduced_type: bool,
     pub name: Option<String>,
+    pub name_range: Option<Range<usize>>,
     pub has_name: bool,
     pub plain_void: bool,
     pub derived: Vec<DerivedDeclarator>,
@@ -88,6 +113,7 @@ pub struct CAggregate {
 #[derive(Clone, Debug)]
 pub struct CReturn {
     pub range: Range<usize>,
+    pub value: Option<Range<usize>>,
     pub function: usize,
     pub has_value: bool,
     pub direct_child: bool,
@@ -126,6 +152,8 @@ struct Scope {
     field_context: bool,
     extern_c: bool,
     qualification: Vec<String>,
+    namespace_qualification: Vec<String>,
+    record_qualified_name: Option<String>,
 }
 
 fn qualified_declarator_name(scope: &Scope, declarator: &CDeclarator) -> String {
@@ -180,7 +208,37 @@ impl CDeclarationIndex {
             mates,
         };
         index.region(0, index.tokens.len() - 1, &Scope::default(), 0);
+        index.resolve_out_of_line_record_contexts();
         index
+    }
+
+    fn resolve_out_of_line_record_contexts(&mut self) {
+        let records = self
+            .aggregates
+            .iter()
+            .filter(|aggregate| aggregate.kind != "enum" && !aggregate.qualified_name.is_empty())
+            .map(|aggregate| aggregate.qualified_name.clone())
+            .collect::<std::collections::HashSet<_>>();
+
+        for function in &mut self.functions {
+            if matches!(function.context, CFunctionContext::Record { .. }) {
+                continue;
+            }
+            let Some((owner, _)) = function.qualified_name.rsplit_once("::") else {
+                continue;
+            };
+            let mut candidates = vec![owner.to_string()];
+            if let CFunctionContext::Namespace { qualified_name, .. } = &function.context {
+                if !qualified_name.is_empty() && !owner.starts_with(&format!("{qualified_name}::")) {
+                    candidates.push(format!("{qualified_name}::{owner}"));
+                }
+            }
+            if let Some(record) = candidates.into_iter().find(|candidate| records.contains(candidate)) {
+                function.context = CFunctionContext::Record {
+                    qualified_name: record,
+                };
+            }
+        }
     }
 
     pub fn tokens_in(&self, range: Range<usize>) -> impl Iterator<Item = &Token> {
@@ -212,6 +270,52 @@ impl CDeclarationIndex {
         } else {
             begin
         }
+    }
+
+    fn overloaded_operator_name(
+        &self,
+        at: usize,
+        end: usize,
+    ) -> Option<(usize, String, Range<usize>)> {
+        if !self.is(at, "operator") || at + 1 >= end {
+            return None;
+        }
+        let start = at;
+        let mut next = at + 1;
+        let suffix = match self.tokens.get(next)?.text.as_str() {
+            "new" | "delete" => {
+                let word = self.tokens[next].text.clone();
+                next += 1;
+                if next + 1 < end && self.is(next, "[") && self.is(next + 1, "]") {
+                    next += 2;
+                    format!(" {word}[]")
+                } else {
+                    format!(" {word}")
+                }
+            }
+            "(" if next + 1 < end && self.is(next + 1, ")") => {
+                next += 2;
+                "()".to_string()
+            }
+            "[" if next + 1 < end && self.is(next + 1, "]") => {
+                next += 2;
+                "[]".to_string()
+            }
+            "=" | "+" | "-" | "*" | "/" | "%" | "^" | "&" | "|" | "~" | "!"
+            | "<" | ">" | "+=" | "-=" | "*=" | "/=" | "%=" | "^=" | "&=" | "|="
+            | "<<" | ">>" | "<<=" | ">>=" | "==" | "!=" | "<=" | ">=" | "<=>"
+            | "&&" | "||" | "++" | "--" | "," | "->" => {
+                let operator = self.tokens[next].text.clone();
+                next += 1;
+                operator
+            }
+            _ => return None,
+        };
+        Some((
+            next,
+            format!("operator{suffix}"),
+            self.range(start, next),
+        ))
     }
 
     fn skip_group(&self, at: usize) -> usize {
@@ -262,12 +366,17 @@ impl CDeclarationIndex {
                     if self.is(at, "extern") {
                         inner.extern_c = true;
                     } else {
-                        inner.qualification.extend(
-                            self.tokens[at + 1..open]
-                                .iter()
-                                .filter(|token| token.kind == TokKind::Ident)
-                                .map(|token| token.text.clone()),
-                        );
+                        let names = self.tokens[at + 1..open]
+                            .iter()
+                            .filter(|token| token.kind == TokKind::Ident)
+                            .map(|token| token.text.clone())
+                            .collect::<Vec<_>>();
+                        inner.qualification.extend(names.iter().cloned());
+                        if names.is_empty() {
+                            inner.namespace_qualification.push(String::new());
+                        } else {
+                            inner.namespace_qualification.extend(names);
+                        }
                     }
                     self.region(open + 1, close, &inner, depth + 1);
                     at = close + 1;
@@ -301,6 +410,7 @@ impl CDeclarationIndex {
                 if let Some(function) = scope.function {
                     self.returns.push(CReturn {
                         range: self.range(at, (next + 1).min(end)),
+                        value: (next > at + 1).then(|| self.range(at + 1, next)),
                         function,
                         has_value: next > at + 1,
                         direct_child: scope.function_body_depth == Some(depth),
@@ -497,6 +607,9 @@ impl CDeclarationIndex {
                         if let Some(name) = &name {
                             inner.qualification.push(name.clone());
                         }
+                        if text != "enum" {
+                            inner.record_qualified_name = Some(inner.qualification.join("::"));
+                        }
                         if text == "enum" {
                             let mut enumerator = at + 1;
                             while enumerator < close {
@@ -614,8 +727,7 @@ impl CDeclarationIndex {
             return None;
         }
         let mut at = start;
-        let mut pointers = 0;
-        let mut member_pointer = false;
+        let mut prefix = Vec::new();
         if self
             .tokens
             .get(at)
@@ -624,7 +736,7 @@ impl CDeclarationIndex {
             let mut probe = at;
             while self.is(probe + 1, "::") {
                 if self.is(probe + 2, "*") {
-                    member_pointer = true;
+                    prefix.push(DerivedDeclarator::MemberPointer);
                     at = probe + 3;
                     break;
                 }
@@ -644,9 +756,18 @@ impl CDeclarationIndex {
             || self.is(at, "&")
             || self.is(at, "&&")
         {
-            // The shared lexer recognizes Python-style `**` as one token.
-            // In a C declarator the same bytes are always two pointer layers.
-            pointers += if self.is(at, "**") { 2 } else { 1 };
+            match self.tokens[at].text.as_str() {
+                // The shared lexer recognizes Python-style `**` as one token.
+                // In a C declarator the same bytes are always two pointer layers.
+                "**" => {
+                    prefix.push(DerivedDeclarator::Pointer);
+                    prefix.push(DerivedDeclarator::Pointer);
+                }
+                "*" => prefix.push(DerivedDeclarator::Pointer),
+                "&" => prefix.push(DerivedDeclarator::Reference),
+                "&&" => prefix.push(DerivedDeclarator::RvalueReference),
+                _ => unreachable!("prefix declarator spelling filtered above"),
+            }
             at += 1;
             while self.tokens.get(at).is_some_and(|token| {
                 matches!(token.text.as_str(), "const" | "volatile" | "restrict")
@@ -657,29 +778,47 @@ impl CDeclarationIndex {
         let mut declaration = CDeclarator {
             name: None,
             qualified_name: None,
+            name_range: None,
             range: self.range(start, at),
             derived: Vec::new(),
             initializer: None,
             bit_width: None,
         };
-        if self
+        if let Some((next, name, name_range)) = self.overloaded_operator_name(at, end) {
+            declaration.name = Some(name.clone());
+            declaration.qualified_name = Some(name);
+            declaration.name_range = Some(name_range);
+            at = next;
+        } else if self
             .tokens
             .get(at)
             .is_some_and(|token| token.kind == TokKind::Ident)
         {
+            let mut name_range = self.range(at, at + 1);
             let mut name_parts = vec![self.tokens[at].text.clone()];
             at += 1;
-            while self.is(at, "::")
-                && self
+            while self.is(at, "::") {
+                if let Some((next, name, range)) = self.overloaded_operator_name(at + 1, end) {
+                    name_parts.push(name);
+                    name_range = range;
+                    at = next;
+                    break;
+                }
+                if self
                     .tokens
                     .get(at + 1)
                     .is_some_and(|token| token.kind == TokKind::Ident)
-            {
-                name_parts.push(self.tokens[at + 1].text.clone());
-                at += 2;
+                {
+                    name_parts.push(self.tokens[at + 1].text.clone());
+                    name_range = self.range(at + 1, at + 2);
+                    at += 2;
+                } else {
+                    break;
+                }
             }
             declaration.name = name_parts.last().cloned();
             declaration.qualified_name = Some(name_parts.join("::"));
+            declaration.name_range = Some(name_range);
         } else if self.is(at, "(") && !self.is(at + 1, ")") {
             let close = self.mates[at]?;
             let (next, nested) = self.declarator(at + 1, close, scope, depth + 1)?;
@@ -707,13 +846,9 @@ impl CDeclarationIndex {
                 break;
             }
         }
-        if member_pointer {
-            declaration.derived.push(DerivedDeclarator::MemberPointer);
-        } else {
-            declaration
-                .derived
-                .extend((0..pointers).map(|_| DerivedDeclarator::Pointer));
-        }
+        // Prefix declarators are written from the base type toward the name,
+        // while `derived` is stored from the declared name outward.
+        declaration.derived.extend(prefix.into_iter().rev());
         declaration.range = self.range(start, at);
         (at > start).then_some((at, declaration))
     }
@@ -728,16 +863,27 @@ impl CDeclarationIndex {
                 at = self.skip_group(at);
             }
             if !self.is(start, "...") {
-                if let Some((head, ty, _)) = self.specifiers(start, at, scope, depth + 1) {
+                let placeholder = self.undeduced_parameter_specifiers(start, at);
+                let parsed = placeholder
+                    .map(|(head, ty)| (head, ty, true))
+                    .or_else(|| {
+                        self.specifiers(start, at, scope, depth + 1)
+                            .map(|(head, ty, _)| (head, ty, false))
+                    });
+                if let Some((head, ty, undeduced_type)) = parsed {
                     let declaration = self
                         .declarator(head, at, scope, depth + 1)
                         .map(|(_, declaration)| declaration);
                     self.parameters.push(CParameter {
                         range: self.range(start, at),
                         type_name: ty.clone(),
+                        undeduced_type,
                         name: declaration
                             .as_ref()
                             .and_then(|declaration| declaration.name.clone()),
+                        name_range: declaration
+                            .as_ref()
+                            .and_then(|declaration| declaration.name_range.clone()),
                         has_name: declaration
                             .as_ref()
                             .is_some_and(|declaration| declaration.name.is_some()),
@@ -750,6 +896,32 @@ impl CDeclarationIndex {
             }
             at += usize::from(at < end);
         }
+    }
+
+    fn undeduced_parameter_specifiers(
+        &self,
+        start: usize,
+        end: usize,
+    ) -> Option<(usize, String)> {
+        let mut at = start;
+        while at < end {
+            if let Some(next) = self.attribute_end(at) {
+                at = next;
+                continue;
+            }
+            if self.is(at, "=") {
+                break;
+            }
+            if self.is(at, "auto") {
+                return Some((at + 1, "auto".to_string()));
+            }
+            if matches!(self.tokens[at].text.as_str(), "(" | "[" | "{") {
+                at = self.skip_group(at);
+            } else {
+                at += 1;
+            }
+        }
+        None
     }
 
     fn declaration(
@@ -782,18 +954,43 @@ impl CDeclarationIndex {
                 {
                     let close = self.mates[at]?;
                     let function = self.functions.len();
+                    let name = declaration.name.clone()?;
+                    let name_range = declaration.name_range.clone()?;
                     self.functions.push(CFunctionDefinition {
                         range: self.range(start, close + 1),
                         body: self.range(at, close + 1),
                         parameters: parameters.clone(),
-                        name: declaration.name.clone()?,
+                        name,
                         qualified_name: qualified_declarator_name(scope, &declaration),
+                        name_range,
                         return_type: ty.clone(),
+                        return_derived: declaration.derived.iter().skip(1).cloned().collect(),
                         returns_void: ty == "void" && declaration.derived.len() == 1,
                         is_global: scope.function.is_none() && !scope.field_context,
+                        is_static: storage.iter().any(|item| item == "static"),
                         is_noreturn: self.tokens[start..at]
                             .iter()
                             .any(|token| matches!(token.text.as_str(), "noreturn" | "_Noreturn")),
+                        context: if let Some(qualified_name) = &scope.record_qualified_name {
+                            CFunctionContext::Record {
+                                qualified_name: qualified_name.clone(),
+                            }
+                        } else if scope.function.is_some() {
+                            CFunctionContext::Other
+                        } else if let Some(name) = scope.namespace_qualification.last() {
+                            CFunctionContext::Namespace {
+                                name: name.clone(),
+                                qualified_name: scope
+                                    .namespace_qualification
+                                    .iter()
+                                    .filter(|part| !part.is_empty())
+                                    .cloned()
+                                    .collect::<Vec<_>>()
+                                    .join("::"),
+                            }
+                        } else {
+                            CFunctionContext::TranslationUnit
+                        },
                     });
                     let mut inner = scope.clone();
                     inner.function = Some(function);

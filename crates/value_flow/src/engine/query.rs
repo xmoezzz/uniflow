@@ -15,7 +15,133 @@ fn merge_query_completeness(
     if rank(right) > rank(left) { right } else { left }
 }
 
+fn into_sorted_unique_vec<T: Ord + Eq + Hash>(values: HashSet<T>) -> Vec<T> {
+    let mut values = values.into_iter().collect::<Vec<_>>();
+    values.sort_unstable();
+    values
+}
+
 impl FlowGraph {
+    /// Run a single-node demand reachability query without populating any of
+    /// the summary caches. This is intended for high-volume consumers such as
+    /// taint slicing that only need node membership and completeness.
+    pub fn one_shot_node_reachability(
+        &self,
+        seed: NodeIndex,
+        direction: SparseDirection,
+        engine: DemandEngine,
+        max_depth: usize,
+        max_visits: usize,
+        include_heap: bool,
+    ) -> DemandReachability {
+        let mut out = DemandReachability {
+            reachable: vec![false; self.graph.node_count()],
+            completeness: QueryCompleteness::Complete,
+        };
+        if seed.index() >= out.reachable.len() {
+            out.reachable.resize(seed.index() + 1, false);
+        }
+
+        match engine {
+            DemandEngine::Sparse => {
+                let mut frontier = vec![seed];
+                let mut depth = 0usize;
+                let mut visits = 0usize;
+                while !frontier.is_empty() && depth <= max_depth {
+                    let mut next = Vec::new();
+                    for node in frontier {
+                        let index = node.index();
+                        if index >= out.reachable.len() {
+                            out.reachable.resize(index + 1, false);
+                        }
+                        if out.reachable[index] {
+                            continue;
+                        }
+                        if visits >= max_visits {
+                            out.completeness = QueryCompleteness::VisitLimitReached;
+                            return out;
+                        }
+                        out.reachable[index] = true;
+                        visits += 1;
+                        for neighbor in self.demand_query_neighbors_of(node, direction, include_heap) {
+                            if !out.contains(neighbor.index()) {
+                                next.push(neighbor);
+                            }
+                        }
+                    }
+                    next.sort_unstable_by_key(|node| node.index());
+                    next.dedup_by_key(|node| node.index());
+                    frontier = next;
+                    depth += 1;
+                }
+                if !frontier.is_empty() {
+                    out.completeness = QueryCompleteness::DepthLimitReached;
+                }
+            }
+            DemandEngine::Fixpoint => {
+                let scc = self.demand_query_scc_index(include_heap);
+                let Some(seed_component) = scc.node_to_component.get(seed.index()).copied() else {
+                    return out;
+                };
+                if seed_component == usize::MAX {
+                    return out;
+                }
+                let mut frontier = vec![seed_component];
+                let mut seen_components = vec![false; scc.components.len()];
+                let mut depth = 0usize;
+                let mut visits = 0usize;
+                while !frontier.is_empty() && depth <= max_depth {
+                    let mut next = Vec::new();
+                    for component in frontier {
+                        if seen_components.get(component).copied().unwrap_or(false) {
+                            continue;
+                        }
+                        if component >= seen_components.len() {
+                            continue;
+                        }
+                        seen_components[component] = true;
+                        let Some(members) = scc.components.get(component) else {
+                            continue;
+                        };
+                        for &member in members {
+                            if member >= out.reachable.len() {
+                                out.reachable.resize(member + 1, false);
+                            }
+                            if out.reachable[member] {
+                                continue;
+                            }
+                            if visits >= max_visits {
+                                out.completeness = QueryCompleteness::VisitLimitReached;
+                                return out;
+                            }
+                            out.reachable[member] = true;
+                            visits += 1;
+                        }
+                        let neighbors = match direction {
+                            SparseDirection::Forward => scc.successors.get(&component),
+                            SparseDirection::Backward => scc.predecessors.get(&component),
+                        };
+                        if let Some(neighbors) = neighbors {
+                            for neighbor in neighbors {
+                                if !seen_components.get(*neighbor).copied().unwrap_or(false) {
+                                    next.push(*neighbor);
+                                }
+                            }
+                        }
+                    }
+                    next.sort_unstable();
+                    next.dedup();
+                    frontier = next;
+                    depth += 1;
+                }
+                if !frontier.is_empty() {
+                    out.completeness = QueryCompleteness::DepthLimitReached;
+                }
+            }
+        }
+        out
+    }
+
     pub fn ensure_value(&mut self, func: FunctionId, value: ValueId) -> NodeIndex {
         if let Some(node) = self.values.get(&(func, value)).copied() {
             return node;
@@ -737,8 +863,9 @@ impl FlowGraph {
             seeds: seeds.iter().map(|node| node.index()).collect(),
             ..SparseTraversal::default()
         };
-        let (components, node_to_component, succ, pred) = self.demand_query_scc_index(include_heap);
-        let component_allowed = components
+        let scc = self.demand_query_scc_index(include_heap);
+        let component_allowed = scc
+            .components
             .iter()
             .enumerate()
             .map(|(component, members)| {
@@ -753,7 +880,7 @@ impl FlowGraph {
         let mut frontier = seeds
             .iter()
             .filter(|seed| self.node_matches_call_context(**seed, context))
-            .filter_map(|seed| node_to_component.get(seed.index()).copied())
+            .filter_map(|seed| scc.node_to_component.get(seed.index()).copied())
             .filter(|component| *component != usize::MAX && component_allowed.get(component).copied().unwrap_or(false))
             .collect::<Vec<_>>();
         frontier.sort_unstable();
@@ -768,8 +895,10 @@ impl FlowGraph {
                 if !seen_components.insert(component) {
                     continue;
                 }
-                let members = components.get(component).cloned().unwrap_or_default();
-                for member in members {
+                let Some(members) = scc.components.get(component) else {
+                    continue;
+                };
+                for &member in members {
                     let node = NodeIndex::new(member);
                     if !self.node_matches_call_context(node, context) {
                         continue;
@@ -785,8 +914,8 @@ impl FlowGraph {
                     }
                 }
                 let neighbors = match direction {
-                    SparseDirection::Forward => succ.get(&component),
-                    SparseDirection::Backward => pred.get(&component),
+                    SparseDirection::Forward => scc.successors.get(&component),
+                    SparseDirection::Backward => scc.predecessors.get(&component),
                 };
                 if let Some(neighbors) = neighbors {
                     for neighbor in neighbors {
@@ -868,6 +997,7 @@ impl FlowGraph {
         self.demand_call_summary_cache.borrow_mut().clear();
         self.demand_fixpoint_summary_cache.borrow_mut().clear();
         self.demand_query_summary_cache.borrow_mut().clear();
+        self.demand_query_scc_cache.borrow_mut().clear();
         self.contextual_call_summary_cache.borrow_mut().clear();
         self.function_summary_cache.borrow_mut().clear();
         self.contextual_demand_query_cache.borrow_mut().clear();
@@ -958,10 +1088,10 @@ impl FlowGraph {
         (components, node_to_component, succ, pred)
     }
 
-    fn demand_query_scc_index(
+    fn build_demand_query_scc_index(
         &self,
         include_heap: bool,
-    ) -> (Vec<Vec<usize>>, Vec<usize>, HashMap<usize, Vec<usize>>, HashMap<usize, Vec<usize>>) {
+    ) -> DemandQuerySccIndex {
         let mut sparse = DiGraph::<(), ()>::new();
         for _ in 0..self.graph.node_count() {
             sparse.add_node(());
@@ -1042,7 +1172,26 @@ impl FlowGraph {
             values.sort_unstable();
             values.dedup();
         }
-        (components, node_to_component, succ, pred)
+        DemandQuerySccIndex {
+            components,
+            node_to_component,
+            successors: succ,
+            predecessors: pred,
+        }
+    }
+
+    fn demand_query_scc_index(&self, include_heap: bool) -> std::cell::Ref<'_, DemandQuerySccIndex> {
+        if !self.demand_query_scc_cache.borrow().contains_key(&include_heap) {
+            let index = self.build_demand_query_scc_index(include_heap);
+            self.demand_query_scc_cache
+                .borrow_mut()
+                .insert(include_heap, index);
+        }
+        std::cell::Ref::map(self.demand_query_scc_cache.borrow(), |cache| {
+            cache
+                .get(&include_heap)
+                .expect("demand-query SCC cache entry must exist")
+        })
     }
 
     fn demand_query_fixpoint_traversal(
@@ -1057,10 +1206,10 @@ impl FlowGraph {
             seeds: seeds.iter().map(|node| node.index()).collect(),
             ..SparseTraversal::default()
         };
-        let (components, node_to_component, succ, pred) = self.demand_query_scc_index(include_heap);
+        let scc = self.demand_query_scc_index(include_heap);
         let mut frontier = seeds
             .iter()
-            .filter_map(|seed| node_to_component.get(seed.index()).copied())
+            .filter_map(|seed| scc.node_to_component.get(seed.index()).copied())
             .filter(|component| *component != usize::MAX)
             .collect::<Vec<_>>();
         frontier.sort_unstable();
@@ -1075,8 +1224,10 @@ impl FlowGraph {
                 if !seen_components.insert(component) {
                     continue;
                 }
-                let members = components.get(component).cloned().unwrap_or_default();
-                for member in members {
+                let Some(members) = scc.components.get(component) else {
+                    continue;
+                };
+                for &member in members {
                     if out.visited.len() >= max_visits {
                         out.frontier_cutoff = true;
                         out.completeness = QueryCompleteness::VisitLimitReached;
@@ -1088,8 +1239,8 @@ impl FlowGraph {
                     }
                 }
                 let neighbors = match direction {
-                    SparseDirection::Forward => succ.get(&component),
-                    SparseDirection::Backward => pred.get(&component),
+                    SparseDirection::Forward => scc.successors.get(&component),
+                    SparseDirection::Backward => scc.predecessors.get(&component),
                 };
                 if let Some(neighbors) = neighbors {
                     for neighbor in neighbors {
@@ -2343,11 +2494,48 @@ impl FlowGraph {
         engine: DemandEngine,
         include_heap: bool,
     ) -> Option<FunctionHeapEffectSummary> {
+        let transitive_store_records = all_transitive_cell_store_records(self);
+        let mut strong_update_cache = HashMap::new();
+        let mut cell_points_to_target_index = cell_candidates_by_points_to_target(self);
+        self.function_heap_effect_summary_with_store_snapshot(
+            func,
+            max_depth,
+            max_visits,
+            engine,
+            include_heap,
+            &transitive_store_records,
+            &mut strong_update_cache,
+            &mut cell_points_to_target_index,
+        )
+    }
+
+    fn function_heap_effect_summary_with_store_snapshot(
+        &self,
+        func: FunctionId,
+        max_depth: usize,
+        max_visits: usize,
+        engine: DemandEngine,
+        include_heap: bool,
+        transitive_store_records: &HashMap<usize, BTreeSet<DetailedStoreRecord>>,
+        strong_update_cache: &mut HashMap<usize, bool>,
+        cell_points_to_target_index: &mut CellPointsToTargetIndex,
+    ) -> Option<FunctionHeapEffectSummary> {
         let key = (func.0, max_depth, max_visits, engine, include_heap);
-        if let Some(cached) = self.function_heap_effect_summary_cache.borrow().get(&key).cloned() {
+        if let Some(cached) = self
+            .function_heap_effect_summary_cache
+            .borrow()
+            .get(&key)
+            .cloned()
+        {
             return Some(cached);
         }
-        let transfer = self.function_transfer_summary(func, max_depth, max_visits, engine, include_heap)?;
+        let transfer = self.function_transfer_summary(
+            func,
+            max_depth,
+            max_visits,
+            engine,
+            include_heap,
+        )?;
         let mut param_indices = self
             .function_params
             .keys()
@@ -2356,28 +2544,35 @@ impl FlowGraph {
         param_indices.sort_unstable();
         param_indices.dedup();
 
-        let mut param_to_read_regions = BTreeSet::new();
-        let mut param_to_read_paths = BTreeSet::new();
-        let mut param_to_read_cells = BTreeSet::new();
-        let mut param_to_read_objects = BTreeSet::new();
-        let mut param_to_write_regions = BTreeSet::new();
-        let mut param_to_write_paths = BTreeSet::new();
-        let mut param_to_write_cells = BTreeSet::new();
-        let mut param_to_write_objects = BTreeSet::new();
-        let mut param_to_return_regions = BTreeSet::new();
-        let mut param_to_return_paths = BTreeSet::new();
-        let mut param_to_return_cells = BTreeSet::new();
-        let mut param_to_return_objects = BTreeSet::new();
-        let mut param_to_return_live_values = BTreeSet::new();
-        let mut return_regions = BTreeSet::new();
-        let mut return_paths = BTreeSet::new();
-        let mut return_cells = BTreeSet::new();
-        let mut return_objects = BTreeSet::new();
-        let mut return_value_regions = BTreeSet::new();
-        let mut return_value_paths = BTreeSet::new();
-        let mut return_value_cells = BTreeSet::new();
-        let mut return_value_objects = BTreeSet::new();
-        let mut return_live_values = BTreeSet::new();
+        // Region/path collections do not need construction-time membership
+        // queries. Avoid hashing long strings on every insertion; append them
+        // and canonicalize once after collection. Numeric collections keep
+        // their cheap construction-time de-duplication below.
+        let mut param_to_read_regions = Vec::<(usize, &str)>::new();
+        let mut param_to_read_paths = Vec::<(usize, u32)>::new();
+        let mut param_to_read_cells = HashSet::new();
+        let mut param_to_read_objects = HashSet::new();
+        let mut param_to_write_regions = Vec::<(usize, &str)>::new();
+        let mut param_to_write_paths = Vec::<(usize, u32)>::new();
+        let mut param_to_write_cells = HashSet::new();
+        let mut param_to_write_objects = HashSet::new();
+        let mut param_to_return_regions = Vec::<(usize, &str)>::new();
+        let mut param_to_return_paths = Vec::<(usize, u32)>::new();
+        let mut param_to_return_cells = HashSet::new();
+        let mut param_to_return_objects = HashSet::new();
+        let mut param_to_return_live_values = HashSet::new();
+        let mut return_regions = Vec::<&str>::new();
+        let mut return_paths = Vec::<u32>::new();
+        let mut return_cells = HashSet::new();
+        let mut return_objects = HashSet::new();
+        let mut return_value_regions = Vec::<(u32, u32, &str)>::new();
+        let mut return_value_paths = Vec::<(u32, u32, u32)>::new();
+        let mut return_value_cells = HashSet::new();
+        let mut return_value_objects = HashSet::new();
+        let mut return_live_values = HashSet::new();
+        let mut relative_path_index_by_root =
+            HashMap::<(u32, u32), RelativeRegionPathIndex>::new();
+        let mut access_path_interner = AccessPathInterner::default();
 
         for (summary_func, summary_value) in &transfer.return_values {
             if *summary_func != func.0 {
@@ -2386,21 +2581,54 @@ impl FlowGraph {
             let value_func = FunctionId(*summary_func);
             let value_id = ValueId(*summary_value);
             let root_regions = value_root_memory_regions(self, value_func, value_id);
-            for region in self.value_memory_regions_of(value_func, value_id) {
-                return_regions.insert(region.clone());
-                return_value_regions.insert((*summary_func, *summary_value, region.clone()));
-                for path in region_relative_access_paths(&root_regions, &region) {
-                    return_paths.insert(path.clone());
-                    return_value_paths.insert((*summary_func, *summary_value, path));
+            let relative_path_index = relative_path_index_by_root
+                .entry((*summary_func, *summary_value))
+                .or_insert_with(|| RelativeRegionPathIndex::new(&root_regions));
+            for region in self
+                .value_memory_regions
+                .get(&(value_func, value_id))
+                .into_iter()
+                .flatten()
+            {
+                return_regions.push(region.as_str());
+                return_value_regions.push((*summary_func, *summary_value, region.as_str()));
+                for &path_id in
+                    relative_path_index.path_ids_for(region, &mut access_path_interner)
+                {
+                    return_paths.push(path_id);
+                    return_value_paths.push((*summary_func, *summary_value, path_id));
                 }
             }
-            for object_id in self.value_points_to_object_ids_of(value_func, value_id) {
+            for &object_id in self
+                .value_points_to_object_ids
+                .get(&(value_func, value_id))
+                .into_iter()
+                .flatten()
+            {
                 return_objects.insert(object_id);
                 return_value_objects.insert((*summary_func, *summary_value, object_id));
             }
-            for cell in cell_candidates_for_value_targets(self, value_func, value_id) {
+            for cell in cell_candidates_for_value_targets_indexed(
+                self,
+                cell_points_to_target_index,
+                value_func,
+                value_id,
+            ) {
                 return_cells.insert(cell.index() as u32);
                 return_value_cells.insert((*summary_func, *summary_value, cell.index() as u32));
+            }
+        }
+
+        let mut formal_indices_by_value = HashMap::<ValueId, Vec<usize>>::new();
+        for ((owner, formal_index), node) in &self.function_params {
+            if *owner != func {
+                continue;
+            }
+            if let FlowNode::Param { value, .. } = self.graph[*node] {
+                formal_indices_by_value
+                    .entry(value)
+                    .or_default()
+                    .push(*formal_index);
             }
         }
 
@@ -2416,12 +2644,12 @@ impl FlowGraph {
             ) else {
                 continue;
             };
-            let reachable_values = summary.values.iter().copied().collect::<BTreeSet<_>>();
+            let reachable_values = summary.values.iter().copied().collect::<HashSet<_>>();
             let reachable_params = summary
                 .params
                 .iter()
                 .map(|(f, _i, v)| (*f, *v))
-                .collect::<BTreeSet<_>>();
+                .collect::<HashSet<_>>();
             let Some(&param_node) = self.function_params.get(&(func, *index)) else {
                 continue;
             };
@@ -2430,6 +2658,9 @@ impl FlowGraph {
                 _ => continue,
             };
             let param_root_regions = value_root_memory_regions(self, func, param_value);
+            let relative_path_index = relative_path_index_by_root
+                .entry((func.0, param_value.0))
+                .or_insert_with(|| RelativeRegionPathIndex::new(&param_root_regions));
             for visited in &summary.traversal.visited {
                 let node = NodeIndex::new(*visited);
                 match &self.graph[node] {
@@ -2444,62 +2675,85 @@ impl FlowGraph {
                             .get(&(func, *base))
                             .copied()
                             .unwrap_or(*base);
-                        let rooted_at_different_formal = self.function_params.iter().any(
-                            |((owner, other_index), node)| {
-                                if *owner != func || *other_index == *index {
-                                    return false;
-                                }
-                                let FlowNode::Param { value, .. } = self.graph[*node] else {
-                                    return false;
-                                };
-                                value == *base
-                            },
-                        );
+                        let rooted_at_different_formal = formal_indices_by_value
+                            .get(base)
+                            .map(|indices| indices.iter().any(|other_index| other_index != index))
+                            .unwrap_or(false);
                         if rooted_at_different_formal {
                             continue;
                         }
-                        let cell_regions = self.cell_memory_regions_of(node);
-                        let relative_paths = cell_regions
+                        let cell_regions = self
+                            .cell_memory_regions
+                            .get(&node.index())
+                            .map(Vec::as_slice)
+                            .unwrap_or(&[]);
+                        let has_relative_path = cell_regions
                             .iter()
-                            .flat_map(|region| {
-                                region_relative_access_paths(&param_root_regions, region)
-                            })
-                            .collect::<Vec<_>>();
+                            .any(|region| {
+                                !relative_path_index
+                                    .path_ids_for(region, &mut access_path_interner)
+                                    .is_empty()
+                            });
                         // A forward may-alias traversal can encounter cells rooted at a
                         // different unknown parameter.  Such a traversal is useful for
                         // conservative points-to queries, but it is not a value-flow
                         // transfer from parameter A into parameter B's fields.
-                        if cell_root != param_root && relative_paths.is_empty() {
+                        if cell_root != param_root && !has_relative_path {
                             continue;
                         }
-                        for region in &cell_regions {
-                            param_to_read_regions.insert((*index, region.clone()));
-                            for path in region_relative_access_paths(&param_root_regions, &region) {
-                                param_to_read_paths.insert((*index, path));
+                        for region in cell_regions {
+                            param_to_read_regions.push((*index, region.as_str()));
+                            for &path_id in
+                                relative_path_index.path_ids_for(region, &mut access_path_interner)
+                            {
+                                param_to_read_paths.push((*index, path_id));
                             }
                         }
                         param_to_read_cells.insert((*index, node.index() as u32));
-                        for object_id in self.cell_points_to_object_ids_of(node) {
+                        for &object_id in self
+                            .cell_points_to_object_ids
+                            .get(&node.index())
+                            .into_iter()
+                            .flatten()
+                        {
                             param_to_read_objects.insert((*index, object_id));
                         }
-                        let writes = self
-                            .cell_live_values_of(node)
+                        let mut writes = self
+                            .cell_live_values
+                            .get(&node.index())
                             .into_iter()
-                            .chain(cell_store_values(self, node).into_iter())
-                            .map(|(f, v)| (f.0, v.0))
-                            .collect::<BTreeSet<_>>();
+                            .flatten()
+                            .copied()
+                            .collect::<HashSet<_>>();
+                        writes.extend(
+                            cell_store_values_from_transitive_records(
+                                self,
+                                node,
+                                transitive_store_records,
+                                strong_update_cache,
+                            )
+                            .into_iter()
+                            .map(|(f, v)| (f.0, v.0)),
+                        );
                         if !writes.is_empty()
                             && (writes.iter().any(|pair| reachable_values.contains(pair))
                                 || writes.iter().any(|pair| reachable_params.contains(pair)))
                         {
-                            for region in self.cell_memory_regions_of(node) {
-                                param_to_write_regions.insert((*index, region.clone()));
-                                for path in region_relative_access_paths(&param_root_regions, &region) {
-                                    param_to_write_paths.insert((*index, path));
+                            for region in cell_regions {
+                                param_to_write_regions.push((*index, region.as_str()));
+                                for &path_id in relative_path_index
+                                    .path_ids_for(region, &mut access_path_interner)
+                                {
+                                    param_to_write_paths.push((*index, path_id));
                                 }
                             }
                             param_to_write_cells.insert((*index, node.index() as u32));
-                            for object_id in self.cell_points_to_object_ids_of(node) {
+                            for &object_id in self
+                                .cell_points_to_object_ids
+                                .get(&node.index())
+                                .into_iter()
+                                .flatten()
+                            {
                                 param_to_write_objects.insert((*index, object_id));
                             }
                         }
@@ -2513,29 +2767,105 @@ impl FlowGraph {
                 }
                 let value_func = FunctionId(*summary_func);
                 let value_id = ValueId(*summary_value);
-                for region in self.value_memory_regions_of(value_func, value_id) {
-                    param_to_return_regions.insert((*index, region.clone()));
-                    for path in region_relative_access_paths(&param_root_regions, &region) {
-                        param_to_return_paths.insert((*index, path));
+                for region in self
+                    .value_memory_regions
+                    .get(&(value_func, value_id))
+                    .into_iter()
+                    .flatten()
+                {
+                    param_to_return_regions.push((*index, region.as_str()));
+                    for &path_id in
+                        relative_path_index.path_ids_for(region, &mut access_path_interner)
+                    {
+                        param_to_return_paths.push((*index, path_id));
                     }
                 }
-                for object_id in self.value_points_to_object_ids_of(value_func, value_id) {
+                for &object_id in self
+                    .value_points_to_object_ids
+                    .get(&(value_func, value_id))
+                    .into_iter()
+                    .flatten()
+                {
                     param_to_return_objects.insert((*index, object_id));
                 }
-                for cell in cell_candidates_for_value_targets(self, value_func, value_id) {
+                for cell in cell_candidates_for_value_targets_indexed(
+                    self,
+                    cell_points_to_target_index,
+                    value_func,
+                    value_id,
+                ) {
                     param_to_return_cells.insert((*index, cell.index() as u32));
                 }
             }
         }
 
+        param_to_read_regions.sort_unstable();
+        param_to_read_regions.dedup();
+        param_to_read_paths.sort_unstable();
+        param_to_read_paths.dedup();
+        param_to_write_regions.sort_unstable();
+        param_to_write_regions.dedup();
+        param_to_write_paths.sort_unstable();
+        param_to_write_paths.dedup();
+        param_to_return_regions.sort_unstable();
+        param_to_return_regions.dedup();
+        param_to_return_paths.sort_unstable();
+        param_to_return_paths.dedup();
+        return_regions.sort_unstable();
+        return_regions.dedup();
+        return_paths.sort_unstable();
+        return_paths.dedup();
+        return_value_regions.sort_unstable();
+        return_value_regions.dedup();
+        return_value_paths.sort_unstable();
+        return_value_paths.dedup();
+
+        let mut param_to_read_paths = param_to_read_paths
+            .into_iter()
+            .map(|(index, path_id)| (index, access_path_interner.resolve(path_id).to_owned()))
+            .collect::<Vec<_>>();
+        param_to_read_paths.sort_unstable();
+        let mut param_to_write_paths = param_to_write_paths
+            .into_iter()
+            .map(|(index, path_id)| (index, access_path_interner.resolve(path_id).to_owned()))
+            .collect::<Vec<_>>();
+        param_to_write_paths.sort_unstable();
+        let mut param_to_return_paths = param_to_return_paths
+            .into_iter()
+            .map(|(index, path_id)| (index, access_path_interner.resolve(path_id).to_owned()))
+            .collect::<Vec<_>>();
+        param_to_return_paths.sort_unstable();
+        let mut return_paths = return_paths
+            .into_iter()
+            .map(|path_id| access_path_interner.resolve(path_id).to_owned())
+            .collect::<Vec<_>>();
+        return_paths.sort_unstable();
+        let mut return_value_paths = return_value_paths
+            .into_iter()
+            .map(|(func, value, path_id)| {
+                (func, value, access_path_interner.resolve(path_id).to_owned())
+            })
+            .collect::<Vec<_>>();
+        return_value_paths.sort_unstable();
+
         for (index, region) in &param_to_return_regions {
-            for (live_func, live_value) in self.region_live_values_of(region) {
-                param_to_return_live_values.insert((*index, live_func.0, live_value.0));
+            for &(live_func, live_value) in self
+                .region_live_values
+                .get(*region)
+                .into_iter()
+                .flatten()
+            {
+                param_to_return_live_values.insert((*index, live_func, live_value));
             }
         }
         for region in &return_regions {
-            for (live_func, live_value) in self.region_live_values_of(region) {
-                return_live_values.insert((live_func.0, live_value.0));
+            for &(live_func, live_value) in self
+                .region_live_values
+                .get(*region)
+                .into_iter()
+                .flatten()
+            {
+                return_live_values.insert((live_func, live_value));
             }
         }
 
@@ -2543,28 +2873,40 @@ impl FlowGraph {
             func: func.0,
             context: None,
             sensitivity: None,
-            param_to_read_regions: param_to_read_regions.into_iter().collect(),
-            param_to_read_paths: param_to_read_paths.into_iter().collect(),
-            param_to_read_cells: param_to_read_cells.into_iter().collect(),
-            param_to_read_objects: param_to_read_objects.into_iter().collect(),
-            param_to_write_regions: param_to_write_regions.into_iter().collect(),
-            param_to_write_paths: param_to_write_paths.into_iter().collect(),
-            param_to_write_cells: param_to_write_cells.into_iter().collect(),
-            param_to_write_objects: param_to_write_objects.into_iter().collect(),
-            param_to_return_regions: param_to_return_regions.into_iter().collect(),
-            param_to_return_paths: param_to_return_paths.into_iter().collect(),
-            param_to_return_cells: param_to_return_cells.into_iter().collect(),
-            param_to_return_objects: param_to_return_objects.into_iter().collect(),
-            param_to_return_live_values: param_to_return_live_values.into_iter().collect(),
-            return_regions: return_regions.into_iter().collect(),
-            return_paths: return_paths.into_iter().collect(),
-            return_cells: return_cells.into_iter().collect(),
-            return_objects: return_objects.into_iter().collect(),
-            return_value_regions: return_value_regions.into_iter().collect(),
-            return_value_paths: return_value_paths.into_iter().collect(),
-            return_value_cells: return_value_cells.into_iter().collect(),
-            return_value_objects: return_value_objects.into_iter().collect(),
-            return_live_values: return_live_values.into_iter().collect(),
+            param_to_read_regions: param_to_read_regions
+                .into_iter()
+                .map(|(index, region)| (index, region.to_owned()))
+                .collect(),
+            param_to_read_paths,
+            param_to_read_cells: into_sorted_unique_vec(param_to_read_cells),
+            param_to_read_objects: into_sorted_unique_vec(param_to_read_objects),
+            param_to_write_regions: param_to_write_regions
+                .into_iter()
+                .map(|(index, region)| (index, region.to_owned()))
+                .collect(),
+            param_to_write_paths,
+            param_to_write_cells: into_sorted_unique_vec(param_to_write_cells),
+            param_to_write_objects: into_sorted_unique_vec(param_to_write_objects),
+            param_to_return_regions: param_to_return_regions
+                .into_iter()
+                .map(|(index, region)| (index, region.to_owned()))
+                .collect(),
+            param_to_return_paths,
+            param_to_return_cells: into_sorted_unique_vec(param_to_return_cells),
+            param_to_return_objects: into_sorted_unique_vec(param_to_return_objects),
+            param_to_return_live_values: into_sorted_unique_vec(param_to_return_live_values),
+            return_regions: return_regions.into_iter().map(str::to_owned).collect(),
+            return_paths,
+            return_cells: into_sorted_unique_vec(return_cells),
+            return_objects: into_sorted_unique_vec(return_objects),
+            return_value_regions: return_value_regions
+                .into_iter()
+                .map(|(func, value, region)| (func, value, region.to_owned()))
+                .collect(),
+            return_value_paths,
+            return_value_cells: into_sorted_unique_vec(return_value_cells),
+            return_value_objects: into_sorted_unique_vec(return_value_objects),
+            return_live_values: into_sorted_unique_vec(return_live_values),
         };
         self.function_heap_effect_summary_cache.borrow_mut().insert(key, summary.clone());
         Some(summary)
@@ -2581,6 +2923,13 @@ impl FlowGraph {
         include_heap: bool,
     ) -> Option<FunctionHeapEffectSummary> {
         let refined = self.refine_call_context_for_sensitivity(context.clone(), sensitivity);
+        let mut base_summary = self.function_heap_effect_summary(
+            func,
+            max_depth,
+            max_visits,
+            engine,
+            include_heap,
+        )?;
         let key = (
             func.0,
             refined.clone(),
@@ -2604,19 +2953,12 @@ impl FlowGraph {
         // contexts. Project the already converged context-insensitive heap summary and attach the
         // normalized context metadata instead. Call-site precision remains represented by the
         // contextual transfer summary and by the context key used to cache this projection.
-        let mut summary = self.function_heap_effect_summary(
-            func,
-            max_depth,
-            max_visits,
-            engine,
-            include_heap,
-        )?;
-        summary.context = Some(refined.clone());
-        summary.sensitivity = Some(sensitivity);
+        base_summary.context = Some(refined.clone());
+        base_summary.sensitivity = Some(sensitivity);
         self.contextual_function_heap_effect_summary_cache
             .borrow_mut()
-            .insert(key, summary.clone());
-        Some(summary)
+            .insert(key, base_summary.clone());
+        Some(base_summary)
     }
 
     pub fn interprocedural_call_summary(

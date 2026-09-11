@@ -17,6 +17,66 @@ fn is_sparse_data_edge(kind: &EdgeKind) -> bool {
     )
 }
 
+/// Edges whose endpoints denote the same may-referenced value/object.
+///
+/// Keep this intentionally stricter than `is_sparse_data_edge`: taint/value
+/// flow answers "can information move from A to B?", while points-to/shape
+/// propagation answers "can A and B denote the same object/content?". Mixing
+/// those relations turns ordinary source/sink or projection reachability into
+/// alias equivalence and creates very large Cartesian solver states.
+fn is_identity_preserving_edge(
+    fg: &FlowGraph,
+    src: NodeIndex,
+    dst: NodeIndex,
+    kind: &EdgeKind,
+) -> bool {
+    match kind {
+        EdgeKind::Assign
+        | EdgeKind::Phi
+        | EdgeKind::StoreField { .. }
+        | EdgeKind::StoreIndex
+        | EdgeKind::ValueToCallPort
+        | EdgeKind::CallPortToValue
+        | EdgeKind::ActualToFormal
+        | EdgeKind::FormalToActual => true,
+        EdgeKind::LoadField { .. } | EdgeKind::LoadIndex => {
+            // A load edge has two distinct structural meanings in the graph:
+            // `base -> cell` records the projection itself, while `cell -> dst`
+            // (and a few direct value fallbacks) carries the projected contents.
+            // Only the latter preserves object identity. Equating the base object
+            // with each of its cells collapses nested object shapes and explodes
+            // points-to/memory-region state.
+            !matches!(
+                (&fg.graph[src], &fg.graph[dst]),
+                (
+                    FlowNode::Value { .. },
+                    FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. }
+                )
+            )
+        }
+        _ => false,
+    }
+}
+
+fn push_identity_pair(
+    identity_neighbors: &mut HashMap<usize, Vec<usize>>,
+    left: usize,
+    right: usize,
+) {
+    if left == right {
+        return;
+    }
+    push_unique_index(identity_neighbors, left, right);
+    push_unique_index(identity_neighbors, right, left);
+}
+
+fn identity_propagation_neighbors(fg: &FlowGraph, node: NodeIndex) -> Vec<NodeIndex> {
+    fg.identity_neighbors
+        .get(&node.index())
+        .map(|values| values.iter().copied().map(NodeIndex::new).collect())
+        .unwrap_or_default()
+}
+
 fn push_unique_index(map: &mut HashMap<usize, Vec<usize>>, src: usize, dst: usize) {
     let values = map.entry(src).or_default();
     if !values.contains(&dst) {
@@ -142,11 +202,11 @@ fn materialize_heap_object_adjacency(fg: &mut FlowGraph) {
     }
 }
 
-fn materialize_object_graph_adjacency(fg: &mut FlowGraph) {
-    fg.object_graph_successors.clear();
-    fg.object_graph_predecessors.clear();
-    fg.object_graph_labels.clear();
-    fg.object_shape_labels.clear();
+fn materialize_object_graph_adjacency(fg: &mut FlowGraph) -> bool {
+    let previous_successors = std::mem::take(&mut fg.object_graph_successors);
+    let previous_predecessors = std::mem::take(&mut fg.object_graph_predecessors);
+    let previous_labels = std::mem::take(&mut fg.object_graph_labels);
+    let previous_shape_labels = std::mem::take(&mut fg.object_shape_labels);
 
     for ((func, base, field), &cell) in &fg.field_cells {
         let Some(&base_node) = fg.values.get(&(*func, *base)) else {
@@ -220,6 +280,11 @@ fn materialize_object_graph_adjacency(fg: &mut FlowGraph) {
         values.sort();
         values.dedup();
     }
+
+    fg.object_graph_successors != previous_successors
+        || fg.object_graph_predecessors != previous_predecessors
+        || fg.object_graph_labels != previous_labels
+        || fg.object_shape_labels != previous_shape_labels
 }
 
 fn object_shape_suffixes(
@@ -265,15 +330,7 @@ fn materialize_object_shape_paths(fg: &mut FlowGraph) {
 }
 
 fn shape_propagation_neighbors(fg: &FlowGraph, node: NodeIndex) -> Vec<NodeIndex> {
-    let mut out = fg.object_graph_successors_of(node);
-    out.extend(fg.object_graph_predecessors_of(node));
-    out.extend(fg.heap_object_successors_of(node));
-    out.extend(fg.heap_object_predecessors_of(node));
-    out.extend(fg.sparse_neighbors_of(node, SparseDirection::Forward));
-    out.extend(fg.sparse_neighbors_of(node, SparseDirection::Backward));
-    out.sort_unstable_by_key(|n| n.index());
-    out.dedup_by_key(|n| n.index());
-    out
+    identity_propagation_neighbors(fg, node)
 }
 
 /// Both shape and region overlays intentionally propagate labels in both
@@ -313,6 +370,42 @@ fn propagate_symmetric_labels<T: Ord + Clone>(
     out
 }
 
+fn propagate_symmetric_sorted_labels<T: Ord + Clone>(
+    nodes: &[NodeIndex],
+    seeds: HashMap<usize, Vec<T>>,
+    neighbors: impl Fn(NodeIndex) -> Vec<NodeIndex>,
+) -> HashMap<usize, Vec<T>> {
+    let mut seen = HashSet::with_capacity(nodes.len());
+    let mut out = HashMap::with_capacity(nodes.len());
+    for &node in nodes {
+        if !seen.insert(node.index()) {
+            continue;
+        }
+        let mut component = Vec::new();
+        let mut pending = vec![node];
+        let mut labels = Vec::new();
+        while let Some(current) = pending.pop() {
+            component.push(current.index());
+            if let Some(values) = seeds.get(&current.index()) {
+                labels.extend(values.iter().cloned());
+            }
+            for next in neighbors(current) {
+                if seen.insert(next.index()) {
+                    pending.push(next);
+                }
+            }
+        }
+        if !labels.is_empty() {
+            labels.sort_unstable();
+            labels.dedup();
+            for index in component {
+                out.insert(index, labels.clone());
+            }
+        }
+    }
+    out
+}
+
 fn materialize_object_shape_fixpoint(fg: &mut FlowGraph) {
     let mut propagated = HashMap::<usize, BTreeSet<String>>::new();
     for (&node_idx, labels) in &fg.object_shape_paths {
@@ -330,12 +423,41 @@ fn materialize_object_shape_fixpoint(fg: &mut FlowGraph) {
         .collect();
 }
 
-fn initial_memory_regions_for_node(fg: &FlowGraph, node: NodeIndex) -> BTreeSet<String> {
-    let mut regions = BTreeSet::new();
+fn memory_region_value_seed_cache(
+    fg: &FlowGraph,
+) -> HashMap<(FunctionId, ValueId), Vec<String>> {
+    let mut keys = HashSet::with_capacity(fg.values.len());
+    for node in fg.graph.node_indices() {
+        match &fg.graph[node] {
+            FlowNode::Value { func, value } | FlowNode::Param { func, value, .. } => {
+                keys.insert((*func, *value));
+            }
+            FlowNode::FieldCell { func, base, .. } | FlowNode::IndexCell { func, base, .. } => {
+                keys.insert((*func, *base));
+            }
+            _ => {}
+        }
+    }
+
+    let mut seeds = HashMap::with_capacity(keys.len());
+    for (func, value) in keys {
+        seeds.insert((func, value), memory_region_seed_for_value(fg, func, value));
+    }
+    seeds
+}
+
+fn initial_memory_regions_for_node(
+    fg: &FlowGraph,
+    node: NodeIndex,
+    value_seeds: &HashMap<(FunctionId, ValueId), Vec<String>>,
+) -> Vec<String> {
+    let mut regions = Vec::new();
+    let mut value_or_param = false;
     match &fg.graph[node] {
         FlowNode::Value { func, value } | FlowNode::Param { func, value, .. } => {
-            for region in memory_region_seed_for_value(fg, *func, *value) {
-                regions.insert(region);
+            value_or_param = true;
+            if let Some(seeded) = value_seeds.get(&(*func, *value)) {
+                regions.extend_from_slice(seeded);
             }
         }
         FlowNode::FieldCell {
@@ -343,10 +465,10 @@ fn initial_memory_regions_for_node(fg: &FlowGraph, node: NodeIndex) -> BTreeSet<
         } => {
             let mut bases = fg.value_memory_regions_of(*func, *base);
             if bases.is_empty() {
-                bases = memory_region_seed_for_value(fg, *func, *base);
+                bases = value_seeds.get(&(*func, *base)).cloned().unwrap_or_default();
             }
             for base_region in bases {
-                regions.insert(format!("{}.{}", base_region, field));
+                regions.push(format!("{}.{}", base_region, field));
             }
         }
         FlowNode::IndexCell {
@@ -357,52 +479,59 @@ fn initial_memory_regions_for_node(fg: &FlowGraph, node: NodeIndex) -> BTreeSet<
         } => {
             let mut bases = fg.value_memory_regions_of(*func, *base);
             if bases.is_empty() {
-                bases = memory_region_seed_for_value(fg, *func, *base);
+                bases = value_seeds.get(&(*func, *base)).cloned().unwrap_or_default();
             }
             for base_region in bases {
-                regions.insert(format!("{}[{}]", base_region, abstract_key));
+                regions.push(format!("{}[{}]", base_region, abstract_key));
             }
         }
         FlowNode::CallPort { port, .. } => {
-            regions.insert(format!("mem:port:{:?}", port));
+            regions.push(format!("mem:port:{:?}", port));
         }
         _ => {}
     }
-    for shape in fg.object_shape_paths_of(node) {
-        if !shape.trim().is_empty() {
-            regions.insert(normalized_memory_region(&shape));
+    // Value/parameter seeds already include both shape paths and labels. Do
+    // not normalize the same strings a second time for the same node.
+    if !value_or_param {
+        for shape in fg.object_shape_paths_of(node) {
+            if !shape.trim().is_empty() {
+                regions.push(normalized_memory_region(&shape));
+            }
         }
     }
+    regions.sort_unstable();
+    regions.dedup();
     regions
 }
 
 fn memory_region_propagation_neighbors(fg: &FlowGraph, node: NodeIndex) -> Vec<NodeIndex> {
-    let mut out = points_to_propagation_neighbors(fg, node);
-    out.extend(fg.sparse_neighbors_of(node, SparseDirection::Forward));
-    out.extend(fg.sparse_neighbors_of(node, SparseDirection::Backward));
+    // Memory regions preserve the historical related-region closure, but
+    // object identity does not. Keep the region backbone here instead of
+    // feeding it back into points-to propagation.
+    let mut out = identity_propagation_neighbors(fg, node);
+    out.extend(fg.region_graph_connectivity_neighbors_of(node));
     out.sort_unstable_by_key(|n| n.index());
     out.dedup_by_key(|n| n.index());
     out
 }
 
-fn materialize_memory_regions(fg: &mut FlowGraph) {
-    fg.node_memory_regions.clear();
-    fg.value_memory_regions.clear();
-    fg.cell_memory_regions.clear();
-    let mut regions = HashMap::<usize, BTreeSet<String>>::new();
+fn materialize_memory_regions(fg: &mut FlowGraph) -> bool {
+    let previous_node_memory_regions = std::mem::take(&mut fg.node_memory_regions);
+    let previous_value_memory_regions = std::mem::take(&mut fg.value_memory_regions);
+    let previous_cell_memory_regions = std::mem::take(&mut fg.cell_memory_regions);
+    let value_seeds = memory_region_value_seed_cache(fg);
+    let nodes = fg.graph.node_indices().collect::<Vec<_>>();
+    let mut regions = HashMap::<usize, Vec<String>>::new();
     for node in fg.graph.node_indices() {
-        let seeded = initial_memory_regions_for_node(fg, node);
+        let seeded = initial_memory_regions_for_node(fg, node, &value_seeds);
         if !seeded.is_empty() {
             regions.insert(node.index(), seeded);
         }
     }
-    let regions = propagate_symmetric_labels(fg.graph.node_indices(), regions, |node| {
+    let regions = propagate_symmetric_sorted_labels(&nodes, regions, |node| {
         memory_region_propagation_neighbors(fg, node)
     });
-    for (node_idx, values) in &regions {
-        fg.node_memory_regions
-            .insert(*node_idx, values.iter().cloned().collect());
-    }
+    fg.node_memory_regions = regions;
     for (&(func, value), &node) in &fg.values {
         if let Some(node_regions) = fg.node_memory_regions.get(&node.index()).cloned() {
             let mut merged = fg
@@ -427,6 +556,55 @@ fn materialize_memory_regions(fg: &mut FlowGraph) {
             fg.cell_memory_regions.insert(cell.index(), merged);
         }
     }
+    fg.node_memory_regions != previous_node_memory_regions
+        || fg.value_memory_regions != previous_value_memory_regions
+        || fg.cell_memory_regions != previous_cell_memory_regions
+}
+
+fn region_find(parent: &mut [usize], node: usize) -> usize {
+    let mut root = node;
+    while parent[root] != root {
+        root = parent[root];
+    }
+    let mut current = node;
+    while parent[current] != current {
+        let next = parent[current];
+        parent[current] = root;
+        current = next;
+    }
+    root
+}
+
+fn region_union_and_link(
+    parent: &mut [usize],
+    rank: &mut [u8],
+    neighbors: &mut HashMap<usize, Vec<usize>>,
+    left: usize,
+    right: usize,
+) {
+    if left == right {
+        return;
+    }
+    let mut left_root = region_find(parent, left);
+    let mut right_root = region_find(parent, right);
+    if left_root == right_root {
+        return;
+    }
+
+    // `left` and `right` are always an actual logical region edge. Keeping
+    // only edges that merge two components therefore builds a spanning forest
+    // of the logical region graph instead of repeatedly materializing the same
+    // connectivity through every shared label.
+    neighbors.entry(left).or_default().push(right);
+    neighbors.entry(right).or_default().push(left);
+
+    if rank[left_root] < rank[right_root] {
+        std::mem::swap(&mut left_root, &mut right_root);
+    }
+    parent[right_root] = left_root;
+    if rank[left_root] == rank[right_root] {
+        rank[left_root] = rank[left_root].saturating_add(1);
+    }
 }
 
 fn materialize_region_graph_adjacency(fg: &mut FlowGraph) {
@@ -434,43 +612,46 @@ fn materialize_region_graph_adjacency(fg: &mut FlowGraph) {
     fg.region_graph_predecessors.clear();
     fg.region_graph_direct_neighbors_cache.borrow_mut().clear();
 
-    let mut region_to_nodes = HashMap::<String, Vec<usize>>::new();
+    let node_count = fg.graph.node_count();
+    let mut parent = (0..node_count).collect::<Vec<_>>();
+    let mut rank = vec![0u8; node_count];
+    let mut neighbors = HashMap::<usize, Vec<usize>>::new();
+    let mut representatives = HashMap::<&str, usize>::new();
+
+    // Equal regions are logical neighbors. Link only the first edge that
+    // merges two connectivity components. This avoids building, sorting, and
+    // deduplicating a region -> all-nodes index for every materialization.
     for node in fg.graph.node_indices() {
-        for region in fg.node_memory_regions_of(node) {
-            region_to_nodes
-                .entry(region)
-                .or_default()
-                .push(node.index());
+        if let Some(regions) = fg.node_memory_regions.get(&node.index()) {
+            for region in regions {
+                match representatives.entry(region.as_str()) {
+                    std::collections::hash_map::Entry::Occupied(entry) => {
+                        region_union_and_link(
+                            &mut parent,
+                            &mut rank,
+                            &mut neighbors,
+                            *entry.get(),
+                            node.index(),
+                        );
+                    }
+                    std::collections::hash_map::Entry::Vacant(entry) => {
+                        entry.insert(node.index());
+                    }
+                }
+            }
         }
-    }
-    for nodes in region_to_nodes.values_mut() {
-        nodes.sort_unstable();
-        nodes.dedup();
     }
 
     // The logical region graph is symmetric and is used by the build-time
     // solvers only for connected-component propagation. Expanding every
-    // logical relation into every node pair creates a dense clique for common
-    // regions. Instead, retain a connectivity-preserving subgraph:
-    //
-    // * nodes with the same exact region form a star around one representative;
-    // * related region names are joined only through their representatives.
-    //
-    // Every stored edge is a valid logical region edge, and every logical edge
-    // has a path through this backbone. Exact one-hop logical neighbors remain
-    // available lazily through the public query methods.
-    let mut neighbors = HashMap::<usize, HashSet<usize>>::new();
-    let mut representatives = HashMap::<String, usize>::new();
-    for (region, nodes) in &region_to_nodes {
-        if let Some(&representative) = nodes.first() {
-            representatives.insert(region.clone(), representative);
-            for &node in nodes.iter().skip(1) {
-                neighbors.entry(representative).or_default().insert(node);
-                neighbors.entry(node).or_default().insert(representative);
-            }
-        }
-    }
-    for (region, _) in &region_to_nodes {
+    // logical relation into every node pair creates dense cliques for common
+    // regions and repeats the same links when nodes share several regions.
+    // The union-find above/below retains only a deterministic spanning forest.
+    // Every stored edge remains a real logical region edge, while exact one-hop
+    // logical neighbors remain available lazily through the public queries.
+    let mut regions = representatives.keys().copied().collect::<Vec<_>>();
+    regions.sort_unstable();
+    for region in regions {
         let Some(&representative) = representatives.get(region) else {
             continue;
         };
@@ -486,23 +667,21 @@ fn materialize_region_graph_adjacency(fg: &mut FlowGraph) {
             let Some(&ancestor_representative) = representatives.get(ancestor) else {
                 continue;
             };
-            if representative != ancestor_representative {
-                neighbors
-                    .entry(representative)
-                    .or_default()
-                    .insert(ancestor_representative);
-                neighbors
-                    .entry(ancestor_representative)
-                    .or_default()
-                    .insert(representative);
-            }
+            region_union_and_link(
+                &mut parent,
+                &mut rank,
+                &mut neighbors,
+                representative,
+                ancestor_representative,
+            );
         }
     }
+    drop(representatives);
     for (node, mut adjacent) in neighbors {
-        adjacent.remove(&node);
+        adjacent.sort_unstable();
+        adjacent.dedup();
+        adjacent.retain(|candidate| *candidate != node);
         if !adjacent.is_empty() {
-            let mut adjacent = adjacent.into_iter().collect::<Vec<_>>();
-            adjacent.sort_unstable();
             // Region relatedness is symmetric; both indexes have equal sets.
             fg.region_graph_predecessors.insert(node, adjacent.clone());
             fg.region_graph_successors.insert(node, adjacent);
@@ -510,10 +689,20 @@ fn materialize_region_graph_adjacency(fg: &mut FlowGraph) {
     }
 }
 
-fn materialize_cell_live_state(fg: &mut FlowGraph) {
+fn materialize_memory_region_graph(fg: &mut FlowGraph) -> bool {
+    let changed = materialize_memory_regions(fg);
+    if changed {
+        materialize_region_graph_adjacency(fg);
+    }
+    changed
+}
+
+fn materialize_cell_live_state_with_store_records(
+    fg: &mut FlowGraph,
+    records: &HashMap<usize, BTreeSet<DetailedStoreRecord>>,
+) {
     fg.cell_live_values.clear();
     fg.cell_live_regions.clear();
-    let records = all_transitive_cell_store_records(fg);
     let mut strong = HashMap::new();
     for cell in all_cell_nodes(fg) {
         let live = visible_cell_store_records(
@@ -529,7 +718,10 @@ fn materialize_cell_live_state(fg: &mut FlowGraph) {
         {
             let mut values = live
                 .iter()
-                .map(|(_edge_idx, func, value)| (func.0, value.0))
+                .map(|(_edge_idx, func, value)| {
+                    let value = canonical_heap_value(fg, *func, *value);
+                    (func.0, value.0)
+                })
                 .collect::<Vec<_>>();
             values.sort_unstable();
             values.dedup();
@@ -553,50 +745,72 @@ fn materialize_cell_live_state(fg: &mut FlowGraph) {
     }
 }
 
+fn materialize_cell_live_state(fg: &mut FlowGraph) {
+    let records = all_transitive_cell_store_records(fg);
+    materialize_cell_live_state_with_store_records(fg, &records);
+}
+
 fn materialize_region_live_state(fg: &mut FlowGraph) {
     fg.region_live_values.clear();
     fg.region_live_cells.clear();
 
-    let mut live_values = BTreeMap::<String, BTreeSet<(u32, u32)>>::new();
-    let mut live_cells = BTreeMap::<String, BTreeSet<usize>>::new();
+    let mut live = HashMap::<String, (Vec<usize>, Vec<(u32, u32)>)>::new();
     for cell in all_cell_nodes(fg) {
-        let mut cell_regions = fg.cell_live_regions_of(cell);
-        if cell_regions.is_empty() {
-            cell_regions = fg.cell_memory_regions_of(cell);
-        }
-        let mut cell_values = fg.cell_live_values_of(cell);
-        if cell_values.is_empty() {
-            cell_values = direct_cell_store_values(fg, cell);
-        }
+        let cell_index = cell.index();
+        let cell_regions = fg
+            .cell_live_regions
+            .get(&cell_index)
+            .filter(|regions| !regions.is_empty())
+            .or_else(|| fg.cell_memory_regions.get(&cell_index));
+        let Some(cell_regions) = cell_regions else {
+            continue;
+        };
+
+        let direct_values;
+        let cell_values: &[(u32, u32)] = match fg.cell_live_values.get(&cell_index) {
+            Some(values) => values,
+            None => {
+                direct_values = direct_cell_store_values(fg, cell)
+                    .into_iter()
+                    .map(|(func, value)| (func.0, value.0))
+                    .collect::<Vec<_>>();
+                &direct_values
+            }
+        };
+        let mut ancestors = Vec::new();
         for region in cell_regions {
-            for ancestor in memory_region_ancestor_chain(&region) {
-                live_cells
-                    .entry(ancestor.clone())
-                    .or_default()
-                    .insert(cell.index());
-                for (func, value) in &cell_values {
-                    live_values
-                        .entry(ancestor.clone())
-                        .or_default()
-                        .insert((func.0, value.0));
-                }
+            ancestors.extend(memory_region_ancestor_chain(region));
+        }
+        ancestors.sort_unstable();
+        ancestors.dedup();
+        for ancestor in ancestors {
+            let (cells, values) = live.entry(ancestor.to_owned()).or_default();
+            cells.push(cell_index);
+            if !cell_values.is_empty() {
+                values.extend_from_slice(cell_values);
             }
         }
     }
 
-    fg.region_live_values = live_values
-        .into_iter()
-        .map(|(region, values)| (region, values.into_iter().collect()))
-        .collect();
-    fg.region_live_cells = live_cells
-        .into_iter()
-        .map(|(region, cells)| (region, cells.into_iter().collect()))
-        .collect();
+    let mut live_values = HashMap::with_capacity(live.len());
+    let mut live_cells = HashMap::with_capacity(live.len());
+    for (region, (cells, mut values)) in live {
+        if !values.is_empty() {
+            values.sort_unstable();
+            values.dedup();
+            live_values.insert(region.clone(), values);
+        }
+        live_cells.insert(region, cells);
+    }
+    fg.region_live_values = live_values;
+    fg.region_live_cells = live_cells;
 }
 
-fn materialize_cell_write_generations(fg: &mut FlowGraph) {
+fn materialize_cell_write_generations_with_store_records(
+    fg: &mut FlowGraph,
+    transitive_records: &HashMap<usize, BTreeSet<DetailedStoreRecord>>,
+) {
     fg.cell_write_generations.clear();
-    let transitive_records = all_transitive_cell_store_records(fg);
     let mut all_cells = fg.field_cells.values().copied().collect::<Vec<_>>();
     all_cells.extend(fg.index_cells.values().copied());
     all_cells.sort_unstable_by_key(|node| node.index());
@@ -632,6 +846,11 @@ fn materialize_cell_write_generations(fg: &mut FlowGraph) {
             .collect::<Vec<_>>();
         fg.cell_write_generations.insert(cell.index(), generations);
     }
+}
+
+fn materialize_cell_write_generations(fg: &mut FlowGraph) {
+    let transitive_records = all_transitive_cell_store_records(fg);
+    materialize_cell_write_generations_with_store_records(fg, &transitive_records);
 }
 
 fn materialize_points_to_partitions(fg: &mut FlowGraph) {
@@ -722,16 +941,37 @@ fn initial_node_points_to_classes(fg: &FlowGraph, node: NodeIndex) -> BTreeSet<S
 }
 
 fn points_to_propagation_neighbors(fg: &FlowGraph, node: NodeIndex) -> Vec<NodeIndex> {
-    let mut out = fg.sparse_neighbors_of(node, SparseDirection::Forward);
-    out.extend(fg.sparse_neighbors_of(node, SparseDirection::Backward));
-    out.extend(fg.heap_object_successors_of(node));
-    out.extend(fg.heap_object_predecessors_of(node));
-    out.extend(fg.object_graph_successors_of(node));
-    out.extend(fg.object_graph_predecessors_of(node));
-    out.extend(fg.region_graph_connectivity_neighbors_of(node));
-    out.sort_unstable_by_key(|n| n.index());
-    out.dedup_by_key(|n| n.index());
-    out
+    let mut neighbors = identity_propagation_neighbors(fg, node);
+    // Keep the points-to connectivity view aligned with the value-flow graph.
+    // Identity edges are only one source of alias connectivity; sparse flow
+    // edges are also part of the object-id fixpoint relation.
+    if let Some(values) = fg.sparse_successors.get(&node.index()) {
+        neighbors.extend(values.iter().copied().map(NodeIndex::new));
+    }
+    if let Some(values) = fg.sparse_predecessors.get(&node.index()) {
+        neighbors.extend(values.iter().copied().map(NodeIndex::new));
+    }
+    neighbors.sort_by_key(|value| value.index());
+    neighbors.dedup_by_key(|value| value.index());
+    neighbors
+}
+
+/// Snapshot the symmetric points-to connectivity once for a contextual solver
+/// refresh. Context partitions only restrict this graph to an allowed-node
+/// subset; rebuilding and sorting the same neighbor lists for every call site
+/// was a major multiplicative cost on project scans.
+fn points_to_propagation_adjacency(fg: &FlowGraph) -> HashMap<usize, Vec<usize>> {
+    let mut adjacency = HashMap::with_capacity(fg.graph.node_count());
+    for node in fg.graph.node_indices() {
+        adjacency.insert(
+            node.index(),
+            points_to_propagation_neighbors(fg, node)
+                .into_iter()
+                .map(|neighbor| neighbor.index())
+                .collect(),
+        );
+    }
+    adjacency
 }
 
 fn materialize_points_to_fixpoint(fg: &mut FlowGraph) {
@@ -800,68 +1040,90 @@ fn materialize_points_to_fixpoint(fg: &mut FlowGraph) {
     }
 }
 
-fn initial_node_points_to_targets(fg: &FlowGraph, node: NodeIndex) -> BTreeSet<String> {
-    let mut targets = BTreeSet::new();
+fn initial_node_points_to_targets(fg: &FlowGraph, node: NodeIndex) -> Vec<String> {
+    let mut targets = Vec::new();
     match &fg.graph[node] {
         FlowNode::Value { func, value } | FlowNode::Param { func, value, .. } => {
             if let Some(site) = value_identity_site(fg, *func, *value) {
-                targets.insert(format!("obj:site:{}", site.trim()));
+                targets.push(format!("obj:site:{}", site.trim()));
             }
             for region in value_root_memory_regions(fg, *func, *value) {
-                targets.insert(format!("obj:root:{}", normalized_memory_region(&region)));
+                targets.push(format!("obj:root:{}", normalized_memory_region(&region)));
             }
             if targets.is_empty() {
-                targets.insert(format!("obj:value:{}:{}", func.0, value.0));
+                targets.push(format!("obj:value:{}:{}", func.0, value.0));
             }
         }
         FlowNode::Return { func } => {
             for region in fg.node_memory_regions_of(node) {
-                targets.insert(format!("obj:return:{}", normalized_memory_region(&region)));
+                targets.push(format!("obj:return:{}", normalized_memory_region(&region)));
             }
             if targets.is_empty() {
-                targets.insert(format!("obj:return-func:{}", func.0));
+                targets.push(format!("obj:return-func:{}", func.0));
             }
         }
         FlowNode::CallPort { port, .. } => {
             for (src_func, src_value) in fg.call_port_source_values(node) {
                 for target in fg.value_points_to_targets_of(src_func, src_value) {
-                    targets.insert(target);
+                    targets.push(target);
                 }
                 if let Some(site) = value_identity_site(fg, src_func, src_value) {
-                    targets.insert(format!("obj:site:{}", site.trim()));
+                    targets.push(format!("obj:site:{}", site.trim()));
                 }
             }
             for region in fg.node_memory_regions_of(node) {
-                targets.insert(format!("obj:port:{}", normalized_memory_region(&region)));
+                targets.push(format!("obj:port:{}", normalized_memory_region(&region)));
             }
             if targets.is_empty() {
-                targets.insert(format!("obj:port:{:?}", port));
+                targets.push(format!("obj:port:{:?}", port));
             }
         }
         FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. } => {
             if let Some(key) = cell_abstract_identity_key(fg, node) {
-                targets.insert(format!("cell:{}", key));
+                targets.push(format!("cell:{}", key));
             }
             for region in fg.cell_memory_regions_of(node) {
-                targets.insert(format!("cell:region:{}", normalized_memory_region(&region)));
+                targets.push(format!("cell:region:{}", normalized_memory_region(&region)));
             }
             if targets.is_empty() {
-                targets.insert(format!("cell:node:{}", node.index()));
+                targets.push(format!("cell:node:{}", node.index()));
             }
         }
         FlowNode::SyntheticSource { rule_id, .. } => {
-            targets.insert(format!("obj:synthetic-source:{}", rule_id));
+            targets.push(format!("obj:synthetic-source:{}", rule_id));
         }
         FlowNode::SyntheticSink { rule_id, .. } => {
-            targets.insert(format!("obj:synthetic-sink:{}", rule_id));
+            targets.push(format!("obj:synthetic-sink:{}", rule_id));
         }
     }
+    targets.sort_unstable();
+    targets.dedup();
     targets
+}
+
+fn initial_node_points_to_target_seeds(fg: &FlowGraph) -> HashMap<usize, Vec<String>> {
+    let mut seeds = HashMap::with_capacity(fg.graph.node_count());
+    for node in fg.graph.node_indices() {
+        let targets = initial_node_points_to_targets(fg, node);
+        if !targets.is_empty() {
+            seeds.insert(node.index(), targets);
+        }
+    }
+    seeds
 }
 
 fn compute_points_to_targets_fixpoint_for_allowed_nodes(
     fg: &FlowGraph,
     allowed_nodes: Option<&HashSet<usize>>,
+) -> HashMap<usize, Vec<String>> {
+    let seeds = initial_node_points_to_target_seeds(fg);
+    compute_points_to_targets_fixpoint_for_allowed_nodes_with_seeds(fg, allowed_nodes, &seeds)
+}
+
+fn compute_points_to_targets_fixpoint_for_allowed_nodes_with_seeds(
+    fg: &FlowGraph,
+    allowed_nodes: Option<&HashSet<usize>>,
+    seeds: &HashMap<usize, Vec<String>>,
 ) -> HashMap<usize, Vec<String>> {
     let nodes = fg
         .graph
@@ -872,30 +1134,82 @@ fn compute_points_to_targets_fixpoint_for_allowed_nodes(
                 .unwrap_or(true)
         })
         .collect::<Vec<_>>();
-    let allowed_lookup = nodes
-        .iter()
-        .map(|node| node.index())
-        .collect::<HashSet<_>>();
-    let mut targets = HashMap::<usize, BTreeSet<String>>::new();
+    let mut targets = HashMap::<usize, Vec<String>>::with_capacity(nodes.len());
     for node in &nodes {
-        let seeded = initial_node_points_to_targets(fg, *node);
-        if !seeded.is_empty() {
-            targets.insert(node.index(), seeded);
+        if let Some(seeded) = seeds.get(&node.index()) {
+            targets.insert(node.index(), seeded.clone());
         }
     }
-    let mut targets = propagate_symmetric_labels(nodes.iter().copied(), targets, |node| {
-        points_to_propagation_neighbors(fg, node)
-            .into_iter()
-            .filter(|neighbor| allowed_lookup.contains(&neighbor.index()))
-            .collect()
+    let mut targets = propagate_symmetric_sorted_labels(&nodes, targets, |node| {
+        let mut neighbors = points_to_propagation_neighbors(fg, node);
+        if let Some(allowed) = allowed_nodes {
+            neighbors.retain(|neighbor| allowed.contains(&neighbor.index()));
+        }
+        neighbors
     });
     for node in nodes {
         targets.entry(node.index()).or_default();
     }
     targets
-        .into_iter()
-        .map(|(node_idx, values)| (node_idx, values.into_iter().collect::<Vec<_>>()))
-        .collect()
+}
+
+/// Materialize target labels and abstract-object ids in the same connected
+/// component walk. Both domains use the same identity-preserving points-to
+/// connectivity. Keeping one walk also lets all contextual partitions share
+/// one pre-sorted adjacency snapshot.
+fn compute_points_to_partition_fixpoints_with_adjacency(
+    fg: &FlowGraph,
+    allowed_nodes: &HashSet<usize>,
+    target_seeds: &HashMap<usize, Vec<String>>,
+    adjacency: &HashMap<usize, Vec<usize>>,
+) -> (HashMap<usize, Vec<String>>, HashMap<usize, Vec<u32>>) {
+    let mut seen = HashSet::with_capacity(allowed_nodes.len());
+    let mut targets = HashMap::with_capacity(allowed_nodes.len());
+    let mut object_ids = HashMap::with_capacity(allowed_nodes.len());
+
+    // Every contextual partition already supplies the exact induced node set.
+    // Walking the whole graph here makes contextual materialization O(calls ×
+    // graph-nodes) even when a call only visits a small slice of the graph.
+    // Starting directly from the allowed set preserves the same induced
+    // connectivity because expansion below still rejects neighbors outside
+    // `allowed_nodes`.
+    for &node_idx in allowed_nodes {
+        if !seen.insert(node_idx) {
+            continue;
+        }
+
+        let mut component = Vec::new();
+        let mut pending = vec![node_idx];
+        let mut component_targets = Vec::<String>::new();
+        let mut component_object_ids = Vec::<u32>::new();
+        while let Some(current) = pending.pop() {
+            component.push(current);
+            if let Some(values) = target_seeds.get(&current) {
+                component_targets.extend(values.iter().cloned());
+            }
+            if let Some(ids) = fg.abstract_object_seed_nodes.get(&current) {
+                component_object_ids.extend(ids.iter().copied());
+            }
+            if let Some(neighbors) = adjacency.get(&current) {
+                for &next in neighbors {
+                    if allowed_nodes.contains(&next) && seen.insert(next) {
+                        pending.push(next);
+                    }
+                }
+            }
+        }
+
+        component_targets.sort_unstable();
+        component_targets.dedup();
+        component_object_ids.sort_unstable();
+        component_object_ids.dedup();
+        for index in component {
+            targets.insert(index, component_targets.clone());
+            object_ids.insert(index, component_object_ids.clone());
+        }
+    }
+
+    (targets, object_ids)
 }
 
 fn materialize_points_to_targets_fixpoint(fg: &mut FlowGraph) {
@@ -941,35 +1255,30 @@ fn compute_points_to_object_ids_fixpoint_for_allowed_nodes(
                 .unwrap_or(true)
         })
         .collect::<Vec<_>>();
-    let allowed_lookup = nodes
-        .iter()
-        .map(|node| node.index())
-        .collect::<HashSet<_>>();
-    let mut object_ids = HashMap::<usize, BTreeSet<u32>>::new();
+    let mut object_ids = HashMap::<usize, Vec<u32>>::new();
     for node in &nodes {
         if let Some(ids) = fg.abstract_object_seed_nodes.get(&node.index()) {
-            let seeded = ids.iter().copied().collect::<BTreeSet<_>>();
+            let mut seeded = ids.clone();
+            seeded.sort_unstable();
+            seeded.dedup();
             if !seeded.is_empty() {
                 object_ids.insert(node.index(), seeded);
             }
         }
     }
-    let mut object_ids = propagate_symmetric_labels(nodes.iter().copied(), object_ids, |node| {
+    let mut object_ids = propagate_symmetric_sorted_labels(&nodes, object_ids, |node| {
         let mut neighbors = points_to_propagation_neighbors(fg, node);
         neighbors.extend(fg.object_successors_of(node));
         neighbors.extend(fg.object_predecessors_of(node));
+        if let Some(allowed) = allowed_nodes {
+            neighbors.retain(|neighbor| allowed.contains(&neighbor.index()));
+        }
         neighbors
-            .into_iter()
-            .filter(|neighbor| allowed_lookup.contains(&neighbor.index()))
-            .collect()
     });
     for node in nodes {
         object_ids.entry(node.index()).or_default();
     }
     object_ids
-        .into_iter()
-        .map(|(node_idx, values)| (node_idx, values.into_iter().collect::<Vec<_>>()))
-        .collect()
 }
 
 fn materialize_points_to_object_ids(fg: &mut FlowGraph) {
@@ -1162,8 +1471,125 @@ fn cell_candidates_for_value_targets(
     out
 }
 
-fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
-    materialize_abstract_object_catalog(fg);
+struct CellPointsToTargetIndex {
+    by_target: HashMap<String, Vec<NodeIndex>>,
+    seen_epochs: Vec<u32>,
+    epoch: u32,
+}
+
+fn cell_candidates_by_points_to_target(fg: &FlowGraph) -> CellPointsToTargetIndex {
+    let cells = all_cell_nodes(fg);
+    let mut by_target = HashMap::<String, Vec<NodeIndex>>::new();
+    for &cell in &cells {
+        let Some(targets) = fg.cell_points_to_targets.get(&cell.index()) else {
+            continue;
+        };
+        for target in targets {
+            by_target.entry(target.clone()).or_default().push(cell);
+        }
+    }
+    for candidates in by_target.values_mut() {
+        candidates.sort_unstable_by_key(|node| node.index());
+        candidates.dedup_by_key(|node| node.index());
+    }
+    let seen_epochs = vec![
+        0;
+        cells
+            .iter()
+            .map(|node| node.index())
+            .max()
+            .map(|max| max + 1)
+            .unwrap_or(0)
+    ];
+    CellPointsToTargetIndex {
+        by_target,
+        seen_epochs,
+        epoch: 0,
+    }
+}
+
+fn cell_candidates_for_targets_indexed(
+    index: &mut CellPointsToTargetIndex,
+    targets: &[String],
+) -> Vec<NodeIndex> {
+    if targets.is_empty() {
+        return Vec::new();
+    }
+    index.epoch = index.epoch.wrapping_add(1);
+    if index.epoch == 0 {
+        index.seen_epochs.fill(0);
+        index.epoch = 1;
+    }
+    let epoch = index.epoch;
+    let mut out = Vec::new();
+    for target in targets {
+        if let Some(candidates) = index.by_target.get(target) {
+            for &candidate in candidates {
+                let seen = &mut index.seen_epochs[candidate.index()];
+                if *seen == epoch {
+                    continue;
+                }
+                *seen = epoch;
+                out.push(candidate);
+            }
+        }
+    }
+    out.sort_unstable_by_key(|node| node.index());
+    out
+}
+
+fn cell_candidates_for_value_targets_indexed(
+    fg: &FlowGraph,
+    index: &mut CellPointsToTargetIndex,
+    func: FunctionId,
+    value: ValueId,
+) -> Vec<NodeIndex> {
+    let targets = fg.value_points_to_targets_of(func, value);
+    cell_candidates_for_targets_indexed(index, &targets)
+}
+
+/// Merge two sorted vectors into one sorted, duplicate-free vector without
+/// rebuilding a tree set. Both points-to fixpoints already materialize their
+/// labels in sorted order, and contextual state is kept in the same canonical
+/// form after every merge.
+fn merge_sorted_unique_owned<T: Ord>(left: Vec<T>, right: Vec<T>) -> Vec<T> {
+    let mut left = left.into_iter().peekable();
+    let mut right = right.into_iter().peekable();
+    let mut merged = Vec::with_capacity(left.size_hint().0.saturating_add(right.size_hint().0));
+
+    while left.peek().is_some() || right.peek().is_some() {
+        let next = match (left.peek(), right.peek()) {
+            (Some(left_value), Some(right_value)) => match left_value.cmp(right_value) {
+                std::cmp::Ordering::Less => left.next(),
+                std::cmp::Ordering::Greater => right.next(),
+                std::cmp::Ordering::Equal => {
+                    let value = left.next();
+                    right.next();
+                    value
+                }
+            },
+            (Some(_), None) => left.next(),
+            (None, Some(_)) => right.next(),
+            (None, None) => None,
+        };
+        let Some(next) = next else {
+            break;
+        };
+        if merged.last().map(|last| last != &next).unwrap_or(true) {
+            merged.push(next);
+        }
+    }
+    merged
+}
+
+fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) -> bool {
+    let catalog_changed = materialize_abstract_object_catalog(fg);
+    // Initial target seeds depend on the aggregate points-to state, which is
+    // immutable throughout one contextual rebuild. Build them once here and
+    // reuse them for every context/sensitivity partition. The next solver
+    // iteration recomputes this snapshot after aggregate state changes.
+    let initial_target_seeds = initial_node_points_to_target_seeds(fg);
+    let points_to_adjacency = points_to_propagation_adjacency(fg);
     fg.contextual_return_values.clear();
     fg.contextual_return_cells.clear();
     fg.contextual_points_to_targets.clear();
@@ -1248,68 +1674,56 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                     for (_ret_func, _ret_value, cell) in &call_summary.return_value_cells {
                         allowed_nodes.insert(*cell as usize);
                     }
-                    let contextual_node_targets =
-                        compute_points_to_targets_fixpoint_for_allowed_nodes(
+                    let (contextual_node_targets, contextual_node_object_ids) =
+                        compute_points_to_partition_fixpoints_with_adjacency(
                             fg,
-                            Some(&allowed_nodes),
-                        );
-                    let contextual_node_object_ids =
-                        compute_points_to_object_ids_fixpoint_for_allowed_nodes(
-                            fg,
-                            Some(&allowed_nodes),
+                            &allowed_nodes,
+                            &initial_target_seeds,
+                            &points_to_adjacency,
                         );
                     let mut targets = fg
                         .contextual_points_to_targets
                         .remove(&context)
-                        .unwrap_or_default()
-                        .into_iter()
-                        .collect::<BTreeSet<_>>();
+                        .unwrap_or_default();
                     let mut object_ids = fg
                         .contextual_points_to_object_ids
                         .remove(&context)
-                        .unwrap_or_default()
-                        .into_iter()
-                        .collect::<BTreeSet<_>>();
+                        .unwrap_or_default();
                     let mut return_values = fg
                         .contextual_return_values
                         .remove(&context)
-                        .unwrap_or_default()
-                        .into_iter()
-                        .collect::<BTreeSet<_>>();
+                        .unwrap_or_default();
                     let mut return_cells = fg
                         .contextual_return_cells
                         .remove(&context)
-                        .unwrap_or_default()
-                        .into_iter()
-                        .collect::<BTreeSet<_>>();
+                        .unwrap_or_default();
                     for (node_idx, node_targets) in contextual_node_targets {
                         let node = NodeIndex::new(node_idx);
-                        let mut merged_targets = fg
+                        let merged_targets_vec = merge_sorted_unique_owned(
+                            fg
                             .contextual_node_points_to_targets
                             .remove(&(context.clone(), node_idx))
-                            .unwrap_or_default()
-                            .into_iter()
-                            .collect::<BTreeSet<_>>();
-                        merged_targets.extend(node_targets.iter().cloned());
-                        let merged_targets_vec = merged_targets.iter().cloned().collect::<Vec<_>>();
+                            .unwrap_or_default(),
+                            node_targets,
+                        );
                         fg.contextual_node_points_to_targets
                             .insert((context.clone(), node_idx), merged_targets_vec.clone());
-                        let mut node_object_ids = fg
-                            .contextual_node_points_to_object_ids
-                            .remove(&(context.clone(), node_idx))
-                            .unwrap_or_default()
-                            .into_iter()
-                            .collect::<BTreeSet<_>>();
-                        if let Some(ids) = contextual_node_object_ids.get(&node_idx) {
-                            node_object_ids.extend(ids.iter().copied());
-                        }
-                        if !node_object_ids.is_empty() {
-                            let ids = node_object_ids.iter().copied().collect::<Vec<_>>();
+                        let ids = merge_sorted_unique_owned(
+                            fg.contextual_node_points_to_object_ids
+                                .remove(&(context.clone(), node_idx))
+                                .unwrap_or_default(),
+                            contextual_node_object_ids
+                                .get(&node_idx)
+                                .cloned()
+                                .unwrap_or_default(),
+                        );
+                        if !ids.is_empty() {
                             fg.contextual_node_points_to_object_ids
                                 .insert((context.clone(), node_idx), ids.clone());
-                            object_ids.extend(ids.iter().copied());
+                            object_ids = merge_sorted_unique_owned(object_ids, ids.clone());
                         }
-                        targets.extend(merged_targets_vec.iter().cloned());
+                        targets =
+                            merge_sorted_unique_owned(targets, merged_targets_vec.clone());
                         match &fg.graph[node] {
                             FlowNode::Value {
                                 func: value_func,
@@ -1324,13 +1738,9 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                                     (context.clone(), value_func.0, value.0),
                                     merged_targets_vec.clone(),
                                 );
-                                if let Some(ids) = fg
-                                    .contextual_node_points_to_object_ids
-                                    .get(&(context.clone(), node_idx))
-                                    .cloned()
-                                {
+                                if !ids.is_empty() {
                                     fg.contextual_value_points_to_object_ids
-                                        .insert((context.clone(), value_func.0, value.0), ids);
+                                        .insert((context.clone(), value_func.0, value.0), ids.clone());
                                 }
                             }
                             FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. } => {
@@ -1338,38 +1748,42 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                                     (context.clone(), node_idx),
                                     merged_targets_vec.clone(),
                                 );
-                                if let Some(ids) = fg
-                                    .contextual_node_points_to_object_ids
-                                    .get(&(context.clone(), node_idx))
-                                    .cloned()
-                                {
+                                if !ids.is_empty() {
                                     fg.contextual_cell_points_to_object_ids
-                                        .insert((context.clone(), node_idx), ids);
+                                        .insert((context.clone(), node_idx), ids.clone());
                                 }
                             }
                             _ => {}
                         }
                     }
-                    for (ret_func, ret_value) in &call_summary.return_values {
-                        return_values.insert((*ret_func, *ret_value));
-                    }
-                    for (ret_func, ret_value) in &call_summary.return_live_values {
-                        return_values.insert((*ret_func, *ret_value));
-                    }
-                    for cell in &call_summary.return_cells {
-                        return_cells.insert(*cell as usize);
-                    }
-                    for (_ret_func, _ret_value, cell) in &call_summary.return_value_cells {
-                        return_cells.insert(*cell as usize);
-                    }
+                    let mut new_return_values = call_summary.return_values.clone();
+                    new_return_values.extend(call_summary.return_live_values.iter().copied());
+                    new_return_values.sort_unstable();
+                    new_return_values.dedup();
+                    return_values =
+                        merge_sorted_unique_owned(return_values, new_return_values);
+                    let mut new_return_cells = call_summary
+                        .return_cells
+                        .iter()
+                        .map(|cell| *cell as usize)
+                        .chain(
+                            call_summary
+                                .return_value_cells
+                                .iter()
+                                .map(|(_, _, cell)| *cell as usize),
+                        )
+                        .collect::<Vec<_>>();
+                    new_return_cells.sort_unstable();
+                    new_return_cells.dedup();
+                    return_cells = merge_sorted_unique_owned(return_cells, new_return_cells);
                     fg.contextual_return_values
-                        .insert(context.clone(), return_values.into_iter().collect());
+                        .insert(context.clone(), return_values);
                     fg.contextual_return_cells
-                        .insert(context.clone(), return_cells.into_iter().collect());
+                        .insert(context.clone(), return_cells);
                     fg.contextual_points_to_targets
-                        .insert(context.clone(), targets.into_iter().collect());
+                        .insert(context.clone(), targets);
                     fg.contextual_points_to_object_ids
-                        .insert(context.clone(), object_ids.into_iter().collect());
+                        .insert(context.clone(), object_ids);
                 }
             }
         }
@@ -1399,39 +1813,39 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
     };
     if !fallback_nodes.is_empty() {
         let context = CallContextKey::default();
-        let contextual_node_targets =
-            compute_points_to_targets_fixpoint_for_allowed_nodes(fg, Some(&fallback_nodes));
-        let contextual_node_object_ids =
-            compute_points_to_object_ids_fixpoint_for_allowed_nodes(fg, Some(&fallback_nodes));
-        let mut targets = BTreeSet::<String>::new();
-        let mut object_ids = BTreeSet::<u32>::new();
+        let (contextual_node_targets, contextual_node_object_ids) =
+            compute_points_to_partition_fixpoints_with_adjacency(
+                fg,
+                &fallback_nodes,
+                &initial_target_seeds,
+                &points_to_adjacency,
+            );
+        let mut targets = Vec::<String>::new();
+        let mut object_ids = Vec::<u32>::new();
         for (node_idx, node_targets) in contextual_node_targets {
             let node = NodeIndex::new(node_idx);
-            let mut merged_targets = fg
-                .contextual_node_points_to_targets
-                .remove(&(context.clone(), node_idx))
-                .unwrap_or_default()
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-            merged_targets.extend(node_targets.iter().cloned());
-            let merged_targets_vec = merged_targets.iter().cloned().collect::<Vec<_>>();
+            let merged_targets_vec = merge_sorted_unique_owned(
+                fg.contextual_node_points_to_targets
+                    .remove(&(context.clone(), node_idx))
+                    .unwrap_or_default(),
+                node_targets,
+            );
             fg.contextual_node_points_to_targets
                 .insert((context.clone(), node_idx), merged_targets_vec.clone());
-            targets.extend(merged_targets_vec.iter().cloned());
-            let mut merged_object_ids = fg
-                .contextual_node_points_to_object_ids
-                .remove(&(context.clone(), node_idx))
-                .unwrap_or_default()
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-            if let Some(ids) = contextual_node_object_ids.get(&node_idx) {
-                merged_object_ids.extend(ids.iter().copied());
-            }
-            if !merged_object_ids.is_empty() {
-                let ids = merged_object_ids.iter().copied().collect::<Vec<_>>();
+            targets = merge_sorted_unique_owned(targets, merged_targets_vec.clone());
+            let ids = merge_sorted_unique_owned(
+                fg.contextual_node_points_to_object_ids
+                    .remove(&(context.clone(), node_idx))
+                    .unwrap_or_default(),
+                contextual_node_object_ids
+                    .get(&node_idx)
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+            if !ids.is_empty() {
                 fg.contextual_node_points_to_object_ids
                     .insert((context.clone(), node_idx), ids.clone());
-                object_ids.extend(ids.iter().copied());
+                object_ids = merge_sorted_unique_owned(object_ids, ids.clone());
             }
             match &fg.graph[node] {
                 FlowNode::Value {
@@ -1447,40 +1861,94 @@ fn materialize_contextual_solver_state(fg: &mut FlowGraph, program: &Program) {
                         (context.clone(), value_func.0, value.0),
                         merged_targets_vec.clone(),
                     );
-                    if let Some(ids) = fg
-                        .contextual_node_points_to_object_ids
-                        .get(&(context.clone(), node_idx))
-                        .cloned()
-                    {
+                    if !ids.is_empty() {
                         fg.contextual_value_points_to_object_ids
-                            .insert((context.clone(), value_func.0, value.0), ids);
+                            .insert((context.clone(), value_func.0, value.0), ids.clone());
                     }
                 }
                 FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. } => {
                     fg.contextual_cell_points_to_targets
                         .insert((context.clone(), node_idx), merged_targets_vec.clone());
-                    if let Some(ids) = fg
-                        .contextual_node_points_to_object_ids
-                        .get(&(context.clone(), node_idx))
-                        .cloned()
-                    {
+                    if !ids.is_empty() {
                         fg.contextual_cell_points_to_object_ids
-                            .insert((context.clone(), node_idx), ids);
+                            .insert((context.clone(), node_idx), ids.clone());
                     }
                 }
                 _ => {}
             }
         }
         fg.contextual_points_to_targets
-            .insert(context.clone(), targets.into_iter().collect());
+            .insert(context.clone(), targets);
         fg.contextual_points_to_object_ids
-            .insert(context, object_ids.into_iter().collect());
+            .insert(context, object_ids);
     }
+
+    catalog_changed
 }
 
-fn materialize_partitioned_points_to_state(fg: &mut FlowGraph, program: &Program) {
-    materialize_contextual_solver_state(fg, program);
+fn materialize_partitioned_points_to_state(fg: &mut FlowGraph, program: &Program) -> bool {
+    // These tables are rebuilt from scratch below. Move the old values aside
+    // instead of hashing/cloning the entire FlowGraph twice per fixed-point
+    // refresh. Exact HashMap/HashSet equality still catches equal-size value
+    // substitutions, which a size-only change detector would miss.
+    let previous_contextual_return_values = std::mem::take(&mut fg.contextual_return_values);
+    let previous_contextual_return_cells = std::mem::take(&mut fg.contextual_return_cells);
+    let previous_contextual_points_to_targets =
+        std::mem::take(&mut fg.contextual_points_to_targets);
+    let previous_contextual_points_to_object_ids =
+        std::mem::take(&mut fg.contextual_points_to_object_ids);
+    let previous_contextual_node_points_to_targets =
+        std::mem::take(&mut fg.contextual_node_points_to_targets);
+    let previous_contextual_value_points_to_targets =
+        std::mem::take(&mut fg.contextual_value_points_to_targets);
+    let previous_contextual_cell_points_to_targets =
+        std::mem::take(&mut fg.contextual_cell_points_to_targets);
+    let previous_contextual_node_points_to_object_ids =
+        std::mem::take(&mut fg.contextual_node_points_to_object_ids);
+    let previous_contextual_value_points_to_object_ids =
+        std::mem::take(&mut fg.contextual_value_points_to_object_ids);
+    let previous_contextual_cell_points_to_object_ids =
+        std::mem::take(&mut fg.contextual_cell_points_to_object_ids);
+
+    let catalog_changed = materialize_contextual_solver_state(fg, program);
+
+    // The contextual solver deliberately consumes the previous aggregate
+    // points-to state while rebuilding contexts (for example call-port seeds),
+    // so only move these aggregate tables after that phase has completed.
+    let previous_node_points_to_targets = std::mem::take(&mut fg.node_points_to_targets);
+    let previous_value_points_to_targets = std::mem::take(&mut fg.value_points_to_targets);
+    let previous_cell_points_to_targets = std::mem::take(&mut fg.cell_points_to_targets);
+    let previous_node_points_to_object_ids = std::mem::take(&mut fg.node_points_to_object_ids);
+    let previous_value_points_to_object_ids =
+        std::mem::take(&mut fg.value_points_to_object_ids);
+    let previous_cell_points_to_object_ids =
+        std::mem::take(&mut fg.cell_points_to_object_ids);
+
     aggregate_partitioned_points_to_state(fg);
+    let changed = catalog_changed
+        || fg.contextual_return_values != previous_contextual_return_values
+        || fg.contextual_return_cells != previous_contextual_return_cells
+        || fg.contextual_points_to_targets != previous_contextual_points_to_targets
+        || fg.contextual_points_to_object_ids != previous_contextual_points_to_object_ids
+        || fg.contextual_node_points_to_targets != previous_contextual_node_points_to_targets
+        || fg.contextual_value_points_to_targets != previous_contextual_value_points_to_targets
+        || fg.contextual_cell_points_to_targets != previous_contextual_cell_points_to_targets
+        || fg.contextual_node_points_to_object_ids
+            != previous_contextual_node_points_to_object_ids
+        || fg.contextual_value_points_to_object_ids
+            != previous_contextual_value_points_to_object_ids
+        || fg.contextual_cell_points_to_object_ids
+            != previous_contextual_cell_points_to_object_ids
+        || fg.node_points_to_targets != previous_node_points_to_targets
+        || fg.value_points_to_targets != previous_value_points_to_targets
+        || fg.cell_points_to_targets != previous_cell_points_to_targets
+        || fg.node_points_to_object_ids != previous_node_points_to_object_ids
+        || fg.value_points_to_object_ids != previous_value_points_to_object_ids
+        || fg.cell_points_to_object_ids != previous_cell_points_to_object_ids;
+    if changed {
+        fg.clear_sparse_caches();
+    }
+    changed
 }
 
 fn aggregate_partitioned_points_to_state(fg: &mut FlowGraph) {
@@ -1491,39 +1959,28 @@ fn aggregate_partitioned_points_to_state(fg: &mut FlowGraph) {
     fg.value_points_to_object_ids.clear();
     fg.cell_points_to_object_ids.clear();
 
-    let contextual_target_entries = fg
-        .contextual_node_points_to_targets
-        .iter()
-        .map(|((_, node_idx), targets)| (*node_idx, targets.clone()))
-        .collect::<Vec<_>>();
-    let contextual_object_entries = fg
-        .contextual_node_points_to_object_ids
-        .iter()
-        .map(|((_, node_idx), ids)| (*node_idx, ids.clone()))
-        .collect::<Vec<_>>();
-
     let mut covered_nodes = HashSet::<usize>::new();
-    for (node_idx, targets) in contextual_target_entries {
-        covered_nodes.insert(node_idx);
-        let mut merged = fg
-            .node_points_to_targets
-            .remove(&node_idx)
-            .unwrap_or_default();
-        merged.extend(targets);
-        merged.sort();
-        merged.dedup();
-        fg.node_points_to_targets.insert(node_idx, merged);
+    for ((_, node_idx), targets) in &fg.contextual_node_points_to_targets {
+        covered_nodes.insert(*node_idx);
+        fg.node_points_to_targets
+            .entry(*node_idx)
+            .or_default()
+            .extend(targets.iter().cloned());
     }
-    for (node_idx, ids) in contextual_object_entries {
-        covered_nodes.insert(node_idx);
-        let mut merged = fg
-            .node_points_to_object_ids
-            .remove(&node_idx)
-            .unwrap_or_default();
-        merged.extend(ids);
+    for targets in fg.node_points_to_targets.values_mut() {
+        targets.sort();
+        targets.dedup();
+    }
+    for ((_, node_idx), ids) in &fg.contextual_node_points_to_object_ids {
+        covered_nodes.insert(*node_idx);
+        fg.node_points_to_object_ids
+            .entry(*node_idx)
+            .or_default()
+            .extend(ids.iter().copied());
+    }
+    for merged in fg.node_points_to_object_ids.values_mut() {
         merged.sort_unstable();
         merged.dedup();
-        fg.node_points_to_object_ids.insert(node_idx, merged);
     }
 
     let value_entries = fg
@@ -1549,16 +2006,41 @@ fn aggregate_partitioned_points_to_state(fg: &mut FlowGraph) {
     }
 }
 
-fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
-    fg.sparse_successors.clear();
-    fg.sparse_predecessors.clear();
-    fg.clear_sparse_caches();
+fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) -> bool {
+    let previous_successors = std::mem::take(&mut fg.sparse_successors);
+    let previous_predecessors = std::mem::take(&mut fg.sparse_predecessors);
+    let previous_identity_neighbors = std::mem::take(&mut fg.identity_neighbors);
+    // Every table below is rebuilt from scratch during this materialization.
+    // Preserve its previous value by move so final-state equality is exact
+    // without repeatedly sorting/cloning/hashing all analysis state.
+    let previous_cell_live_values = std::mem::take(&mut fg.cell_live_values);
+    let previous_cell_live_regions = std::mem::take(&mut fg.cell_live_regions);
+    let previous_heap_value_successors = std::mem::take(&mut fg.heap_value_successors);
+    let previous_heap_value_predecessors = std::mem::take(&mut fg.heap_value_predecessors);
+    let previous_heap_object_successors = std::mem::take(&mut fg.heap_object_successors);
+    let previous_heap_object_predecessors = std::mem::take(&mut fg.heap_object_predecessors);
+    let previous_object_graph_successors = std::mem::take(&mut fg.object_graph_successors);
+    let previous_object_graph_predecessors = std::mem::take(&mut fg.object_graph_predecessors);
+    let previous_object_graph_labels = std::mem::take(&mut fg.object_graph_labels);
+    let previous_object_shape_labels = std::mem::take(&mut fg.object_shape_labels);
+    let previous_object_shape_paths = std::mem::take(&mut fg.object_shape_paths);
+    let previous_cell_write_generations = std::mem::take(&mut fg.cell_write_generations);
+    let previous_region_live_values = std::mem::take(&mut fg.region_live_values);
+    let previous_region_live_cells = std::mem::take(&mut fg.region_live_cells);
     // An analyzed empty adjacency is distinct from an unmaterialized node;
     // query fallbacks must not restore raw, overwritten store edges.
     for node in fg.graph.node_indices() {
         fg.sparse_successors.insert(node.index(), Vec::new());
         fg.sparse_predecessors.insert(node.index(), Vec::new());
     }
+    // Alias state is immutable while the sparse edge set below is rebuilt.
+    // Snapshot it once so store/load visibility, strong-update checks, and the
+    // transitive store closure all share one O(cells^2) alias computation.
+    let alias_snapshot = CellAliasSnapshot::build(fg);
+    let transitive_store_records =
+        all_transitive_cell_store_records_with_alias_snapshot(fg, &alias_snapshot);
+    let mut strong_update_cache = strong_update_cache_from_alias_snapshot(fg, &alias_snapshot);
+    let mut loaded_identity_sites = Vec::<(FunctionId, ValueId, String)>::new();
     for edge in fg.graph.edge_references() {
         if !is_sparse_data_edge(&edge.weight().kind) {
             continue;
@@ -1567,25 +2049,60 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
         let dst = edge.target().index();
         match &edge.weight().kind {
             EdgeKind::StoreField { .. } | EdgeKind::StoreIndex
-                if cell_allows_strong_update(fg, edge.target()) =>
+                if strong_update_cache
+                    .get(&edge.target().index())
+                    .copied()
+                    .unwrap_or(false) =>
             {
                 // The cell denotes its current contents. Earlier reads are
                 // linked to their reaching store separately below.
-                let visible =
-                    visible_direct_cell_store_records_before_edge(fg, edge.target(), None);
+                let visible = visible_cell_store_records(
+                    fg,
+                    edge.target(),
+                    None,
+                    transitive_store_records
+                        .get(&edge.target().index())
+                        .map(|records| records.iter().copied().collect())
+                        .unwrap_or_default(),
+                    &mut strong_update_cache,
+                );
                 if !visible.iter().any(|record| record.0 == edge.id().index()) {
                     continue;
                 }
             }
             EdgeKind::LoadField { .. } | EdgeKind::LoadIndex
-                if cell_allows_strong_update(fg, edge.source()) =>
+                if matches!(fg.graph[edge.source()], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. })
+                    && matches!(fg.graph[edge.target()], FlowNode::Value { .. }) =>
             {
-                let visible = visible_direct_cell_store_records_before_edge(
+                let visible = visible_cell_store_records(
                     fg,
                     edge.source(),
                     Some(edge.id().index()),
+                    transitive_store_records
+                        .get(&edge.source().index())
+                        .map(|records| records.iter().copied().collect())
+                        .unwrap_or_default(),
+                    &mut strong_update_cache,
                 );
-                if !visible.is_empty() {
+                let mut sites = visible
+                    .iter()
+                    .filter_map(|(_, func, value)| value_identity_site(fg, *func, *value))
+                    .map(str::to_string)
+                    .collect::<Vec<_>>();
+                sites.sort_unstable();
+                sites.dedup();
+                if sites.len() == 1 {
+                    if let FlowNode::Value { func, value } = fg.graph[edge.target()] {
+                        loaded_identity_sites.push((func, value, sites.pop().expect("one site")));
+                    }
+                }
+
+                if strong_update_cache
+                    .get(&edge.source().index())
+                    .copied()
+                    .unwrap_or(false)
+                    && !visible.is_empty()
+                {
                     for (_, func, value) in visible {
                         if let Some(source) = fg.values.get(&(func, value)) {
                             fg.sparse_successors
@@ -1596,8 +2113,13 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
                                 .entry(dst)
                                 .or_default()
                                 .push(source.index());
+                            push_identity_pair(&mut fg.identity_neighbors, source.index(), dst);
                         }
                     }
+                    // The load result denotes the current contents of this
+                    // cell even though sparse taint flow is rewired directly
+                    // from the reaching store for strong updates.
+                    push_identity_pair(&mut fg.identity_neighbors, edge.source().index(), dst);
                     continue;
                 }
             }
@@ -1605,6 +2127,29 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
         }
         fg.sparse_successors.entry(src).or_default().push(dst);
         fg.sparse_predecessors.entry(dst).or_default().push(src);
+        if is_identity_preserving_edge(fg, edge.source(), edge.target(), &edge.weight().kind) {
+            push_identity_pair(&mut fg.identity_neighbors, src, dst);
+        }
+    }
+    loaded_identity_sites.sort_unstable();
+    loaded_identity_sites.dedup();
+    let mut loaded_site_index = 0;
+    while loaded_site_index < loaded_identity_sites.len() {
+        let (func, value, _) = &loaded_identity_sites[loaded_site_index];
+        let mut end = loaded_site_index + 1;
+        while end < loaded_identity_sites.len()
+            && loaded_identity_sites[end].0 == *func
+            && loaded_identity_sites[end].1 == *value
+        {
+            end += 1;
+        }
+        if end == loaded_site_index + 1 {
+            let (_, _, site) = &loaded_identity_sites[loaded_site_index];
+            fg.object_identity_roots.insert((*func, *value), *value);
+            fg.object_identity_sites
+                .insert((*func, *value), site.clone());
+        }
+        loaded_site_index = end;
     }
     for values in fg.sparse_successors.values_mut() {
         values.sort_unstable();
@@ -1614,27 +2159,73 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) {
         values.sort_unstable();
         values.dedup();
     }
+    for values in fg.identity_neighbors.values_mut() {
+        values.sort_unstable();
+        values.dedup();
+    }
     // New bridge cells also need a cached empty result. Otherwise each heap
     // overlay rebuild repeats the same transitive store scan for empty cells.
-    materialize_cell_live_state(fg);
+    // The heap/object/shape overlays below do not mutate the graph, points-to
+    // state, memory-region state, or cell alias connectivity. Reuse the same
+    // transitive-store closure for live-state and write-generation materialization
+    // instead of paying the O(cells^2) may-alias connectivity build twice.
+    materialize_cell_live_state_with_store_records(fg, &transitive_store_records);
     materialize_heap_value_adjacency(fg);
     materialize_heap_object_adjacency(fg);
     materialize_object_graph_adjacency(fg);
     materialize_object_shape_paths(fg);
     materialize_object_shape_fixpoint(fg);
-    materialize_cell_write_generations(fg);
-    materialize_memory_regions(fg);
-    materialize_region_graph_adjacency(fg);
-    materialize_memory_regions(fg);
-    materialize_region_graph_adjacency(fg);
-    materialize_cell_live_state(fg);
+    materialize_cell_write_generations_with_store_records(fg, &transitive_store_records);
+    let memory_region_changed = materialize_memory_region_graph(fg);
+    // The first pass can create region-graph connectivity that becomes an
+    // input to the second pass's symmetric propagation. Keep both passes;
+    // `memory_region_graph_rebuilds_until_region_state_is_stable` covers it.
+    if memory_region_changed {
+        materialize_memory_region_graph(fg);
+    }
+    materialize_cell_live_state_with_store_records(fg, &transitive_store_records);
     materialize_region_live_state(fg);
-    materialize_object_graph_adjacency(fg);
-    materialize_object_shape_paths(fg);
-    materialize_object_shape_fixpoint(fg);
-    materialize_memory_regions(fg);
-    materialize_region_graph_adjacency(fg);
-    materialize_region_live_state(fg);
+    // The only input that can change the second object-graph build here is
+    // the refreshed live-cell state. If its exact graph/label output is
+    // unchanged, rebuilding shape paths and every memory-region seed is pure
+    // duplicate work. A changed graph still follows the historical third
+    // memory-region pass exactly.
+    let object_graph_changed = materialize_object_graph_adjacency(fg);
+    let mut memory_regions_changed_after_object_refresh = false;
+    if object_graph_changed {
+        materialize_object_shape_paths(fg);
+        materialize_object_shape_fixpoint(fg);
+        memory_regions_changed_after_object_refresh = materialize_memory_region_graph(fg);
+    }
+    if memory_regions_changed_after_object_refresh {
+        materialize_region_live_state(fg);
+    }
+
+    // Most fixed-point refreshes are idempotent. Keep expensive demand and
+    // function summary caches alive across an unchanged refresh, but invalidate
+    // them as soon as either the sparse graph or any derived analysis state
+    // actually advances.
+    let state_changed = previous_successors != fg.sparse_successors
+        || previous_predecessors != fg.sparse_predecessors
+        || previous_identity_neighbors != fg.identity_neighbors
+        || previous_cell_live_values != fg.cell_live_values
+        || previous_cell_live_regions != fg.cell_live_regions
+        || previous_heap_value_successors != fg.heap_value_successors
+        || previous_heap_value_predecessors != fg.heap_value_predecessors
+        || previous_heap_object_successors != fg.heap_object_successors
+        || previous_heap_object_predecessors != fg.heap_object_predecessors
+        || previous_object_graph_successors != fg.object_graph_successors
+        || previous_object_graph_predecessors != fg.object_graph_predecessors
+        || previous_object_graph_labels != fg.object_graph_labels
+        || previous_object_shape_labels != fg.object_shape_labels
+        || previous_object_shape_paths != fg.object_shape_paths
+        || previous_cell_write_generations != fg.cell_write_generations
+        || previous_region_live_values != fg.region_live_values
+        || previous_region_live_cells != fg.region_live_cells;
+    if state_changed {
+        fg.clear_sparse_caches();
+    }
+    state_changed
 }
 
 fn add_unique_summary_edge(
@@ -1662,11 +2253,158 @@ fn add_unique_summary_edge(
     true
 }
 
+#[derive(Default)]
+struct HeapEffectLookup<'a> {
+    read_cells: HashMap<usize, Vec<NodeIndex>>,
+    read_objects: HashMap<usize, Vec<u32>>,
+    read_paths: HashMap<usize, Vec<&'a str>>,
+    write_cells: HashMap<usize, Vec<NodeIndex>>,
+    write_objects: HashMap<usize, Vec<u32>>,
+    write_paths: HashMap<usize, Vec<&'a str>>,
+    return_cells: HashMap<usize, Vec<NodeIndex>>,
+    return_objects: HashMap<usize, Vec<u32>>,
+    return_paths: HashMap<usize, Vec<&'a str>>,
+    return_value_cells: HashMap<(u32, u32), Vec<NodeIndex>>,
+    return_value_objects: HashMap<(u32, u32), Vec<u32>>,
+    return_value_paths: HashMap<(u32, u32), Vec<&'a str>>,
+}
+
+impl<'a> HeapEffectLookup<'a> {
+    fn new(summary: &'a FunctionHeapEffectSummary) -> Self {
+        let mut lookup = Self::default();
+        for &(index, cell) in &summary.param_to_read_cells {
+            lookup
+                .read_cells
+                .entry(index)
+                .or_default()
+                .push(NodeIndex::new(cell as usize));
+        }
+        for &(index, object_id) in &summary.param_to_read_objects {
+            lookup.read_objects.entry(index).or_default().push(object_id);
+        }
+        for (index, path) in &summary.param_to_read_paths {
+            lookup.read_paths.entry(*index).or_default().push(path.as_str());
+        }
+        for &(index, cell) in &summary.param_to_write_cells {
+            lookup
+                .write_cells
+                .entry(index)
+                .or_default()
+                .push(NodeIndex::new(cell as usize));
+        }
+        for &(index, object_id) in &summary.param_to_write_objects {
+            lookup.write_objects.entry(index).or_default().push(object_id);
+        }
+        for (index, path) in &summary.param_to_write_paths {
+            lookup.write_paths.entry(*index).or_default().push(path.as_str());
+        }
+        for &(index, cell) in &summary.param_to_return_cells {
+            lookup
+                .return_cells
+                .entry(index)
+                .or_default()
+                .push(NodeIndex::new(cell as usize));
+        }
+        for &(index, object_id) in &summary.param_to_return_objects {
+            lookup.return_objects.entry(index).or_default().push(object_id);
+        }
+        for (index, path) in &summary.param_to_return_paths {
+            lookup.return_paths.entry(*index).or_default().push(path.as_str());
+        }
+        for &(func, value, cell) in &summary.return_value_cells {
+            lookup
+                .return_value_cells
+                .entry((func, value))
+                .or_default()
+                .push(NodeIndex::new(cell as usize));
+        }
+        for &(func, value, object_id) in &summary.return_value_objects {
+            lookup
+                .return_value_objects
+                .entry((func, value))
+                .or_default()
+                .push(object_id);
+        }
+        for (func, value, path) in &summary.return_value_paths {
+            lookup
+                .return_value_paths
+                .entry((*func, *value))
+                .or_default()
+                .push(path.as_str());
+        }
+        lookup
+    }
+}
+
+fn extend_cached_relative_path_cells<'a>(
+    cache: &mut HashMap<(FunctionId, ValueId, &'a str), Vec<NodeIndex>>,
+    candidates: &mut Vec<NodeIndex>,
+    fg: &FlowGraph,
+    func: FunctionId,
+    value: ValueId,
+    path: &'a str,
+) {
+    let key = (func, value, path);
+    if let Some(cells) = cache.get(&key) {
+        candidates.extend_from_slice(cells);
+        return;
+    }
+
+    let segments = parse_access_path(path);
+    let cells = existing_cells_for_parsed_relative_path_from_value(fg, func, value, &segments);
+    candidates.extend_from_slice(&cells);
+    cache.insert(key, cells);
+}
+
+fn common_heap_effect_candidates<'a>(
+    fg: &FlowGraph,
+    cell_object_id_index: &mut CellObjectIdIndex,
+    relative_path_cells: &mut HashMap<(FunctionId, ValueId, &'a str), Vec<NodeIndex>>,
+    func: FunctionId,
+    value: ValueId,
+    direct_cells: &[NodeIndex],
+    object_ids: &[u32],
+    paths: &[&'a str],
+) -> Vec<NodeIndex> {
+    let mut candidates = direct_cells.to_vec();
+    candidates.extend(cell_candidates_for_object_ids_indexed(
+        cell_object_id_index,
+        object_ids,
+    ));
+    for &path in paths {
+        extend_cached_relative_path_cells(
+            relative_path_cells,
+            &mut candidates,
+            fg,
+            func,
+            value,
+            path,
+        );
+    }
+    candidates.sort_unstable_by_key(|node| node.index());
+    candidates.dedup_by_key(|node| node.index());
+    candidates
+}
+
+fn cached_region_candidate_cells<'a>(
+    cache: &mut HashMap<&'a str, Vec<NodeIndex>>,
+    fg: &FlowGraph,
+    region: &'a str,
+) -> Vec<NodeIndex> {
+    if let Some(cells) = cache.get(region) {
+        return cells.clone();
+    }
+    let cells = region_candidate_cells(fg, region);
+    cache.insert(region, cells.clone());
+    cells
+}
+
 fn cell_is_rooted_at_other_formal(
     fg: &FlowGraph,
     func: FunctionId,
     selected_index: usize,
     cell: NodeIndex,
+    formal_indices_by_base: &HashMap<ValueId, Vec<usize>>,
 ) -> bool {
     let base = match fg.graph[cell] {
         FlowNode::FieldCell {
@@ -1677,11 +2415,9 @@ fn cell_is_rooted_at_other_formal(
         } if owner == func => base,
         _ => return false,
     };
-    fg.function_params.iter().any(|((owner, index), node)| {
-        *owner == func
-            && *index != selected_index
-            && matches!(fg.graph[*node], FlowNode::Param { value, .. } if value == base)
-    })
+    formal_indices_by_base
+        .get(&base)
+        .is_some_and(|indices| indices.iter().any(|index| *index != selected_index))
 }
 
 fn connect_materialized_function_transfer_summaries(
@@ -1725,12 +2461,34 @@ fn connect_materialized_function_heap_effect_summaries(
 ) -> usize {
     let mut pending_edges = Vec::<(NodeIndex, NodeIndex, String)>::new();
     let mut cell_object_id_index = cell_candidates_by_object_id(fg);
+    let mut cell_points_to_target_index = cell_candidates_by_points_to_target(fg);
+    let transitive_store_records = all_transitive_cell_store_records(fg);
+    let mut strong_update_cache = HashMap::new();
     for func in &program.functions {
-        let Some(summary) =
-            fg.function_heap_effect_summary(func.id, 16, 4096, DemandEngine::Fixpoint, true)
+        let Some(summary) = fg.function_heap_effect_summary_with_store_snapshot(
+            func.id,
+            16,
+            4096,
+            DemandEngine::Fixpoint,
+            true,
+            &transitive_store_records,
+            &mut strong_update_cache,
+            &mut cell_points_to_target_index,
+        )
         else {
             continue;
         };
+        let lookup = HeapEffectLookup::new(&summary);
+        let mut relative_path_cells = HashMap::new();
+        let mut region_cells = HashMap::new();
+        let mut read_common_candidates = HashMap::<usize, Vec<NodeIndex>>::new();
+        let mut write_common_candidates = HashMap::<usize, Vec<NodeIndex>>::new();
+        let mut return_common_candidates = HashMap::<usize, Vec<NodeIndex>>::new();
+        let mut return_value_common_candidates = HashMap::<(u32, u32), Vec<NodeIndex>>::new();
+        let mut formal_indices_by_base = HashMap::<ValueId, Vec<usize>>::new();
+        for (index, value) in func.params.iter().copied().enumerate() {
+            formal_indices_by_base.entry(value).or_default().push(index);
+        }
         let Some(&ret_node) = fg.function_returns.get(&func.id) else {
             continue;
         };
@@ -1749,41 +2507,41 @@ fn connect_materialized_function_heap_effect_summaries(
         }
         for (index, region) in &summary.param_to_read_regions {
             if let Some(&param_node) = fg.function_params.get(&(func.id, *index)) {
-                let mut candidates = summary
-                    .param_to_read_cells
-                    .iter()
-                    .filter(|(path_index, _)| path_index == index)
-                    .map(|(_, cell)| NodeIndex::new(*cell as usize))
-                    .collect::<Vec<_>>();
-                let object_ids = summary
-                    .param_to_read_objects
-                    .iter()
-                    .filter(|(path_index, _)| path_index == index)
-                    .map(|(_, object_id)| *object_id)
-                    .collect::<Vec<_>>();
-                candidates.extend(cell_candidates_for_object_ids_indexed(
-                    &mut cell_object_id_index,
-                    &object_ids,
-                ));
-                candidates.extend(region_candidate_cells(fg, region));
-                for (path_index, path) in &summary.param_to_read_paths {
-                    if path_index != index {
-                        continue;
-                    }
-                    if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(existing_cells_for_relative_path_from_value(
-                            fg, func.id, *value, path,
-                        ));
-                    }
-                }
-                candidates.sort_unstable_by_key(|node| node.index());
-                candidates.dedup_by_key(|node| node.index());
+                let FlowNode::Param { value, .. } = &fg.graph[param_node] else {
+                    continue;
+                };
+                let common = if let Some(candidates) = read_common_candidates.get(index) {
+                    candidates.clone()
+                } else {
+                    let candidates = common_heap_effect_candidates(
+                        fg,
+                        &mut cell_object_id_index,
+                        &mut relative_path_cells,
+                        func.id,
+                        *value,
+                        lookup.read_cells.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                        lookup.read_objects.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                        lookup.read_paths.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                    );
+                    read_common_candidates.insert(*index, candidates.clone());
+                    candidates
+                };
+                let candidates = merge_sorted_unique_owned(
+                    common,
+                    cached_region_candidate_cells(&mut region_cells, fg, region),
+                );
                 for cell in candidates {
                     if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
                     {
                         continue;
                     }
-                    if cell_is_rooted_at_other_formal(fg, func.id, *index, cell) {
+                    if cell_is_rooted_at_other_formal(
+                        fg,
+                        func.id,
+                        *index,
+                        cell,
+                        &formal_indices_by_base,
+                    ) {
                         continue;
                     }
                     pending_edges.push((
@@ -1809,41 +2567,41 @@ fn connect_materialized_function_heap_effect_summaries(
         }
         for (index, region) in &summary.param_to_write_regions {
             if let Some(&param_node) = fg.function_params.get(&(func.id, *index)) {
-                let mut candidates = summary
-                    .param_to_write_cells
-                    .iter()
-                    .filter(|(path_index, _)| path_index == index)
-                    .map(|(_, cell)| NodeIndex::new(*cell as usize))
-                    .collect::<Vec<_>>();
-                let object_ids = summary
-                    .param_to_write_objects
-                    .iter()
-                    .filter(|(path_index, _)| path_index == index)
-                    .map(|(_, object_id)| *object_id)
-                    .collect::<Vec<_>>();
-                candidates.extend(cell_candidates_for_object_ids_indexed(
-                    &mut cell_object_id_index,
-                    &object_ids,
-                ));
-                candidates.extend(region_candidate_cells(fg, region));
-                for (path_index, path) in &summary.param_to_write_paths {
-                    if path_index != index {
-                        continue;
-                    }
-                    if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(existing_cells_for_relative_path_from_value(
-                            fg, func.id, *value, path,
-                        ));
-                    }
-                }
-                candidates.sort_unstable_by_key(|node| node.index());
-                candidates.dedup_by_key(|node| node.index());
+                let FlowNode::Param { value, .. } = &fg.graph[param_node] else {
+                    continue;
+                };
+                let common = if let Some(candidates) = write_common_candidates.get(index) {
+                    candidates.clone()
+                } else {
+                    let candidates = common_heap_effect_candidates(
+                        fg,
+                        &mut cell_object_id_index,
+                        &mut relative_path_cells,
+                        func.id,
+                        *value,
+                        lookup.write_cells.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                        lookup.write_objects.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                        lookup.write_paths.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                    );
+                    write_common_candidates.insert(*index, candidates.clone());
+                    candidates
+                };
+                let candidates = merge_sorted_unique_owned(
+                    common,
+                    cached_region_candidate_cells(&mut region_cells, fg, region),
+                );
                 for cell in candidates {
                     if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
                     {
                         continue;
                     }
-                    if cell_is_rooted_at_other_formal(fg, func.id, *index, cell) {
+                    if cell_is_rooted_at_other_formal(
+                        fg,
+                        func.id,
+                        *index,
+                        cell,
+                        &formal_indices_by_base,
+                    ) {
                         continue;
                     }
                     pending_edges.push((
@@ -1869,35 +2627,29 @@ fn connect_materialized_function_heap_effect_summaries(
         }
         for (index, region) in &summary.param_to_return_regions {
             if let Some(&param_node) = fg.function_params.get(&(func.id, *index)) {
-                let mut candidates = summary
-                    .param_to_return_cells
-                    .iter()
-                    .filter(|(path_index, _)| path_index == index)
-                    .map(|(_, cell)| NodeIndex::new(*cell as usize))
-                    .collect::<Vec<_>>();
-                let object_ids = summary
-                    .param_to_return_objects
-                    .iter()
-                    .filter(|(path_index, _)| path_index == index)
-                    .map(|(_, object_id)| *object_id)
-                    .collect::<Vec<_>>();
-                candidates.extend(cell_candidates_for_object_ids_indexed(
-                    &mut cell_object_id_index,
-                    &object_ids,
-                ));
-                candidates.extend(region_candidate_cells(fg, region));
-                for (path_index, path) in &summary.param_to_return_paths {
-                    if path_index != index {
-                        continue;
-                    }
-                    if let FlowNode::Param { value, .. } = &fg.graph[param_node] {
-                        candidates.extend(existing_cells_for_relative_path_from_value(
-                            fg, func.id, *value, path,
-                        ));
-                    }
-                }
-                candidates.sort_unstable_by_key(|node| node.index());
-                candidates.dedup_by_key(|node| node.index());
+                let FlowNode::Param { value, .. } = &fg.graph[param_node] else {
+                    continue;
+                };
+                let common = if let Some(candidates) = return_common_candidates.get(index) {
+                    candidates.clone()
+                } else {
+                    let candidates = common_heap_effect_candidates(
+                        fg,
+                        &mut cell_object_id_index,
+                        &mut relative_path_cells,
+                        func.id,
+                        *value,
+                        lookup.return_cells.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                        lookup.return_objects.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                        lookup.return_paths.get(index).map(Vec::as_slice).unwrap_or(&[]),
+                    );
+                    return_common_candidates.insert(*index, candidates.clone());
+                    candidates
+                };
+                let candidates = merge_sorted_unique_owned(
+                    common,
+                    cached_region_candidate_cells(&mut region_cells, fg, region),
+                );
                 for cell in candidates {
                     if !matches!(fg.graph[cell], FlowNode::FieldCell { func: cell_func, .. } | FlowNode::IndexCell { func: cell_func, .. } if cell_func == func.id)
                     {
@@ -1927,42 +2679,40 @@ fn connect_materialized_function_heap_effect_summaries(
             if let Some(&ret_value_node) =
                 fg.values.get(&(FunctionId(*ret_func), ValueId(*ret_value)))
             {
-                let mut candidates = summary
-                    .return_value_cells
-                    .iter()
-                    .filter(|(path_func, path_value, _)| {
-                        path_func == ret_func && path_value == ret_value
-                    })
-                    .map(|(_, _, cell)| NodeIndex::new(*cell as usize))
-                    .collect::<Vec<_>>();
-                let object_ids = summary
-                    .return_value_objects
-                    .iter()
-                    .filter(|(path_func, path_value, _)| {
-                        path_func == ret_func && path_value == ret_value
-                    })
-                    .map(|(_, _, object_id)| *object_id)
-                    .collect::<Vec<_>>();
-                candidates.extend(cell_candidates_for_object_ids_indexed(
-                    &mut cell_object_id_index,
-                    &object_ids,
-                ));
-                for (path_func, path_value, path) in &summary.return_value_paths {
-                    if path_func != ret_func || path_value != ret_value {
-                        continue;
-                    }
-                    candidates.extend(existing_cells_for_relative_path_from_value(
+                let key = (*ret_func, *ret_value);
+                let common = if let Some(candidates) = return_value_common_candidates.get(&key) {
+                    candidates.clone()
+                } else {
+                    let candidates = common_heap_effect_candidates(
                         fg,
+                        &mut cell_object_id_index,
+                        &mut relative_path_cells,
                         FunctionId(*ret_func),
                         ValueId(*ret_value),
-                        path,
-                    ));
-                }
-                if candidates.is_empty() {
-                    candidates.extend(region_candidate_cells(fg, region));
-                }
-                candidates.sort_unstable_by_key(|node| node.index());
-                candidates.dedup_by_key(|node| node.index());
+                        lookup
+                            .return_value_cells
+                            .get(&key)
+                            .map(Vec::as_slice)
+                            .unwrap_or(&[]),
+                        lookup
+                            .return_value_objects
+                            .get(&key)
+                            .map(Vec::as_slice)
+                            .unwrap_or(&[]),
+                        lookup
+                            .return_value_paths
+                            .get(&key)
+                            .map(Vec::as_slice)
+                            .unwrap_or(&[]),
+                    );
+                    return_value_common_candidates.insert(key, candidates.clone());
+                    candidates
+                };
+                let candidates = if common.is_empty() {
+                    cached_region_candidate_cells(&mut region_cells, fg, region)
+                } else {
+                    common
+                };
                 let formal_index = (FunctionId(*ret_func) == func.id)
                     .then(|| {
                         func.params
@@ -1976,7 +2726,13 @@ fn connect_materialized_function_heap_effect_summaries(
                         continue;
                     }
                     if formal_index.is_some_and(|index| {
-                        cell_is_rooted_at_other_formal(fg, func.id, index, cell)
+                        cell_is_rooted_at_other_formal(
+                            fg,
+                            func.id,
+                            index,
+                            cell,
+                            &formal_indices_by_base,
+                        )
                     }) {
                         continue;
                     }
@@ -2366,43 +3122,42 @@ fn solver_iteration_cap(fg: &FlowGraph) -> usize {
         .max(64)
 }
 
-fn materialize_unified_analysis_state(fg: &mut FlowGraph) {
-    let mut previous_signature = analysis_state_signature(fg);
+fn materialize_unified_analysis_state(fg: &mut FlowGraph) -> bool {
     let mut iterations = 0usize;
+    let mut any_changed = false;
     loop {
         iterations += 1;
         // The sparse refresh already rebuilds shape, region, live-cell and
         // object indexes. Repeating each rebuild here adds no transfer rule.
-        materialize_sparse_data_adjacency(fg);
-        let signature = analysis_state_signature(fg);
-        if previous_signature == signature {
+        let changed = materialize_sparse_data_adjacency(fg);
+        any_changed |= changed;
+        if !changed {
             break;
         }
         assert!(
             iterations <= solver_iteration_cap(fg),
             "unified analysis failed to converge"
         );
-        previous_signature = signature;
     }
+    any_changed
 }
 
 fn materialize_interprocedural_solver_closure(fg: &mut FlowGraph, program: &Program) {
     materialize_unified_analysis_state(fg);
     materialize_partitioned_points_to_state(fg, program);
-    let mut previous_signature = analysis_state_signature(fg);
     let mut iterations = 0usize;
     loop {
         iterations += 1;
         let added_function_edges = connect_materialized_function_transfer_summaries(fg, program);
         let added_heap_edges = connect_materialized_function_heap_effect_summaries(fg, program);
         let added_call_edges = connect_materialized_interprocedural_summaries(fg, program);
-        materialize_unified_analysis_state(fg);
-        materialize_partitioned_points_to_state(fg, program);
-        let signature = analysis_state_signature(fg);
+        let unified_changed = materialize_unified_analysis_state(fg);
+        let partitioned_changed = materialize_partitioned_points_to_state(fg, program);
         if added_function_edges == 0
             && added_heap_edges == 0
             && added_call_edges == 0
-            && previous_signature == signature
+            && !unified_changed
+            && !partitioned_changed
         {
             break;
         }
@@ -2410,7 +3165,6 @@ fn materialize_interprocedural_solver_closure(fg: &mut FlowGraph, program: &Prog
             iterations <= solver_iteration_cap(fg),
             "interprocedural solver failed to converge"
         );
-        previous_signature = signature;
     }
     fg.solver_closure_iterations = iterations;
 }

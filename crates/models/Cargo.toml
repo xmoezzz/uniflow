@@ -12,7 +12,13 @@ serde.workspace = true
 uniflow-hir = { path = "../hir" }
 uniflow-rules = { path = "../rules" }
 serde_yaml.workspace = true
+bincode.workspace = true
 zhhz.workspace = true
+
+[build-dependencies]
+bincode.workspace = true
+serde_yaml.workspace = true
+uniflow-rules = { path = "../rules" }
 
 [dev-dependencies]
 regex-syntax.workspace = true

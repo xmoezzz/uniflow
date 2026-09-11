@@ -158,6 +158,13 @@ struct FunctionLoweringContext<'a> {
     owner: &'a mut Lowerer,
     current_function_name: String,
     exception_edges: Vec<ExceptionEdge>,
+    value_array_extents: IndexMap<ValueId, Vec<Option<ValueId>>>,
+    /// Source CFG metadata retained for path-sensitive source checkers whose
+    /// semantics depend on Clang-style case labels / control terminators.
+    source_case_blocks: Vec<(BlockId, uniflow_hir::Span, bool)>,
+    source_break_blocks: HashSet<BlockId>,
+    source_return_blocks: HashSet<BlockId>,
+    source_switch_blocks: HashSet<BlockId>,
     /// Block each enclosing `switch` (or loop) jumps to on `break`, innermost last.
     break_stack: Vec<BlockId>,
     /// Block each enclosing loop jumps to on `continue`, innermost last.
@@ -226,6 +233,11 @@ impl<'a> FunctionLoweringContext<'a> {
             owner,
             current_function_name,
             exception_edges: Vec::new(),
+            value_array_extents: IndexMap::new(),
+            source_case_blocks: Vec::new(),
+            source_break_blocks: HashSet::new(),
+            source_return_blocks: HashSet::new(),
+            source_switch_blocks: HashSet::new(),
             break_stack: Vec::new(),
             continue_stack: Vec::new(),
             edge_environments: HashMap::new(),
@@ -308,6 +320,8 @@ impl<'a> FunctionLoweringContext<'a> {
                             receiver: Some(receiver),
                             args,
                             arg_names: Vec::new(),
+                            arg_spans: Vec::new(),
+                            arg_origins: Vec::new(),
                         }),
                         function.span,
                     );
@@ -338,6 +352,8 @@ impl<'a> FunctionLoweringContext<'a> {
                                 receiver: Some(receiver),
                                 args,
                                 arg_names: Vec::new(),
+                                arg_spans: Vec::new(),
+                                arg_origins: Vec::new(),
                             }),
                             function.span,
                         );
@@ -508,6 +524,8 @@ impl<'a> FunctionLoweringContext<'a> {
                 receiver: None,
                 args: vec![value, descriptor_value],
                 arg_names: vec![None, None],
+                arg_spans: Vec::new(),
+                arg_origins: Vec::new(),
             }),
             span,
         );
@@ -691,6 +709,21 @@ impl<'a> FunctionLoweringContext<'a> {
                 (dst, None)
             }
             Expr::Call(call) => {
+                let arg_spans = call.args.iter().map(Expr::span).collect::<Vec<_>>();
+                let arg_origins = arg_spans
+                    .iter()
+                    .map(|span| {
+                        let mut origins = Vec::new();
+                        if span_has_source_origin(
+                            &self.owner.source_origins,
+                            *span,
+                            SourceOriginKind::MacroExpansion,
+                        ) {
+                            origins.push(SourceOriginKind::MacroExpansion);
+                        }
+                        origins
+                    })
+                    .collect::<Vec<_>>();
                 let cpp_lambda_bind_target = match (&call.target, call.args.first()) {
                     (CallTarget::Named(name), Some(Expr::VarRef { symbol, .. }))
                         if name == "__uniflow_cpp_lambda_bind" =>
@@ -763,7 +796,13 @@ impl<'a> FunctionLoweringContext<'a> {
                         });
                         local_callable.map_or_else(|| Callee::Static(name.clone()), Callee::Dynamic)
                     }
-                    CallTarget::Resolved(symbol) => Callee::Static(format!("symbol#{}", symbol.0)),
+                    CallTarget::Resolved(symbol) => Callee::Static(
+                        self.owner
+                            .hir_symbol_names
+                            .get(symbol)
+                            .cloned()
+                            .unwrap_or_else(|| format!("symbol#{}", symbol.0)),
+                    ),
                     CallTarget::Dynamic(expr) => {
                         let (callee_value, _) = self.lower_expr(
                             expr,
@@ -922,6 +961,25 @@ impl<'a> FunctionLoweringContext<'a> {
                             call.span,
                         );
                     }
+                    Some("__uniflow_cpp_delete") if args.len() == 1 => {
+                        self.push_inst(insts, InstKind::Copy { dst, src: args[0] }, call.span);
+                        self.push_inst(
+                            insts,
+                            InstKind::Lifetime {
+                                value: args[0],
+                                event: uniflow_ir::LifetimeEvent::Free,
+                            },
+                            call.span,
+                        );
+                        self.push_inst(
+                            insts,
+                            InstKind::Lifetime {
+                                value: args[0],
+                                event: uniflow_ir::LifetimeEvent::Destroy,
+                            },
+                            call.span,
+                        );
+                    }
                     Some("__uniflow_cpp_release") if args.len() == 1 => {
                         self.push_inst(insts, InstKind::Copy { dst, src: args[0] }, call.span);
                         self.push_inst(
@@ -929,6 +987,35 @@ impl<'a> FunctionLoweringContext<'a> {
                             InstKind::Lifetime {
                                 value: args[0],
                                 event: uniflow_ir::LifetimeEvent::Release,
+                            },
+                            call.span,
+                        );
+                    }
+                    Some(name)
+                        if !args.is_empty()
+                            && matches!(
+                                name.rsplit("::").next().unwrap_or(name),
+                                "free" | "operator delete" | "operator delete[]"
+                            ) =>
+                    {
+                        self.push_inst(
+                            insts,
+                            InstKind::Call(CallInst {
+                                dst: Some(dst),
+                                callee,
+                                receiver,
+                                args: args.clone(),
+                                arg_names: call.arg_names.clone(),
+                                arg_spans: arg_spans.clone(),
+                                arg_origins: arg_origins.clone(),
+                            }),
+                            call.span,
+                        );
+                        self.push_inst(
+                            insts,
+                            InstKind::Lifetime {
+                                value: args[0],
+                                event: uniflow_ir::LifetimeEvent::Free,
                             },
                             call.span,
                         );
@@ -941,6 +1028,8 @@ impl<'a> FunctionLoweringContext<'a> {
                             receiver,
                             args,
                             arg_names: call.arg_names.clone(),
+                            arg_spans,
+                            arg_origins,
                         }),
                         call.span,
                     ),
@@ -1044,6 +1133,44 @@ impl<'a> FunctionLoweringContext<'a> {
                 let postfix = matches!(op, uniflow_hir::UnaryOp::PostIncrement | uniflow_hir::UnaryOp::PostDecrement);
                 (if postfix { src } else { dst }, ty)
             }
+            Expr::Unary { op: uniflow_hir::UnaryOp::Deref, expr, span, .. } => {
+                let (src, ty) = self.lower_expr(
+                    expr,
+                    insts,
+                    value_map,
+                    symbol_types,
+                    locals,
+                    value_types,
+                    value_spans,
+                );
+                let dst = self.alloc_value();
+                locals.push(dst);
+                value_spans.insert(dst, *span);
+                if let Some(ty) = ty.as_deref().and_then(|ty| ty.strip_suffix('*')) {
+                    value_types.insert(dst, ty.trim().to_string());
+                }
+                self.push_inst(insts, InstKind::Deref { dst, src }, *span);
+                (dst, value_types.get(&dst).cloned())
+            }
+            Expr::Unary { op: uniflow_hir::UnaryOp::Neg, expr, span, .. } => {
+                let (src, ty) = self.lower_expr(
+                    expr,
+                    insts,
+                    value_map,
+                    symbol_types,
+                    locals,
+                    value_types,
+                    value_spans,
+                );
+                let dst = self.alloc_value();
+                locals.push(dst);
+                value_spans.insert(dst, *span);
+                if let Some(ty) = &ty {
+                    value_types.insert(dst, ty.clone());
+                }
+                self.push_inst(insts, InstKind::NumericNeg { dst, src }, *span);
+                (dst, ty)
+            }
             Expr::Unary { expr, .. } => self.lower_expr(
                 expr,
                 insts,
@@ -1086,6 +1213,30 @@ impl<'a> FunctionLoweringContext<'a> {
                 let dst = self.alloc_value();
                 locals.push(dst);
                 value_spans.insert(dst, *span);
+                let comparison = match op {
+                    uniflow_hir::BinaryOp::Eq => Some(ComparisonOp::Eq),
+                    uniflow_hir::BinaryOp::Ne => Some(ComparisonOp::Ne),
+                    uniflow_hir::BinaryOp::Lt => Some(ComparisonOp::Lt),
+                    uniflow_hir::BinaryOp::Le => Some(ComparisonOp::Le),
+                    uniflow_hir::BinaryOp::Gt => Some(ComparisonOp::Gt),
+                    uniflow_hir::BinaryOp::Ge => Some(ComparisonOp::Ge),
+                    uniflow_hir::BinaryOp::In => Some(ComparisonOp::In),
+                    _ => None,
+                };
+                if let Some(op) = comparison {
+                    self.push_inst(
+                        insts,
+                        InstKind::Compare {
+                            dst,
+                            lhs: left,
+                            rhs: right,
+                            op,
+                        },
+                        *span,
+                    );
+                    value_types.insert(dst, "bool".to_string());
+                    return (dst, Some("bool".to_string()));
+                }
                 self.push_inst(
                     insts,
                     InstKind::Phi {
@@ -1112,6 +1263,8 @@ impl<'a> FunctionLoweringContext<'a> {
                             receiver: None,
                             args: vec![left, right],
                             arg_names: vec![None, None],
+                            arg_spans: Vec::new(),
+                            arg_origins: Vec::new(),
                         }),
                         *span,
                     );
@@ -1475,6 +1628,8 @@ impl<'a> FunctionLoweringContext<'a> {
                         receiver: None,
                         arg_names: vec![None; args.len()],
                         args,
+                        arg_spans: Vec::new(),
+                        arg_origins: Vec::new(),
                     }),
                     *span,
                 );

@@ -1229,6 +1229,16 @@ impl<'a> Pg<'a> {
         let start = self.cur.pos;
         let token = self.cur.current().clone();
         let lowered = token.text.to_ascii_lowercase();
+        if matches!(self.d.language, Language::Cpp | Language::ObjCpp)
+            && token.text == "nullptr"
+        {
+            self.cur.advance();
+            return Ok(Expr::Literal {
+                id: self.b.alloc_expr_id(),
+                kind: LiteralKind::Null,
+                span: self.cur.span_from(start),
+            });
+        }
         match lowered.as_str() {
             "true" | "TRUE" => {
                 self.cur.advance();

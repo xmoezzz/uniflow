@@ -1384,6 +1384,7 @@ fn python_models() -> RuleSet {
         field_sanitizers: Vec::new(),
         function_sources: Vec::new(),
         function_sinks: Vec::new(),
+        native_dataflow_rules: Vec::new(),
         model_dependencies: Vec::new(),
     }
 }

@@ -1,7 +1,8 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use uniflow_hir::{
-    CppConstructorInitializer, CppMethodSemantics, CppValueSemantics, Language, Span,
+    CppConstructorInitializer, CppMethodSemantics, CppValueSemantics, Language, SourceOriginKind,
+    Span,
 };
 
 macro_rules! id_type {
@@ -100,6 +101,77 @@ impl Function {
             .copied()
             .chain(self.locals.iter().copied())
     }
+
+    pub fn mark_value_source_origin(&mut self, value: ValueId, kind: SourceOriginKind) {
+        self.attrs.insert(source_origin_attr_key("value", value.0, kind), "true".to_string());
+    }
+
+    pub fn value_has_source_origin(&self, value: ValueId, kind: SourceOriginKind) -> bool {
+        self.attrs
+            .contains_key(&source_origin_attr_key("value", value.0, kind))
+    }
+
+    pub fn mark_instruction_source_origin(&mut self, inst: InstId, kind: SourceOriginKind) {
+        self.attrs.insert(source_origin_attr_key("inst", inst.0, kind), "true".to_string());
+    }
+
+    pub fn instruction_has_source_origin(&self, inst: InstId, kind: SourceOriginKind) -> bool {
+        self.attrs
+            .contains_key(&source_origin_attr_key("inst", inst.0, kind))
+    }
+
+    /// Record source-level array extents carried by an SSA value. `None`
+    /// preserves an explicitly unsized/unknown dimension while retaining
+    /// later dimensions for nested indexing.
+    pub fn set_value_array_extents(
+        &mut self,
+        value: ValueId,
+        extents: &[Option<ValueId>],
+    ) {
+        let encoded = extents
+            .iter()
+            .map(|extent| extent.map_or_else(|| "?".to_string(), |value| value.0.to_string()))
+            .collect::<Vec<_>>()
+            .join(",");
+        self.attrs.insert(array_extents_attr_key(value), encoded);
+    }
+
+    pub fn value_array_extents(&self, value: ValueId) -> Option<Vec<Option<ValueId>>> {
+        let encoded = self.attrs.get(&array_extents_attr_key(value))?;
+        if encoded.is_empty() {
+            return Some(Vec::new());
+        }
+        encoded
+            .split(',')
+            .map(|part| {
+                if part == "?" {
+                    Some(None)
+                } else {
+                    part.parse::<u32>().ok().map(|id| Some(ValueId(id)))
+                }
+            })
+            .collect()
+    }
+
+    pub fn value_array_extent(
+        &self,
+        value: ValueId,
+        dimension: usize,
+    ) -> Option<Option<ValueId>> {
+        self.value_array_extents(value)
+            .and_then(|extents| extents.get(dimension).copied())
+    }
+}
+
+fn source_origin_attr_key(target: &str, id: u32, kind: SourceOriginKind) -> String {
+    let kind = match kind {
+        SourceOriginKind::MacroExpansion => "macro-expansion",
+    };
+    format!("uniflow.source-origin.{kind}.{target}.{id}")
+}
+
+fn array_extents_attr_key(value: ValueId) -> String {
+    format!("uniflow.array-extents.value.{}", value.0)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -163,6 +235,12 @@ pub enum InstKind {
         src: ValueId,
         increment: bool,
     },
+    /// Arithmetic unary negation. This is a numeric value transform, not an
+    /// aliasing copy, and must remain explicit for range/value analyses.
+    NumericNeg {
+        dst: ValueId,
+        src: ValueId,
+    },
     /// C++ ownership transfer. Unlike Copy, the source enters MovedFrom state.
     Move {
         dst: ValueId,
@@ -175,10 +253,27 @@ pub enum InstKind {
         kind: CppCastKind,
         target_type: Option<String>,
     },
+    /// Explicit pointer/reference dereference. This is retained in IR so
+    /// path-sensitive lifetime checkers can distinguish `*p` from a plain
+    /// value read/copy.
+    Deref {
+        dst: ValueId,
+        src: ValueId,
+    },
     /// Explicit object-lifetime transition.
     Lifetime {
         value: ValueId,
         event: LifetimeEvent,
+    },
+    /// Boolean comparison.  This must remain distinct from `Phi`: a comparison
+    /// does not propagate either operand's data value into the boolean result,
+    /// and branch-sensitive analyses need the predicate to refine successor
+    /// states (for example `p == nullptr`).
+    Compare {
+        dst: ValueId,
+        lhs: ValueId,
+        rhs: ValueId,
+        op: ComparisonOp,
     },
     Phi {
         dst: ValueId,
@@ -216,10 +311,26 @@ pub enum CppCastKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ComparisonOp {
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    In,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LifetimeEvent {
     Construct,
     MoveFrom,
     Release,
+    /// Raw deallocation (`free`, `operator delete`, `operator delete[]`).
+    /// This is intentionally distinct from owner `Release`: freeing a raw
+    /// pointee invalidates aliases while unique_ptr::release merely transfers
+    /// ownership of a still-live object.
+    Free,
     Destroy,
     Escape,
 }
@@ -231,6 +342,10 @@ pub struct CallInst {
     pub receiver: Option<ValueId>,
     pub args: Vec<ValueId>,
     pub arg_names: Vec<Option<String>>,
+    #[serde(default)]
+    pub arg_spans: Vec<Span>,
+    #[serde(default)]
+    pub arg_origins: Vec<Vec<SourceOriginKind>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -291,6 +406,8 @@ pub fn sample_java_sql_program() -> Program {
                         receiver: Some(req_param),
                         args: vec![],
                         arg_names: Vec::new(),
+                        arg_spans: Vec::new(),
+                        arg_origins: Vec::new(),
                     }),
                     span: Span::default(),
                 },
@@ -302,6 +419,8 @@ pub fn sample_java_sql_program() -> Program {
                         receiver: None,
                         args: vec![v_query],
                         arg_names: Vec::new(),
+                        arg_spans: Vec::new(),
+                        arg_origins: Vec::new(),
                     }),
                     span: Span::default(),
                 },
@@ -321,6 +440,8 @@ pub fn sample_java_sql_program() -> Program {
                         receiver: Some(v_stmt),
                         args: vec![v_sql],
                         arg_names: Vec::new(),
+                        arg_spans: Vec::new(),
+                        arg_origins: Vec::new(),
                     }),
                     span: Span::default(),
                 },
@@ -544,8 +665,11 @@ fn defined_value(kind: &InstKind) -> Option<ValueId> {
         | InstKind::ConstString { dst, .. }
         | InstKind::Copy { dst, .. }
         | InstKind::NumericStep { dst, .. }
+        | InstKind::NumericNeg { dst, .. }
         | InstKind::Move { dst, .. }
         | InstKind::Cast { dst, .. }
+        | InstKind::Deref { dst, .. }
+        | InstKind::Compare { dst, .. }
         | InstKind::Phi { dst, .. }
         | InstKind::LoadField { dst, .. }
         | InstKind::LoadIndex { dst, .. } => Some(*dst),
@@ -559,11 +683,15 @@ fn defined_value(kind: &InstKind) -> Option<ValueId> {
 fn used_values(kind: &InstKind) -> Vec<ValueId> {
     match kind {
         InstKind::ConstInt { .. } | InstKind::ConstString { .. } => Vec::new(),
-        InstKind::Copy { src, .. } | InstKind::Move { src, .. } | InstKind::Cast { src, .. } => {
+        InstKind::Copy { src, .. }
+        | InstKind::Move { src, .. }
+        | InstKind::Cast { src, .. }
+        | InstKind::Deref { src, .. } => {
             vec![*src]
         }
-        InstKind::NumericStep { src, .. } => vec![*src],
+        InstKind::NumericStep { src, .. } | InstKind::NumericNeg { src, .. } => vec![*src],
         InstKind::Lifetime { value, .. } => vec![*value],
+        InstKind::Compare { lhs, rhs, .. } => vec![*lhs, *rhs],
         InstKind::Phi { inputs, .. } => inputs.clone(),
         InstKind::LoadField { base, .. } => vec![*base],
         InstKind::StoreField { base, src, .. } => vec![*base, *src],

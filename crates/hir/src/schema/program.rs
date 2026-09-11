@@ -135,6 +135,21 @@ pub struct Program {
     pub types: Vec<Type>,
     #[serde(default)]
     pub source_maps: Vec<SourceMap>,
+    #[serde(default)]
+    pub source_origins: Vec<SourceOriginRange>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SourceOriginKind {
+    MacroExpansion,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceOriginRange {
+    pub file: FileId,
+    pub start_byte: u32,
+    pub end_byte: u32,
+    pub kind: SourceOriginKind,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -221,6 +236,15 @@ impl Program {
             .iter()
             .find(|map| map.file.0 == span.file)
             .map_or(span, |map| map.remap_span(span))
+    }
+
+    pub fn span_has_origin(&self, span: Span, kind: SourceOriginKind) -> bool {
+        self.source_origins.iter().any(|origin| {
+            origin.kind == kind
+                && origin.file.0 == span.file
+                && span.start_byte < origin.end_byte
+                && origin.start_byte < span.end_byte
+        })
     }
 }
 

@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use uniflow_parser_core::{
     c_declarations::{CDeclarationIndex, DerivedDeclarator as D},
     c_expressions::{CExpressionFact, CExpressionFactKind as K, CExpressionIndex},
+    float_literal_value,
     java_syntax::{JavaSyntax, JavaSyntaxKind},
     TokKind, Token,
 };
@@ -52,6 +53,9 @@ pub enum CExpressionCheck {
     UnsignedComparisonWithZero,
     MixedSignednessComparison,
     BooleanRelationalComparison,
+    PointerRelationalComparison,
+    PointerArithmetic,
+    MixedTypeOperation,
     IncompleteEnumSwitchWithoutDefault,
     UpdateUsedAsBinaryOrCallOperand,
     RedundantVoidCastOfVoidCall,
@@ -59,6 +63,12 @@ pub enum CExpressionCheck {
     PointerIntegerExplicitCast,
     ForcedCStylePointerCast,
     UnsafePointerTypeCast,
+    NumZeroCastPointer,
+    NullAsInt,
+    DisableForBodyModifyCtrlVar,
+    UnPointerAndPointerAssign,
+    PointerAssignmentPointerMismatch,
+    AssignmentSafety,
     StaticCastBetweenRecordPointers,
     AssignmentOrUpdateInSizeof,
     StringLiteralToSignedOrUnsignedCharStorage,
@@ -107,6 +117,12 @@ pub enum CExpressionCheck {
     ConfusingUpperOAndZeroNames,
     VisuallyConfusingVariableNames,
     SignedBitFieldWidthAtMostOne,
+    BitFieldWidthNonIntegralCastSource,
+    LogicalSubexpressionWithoutParentheses,
+    ConditionalOperandWithoutParentheses,
+    UnusedStaticFunction,
+    UnusedParameter,
+    ReturnTypeMismatch,
     PlainCharArithmeticOperand,
     DoubleToFloatNonliteralAssignment,
     FloatingToIntegerInitialization,
@@ -132,13 +148,60 @@ pub enum CExpressionCheck {
     ImplicitIntegerNarrowingMayOverflow,
     ExplicitIntegerNarrowingMayOverflow,
     InconsistentNumericAssignmentType,
+    MagicNumberLiteral,
+    StructSizeofAllocation,
     HardcodedCryptoKey,
     WeakOpenSslCrypto,
+    ArgumentCountMismatch,
+    ArgumentTypeMismatch,
+    ValueDependSequencePoint,
 }
 
 impl CExpressionCheck {
+    pub(crate) fn message_arguments(
+        self,
+        source: &str,
+        offset: usize,
+        index: &CExpressionIndex,
+        declarations: &CDeclarationIndex,
+        syntax: &JavaSyntax,
+    ) -> Vec<String> {
+        match self {
+            Self::UnusedStaticFunction if offset < source.len() => {
+                let end = source[offset..]
+                    .char_indices()
+                    .take_while(|(_, ch)| ch.is_alphanumeric() || *ch == '_')
+                    .last()
+                    .map_or(offset, |(at, ch)| offset + at + ch.len_utf8());
+                (end > offset)
+                    .then(|| vec![source[offset..end].to_string()])
+                    .unwrap_or_default()
+            }
+            Self::ReturnTypeMismatch => {
+                return_type_message_arguments(index, declarations, offset).unwrap_or_default()
+            }
+            Self::ArgumentCountMismatch => argument_count_mismatches(index, declarations, syntax)
+                .into_iter()
+                .find(|mismatch| mismatch.offset == offset)
+                .map(|mismatch| {
+                    vec![
+                        mismatch.expected.to_string(),
+                        mismatch.provided.to_string(),
+                    ]
+                })
+                .unwrap_or_default(),
+            Self::ArgumentTypeMismatch => argument_type_mismatches(index, declarations, syntax)
+                .into_iter()
+                .find(|mismatch| mismatch.offset == offset)
+                .map(|mismatch| vec![mismatch.expected, mismatch.provided])
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        }
+    }
+
     pub(crate) fn offsets(
         self,
+        source: &str,
         index: &CExpressionIndex,
         declarations: &CDeclarationIndex,
         syntax: &JavaSyntax,
@@ -514,6 +577,15 @@ impl CExpressionCheck {
                     |left, right| *left == OperandType::Bool || *right == OperandType::Bool,
                 ));
             }
+            Self::PointerRelationalComparison => offsets.extend(
+                pointer_relational_comparison_offsets(source, index, declarations),
+            ),
+            Self::PointerArithmetic => {
+                offsets.extend(pointer_arithmetic_offsets(source, index, declarations))
+            }
+            Self::MixedTypeOperation => {
+                offsets.extend(mixed_type_operation_offsets(source, index, declarations))
+            }
             Self::IncompleteEnumSwitchWithoutDefault => {
                 offsets.extend(incomplete_enum_switch_offsets(index, declarations, syntax))
             }
@@ -557,6 +629,37 @@ impl CExpressionCheck {
                     .filter(|cast| unsafe_pointer_cast(&cast.destination, &cast.source))
                     .map(|cast| cast.offset),
             ),
+            Self::NumZeroCastPointer => {
+                offsets.extend(num_zero_cast_pointer_offsets(source, index, declarations))
+            }
+            Self::NullAsInt => {
+                offsets.extend(null_as_int_offsets(index, declarations, syntax))
+            }
+            Self::DisableForBodyModifyCtrlVar => {
+                offsets.extend(disable_for_body_modify_ctrl_var_offsets(
+                    source,
+                    index,
+                    declarations,
+                    syntax,
+                ))
+            }
+            Self::UnPointerAndPointerAssign => {
+                offsets.extend(unpointer_and_pointer_assign_offsets(
+                    source,
+                    index,
+                    declarations,
+                ))
+            }
+            Self::PointerAssignmentPointerMismatch => {
+                offsets.extend(pointer_assignment_pointer_mismatch_offsets(
+                    source,
+                    index,
+                    declarations,
+                ))
+            }
+            Self::AssignmentSafety => {
+                offsets.extend(assignment_safety_offsets(source, index, declarations))
+            }
             Self::StaticCastBetweenRecordPointers => offsets.extend(
                 explicit_cast_facts(index, declarations)
                     .into_iter()
@@ -710,6 +813,31 @@ impl CExpressionCheck {
             Self::SignedBitFieldWidthAtMostOne => {
                 offsets.extend(signed_bit_field_width_offsets(index, declarations))
             }
+            Self::BitFieldWidthNonIntegralCastSource => {
+                offsets.extend(bit_field_width_non_integral_cast_offsets(index, declarations))
+            }
+            Self::LogicalSubexpressionWithoutParentheses => {
+                offsets.extend(logical_subexpression_without_parentheses_offsets(
+                    index,
+                    declarations,
+                ))
+            }
+            Self::ConditionalOperandWithoutParentheses => {
+                offsets.extend(conditional_operand_without_parentheses_offsets(
+                    source,
+                    index,
+                    declarations,
+                ))
+            }
+            Self::UnusedStaticFunction => {
+                offsets.extend(unused_static_function_offsets(index, declarations, syntax))
+            }
+            Self::UnusedParameter => {
+                offsets.extend(unused_parameter_offsets(index, declarations, syntax))
+            }
+            Self::ReturnTypeMismatch => {
+                offsets.extend(return_type_mismatch_offsets(index, declarations))
+            }
             Self::PlainCharArithmeticOperand => {
                 offsets.extend(plain_char_arithmetic_operand_offsets(index, declarations))
             }
@@ -785,17 +913,1547 @@ impl CExpressionCheck {
             Self::InconsistentNumericAssignmentType => {
                 offsets.extend(inconsistent_numeric_assignment_offsets(index, declarations))
             }
+            Self::MagicNumberLiteral => {
+                offsets.extend(magic_number_literal_offsets(source, index, declarations))
+            }
+            Self::StructSizeofAllocation => {
+                offsets.extend(struct_sizeof_allocation_offsets(source, index, declarations))
+            }
             Self::HardcodedCryptoKey => {
                 offsets.extend(hardcoded_crypto_key_offsets(index, declarations, syntax))
             }
             Self::WeakOpenSslCrypto => {
                 offsets.extend(weak_openssl_crypto_offsets(index, declarations, syntax))
             }
+            Self::ArgumentCountMismatch => offsets.extend(
+                argument_count_mismatches(index, declarations, syntax)
+                    .into_iter()
+                    .map(|mismatch| mismatch.offset),
+            ),
+            Self::ArgumentTypeMismatch => offsets.extend(
+                argument_type_mismatches(index, declarations, syntax)
+                    .into_iter()
+                    .map(|mismatch| mismatch.offset),
+            ),
+            Self::ValueDependSequencePoint => {
+                offsets.extend(value_depend_sequence_point_offsets(
+                    source,
+                    index,
+                    declarations,
+                    syntax,
+                ))
+            }
         }
         offsets.sort_unstable();
         offsets.dedup();
         offsets
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ArgumentCountMismatch {
+    offset: usize,
+    expected: usize,
+    provided: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct CallableArity {
+    parameters: usize,
+    variadic: bool,
+    constructor: bool,
+}
+
+fn argument_count_mismatches(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<ArgumentCountMismatch> {
+    let signatures = callable_arities(index, declarations);
+    let mut mismatches = Vec::new();
+
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) {
+            continue;
+        }
+        let Some((name, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        let Some(candidates) = signatures.get(name) else {
+            continue;
+        };
+        if candidates.is_empty()
+            || candidates
+                .iter()
+                .any(|candidate| candidate.variadic || candidate.constructor)
+        {
+            continue;
+        }
+
+        let arguments = direct_call_argument_ranges(index, name_at + 1, close);
+        let provided = arguments.len();
+        if candidates
+            .iter()
+            .any(|candidate| candidate.parameters == provided)
+        {
+            continue;
+        }
+
+        let mut expected = candidates.iter().map(|candidate| candidate.parameters);
+        let Some(first_expected) = expected.next() else {
+            continue;
+        };
+        if expected.any(|candidate| candidate != first_expected) {
+            // The legacy checker receives Clang's already-resolved FunctionDecl.
+            // If our lightweight frontend cannot distinguish overloaded arities,
+            // stay conservative instead of inventing a callee resolution.
+            continue;
+        }
+
+        // The legacy report uses the end location of the last explicit argument.
+        // A zero-argument mismatch leaves that SourceLocation invalid, so there is
+        // no stable source location for us to reproduce either.
+        let Some((start, end)) = arguments.last().copied() else {
+            continue;
+        };
+        let report_at = (start < end)
+            .then(|| index.tokens[end - 1].start as usize)
+            .unwrap_or(index.tokens[name_at].start as usize);
+        mismatches.push(ArgumentCountMismatch {
+            offset: report_at,
+            expected: first_expected,
+            provided,
+        });
+    }
+
+    mismatches
+}
+
+fn callable_arities<'a>(
+    index: &'a CExpressionIndex,
+    declarations: &'a CDeclarationIndex,
+) -> HashMap<&'a str, Vec<CallableArity>> {
+    let mut signatures = HashMap::<&str, Vec<CallableArity>>::new();
+
+    for function in &declarations.functions {
+        signatures
+            .entry(function.name.as_str())
+            .or_default()
+            .push(CallableArity {
+                parameters: formal_parameter_count(declarations, &function.parameters),
+                variadic: range_has_ellipsis(index, &function.parameters),
+                constructor: function_is_constructor(function.name.as_str(), &function.context),
+            });
+    }
+
+    for declaration in &declarations.declarations {
+        for declarator in &declaration.declarators {
+            let (Some(name), Some(D::Function { parameters })) =
+                (declarator.name.as_deref(), declarator.derived.first())
+            else {
+                continue;
+            };
+            signatures.entry(name).or_default().push(CallableArity {
+                parameters: formal_parameter_count(declarations, parameters),
+                variadic: range_has_ellipsis(index, parameters),
+                constructor: declaration.qualification.last().is_some_and(|owner| owner == name),
+            });
+        }
+    }
+
+    for candidates in signatures.values_mut() {
+        candidates.sort_unstable_by_key(|candidate| {
+            (candidate.parameters, candidate.variadic, candidate.constructor)
+        });
+        candidates.dedup();
+    }
+    signatures
+}
+
+fn formal_parameter_count(
+    declarations: &CDeclarationIndex,
+    range: &std::ops::Range<usize>,
+) -> usize {
+    let parameters = declarations
+        .parameters
+        .iter()
+        .filter(|parameter| range.start <= parameter.range.start && parameter.range.end <= range.end)
+        .collect::<Vec<_>>();
+    if parameters.len() == 1 && parameters[0].plain_void {
+        0
+    } else {
+        parameters.len()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ArgumentTypeMismatch {
+    offset: usize,
+    expected: String,
+    provided: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CallableTypeSignature {
+    parameters: Vec<String>,
+}
+
+fn argument_type_mismatches(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<ArgumentTypeMismatch> {
+    let signatures = callable_type_signatures(declarations);
+    let mut mismatches = Vec::new();
+
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) {
+            continue;
+        }
+        let Some((name, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        let Some(candidates) = signatures.get(name) else {
+            continue;
+        };
+        if candidates.is_empty() {
+            continue;
+        }
+
+        let arguments = direct_call_argument_ranges(index, name_at + 1, close);
+        for (argument_index, (start, end)) in arguments.into_iter().enumerate() {
+            let mut expected_types = candidates
+                .iter()
+                .filter_map(|candidate| candidate.parameters.get(argument_index));
+            let Some(first_expected) = expected_types.next() else {
+                continue;
+            };
+            if candidates
+                .iter()
+                .any(|candidate| candidate.parameters.get(argument_index).is_none())
+                || expected_types.any(|candidate| candidate != first_expected)
+            {
+                // Clang's CallEvent has already resolved the FunctionDecl.  If
+                // the lightweight frontend cannot resolve an overload to one
+                // formal type, suppress the diagnostic rather than guess.
+                continue;
+            }
+
+            let Some(provided) = legacy_argument_expression_type(index, declarations, start, end)
+            else {
+                continue;
+            };
+            if legacy_argument_assignment_is_valid(
+                index,
+                first_expected,
+                &provided,
+                start,
+                end,
+            ) || expression_is_direct_integer_zero_after_casts(index, start, end)
+            {
+                continue;
+            }
+
+            mismatches.push(ArgumentTypeMismatch {
+                offset: index.tokens[start].start as usize,
+                expected: first_expected.clone(),
+                provided,
+            });
+        }
+    }
+
+    mismatches
+}
+
+fn callable_type_signatures<'a>(
+    declarations: &'a CDeclarationIndex,
+) -> HashMap<&'a str, Vec<CallableTypeSignature>> {
+    let mut signatures = HashMap::<&str, Vec<CallableTypeSignature>>::new();
+
+    for function in &declarations.functions {
+        signatures
+            .entry(function.name.as_str())
+            .or_default()
+            .push(CallableTypeSignature {
+                parameters: formal_parameter_types(declarations, &function.parameters),
+            });
+    }
+
+    for declaration in &declarations.declarations {
+        for declarator in &declaration.declarators {
+            let (Some(name), Some(D::Function { parameters })) =
+                (declarator.name.as_deref(), declarator.derived.first())
+            else {
+                continue;
+            };
+            signatures
+                .entry(name)
+                .or_default()
+                .push(CallableTypeSignature {
+                    parameters: formal_parameter_types(declarations, parameters),
+                });
+        }
+    }
+
+    for candidates in signatures.values_mut() {
+        candidates.sort_unstable_by(|left, right| left.parameters.cmp(&right.parameters));
+        candidates.dedup();
+    }
+    signatures
+}
+
+fn formal_parameter_types(
+    declarations: &CDeclarationIndex,
+    range: &std::ops::Range<usize>,
+) -> Vec<String> {
+    let mut parameters = declarations
+        .parameters
+        .iter()
+        .filter(|parameter| range.start <= parameter.range.start && parameter.range.end <= range.end)
+        .collect::<Vec<_>>();
+    parameters.sort_unstable_by_key(|parameter| parameter.range.start);
+    if parameters.len() == 1 && parameters[0].plain_void {
+        return Vec::new();
+    }
+    parameters
+        .into_iter()
+        .map(|parameter| type_with_derived(&parameter.type_name, &parameter.derived))
+        .collect()
+}
+
+fn legacy_argument_expression_type(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    expression_numeric_type(index, declarations, start, end)
+        .or_else(|| {
+            let (start, end) = trim_outer_group(index, start, end);
+            (end == start + 1)
+                .then(|| exact_operand_type(index, declarations, start))
+                .flatten()
+                .map(|ty| canonical_type_text(&ty))
+        })
+}
+
+fn legacy_argument_assignment_is_valid(
+    index: &CExpressionIndex,
+    expected: &str,
+    provided: &str,
+    start: usize,
+    end: usize,
+) -> bool {
+    let expected_integral = is_integral_or_enum_type(expected);
+    let expected_floating = is_floating_type(expected);
+    if !expected_integral && !expected_floating {
+        return true;
+    }
+    if expected == provided {
+        return true;
+    }
+
+    let provided_integral = is_integral_or_enum_type(provided);
+    let provided_floating = is_floating_type(provided);
+    if expected_integral != provided_integral || expected_floating != provided_floating {
+        return false;
+    }
+
+    if evaluate_c_constant_integer(&index.tokens[start..end])
+        .is_some_and(|value| value > legacy_argument_integer_max_value(expected))
+    {
+        return false;
+    }
+
+    let (Some(expected_bits), Some(provided_bits)) = (
+        legacy_argument_effective_type_bits(expected),
+        legacy_argument_effective_type_bits(provided),
+    ) else {
+        // Mirrors the legacy checker's zero-size escape hatch when the
+        // frontend cannot establish the type size.
+        return true;
+    };
+    expected_bits >= provided_bits
+}
+
+fn legacy_argument_integer_max_value(ty: &str) -> i128 {
+    let width = legacy_argument_storage_bits(ty).unwrap_or(32);
+    if legacy_argument_is_signed_integer_type(ty) {
+        (1i128 << (width - 1)) - 1
+    } else {
+        ((1u128 << width) - 1) as i128
+    }
+}
+
+fn legacy_argument_effective_type_bits(ty: &str) -> Option<u8> {
+    let bits = legacy_argument_storage_bits(ty)?;
+    Some(if legacy_argument_is_signed_integer_type(ty) {
+        bits.saturating_sub(1)
+    } else {
+        bits
+    })
+}
+
+fn legacy_argument_storage_bits(ty: &str) -> Option<u8> {
+    match ty {
+        "bool" => Some(8),
+        "float" => Some(32),
+        "double" => Some(64),
+        // The legacy checker asks Clang's target AST for this value.  The
+        // current C frontend has no target descriptor yet; 128 preserves the
+        // rank relationship used by the common LP64 targets while avoiding a
+        // fake width for unknown user-defined types.
+        "long double" => Some(128),
+        _ => integer_storage_width(ty),
+    }
+}
+
+fn legacy_argument_is_signed_integer_type(ty: &str) -> bool {
+    matches!(ty, "char" | "signed char" | "short" | "int" | "long" | "long long")
+}
+
+fn range_has_ellipsis(index: &CExpressionIndex, range: &std::ops::Range<usize>) -> bool {
+    index.tokens.iter().any(|token| {
+        range.start <= token.start as usize
+            && token.end as usize <= range.end
+            && token.text == "..."
+    })
+}
+
+fn function_is_constructor(
+    name: &str,
+    context: &uniflow_parser_core::c_declarations::CFunctionContext,
+) -> bool {
+    match context {
+        uniflow_parser_core::c_declarations::CFunctionContext::Record { qualified_name } => {
+            qualified_name.rsplit("::").next() == Some(name)
+        }
+        _ => false,
+    }
+}
+
+fn unused_static_function_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    declarations
+        .functions
+        .iter()
+        .filter(|function| function.is_static)
+        .filter(|function| {
+            !index.tokens.iter().enumerate().any(|(token_at, token)| {
+                token.kind == TokKind::Ident
+                    && token.text == function.name
+                    && token.start as usize != function.name_range.start
+                    && identifier_is_function_reference(
+                        index,
+                        declarations,
+                        syntax,
+                        token_at,
+                        function.name.as_str(),
+                    )
+            })
+        })
+        .map(|function| function.name_range.start)
+        .collect()
+}
+
+fn unused_parameter_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for (function_id, function) in declarations.functions.iter().enumerate() {
+        for parameter in declarations.parameters.iter().filter(|parameter| {
+            function.parameters.start <= parameter.range.start
+                && parameter.range.end <= function.parameters.end
+        }) {
+            let (Some(name), Some(name_range)) =
+                (parameter.name.as_deref(), parameter.name_range.as_ref())
+            else {
+                continue;
+            };
+
+            let used = index.tokens.iter().enumerate().any(|(token_at, token)| {
+                token.kind == TokKind::Ident
+                    && token.text == name
+                    && function.body.start <= token.start as usize
+                    && (token.end as usize) <= function.body.end
+                    && identifier_binds_to_parameter(
+                        index,
+                        declarations,
+                        syntax,
+                        function_id,
+                        token_at,
+                        name,
+                    )
+            });
+            if !used {
+                offsets.push(name_range.start);
+            }
+        }
+    }
+    offsets
+}
+
+fn identifier_binds_to_parameter(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    token_at: usize,
+    name: &str,
+) -> bool {
+    let Some(token) = index.tokens.get(token_at) else {
+        return false;
+    };
+    let offset = token.start as usize;
+
+    // Clang's legacy checker ultimately keys off DeclRefExpr binding.  Keep
+    // declaration names, labels/gotos, and member/qualified names out of the
+    // lexical approximation because none of those bind to the ParmVarDecl.
+    if declarations.declarations.iter().any(|declaration| {
+        declaration.enclosing_function == Some(function_id)
+            && declaration.declarators.iter().any(|declarator| {
+                declarator
+                    .name_range
+                    .as_ref()
+                    .is_some_and(|range| range.start == offset)
+                    && !token_is_call_argument(index, token_at)
+            })
+    }) || declarations.labels.iter().any(|label| {
+        label.function == function_id
+            && label.name == name
+            && label.range.start <= offset
+            && offset < label.range.end
+    }) || declarations.gotos.iter().any(|goto| {
+        goto.function == function_id
+            && goto.target == name
+            && goto.range.start <= offset
+            && offset < goto.range.end
+    }) {
+        return false;
+    }
+
+    if token_at > 0 && matches!(index.tokens[token_at - 1].text.as_str(), "." | "->" | "::") {
+        return false;
+    }
+
+    !local_declaration_shadows_parameter(index, declarations, syntax, function_id, name, offset)
+}
+
+fn identifier_is_function_reference(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    name_at: usize,
+    target_name: &str,
+) -> bool {
+    let Some(token) = index.tokens.get(name_at) else {
+        return false;
+    };
+    if token.kind != TokKind::Ident || token.text != target_name {
+        return false;
+    }
+    let offset = token.start as usize;
+
+    if declarations
+        .functions
+        .iter()
+        .any(|function| function.name_range.start == offset)
+        || declarations.declarations.iter().any(|declaration| {
+            declaration.declarators.iter().any(|declarator| {
+                declarator
+                    .name_range
+                    .as_ref()
+                    .is_some_and(|range| range.start == offset)
+                    && !token_is_call_argument(index, name_at)
+            })
+        })
+        || declarations.parameters.iter().any(|parameter| {
+            parameter
+                .name_range
+                .as_ref()
+                .is_some_and(|range| range.start == offset)
+        })
+    {
+        return false;
+    }
+
+    if declarations.labels.iter().any(|label| {
+        label.name == target_name && label.range.start <= offset && offset < label.range.end
+    }) || declarations.gotos.iter().any(|goto| {
+        goto.target == target_name && goto.range.start <= offset && offset < goto.range.end
+    }) {
+        return false;
+    }
+
+    if name_at > 0 && matches!(index.tokens[name_at - 1].text.as_str(), "." | "->") {
+        return false;
+    }
+
+    !visible_nonfunction_identifier(index, declarations, syntax, name_at)
+}
+
+fn token_is_call_argument(index: &CExpressionIndex, token_at: usize) -> bool {
+    (1..token_at).any(|open_at| {
+        index.tokens[open_at].text == "("
+            && index.tokens[open_at - 1].kind == TokKind::Ident
+            && index
+                .matching_token_index(open_at)
+                .is_some_and(|close_at| token_at < close_at)
+    })
+}
+
+fn magic_number_literal_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let macro_argument_ranges = function_macro_argument_ranges(source, index);
+    index
+        .tokens
+        .iter()
+        .filter(|token| matches!(token.kind, TokKind::IntLit | TokKind::FloatLit))
+        .filter(|token| {
+            declarations.functions.iter().any(|function| {
+                function.body.start <= token.start as usize
+                    && token.end as usize <= function.body.end
+            })
+        })
+        .filter(|token| !magic_number_is_ignored(token))
+        .filter(|token| {
+            !macro_argument_ranges.iter().any(|range| {
+                range.start <= token.start as usize && token.end as usize <= range.end
+            })
+        })
+        .filter(|token| !magic_number_is_constant_initializer(index, declarations, token))
+        .filter(|token| !magic_number_is_enum_initializer(declarations, token))
+        .filter(|token| !magic_number_is_bit_field_width(declarations, token))
+        .map(|token| token.start as usize)
+        .collect()
+}
+
+fn magic_number_is_ignored(token: &Token) -> bool {
+    match token.kind {
+        TokKind::IntLit => parse_c_integer(&token.text).is_some_and(|value| {
+            value == 0
+                || matches!(value, 1 | 2 | 3 | 4)
+                || (value > 0 && (value as u128).is_power_of_two())
+        }),
+        TokKind::FloatLit => float_literal_value(&token.text)
+            .is_some_and(|value| value == 0.0 || value == 1.0 || value == 100.0),
+        _ => false,
+    }
+}
+
+fn magic_number_is_constant_initializer(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    token: &Token,
+) -> bool {
+    declarations.declarations.iter().any(|declaration| {
+        declaration.declarators.iter().any(|declarator| {
+            declarator.initializer.as_ref().is_some_and(|initializer| {
+                initializer.start <= token.start as usize
+                    && token.end as usize <= initializer.end
+                    && declarator_is_top_level_const(
+                        index,
+                        declaration.range.start,
+                        declaration
+                            .declarators
+                            .first()
+                            .map_or(declarator.range.start, |first| first.range.start),
+                        declarator.range.clone(),
+                    )
+            })
+        })
+    })
+}
+
+fn declarator_is_top_level_const(
+    index: &CExpressionIndex,
+    declaration_start: usize,
+    first_declarator_start: usize,
+    declarator_range: std::ops::Range<usize>,
+) -> bool {
+    let specifiers = index
+        .tokens
+        .iter()
+        .filter(|token| declaration_start <= token.start as usize)
+        .take_while(|token| (token.start as usize) < first_declarator_start)
+        .collect::<Vec<_>>();
+    if specifiers.iter().any(|token| token.text == "constexpr") {
+        return true;
+    }
+    let declarator_tokens = index
+        .tokens
+        .iter()
+        .filter(|token| declarator_range.start <= token.start as usize)
+        .take_while(|token| (token.start as usize) < declarator_range.end)
+        .collect::<Vec<_>>();
+    let last_indirection = declarator_tokens
+        .iter()
+        .rposition(|token| matches!(token.text.as_str(), "*" | "**" | "&" | "&&"));
+    match last_indirection {
+        None => specifiers.iter().any(|token| token.text == "const"),
+        Some(at) => declarator_tokens[at + 1..]
+            .iter()
+            .any(|token| token.text == "const"),
+    }
+}
+
+fn magic_number_is_enum_initializer(declarations: &CDeclarationIndex, token: &Token) -> bool {
+    declarations.enumerators.iter().any(|enumerator| {
+        enumerator.initializer.as_ref().is_some_and(|initializer| {
+            initializer.start <= token.start as usize && token.end as usize <= initializer.end
+        })
+    })
+}
+
+fn magic_number_is_bit_field_width(declarations: &CDeclarationIndex, token: &Token) -> bool {
+    declarations.declarations.iter().any(|declaration| {
+        declaration.declarators.iter().any(|declarator| {
+            declarator.bit_width.as_ref().is_some_and(|width| {
+                width.start <= token.start as usize && token.end as usize <= width.end
+            })
+        })
+    })
+}
+
+fn function_macro_argument_ranges(
+    source: &str,
+    index: &CExpressionIndex,
+) -> Vec<std::ops::Range<usize>> {
+    let events = function_macro_events(source);
+    if events.is_empty() {
+        return Vec::new();
+    }
+    let mut active = HashSet::<String>::new();
+    let mut event_at = 0usize;
+    let mut ranges = Vec::new();
+    for (at, token) in index.tokens.iter().enumerate() {
+        while event_at < events.len() && events[event_at].0 <= token.start as usize {
+            let (_, name, defined) = &events[event_at];
+            if *defined {
+                active.insert(name.clone());
+            } else {
+                active.remove(name);
+            }
+            event_at += 1;
+        }
+        if token.kind != TokKind::Ident || !active.contains(&token.text) {
+            continue;
+        }
+        let Some(open) = index.tokens.get(at + 1).filter(|next| next.text == "(") else {
+            continue;
+        };
+        let Some(close_at) = index.matching_token_index(at + 1) else {
+            continue;
+        };
+        let close = &index.tokens[close_at];
+        ranges.push(open.end as usize..close.start as usize);
+    }
+    ranges
+}
+
+fn function_macro_events(source: &str) -> Vec<(usize, String, bool)> {
+    let mut events = Vec::new();
+    let mut offset = 0usize;
+    for line in source.split_inclusive('\n') {
+        let trimmed = line.trim_start();
+        let leading = line.len().saturating_sub(trimmed.len());
+        let Some(rest) = trimmed.strip_prefix('#').map(str::trim_start) else {
+            offset += line.len();
+            continue;
+        };
+        let (defined, rest) = if let Some(rest) = rest.strip_prefix("define") {
+            (true, rest)
+        } else if let Some(rest) = rest.strip_prefix("undef") {
+            (false, rest)
+        } else {
+            offset += line.len();
+            continue;
+        };
+        if rest
+            .as_bytes()
+            .first()
+            .is_some_and(|byte| !byte.is_ascii_whitespace())
+        {
+            offset += line.len();
+            continue;
+        }
+        let rest = rest.trim_start();
+        let name_len = rest
+            .bytes()
+            .take_while(|byte| *byte == b'_' || byte.is_ascii_alphanumeric())
+            .count();
+        if name_len == 0
+            || !rest
+                .as_bytes()
+                .first()
+                .is_some_and(|byte| *byte == b'_' || byte.is_ascii_alphabetic())
+        {
+            offset += line.len();
+            continue;
+        }
+        let name = &rest[..name_len];
+        let function_like = rest.as_bytes().get(name_len) == Some(&b'(');
+        let hash_offset = offset + leading;
+        events.push((hash_offset, name.to_string(), defined && function_like));
+        offset += line.len();
+    }
+    events
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CTypeLayout {
+    size_bits: usize,
+    align_bits: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CAbiLayout {
+    pointer_bits: usize,
+    long_bits: usize,
+    size_t_bits: usize,
+    ptrdiff_t_bits: usize,
+    wchar_t_bits: usize,
+}
+
+// The baseline scanner does not currently receive the compilation target.  To
+// avoid reporting target-specific guesses, this checker only reports when the
+// legacy StructSizeofChecker outcome is identical for the common C data models
+// below.  Target-aware frontends can eventually collapse this to the selected
+// ABI without changing the checker semantics.
+const COMMON_C_ABIS: [CAbiLayout; 3] = [
+    CAbiLayout {
+        pointer_bits: 32,
+        long_bits: 32,
+        size_t_bits: 32,
+        ptrdiff_t_bits: 32,
+        wchar_t_bits: 32,
+    },
+    CAbiLayout {
+        pointer_bits: 64,
+        long_bits: 64,
+        size_t_bits: 64,
+        ptrdiff_t_bits: 64,
+        wchar_t_bits: 32,
+    },
+    CAbiLayout {
+        pointer_bits: 64,
+        long_bits: 32,
+        size_t_bits: 64,
+        ptrdiff_t_bits: 64,
+        wchar_t_bits: 16,
+    },
+];
+
+fn struct_sizeof_allocation_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let macro_argument_ranges = function_macro_argument_ranges(source, index);
+    let mut offsets = Vec::new();
+    for malloc_at in 0..index.tokens.len() {
+        if index.tokens[malloc_at].text != "malloc"
+            || malloc_at > 0
+                && matches!(index.tokens[malloc_at - 1].text.as_str(), "." | "->" | "::")
+        {
+            continue;
+        }
+        let Some((_, call_close)) = direct_call_expression(index, malloc_at) else {
+            continue;
+        };
+        if macro_argument_ranges.iter().any(|range| {
+            range.start <= index.tokens[malloc_at].start as usize
+                && index.tokens[malloc_at].end as usize <= range.end
+        }) {
+            continue;
+        }
+        let arguments = direct_call_argument_ranges(index, malloc_at + 1, call_close);
+        if arguments.len() != 1 {
+            continue;
+        }
+        let Some(record_name) = allocation_cast_record_target(index, declarations, malloc_at, call_close)
+        else {
+            continue;
+        };
+        let Some(record) = find_record_aggregate(declarations, &record_name) else {
+            continue;
+        };
+        if !record_layout_is_supported(source, declarations, record) {
+            continue;
+        }
+        let mut report_on_every_supported_abi = true;
+        for abi in COMMON_C_ABIS {
+            let Some((field_sizes, record_size)) =
+                record_field_sizes_and_layout(declarations, &record_name, abi)
+            else {
+                report_on_every_supported_abi = false;
+                break;
+            };
+            let Some(field_sum) = field_sizes
+                .iter()
+                .try_fold(0usize, |total, size| total.checked_add(*size))
+            else {
+                report_on_every_supported_abi = false;
+                break;
+            };
+            if record_size == field_sum {
+                report_on_every_supported_abi = false;
+                break;
+            }
+            let mut sizeof_sizes = Vec::new();
+            if !collect_sizeof_sum_sizes(
+                index,
+                declarations,
+                arguments[0].0,
+                arguments[0].1,
+                abi,
+                &mut sizeof_sizes,
+            ) || sizeof_sizes.len() <= 1
+            {
+                report_on_every_supported_abi = false;
+                break;
+            }
+            for field_size in field_sizes {
+                if let Some(at) = sizeof_sizes.iter().position(|size| *size == field_size) {
+                    sizeof_sizes.remove(at);
+                }
+            }
+            if !sizeof_sizes.is_empty() {
+                report_on_every_supported_abi = false;
+                break;
+            }
+        }
+        if report_on_every_supported_abi {
+            offsets.push(index.tokens[malloc_at].start as usize);
+        }
+    }
+    offsets
+}
+
+fn allocation_cast_record_target(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    malloc_at: usize,
+    call_close: usize,
+) -> Option<String> {
+    if malloc_at > 0 && index.tokens[malloc_at - 1].text == ")" {
+        let cast_open = index.matching_token_index(malloc_at - 1)?;
+        if let Some(record) = record_pointer_type_from_tokens(
+            &index.tokens[cast_open + 1..malloc_at - 1],
+            declarations,
+        ) {
+            return Some(record);
+        }
+    }
+
+    let cast_open = malloc_at.checked_sub(1)?;
+    if index.tokens.get(cast_open)?.text != "(" {
+        return None;
+    }
+    let type_close = cast_open.checked_sub(1)?;
+    if index.tokens.get(type_close)?.text != ">" {
+        return None;
+    }
+    let cast_name = (0..type_close).rev().find(|at| {
+        matches!(
+            index.tokens[*at].text.as_str(),
+            "static_cast" | "dynamic_cast" | "reinterpret_cast" | "const_cast"
+        )
+    })?;
+    if index.tokens.get(cast_name + 1)?.text != "<"
+        || index.matching_token_index(cast_open)? != call_close + 1
+    {
+        return None;
+    }
+    record_pointer_type_from_tokens(&index.tokens[cast_name + 2..type_close], declarations)
+}
+
+fn record_pointer_type_from_tokens(
+    tokens: &[Token],
+    declarations: &CDeclarationIndex,
+) -> Option<String> {
+    let pointer_layers = tokens
+        .iter()
+        .map(|token| match token.text.as_str() {
+            "*" => 1usize,
+            "**" => 2,
+            _ => 0,
+        })
+        .sum::<usize>();
+    if pointer_layers != 1 || tokens.iter().any(|token| matches!(token.text.as_str(), "&" | "&&")) {
+        return None;
+    }
+    let mut angle_depth = 0usize;
+    let mut parts = Vec::new();
+    for token in tokens {
+        match token.text.as_str() {
+            "<" => angle_depth += 1,
+            ">" => angle_depth = angle_depth.saturating_sub(1),
+            ">>" => angle_depth = angle_depth.saturating_sub(2),
+            "const" | "volatile" | "restrict" | "struct" | "class" | "union" | "*" | "**" => {}
+            "::" if angle_depth == 0 => parts.push("::".to_string()),
+            _ if angle_depth > 0 => {}
+            _ if token.kind == TokKind::Ident => parts.push(token.text.clone()),
+            _ => return None,
+        }
+    }
+    let name = parts.join("");
+    find_record_aggregate(declarations, &name).map(record_aggregate_key)
+}
+
+fn record_aggregate_key(
+    aggregate: &uniflow_parser_core::c_declarations::CAggregate,
+) -> String {
+    if aggregate.qualified_name.is_empty() {
+        aggregate.name.clone().unwrap_or_default()
+    } else {
+        aggregate.qualified_name.clone()
+    }
+}
+
+fn find_record_aggregate<'a>(
+    declarations: &'a CDeclarationIndex,
+    name: &str,
+) -> Option<&'a uniflow_parser_core::c_declarations::CAggregate> {
+    let canonical = canonical_type_text(name);
+    let canonical = canonical.trim_end_matches('*');
+    let records = declarations
+        .aggregates
+        .iter()
+        .filter(|aggregate| {
+            matches!(aggregate.kind.as_str(), "struct" | "class" | "union")
+                && aggregate.body.is_some()
+        });
+    if canonical.contains("::") {
+        return records
+            .filter(|aggregate| aggregate.qualified_name == canonical)
+            .last();
+    }
+    let mut matching = records.filter(|aggregate| aggregate.name.as_deref() == Some(canonical));
+    let found = matching.next()?;
+    matching.next().is_none().then_some(found)
+}
+
+fn record_layout_is_supported(
+    source: &str,
+    declarations: &CDeclarationIndex,
+    aggregate: &uniflow_parser_core::c_declarations::CAggregate,
+) -> bool {
+    if !aggregate.bases.is_empty() || source.contains("#pragma pack") {
+        return false;
+    }
+    let start = aggregate.range.start.saturating_sub(96);
+    let end = aggregate.range.end.saturating_add(96).min(source.len());
+    let nearby = source.get(start..end).unwrap_or_default();
+    if nearby.contains("packed")
+        || nearby.contains("alignas")
+        || nearby.contains("_Alignas")
+        || nearby.contains("__declspec(align")
+        || nearby.contains("virtual")
+    {
+        return false;
+    }
+    let Some(body) = aggregate.body.as_ref() else {
+        return false;
+    };
+    !declarations.declarations.iter().any(|declaration| {
+        declaration.in_aggregate
+            && body.start <= declaration.range.start
+            && declaration.range.end <= body.end
+            && declaration
+                .declarators
+                .iter()
+                .any(|declarator| declarator.bit_width.is_some())
+    })
+}
+
+fn record_field_sizes_and_layout(
+    declarations: &CDeclarationIndex,
+    record_name: &str,
+    abi: CAbiLayout,
+) -> Option<(Vec<usize>, usize)> {
+    let aggregate = find_record_aggregate(declarations, record_name)?;
+    let body = aggregate.body.as_ref()?;
+    let mut stack = HashSet::new();
+    let fields = aggregate_field_layouts(declarations, aggregate, body, abi, &mut stack)?;
+    let field_sizes = fields.iter().map(|(_, layout)| layout.size_bits).collect::<Vec<_>>();
+    let layout = aggregate_layout(declarations, aggregate, abi, &mut HashSet::new())?;
+    Some((field_sizes, layout.size_bits))
+}
+
+fn aggregate_field_layouts<'a>(
+    declarations: &'a CDeclarationIndex,
+    aggregate: &uniflow_parser_core::c_declarations::CAggregate,
+    body: &std::ops::Range<usize>,
+    abi: CAbiLayout,
+    stack: &mut HashSet<String>,
+) -> Option<Vec<(&'a uniflow_parser_core::c_declarations::CDeclarator, CTypeLayout)>> {
+    let qualification = aggregate.qualified_name.as_str();
+    let mut fields = Vec::new();
+    for declaration in declarations.declarations.iter().filter(|declaration| {
+        declaration.in_aggregate
+            && body.start <= declaration.range.start
+            && declaration.range.end <= body.end
+            && declaration.qualification.join("::") == qualification
+    }) {
+        if declaration.storage.iter().any(|storage| storage == "static") {
+            continue;
+        }
+        for declarator in &declaration.declarators {
+            if declarator
+                .derived
+                .iter()
+                .any(|derived| matches!(derived, D::Function { .. }))
+            {
+                continue;
+            }
+            let layout = c_declared_type_layout(
+                declarations,
+                &declaration.type_name,
+                &declarator.derived,
+                abi,
+                stack,
+            )?;
+            fields.push((declarator, layout));
+        }
+    }
+    Some(fields)
+}
+
+fn aggregate_layout(
+    declarations: &CDeclarationIndex,
+    aggregate: &uniflow_parser_core::c_declarations::CAggregate,
+    abi: CAbiLayout,
+    stack: &mut HashSet<String>,
+) -> Option<CTypeLayout> {
+    let key = record_aggregate_key(aggregate);
+    if !stack.insert(key.clone()) {
+        return None;
+    }
+    let body = aggregate.body.as_ref()?;
+    let fields = aggregate_field_layouts(declarations, aggregate, body, abi, stack)?;
+    let result = if aggregate.kind == "union" {
+        let size = fields.iter().map(|(_, field)| field.size_bits).max().unwrap_or(8);
+        let align = fields.iter().map(|(_, field)| field.align_bits).max().unwrap_or(8);
+        CTypeLayout {
+            size_bits: align_up(size, align),
+            align_bits: align,
+        }
+    } else {
+        let mut offset = 0usize;
+        let mut max_align = 8usize;
+        for (_, field) in &fields {
+            max_align = max_align.max(field.align_bits);
+            offset = align_up(offset, field.align_bits);
+            offset = offset.checked_add(field.size_bits)?;
+        }
+        CTypeLayout {
+            size_bits: align_up(offset.max(8), max_align),
+            align_bits: max_align,
+        }
+    };
+    stack.remove(&key);
+    Some(result)
+}
+
+fn c_declared_type_layout(
+    declarations: &CDeclarationIndex,
+    type_name: &str,
+    derived: &[D],
+    abi: CAbiLayout,
+    stack: &mut HashSet<String>,
+) -> Option<CTypeLayout> {
+    let Some((outer, inner)) = derived.split_first() else {
+        return c_base_type_layout(declarations, type_name, abi, stack);
+    };
+    match outer {
+        // Declarators are stored from the declared name outwards.  A pointer
+        // therefore determines the object size without resolving its pointee;
+        // this is essential for self-referential records such as Node *next.
+        D::Pointer => Some(CTypeLayout {
+            size_bits: abi.pointer_bits,
+            align_bits: abi.pointer_bits,
+        }),
+        D::Reference | D::RvalueReference => Some(CTypeLayout {
+            size_bits: abi.pointer_bits,
+            align_bits: abi.pointer_bits,
+        }),
+        // C++ member-pointer representation is target/ABI specific and is not
+        // safely approximated without target configuration.
+        D::MemberPointer => None,
+        D::Array { size } => {
+            let element = c_declared_type_layout(declarations, type_name, inner, abi, stack)?;
+            let tokens = declarations.tokens_in(size.clone()).cloned().collect::<Vec<_>>();
+            let length = evaluate_c_constant_integer(&tokens)?;
+            if length < 0 {
+                return None;
+            }
+            Some(CTypeLayout {
+                size_bits: element.size_bits.checked_mul(length as usize)?,
+                align_bits: element.align_bits,
+            })
+        }
+        D::Function { .. } => None,
+    }
+}
+
+fn c_base_type_layout(
+    declarations: &CDeclarationIndex,
+    type_name: &str,
+    abi: CAbiLayout,
+    stack: &mut HashSet<String>,
+) -> Option<CTypeLayout> {
+    let canonical = canonical_type_text(type_name);
+    if canonical.ends_with('*') {
+        return Some(CTypeLayout {
+            size_bits: abi.pointer_bits,
+            align_bits: abi.pointer_bits,
+        });
+    }
+    let builtin = match canonical.as_str() {
+        "bool" | "_Bool" | "char" | "signed char" | "unsigned char" | "char8_t" => Some((8, 8)),
+        "short" | "unsigned short" | "char16_t" => Some((16, 16)),
+        "int" | "unsigned int" | "float" | "char32_t" => Some((32, 32)),
+        "long" | "unsigned long" => Some((abi.long_bits, abi.long_bits)),
+        "long long" | "unsigned long long" | "double" => Some((64, 64)),
+        "size_t" => Some((abi.size_t_bits, abi.size_t_bits)),
+        "ptrdiff_t" => Some((abi.ptrdiff_t_bits, abi.ptrdiff_t_bits)),
+        "wchar_t" => Some((abi.wchar_t_bits, abi.wchar_t_bits)),
+        // long double size/alignment differs substantially across supported
+        // targets, including targets with 80-bit storage padded to 96/128 bits.
+        "longdouble" => None,
+        _ => None,
+    };
+    if let Some((size_bits, align_bits)) = builtin {
+        return Some(CTypeLayout { size_bits, align_bits });
+    }
+    if canonical.starts_with("enum:")
+        || declarations.aggregates.iter().any(|aggregate| {
+            aggregate.kind == "enum"
+                && aggregate.name.as_deref().is_some_and(|name| canonical == name)
+        })
+    {
+        return Some(CTypeLayout {
+            size_bits: 32,
+            align_bits: 32,
+        });
+    }
+    if let Some(alias) = declarations.declarations.iter().find(|declaration| {
+        declaration.storage.iter().any(|storage| storage == "typedef")
+            && declaration
+                .declarators
+                .iter()
+                .any(|declarator| declarator.name.as_deref() == Some(canonical.as_str()))
+    }) {
+        let declarator = alias
+            .declarators
+            .iter()
+            .find(|declarator| declarator.name.as_deref() == Some(canonical.as_str()))?;
+        return c_declared_type_layout(
+            declarations,
+            &alias.type_name,
+            &declarator.derived,
+            abi,
+            stack,
+        );
+    }
+    let aggregate = find_record_aggregate(declarations, &canonical)?;
+    aggregate_layout(declarations, aggregate, abi, stack)
+}
+
+fn align_up(value: usize, alignment: usize) -> usize {
+    if alignment == 0 {
+        value
+    } else {
+        value.div_ceil(alignment) * alignment
+    }
+}
+
+fn collect_sizeof_sum_sizes(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+    abi: CAbiLayout,
+    sizes: &mut Vec<usize>,
+) -> bool {
+    let (start, end) = trim_outer_group(index, start, end);
+    if start >= end {
+        return false;
+    }
+    let mut at = start;
+    while at < end {
+        if matches!(index.tokens[at].text.as_str(), "(" | "[" | "{") {
+            at = index.matching_token_index(at).map_or(at + 1, |close| close + 1);
+            continue;
+        }
+        if index.tokens[at].text == "+" {
+            return collect_sizeof_sum_sizes(index, declarations, start, at, abi, sizes)
+                && collect_sizeof_sum_sizes(index, declarations, at + 1, end, abi, sizes);
+        }
+        at += 1;
+    }
+    let Some(size) = sizeof_expression_type_size(index, declarations, start, end, abi) else {
+        return false;
+    };
+    sizes.push(size);
+    true
+}
+
+fn sizeof_expression_type_size(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+    abi: CAbiLayout,
+) -> Option<usize> {
+    let (start, end) = trim_outer_group(index, start, end);
+    if index.tokens.get(start)?.text != "sizeof" {
+        return None;
+    }
+    let operand_start = start + 1;
+    if operand_start >= end {
+        return None;
+    }
+    let (inner_start, inner_end) = if index.tokens[operand_start].text == "(" {
+        let close = index.matching_token_index(operand_start)?;
+        if close + 1 != end {
+            return None;
+        }
+        (operand_start + 1, close)
+    } else {
+        (operand_start, end)
+    };
+    let layout = sizeof_operand_layout(index, declarations, inner_start, inner_end, abi)?;
+    Some(layout.size_bits)
+}
+
+fn sizeof_operand_layout(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+    abi: CAbiLayout,
+) -> Option<CTypeLayout> {
+    let (start, end) = trim_outer_group(index, start, end);
+    if start >= end {
+        return None;
+    }
+    if let Some(type_name) = type_name_from_sizeof_tokens(&index.tokens[start..end], declarations) {
+        return c_declared_type_layout(declarations, &type_name, &[], abi, &mut HashSet::new());
+    }
+    if end == start + 1 {
+        if let Some(layout) = declared_identifier_layout(index, declarations, start, abi) {
+            return Some(layout);
+        }
+        let ty = exact_operand_type(index, declarations, start)?;
+        return c_declared_type_layout(declarations, &ty, &[], abi, &mut HashSet::new());
+    }
+    if end == start + 2 && index.tokens[start].text == "*" {
+        return dereferenced_identifier_layout(index, declarations, start + 1, abi);
+    }
+    if end == start + 3 && matches!(index.tokens[start + 1].text.as_str(), "." | "->") {
+        return member_expression_layout(index, declarations, start, start + 2, abi);
+    }
+    None
+}
+
+fn declared_identifier_layout(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    token: usize,
+    abi: CAbiLayout,
+) -> Option<CTypeLayout> {
+    let value = index.tokens.get(token)?;
+    if value.kind != TokKind::Ident {
+        return None;
+    }
+    if let Some(parameter) = declarations
+        .parameters
+        .iter()
+        .filter(|parameter| {
+            parameter.name.as_deref() == Some(value.text.as_str())
+                && parameter.range.start <= value.start as usize
+        })
+        .max_by_key(|parameter| parameter.range.start)
+    {
+        return c_declared_type_layout(
+            declarations,
+            &parameter.type_name,
+            &parameter.derived,
+            abi,
+            &mut HashSet::new(),
+        );
+    }
+    let (declaration, declarator) = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.range.start <= value.start as usize)
+        .filter_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .find(|declarator| declarator.name.as_deref() == Some(value.text.as_str()))
+                .map(|declarator| (declaration, declarator))
+        })
+        .max_by_key(|(declaration, _)| declaration.range.start)?;
+    c_declared_type_layout(
+        declarations,
+        &declaration.type_name,
+        &declarator.derived,
+        abi,
+        &mut HashSet::new(),
+    )
+}
+
+fn dereferenced_identifier_layout(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    token: usize,
+    abi: CAbiLayout,
+) -> Option<CTypeLayout> {
+    let value = index.tokens.get(token)?;
+    let parameter = declarations
+        .parameters
+        .iter()
+        .filter(|parameter| {
+            parameter.name.as_deref() == Some(value.text.as_str())
+                && parameter.range.start <= value.start as usize
+        })
+        .max_by_key(|parameter| parameter.range.start);
+    if let Some(parameter) = parameter {
+        let (D::Pointer, inner) = parameter.derived.split_first()? else {
+            return None;
+        };
+        return c_declared_type_layout(
+            declarations,
+            &parameter.type_name,
+            inner,
+            abi,
+            &mut HashSet::new(),
+        );
+    }
+    let (declaration, declarator) = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.range.start <= value.start as usize)
+        .filter_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .find(|declarator| declarator.name.as_deref() == Some(value.text.as_str()))
+                .map(|declarator| (declaration, declarator))
+        })
+        .max_by_key(|(declaration, _)| declaration.range.start)?;
+    let (D::Pointer, inner) = declarator.derived.split_first()? else {
+        return None;
+    };
+    c_declared_type_layout(
+        declarations,
+        &declaration.type_name,
+        inner,
+        abi,
+        &mut HashSet::new(),
+    )
+}
+
+fn member_expression_layout(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    owner_token: usize,
+    member_token: usize,
+    abi: CAbiLayout,
+) -> Option<CTypeLayout> {
+    let owner = index.tokens.get(owner_token)?;
+    let member = index.tokens.get(member_token)?;
+    if owner.kind != TokKind::Ident || member.kind != TokKind::Ident {
+        return None;
+    }
+    let owner_type = exact_operand_type(index, declarations, owner_token)?;
+    let owner_record = canonical_type_text(&owner_type)
+        .trim_end_matches('*')
+        .to_string();
+    let aggregate = find_record_aggregate(declarations, &owner_record)?;
+    let body = aggregate.body.as_ref()?;
+    let qualification = aggregate.qualified_name.as_str();
+    let (field_decl, field) = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| {
+            declaration.in_aggregate
+                && body.start <= declaration.range.start
+                && declaration.range.end <= body.end
+                && declaration.qualification.join("::") == qualification
+        })
+        .find_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .find(|declarator| declarator.name.as_deref() == Some(member.text.as_str()))
+                .map(|field| (declaration, field))
+        })?;
+    c_declared_type_layout(
+        declarations,
+        &field_decl.type_name,
+        &field.derived,
+        abi,
+        &mut HashSet::new(),
+    )
+}
+
+fn type_name_from_sizeof_tokens(tokens: &[Token], declarations: &CDeclarationIndex) -> Option<String> {
+    if tokens.is_empty() || tokens.iter().any(|token| matches!(token.text.as_str(), "." | "->" | "=" | "+" | "-" | "/" | "%")) {
+        return None;
+    }
+    let known = declarations
+        .aggregates
+        .iter()
+        .filter_map(|aggregate| aggregate.name.as_deref())
+        .chain(
+            declarations
+                .declarations
+                .iter()
+                .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+                .flat_map(|declaration| &declaration.declarators)
+                .filter_map(|declarator| declarator.name.as_deref()),
+        )
+        .collect::<HashSet<_>>();
+    let mut saw_type = false;
+    for token in tokens {
+        match token.text.as_str() {
+            "const" | "volatile" | "restrict" | "struct" | "class" | "union" | "enum" | "signed"
+            | "unsigned" | "short" | "long" | "*" | "::" => saw_type = true,
+            text if token.kind == TokKind::Ident && (is_builtin_type_word(text) || known.contains(text)) => {
+                saw_type = true;
+            }
+            _ => return None,
+        }
+    }
+    saw_type.then(|| {
+        index_type_tokens_to_text(tokens)
+    })
+}
+
+fn index_type_tokens_to_text(tokens: &[Token]) -> String {
+    tokens
+        .iter()
+        .map(|token| token.text.as_str())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn hardcoded_crypto_key_offsets(
@@ -915,10 +2573,10 @@ fn is_legacy_direct_call(
 
     // getDirectCallee() is null for function-pointer/functor calls. Exclude a
     // visible non-function object that shadows the target spelling.
-    !visible_nonfunction_callee(index, declarations, syntax, name_at)
+    !visible_nonfunction_identifier(index, declarations, syntax, name_at)
 }
 
-fn visible_nonfunction_callee(
+fn visible_nonfunction_identifier(
     index: &CExpressionIndex,
     declarations: &CDeclarationIndex,
     syntax: &JavaSyntax,
@@ -942,6 +2600,12 @@ fn visible_nonfunction_callee(
         })
         .flat_map(|declaration| &declaration.declarators)
         .filter(|declarator| declarator.name.as_deref() == Some(name))
+        .filter(|declarator| {
+            declarator
+                .name_range
+                .as_ref()
+                .is_none_or(|range| range.start < offset)
+        })
         .max_by_key(|declarator| declarator.range.start);
     if local_shadow.is_some_and(|declarator| {
         !matches!(declarator.derived.first(), Some(D::Function { .. }))
@@ -1122,6 +2786,48 @@ fn numeric_assignment_is_invalid(
             .is_some_and(|value| value > integer_max_value(target));
     }
     false
+}
+
+fn return_type_mismatch_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    declarations
+        .returns
+        .iter()
+        .filter_map(|returned| {
+            let value = returned.value.as_ref()?;
+            let function = declarations.functions.get(returned.function)?;
+            let target = canonical_type_text(&function.return_type);
+            if !is_numeric_assignment_type(&target) {
+                return None;
+            }
+            let (start, end) = token_range_for_source_range(index, value)?;
+            if !numeric_assignment_is_invalid(index, declarations, &target, start, end)
+                || expression_is_direct_integer_zero_after_casts(index, start, end)
+            {
+                return None;
+            }
+            index.tokens.get(start).map(|token| token.start as usize)
+        })
+        .collect()
+}
+
+fn return_type_message_arguments(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    offset: usize,
+) -> Option<Vec<String>> {
+    let returned = declarations
+        .returns
+        .iter()
+        .find(|returned| returned.value.as_ref().is_some_and(|value| value.start == offset))?;
+    let value = returned.value.as_ref()?;
+    let function = declarations.functions.get(returned.function)?;
+    let (start, end) = token_range_for_source_range(index, value)?;
+    let actual = expression_numeric_type(index, declarations, start, end)?;
+    let declared = canonical_type_text(&function.return_type);
+    Some(vec![actual, declared])
 }
 
 fn is_numeric_assignment_type(ty: &str) -> bool {
@@ -1797,6 +3503,8 @@ fn nonzero_integer_pointer_cast_assignment_offsets(
     declarations: &CDeclarationIndex,
 ) -> Vec<usize> {
     let casts = explicit_cast_facts(index, declarations);
+    #[cfg(test)]
+    eprintln!("pointer assignment casts: {casts:#?}");
     let initializer_assignments = initializer_separators(index, declarations);
     index
         .facts
@@ -2224,6 +3932,9 @@ fn expression_numeric_type(
             }
         }
     }
+    if let Some(return_type) = direct_call_return_type(index, declarations, start, end) {
+        return Some(return_type);
+    }
     if end == start + 1 {
         return exact_operand_type(index, declarations, start)
             .map(|ty| canonical_type_text(&ty));
@@ -2251,6 +3962,61 @@ fn expression_numeric_type(
         }
     }
     widest.or(integral)
+}
+
+fn direct_call_return_type(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    if end <= start + 2 {
+        return None;
+    }
+    let open = (start + 1..end).find(|at| {
+        index.tokens[*at].text == "("
+            && index.matching_token_index(*at).is_some_and(|close| close + 1 == end)
+    })?;
+    let name_at = open.checked_sub(1)?;
+    let name = index.tokens.get(name_at)?;
+    if name.kind != TokKind::Ident {
+        return None;
+    }
+    if index.tokens[start..name_at]
+        .iter()
+        .any(|token| token.text != "::" && token.kind != TokKind::Ident)
+    {
+        return None;
+    }
+    if let Some(function) = declarations
+        .functions
+        .iter()
+        .filter(|function| function.name == name.text)
+        .min_by_key(|function| function.range.start.abs_diff(name.start as usize))
+    {
+        let ty = canonical_type_text(&function.return_type);
+        return is_numeric_assignment_type(&ty).then_some(ty);
+    }
+    declarations
+        .declarations
+        .iter()
+        .flat_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .map(move |declarator| (declaration, declarator))
+        })
+        .find(|(_, declarator)| {
+            declarator.name.as_deref() == Some(name.text.as_str())
+                && declarator
+                    .derived
+                    .iter()
+                    .any(|derived| matches!(derived, D::Function { .. }))
+        })
+        .and_then(|(declaration, _)| {
+            let ty = canonical_type_text(&declaration.type_name);
+            is_numeric_assignment_type(&ty).then_some(ty)
+        })
 }
 
 fn plain_char_arithmetic_operand_offsets(
@@ -2309,6 +4075,413 @@ fn signed_bit_field_width_offsets(
             })
         })
         .collect()
+}
+
+fn bit_field_width_non_integral_cast_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let bit_widths = declarations
+        .declarations
+        .iter()
+        .flat_map(|declaration| &declaration.declarators)
+        .filter_map(|declarator| declarator.bit_width.as_ref())
+        .collect::<Vec<_>>();
+    if bit_widths.is_empty() {
+        return Vec::new();
+    }
+
+    let mut offsets = explicit_cast_facts(index, declarations)
+        .into_iter()
+        .filter(|cast| {
+            bit_widths
+                .iter()
+                .any(|width| width.start <= cast.offset && cast.offset < width.end)
+                && !cast.source_is_integral_or_enum
+        })
+        .map(|cast| cast.source_offset)
+        .collect::<Vec<_>>();
+
+    // CXXFunctionalCastExpr is also a CastExpr in Clang. Keep this handling
+    // local to the legacy BitSizeType migration so other explicit-cast rules
+    // retain their existing matcher contracts.
+    let typedefs = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+        .flat_map(|declaration| &declaration.declarators)
+        .filter_map(|declarator| declarator.name.as_deref())
+        .collect::<HashSet<_>>();
+    let aggregate_names = declarations
+        .aggregates
+        .iter()
+        .filter_map(|aggregate| aggregate.name.as_deref())
+        .collect::<HashSet<_>>();
+    for width in bit_widths {
+        let Some((start, end)) = token_range_for_source_range(index, width) else {
+            continue;
+        };
+        for at in start..end.saturating_sub(2) {
+            let token = &index.tokens[at];
+            if token.kind != TokKind::Ident
+                || !(is_builtin_type_word(&token.text)
+                    || typedefs.contains(token.text.as_str())
+                    || aggregate_names.contains(token.text.as_str()))
+                || index.tokens.get(at + 1).is_none_or(|next| next.text != "(")
+            {
+                continue;
+            }
+            let Some(close) = index.matching_token_index(at + 1) else {
+                continue;
+            };
+            if close >= end || close == at + 2 {
+                continue;
+            }
+            let source_start = at + 2;
+            let source_end = close;
+            let source_is_enum = source_end == source_start + 1
+                && operand_has_declared_enum_type(index, declarations, source_start);
+            let source_type = expression_numeric_type(index, declarations, source_start, source_end)
+                .or_else(|| {
+                    (source_end == source_start + 1)
+                        .then(|| exact_operand_type(index, declarations, source_start))
+                        .flatten()
+                        .map(|ty| canonical_type_text(&ty))
+                });
+            if !source_is_enum
+                && source_type
+                    .as_deref()
+                    .is_some_and(|ty| !is_integral_or_enum_type(ty))
+            {
+                offsets.push(index.tokens[source_start].start as usize);
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn logical_subexpression_without_parentheses_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Binary) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        let text = index.tokens[operator].text.as_str();
+        if !matches!(text, "&&" | "||")
+            || !declarations.functions.iter().any(|function| {
+                function.body.start <= fact.offset && fact.offset < function.body.end
+            })
+        {
+            continue;
+        }
+
+        let Some((precedence, _)) = binary_precedence(text) else {
+            continue;
+        };
+        let (lower, upper) = index
+            .smallest_group(fact.offset)
+            .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+        let left = left_operand_start(index, operator, lower, precedence);
+        let right = right_operand_end(index, operator, upper, precedence);
+
+        for (start, end) in [(left, operator), (operator + 1, right)] {
+            if start >= end {
+                continue;
+            }
+            let child_is_logical = expression_root_operator(index, start, end, false)
+                .is_some_and(|at| matches!(index.tokens[at].text.as_str(), "&&" | "||"));
+            if child_is_logical {
+                offsets.push(index.tokens[start].start as usize);
+            }
+        }
+    }
+    offsets
+}
+
+fn conditional_operand_without_parentheses_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let macro_argument_ranges = function_macro_argument_ranges(source, index);
+    let known_cast_names = declarations
+        .aggregates
+        .iter()
+        .filter_map(|aggregate| aggregate.name.as_deref())
+        .chain(
+            declarations
+                .declarations
+                .iter()
+                .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+                .flat_map(|declaration| &declaration.declarators)
+                .filter_map(|declarator| declarator.name.as_deref()),
+        )
+        .collect::<HashSet<_>>();
+    let mut offsets = Vec::new();
+
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Conditional) {
+        if !declarations.functions.iter().any(|function| {
+            function.body.start <= fact.offset && fact.offset < function.body.end
+        }) {
+            continue;
+        }
+        let Some(question) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        let Some(operands) = conditional_direct_operand_ranges(index, question) else {
+            continue;
+        };
+        for (start, end) in operands {
+            if start >= end
+                || !direct_conditional_child_is_binary_or_conditional(
+                    index,
+                    start,
+                    end,
+                    &known_cast_names,
+                )
+            {
+                continue;
+            }
+            let begin = index.tokens[start].start as usize;
+            if macro_argument_ranges
+                .iter()
+                .any(|range| range.start <= begin && begin < range.end)
+            {
+                continue;
+            }
+            offsets.push(begin);
+        }
+    }
+
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn conditional_direct_operand_ranges(
+    index: &CExpressionIndex,
+    question: usize,
+) -> Option<[(usize, usize); 3]> {
+    if index.tokens.get(question)?.text != "?" {
+        return None;
+    }
+    let (lower, upper) = index
+        .smallest_group(index.tokens[question].start as usize)
+        .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+
+    let mut nested = 0usize;
+    let mut at = question + 1;
+    let colon = loop {
+        if at >= upper {
+            return None;
+        }
+        match index.tokens[at].text.as_str() {
+            "(" | "[" | "{" => {
+                at = index.matching_token_index(at).map_or(at + 1, |close| close + 1);
+                continue;
+            }
+            "?" => nested += 1,
+            ":" if nested == 0 => break at,
+            ":" => nested -= 1,
+            _ => {}
+        }
+        at += 1;
+    };
+
+    let mut condition_start = question;
+    while condition_start > lower {
+        let previous = condition_start - 1;
+        if matches!(index.tokens[previous].text.as_str(), ")" | "]" | "}") {
+            let Some(open) = index.matching_token_index(previous) else {
+                break;
+            };
+            if open < lower {
+                break;
+            }
+            condition_start = open;
+            continue;
+        }
+        if is_conditional_left_boundary(&index.tokens[previous].text) {
+            break;
+        }
+        condition_start = previous;
+    }
+
+    let mut rhs_end = colon + 1;
+    nested = 0;
+    while rhs_end < upper {
+        match index.tokens[rhs_end].text.as_str() {
+            "(" | "[" | "{" => {
+                rhs_end = index
+                    .matching_token_index(rhs_end)
+                    .map_or(rhs_end + 1, |close| close + 1);
+                continue;
+            }
+            "?" => nested += 1,
+            ":" if nested == 0 => break,
+            ":" => nested -= 1,
+            "," | ";" if nested == 0 => break,
+            _ => {}
+        }
+        rhs_end += 1;
+    }
+
+    Some([
+        (condition_start, question),
+        (question + 1, colon),
+        (colon + 1, rhs_end),
+    ])
+}
+
+fn is_conditional_left_boundary(token: &str) -> bool {
+    matches!(
+        token,
+        "," | ";"
+            | "?"
+            | ":"
+            | "="
+            | "+="
+            | "-="
+            | "*="
+            | "/="
+            | "%="
+            | "&="
+            | "|="
+            | "^="
+            | "<<="
+            | ">>="
+            | "return"
+            | "throw"
+            | "case"
+            | "{"
+            | "}"
+    )
+}
+
+fn direct_conditional_child_is_binary_or_conditional(
+    index: &CExpressionIndex,
+    start: usize,
+    end: usize,
+    known_cast_names: &HashSet<&str>,
+) -> bool {
+    if start >= end {
+        return false;
+    }
+    if index.tokens[start].text == "("
+        && index.matching_token_index(start) == Some(end - 1)
+    {
+        return false;
+    }
+
+    let mut at = start;
+    while at < end {
+        if matches!(index.tokens[at].text.as_str(), "(" | "[" | "{") {
+            if let Some(close) = index.matching_token_index(at).filter(|close| *close < end) {
+                at = close + 1;
+                continue;
+            }
+        }
+        let token = index.tokens[at].text.as_str();
+        if token == "?"
+            || matches!(
+                token,
+                "," | "="
+                    | "+="
+                    | "-="
+                    | "*="
+                    | "/="
+                    | "%="
+                    | "&="
+                    | "|="
+                    | "^="
+                    | "<<="
+                    | ">>="
+                    | ".*"
+                    | "->*"
+            )
+        {
+            return true;
+        }
+        if binary_precedence(token).is_some()
+            && ambiguous_operator_is_binary(index, start, at, known_cast_names)
+        {
+            return true;
+        }
+        at += 1;
+    }
+    false
+}
+
+fn ambiguous_operator_is_binary(
+    index: &CExpressionIndex,
+    start: usize,
+    operator: usize,
+    known_cast_names: &HashSet<&str>,
+) -> bool {
+    let token = index.tokens[operator].text.as_str();
+    if !matches!(token, "+" | "-" | "*" | "&") {
+        return true;
+    }
+    if operator == start || range_is_only_c_cast_prefixes(index, start, operator, known_cast_names) {
+        return false;
+    }
+    !matches!(
+        index.tokens[operator - 1].text.as_str(),
+        "(" | "["
+            | "{"
+            | "?"
+            | ":"
+            | ","
+            | "="
+            | "+="
+            | "-="
+            | "*="
+            | "/="
+            | "%="
+            | "&="
+            | "|="
+            | "^="
+            | "<<="
+            | ">>="
+            | "+"
+            | "-"
+            | "*"
+            | "/"
+            | "%"
+            | "&&"
+            | "||"
+            | "!"
+            | "~"
+    )
+}
+
+fn range_is_only_c_cast_prefixes(
+    index: &CExpressionIndex,
+    start: usize,
+    end: usize,
+    known_cast_names: &HashSet<&str>,
+) -> bool {
+    let mut at = start;
+    let mut saw_cast = false;
+    while at < end {
+        if index.tokens[at].text != "(" {
+            return false;
+        }
+        let Some(close) = index.matching_token_index(at).filter(|close| *close < end) else {
+            return false;
+        };
+        if cast_destination_type(&index.tokens[at + 1..close], known_cast_names).is_none() {
+            return false;
+        }
+        saw_cast = true;
+        at = close + 1;
+    }
+    saw_cast && at == end
 }
 
 fn visually_confusing_variable_name_offsets(
@@ -2792,6 +4965,12 @@ fn left_operand_start(
             }
             return lower;
         }
+        // `&` is both the binary bitwise operator and the unary address-of
+        // operator.  A leading address-of must remain part of the operand;
+        // otherwise `&value > pointer` is analysed as `value > pointer`.
+        if index.tokens[at].text == "&" && unary_address_of_at(index, at, lower) {
+            continue;
+        }
         if let Some((candidate, _)) = binary_precedence(&index.tokens[at].text) {
             if candidate < precedence {
                 return at + 1;
@@ -2803,6 +4982,20 @@ fn left_operand_start(
         }
     }
     lower
+}
+
+fn unary_address_of_at(index: &CExpressionIndex, at: usize, lower: usize) -> bool {
+    if at == lower {
+        return true;
+    }
+    let previous = &index.tokens[at - 1].text;
+    is_expression_boundary(previous)
+        || matches!(
+            previous.as_str(),
+            "(" | "[" | "{" | "," | ":" | "?" | "=" | "+=" | "-=" | "*="
+                | "/=" | "%=" | "&&" | "||" | "!" | "~"
+        )
+        || binary_precedence(previous).is_some()
 }
 
 fn right_operand_end(
@@ -5150,6 +7343,415 @@ fn comparison_type_offsets(
         .collect()
 }
 
+fn pointer_relational_comparison_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let macro_arguments = function_macro_argument_ranges(source, index);
+    index
+        .facts
+        .iter()
+        .filter(|fact| fact.kind == K::Binary)
+        .filter_map(|fact| {
+            let operator = token_at_offset(index, fact.offset)?;
+            let text = index.tokens[operator].text.as_str();
+            matches!(text, "<" | "<=" | ">" | ">=").then_some(())?;
+            declarations
+                .functions
+                .iter()
+                .any(|function| {
+                    function.body.start <= fact.offset && fact.offset < function.body.end
+                })
+                .then_some(())?;
+            (!macro_arguments
+                .iter()
+                .any(|range| range.start <= fact.offset && fact.offset < range.end))
+            .then_some(())?;
+
+            let precedence = binary_precedence(text)?.0;
+            let (lower, upper) = index
+                .smallest_group(fact.offset)
+                .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+            let left = left_operand_start(index, operator, lower, precedence);
+            let right = right_operand_end(index, operator, upper, precedence);
+            (expression_pointer_depth(index, declarations, left, operator, 0) > 0
+                && expression_pointer_depth(index, declarations, operator + 1, right, 0) > 0)
+                .then_some(fact.offset)
+        })
+        .collect()
+}
+
+fn pointer_arithmetic_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let macro_arguments = function_macro_argument_ranges(source, index);
+    index
+        .facts
+        .iter()
+        .filter(|fact| fact.kind == K::Binary)
+        .filter_map(|fact| {
+            let operator = token_at_offset(index, fact.offset)?;
+            let text = index.tokens[operator].text.as_str();
+            matches!(text, "+" | "-").then_some(())?;
+            declarations
+                .functions
+                .iter()
+                .any(|function| {
+                    function.body.start <= fact.offset && fact.offset < function.body.end
+                })
+                .then_some(())?;
+            (!macro_arguments
+                .iter()
+                .any(|range| range.start <= fact.offset && fact.offset < range.end))
+            .then_some(())?;
+
+            let precedence = binary_precedence(text)?.0;
+            let (lower, upper) = index
+                .smallest_group(fact.offset)
+                .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+            let left = left_operand_start(index, operator, lower, precedence);
+            let right = right_operand_end(index, operator, upper, precedence);
+            // Clang suppresses the synthetic C++ range-for expansion.
+            (text != "+" || index.tokens[left].text != "__range1").then_some(())?;
+            (expression_pointer_depth(index, declarations, left, operator, 0) > 0
+                || expression_pointer_depth(index, declarations, operator + 1, right, 0) > 0)
+                .then_some(fact.offset)
+        })
+        .collect()
+}
+
+/// Mirrors `MixedTypeOperationChecker`: additive and multiplicative operations
+/// whose two non-constant operands have different source-level types.  The
+/// checker intentionally looks through parentheses but does not invent the
+/// usual arithmetic conversions, as Clang's checker compares the types before
+/// those conversions are applied.
+fn mixed_type_operation_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let macro_arguments = function_macro_argument_ranges(source, index);
+    index
+        .facts
+        .iter()
+        .filter(|fact| fact.kind == K::Binary)
+        .filter_map(|fact| {
+            let operator = token_at_offset(index, fact.offset)?;
+            let text = index.tokens[operator].text.as_str();
+            matches!(text, "+" | "-" | "*" | "/" | "%").then_some(())?;
+            declarations
+                .functions
+                .iter()
+                .any(|function| {
+                    function.body.start <= fact.offset && fact.offset < function.body.end
+                })
+                .then_some(())?;
+            (!macro_arguments
+                .iter()
+                .any(|range| range.start <= fact.offset && fact.offset < range.end))
+            .then_some(())?;
+
+            let precedence = binary_precedence(text)?.0;
+            let (lower, upper) = index
+                .smallest_group(fact.offset)
+                .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+            let left_start = left_operand_start(index, operator, lower, precedence);
+            let right_end = right_operand_end(index, operator, upper, precedence);
+            (!mixed_type_constant_operand(index, declarations, left_start, operator)
+                && !mixed_type_constant_operand(index, declarations, operator + 1, right_end))
+            .then_some(())?;
+            let left = mixed_type_operand_type(index, declarations, left_start, operator)?;
+            let right = mixed_type_operand_type(index, declarations, operator + 1, right_end)?;
+            (left != right).then_some(fact.offset)
+        })
+        .collect()
+}
+
+fn mixed_type_constant_operand(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> bool {
+    let (start, end) = trim_outer_group(index, start, end);
+    if end != start + 1 {
+        return false;
+    }
+    let token = &index.tokens[start];
+    matches!(token.kind, TokKind::IntLit | TokKind::FloatLit | TokKind::StringLit)
+        || declarations
+            .enumerators
+            .iter()
+            .any(|enumerator| enumerator.name == token.text && enumerator.range.start <= token.start as usize)
+}
+
+fn mixed_type_operand_type(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    let (start, end) = trim_outer_group(index, start, end);
+    (end == start + 1)
+        .then(|| exact_operand_type(index, declarations, start))
+        .flatten()
+        .or_else(|| direct_call_return_type(index, declarations, start, end))
+        .map(|ty| canonical_type_text(&ty))
+}
+
+/// Resolve pointer-bearing expression result types while preserving the old
+/// checker's `IgnoreParenImpCasts()` behavior. In particular, array decay is
+/// not invented after stripping the implicit cast.
+fn expression_pointer_depth(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+    recursion: usize,
+) -> usize {
+    if recursion > 24 {
+        return 0;
+    }
+    let (start, end) = trim_outer_group(index, start, end);
+    if start >= end {
+        return 0;
+    }
+
+    if index.tokens[start].text == "(" {
+        if let Some(close) = index
+            .matching_token_index(start)
+            .filter(|close| *close < end.saturating_sub(1))
+        {
+            let type_text = index.tokens[start + 1..close]
+                .iter()
+                .map(|token| token.text.as_str())
+                .collect::<Vec<_>>()
+                .join(" ");
+            let depth = declared_pointer_depth(declarations, &type_text, &[], recursion + 1);
+            if depth > 0 {
+                return depth;
+            }
+        }
+    }
+
+    if matches!(
+        index.tokens[start].text.as_str(),
+        "static_cast" | "dynamic_cast" | "reinterpret_cast" | "const_cast"
+    ) && index.tokens.get(start + 1).is_some_and(|token| token.text == "<")
+    {
+        if let Some(type_end) = matching_angle_token(index, start + 1, end) {
+            let type_text = index.tokens[start + 2..type_end]
+                .iter()
+                .map(|token| token.text.as_str())
+                .collect::<Vec<_>>()
+                .join(" ");
+            let depth = declared_pointer_depth(declarations, &type_text, &[], recursion + 1);
+            if depth > 0 {
+                return depth;
+            }
+        }
+    }
+
+    if index.tokens[start].text == "new" {
+        return 1;
+    }
+    if index.tokens[start].text == "this" && end == start + 1 {
+        return 1;
+    }
+    if index.tokens[start].text == "&" {
+        return expression_pointer_depth(
+            index,
+            declarations,
+            start + 1,
+            end,
+            recursion + 1,
+        ) + 1;
+    }
+    if index.tokens[start].text == "*" {
+        return expression_pointer_depth(
+            index,
+            declarations,
+            start + 1,
+            end,
+            recursion + 1,
+        )
+        .saturating_sub(1);
+    }
+
+    if index.tokens.get(end - 1).is_some_and(|token| token.text == "]") {
+        if let Some(open) = index.matching_token_index(end - 1).filter(|open| *open > start) {
+            return expression_pointer_depth(index, declarations, start, open, recursion + 1)
+                .saturating_sub(1);
+        }
+    }
+
+    if let Some(depth) = direct_call_pointer_depth(index, declarations, start, end, recursion + 1)
+    {
+        return depth;
+    }
+
+    if let Some(root) = root_c_binary_operator(index, start, end) {
+        let left = expression_pointer_depth(index, declarations, start, root, recursion + 1);
+        let right = expression_pointer_depth(index, declarations, root + 1, end, recursion + 1);
+        return match index.tokens[root].text.as_str() {
+            "+" if left > 0 && right == 0 => left,
+            "+" if right > 0 && left == 0 => right,
+            "-" if left > 0 && right == 0 => left,
+            "," => right,
+            "=" | "+=" | "-=" => left,
+            _ => 0,
+        };
+    }
+
+    if end == start + 1 {
+        return exact_operand_type(index, declarations, start)
+            .map(|ty| declared_pointer_depth(declarations, &ty, &[], recursion + 1))
+            .unwrap_or(0);
+    }
+
+    if let Some(member) = (start..end).rev().find(|at| {
+        matches!(index.tokens[*at].text.as_str(), "." | "->")
+            && index
+                .tokens
+                .get(*at + 1)
+                .is_some_and(|token| token.kind == TokKind::Ident)
+    }) {
+        let name = &index.tokens[member + 1].text;
+        let depths = declarations
+            .declarations
+            .iter()
+            .filter(|declaration| declaration.in_aggregate)
+            .flat_map(|declaration| {
+                declaration
+                    .declarators
+                    .iter()
+                    .filter(move |declarator| declarator.name.as_deref() == Some(name.as_str()))
+                    .map(move |declarator| {
+                        declared_pointer_depth(
+                            declarations,
+                            &declaration.type_name,
+                            &declarator.derived,
+                            recursion + 1,
+                        )
+                    })
+            })
+            .collect::<Vec<_>>();
+        if !depths.is_empty() && depths.iter().all(|depth| *depth > 0) {
+            return depths[0];
+        }
+    }
+    0
+}
+
+fn direct_call_pointer_depth(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+    recursion: usize,
+) -> Option<usize> {
+    let open = (start + 1..end).find(|at| {
+        index.tokens[*at].text == "("
+            && index
+                .matching_token_index(*at)
+                .is_some_and(|close| close + 1 == end)
+    })?;
+    let name = index.tokens.get(open.checked_sub(1)?)?;
+    if name.kind != TokKind::Ident {
+        return None;
+    }
+    let mut candidates = declarations
+        .functions
+        .iter()
+        .filter(|function| function.name == name.text)
+        .map(|function| {
+            declared_pointer_depth(
+                declarations,
+                &function.return_type,
+                &function.return_derived,
+                recursion + 1,
+            )
+        })
+        .collect::<Vec<_>>();
+    for declaration in &declarations.declarations {
+        for declarator in declaration.declarators.iter().filter(|declarator| {
+            declarator.name.as_deref() == Some(name.text.as_str())
+                && matches!(declarator.derived.first(), Some(D::Function { .. }))
+        }) {
+            candidates.push(declared_pointer_depth(
+                declarations,
+                &declaration.type_name,
+                declarator.derived.get(1..).unwrap_or_default(),
+                recursion + 1,
+            ));
+        }
+    }
+    (!candidates.is_empty() && candidates.iter().all(|depth| *depth > 0))
+        .then(|| candidates[0])
+}
+
+fn declared_pointer_depth(
+    declarations: &CDeclarationIndex,
+    type_name: &str,
+    derived: &[D],
+    recursion: usize,
+) -> usize {
+    if recursion > 24 || derived.iter().any(|item| matches!(item, D::Array { .. })) {
+        return 0;
+    }
+    let direct = canonical_type_text(type_name)
+        .chars()
+        .filter(|character| *character == '*')
+        .count()
+        + derived
+            .iter()
+            .filter(|item| matches!(item, D::Pointer | D::MemberPointer))
+            .count();
+    if direct > 0 {
+        return direct;
+    }
+    let alias_name = canonical_type_text(type_name);
+    declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+        .find_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .find(|declarator| declarator.name.as_deref() == Some(alias_name.as_str()))
+                .map(|declarator| {
+                    declared_pointer_depth(
+                        declarations,
+                        &declaration.type_name,
+                        &declarator.derived,
+                        recursion + 1,
+                    )
+                })
+        })
+        .unwrap_or(0)
+}
+
+fn matching_angle_token(index: &CExpressionIndex, open: usize, end: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for at in open..end {
+        match index.tokens[at].text.as_str() {
+            "<" => depth += 1,
+            ">" => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return Some(at);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 fn unsigned_zero_comparison_offsets(
     index: &CExpressionIndex,
     declarations: &CDeclarationIndex,
@@ -5410,18 +8012,22 @@ fn redundant_void_cast_offsets(
 #[derive(Clone, Debug)]
 struct ExplicitCastFact {
     offset: usize,
+    source_offset: usize,
     destination: String,
     source: String,
     kind: ExplicitCastKind,
     source_is_zero: bool,
     source_is_constant: bool,
+    source_is_integral_or_enum: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ExplicitCastKind {
     CStyle,
     Static,
-    OtherNamed,
+    Reinterpret,
+    Dynamic,
+    Const,
 }
 
 fn explicit_cast_facts(
@@ -5459,13 +8065,17 @@ fn explicit_cast_facts(
         let Some(source) = exact_operand_type(index, declarations, source_at) else {
             continue;
         };
+        let source_is_integral_or_enum = operand_has_declared_enum_type(index, declarations, source_at)
+            || is_integral_or_enum_type(&canonical_type_text(&source));
         casts.push(ExplicitCastFact {
             offset: index.tokens[open].start as usize,
+            source_offset: index.tokens[source_at].start as usize,
             destination,
             source,
             kind: ExplicitCastKind::CStyle,
             source_is_zero: token_integer_value(&index.tokens[source_at]) == Some(0),
             source_is_constant: is_literal_operand(&index.tokens[source_at]),
+            source_is_integral_or_enum,
         });
     }
     for at in 0..index.tokens.len() {
@@ -5498,17 +8108,26 @@ fn explicit_cast_facts(
         let Some(source) = exact_operand_type(index, declarations, type_end + 2) else {
             continue;
         };
+        let source_is_integral_or_enum = operand_has_declared_enum_type(
+            index,
+            declarations,
+            type_end + 2,
+        ) || is_integral_or_enum_type(&canonical_type_text(&source));
         casts.push(ExplicitCastFact {
             offset: index.tokens[at].start as usize,
+            source_offset: index.tokens[type_end + 2].start as usize,
             destination,
             source,
-            kind: if index.tokens[at].text == "static_cast" {
-                ExplicitCastKind::Static
-            } else {
-                ExplicitCastKind::OtherNamed
+            kind: match index.tokens[at].text.as_str() {
+                "static_cast" => ExplicitCastKind::Static,
+                "reinterpret_cast" => ExplicitCastKind::Reinterpret,
+                "dynamic_cast" => ExplicitCastKind::Dynamic,
+                "const_cast" => ExplicitCastKind::Const,
+                _ => unreachable!("named cast spelling filtered above"),
             },
             source_is_zero: token_integer_value(&index.tokens[type_end + 2]) == Some(0),
             source_is_constant: is_literal_operand(&index.tokens[type_end + 2]),
+            source_is_integral_or_enum,
         });
     }
     casts
@@ -5517,7 +8136,7 @@ fn explicit_cast_facts(
 fn cast_destination_type(tokens: &[Token], known_names: &HashSet<&str>) -> Option<String> {
     let mut saw_type = false;
     let valid = tokens.iter().all(|token| match token.text.as_str() {
-        "const" | "volatile" | "restrict" | "*" | "&" | "&&" | "::" | "enum"
+        "const" | "volatile" | "restrict" | "*" | "**" | "&" | "&&" | "::" | "enum"
         | "struct" | "union" | "class" => true,
         text if token.kind == TokKind::Ident
             && (is_builtin_type_word(text) || known_names.contains(text)) =>
@@ -5613,6 +8232,7 @@ fn type_with_derived(type_name: &str, derived: &[D]) -> String {
     for derived in derived {
         match derived {
             D::Pointer | D::MemberPointer => ty.push('*'),
+            D::Reference | D::RvalueReference => {}
             D::Array { .. } => ty.push_str("[]"),
             D::Function { .. } => {}
         }
@@ -5665,6 +8285,152 @@ fn is_integer_type(ty: &str) -> bool {
     )
 }
 
+fn null_as_int_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    let mut push_direct_nullptr = |start: usize, end: usize| {
+        let (start, end) = trim_outer_group(index, start, end);
+        if end == start + 1 && index.tokens[start].text == "nullptr" {
+            offsets.push(index.tokens[start].start as usize);
+        }
+    };
+
+    // CXXNullPtrLiteralExpr is contextually converted to bool in statement
+    // conditions. `IgnoreParenImpCasts()` in the legacy checker means that
+    // redundant grouping does not hide the literal.
+    for condition in syntax.nodes.iter().filter_map(|node| match node.kind {
+        JavaSyntaxKind::If | JavaSyntaxKind::While | JavaSyntaxKind::For | JavaSyntaxKind::Do => {
+            node.condition.as_ref()
+        }
+        _ => None,
+    }) {
+        if let Some((start, end)) = token_range_for_source_range(index, condition) {
+            push_direct_nullptr(start, end);
+        }
+    }
+
+    // Logical operators perform the same contextual bool conversion on their
+    // direct operands.
+    for at in 0..index.tokens.len() {
+        if index.tokens[at].text == "!" {
+            if let Some(end) = unary_operand_end(&index.tokens, at + 1) {
+                push_direct_nullptr(at + 1, end);
+            }
+        }
+    }
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Binary) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !matches!(index.tokens[operator].text.as_str(), "&&" | "||") {
+            continue;
+        }
+        let Some((precedence, _)) = binary_precedence(&index.tokens[operator].text) else {
+            continue;
+        };
+        let (lower, upper) = index
+            .smallest_group(fact.offset)
+            .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+        let left = left_operand_start(index, operator, lower, precedence);
+        let right = right_operand_end(index, operator, upper, precedence);
+        push_direct_nullptr(left, operator);
+        push_direct_nullptr(operator + 1, right);
+    }
+
+    // The first operand of ?: is contextually converted to bool.
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Conditional) {
+        let Some(question) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if let Some([condition, _, _]) = conditional_direct_operand_ranges(index, question) {
+            push_direct_nullptr(condition.0, condition.1);
+        }
+    }
+
+    let known_names = declarations
+        .aggregates
+        .iter()
+        .filter_map(|aggregate| aggregate.name.as_deref())
+        .chain(
+            declarations
+                .declarations
+                .iter()
+                .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+                .flat_map(|declaration| &declaration.declarators)
+                .filter_map(|declarator| declarator.name.as_deref()),
+        )
+        .collect::<HashSet<_>>();
+
+    // Explicit casts to bool contain an implicit PointerToBoolean conversion
+    // below the explicit cast node, and the legacy PreStmt callback sees it.
+    for open in 0..index.tokens.len() {
+        if index.tokens[open].text != "(" {
+            continue;
+        }
+        let Some(close) = index.matching_token_index(open) else {
+            continue;
+        };
+        if cast_destination_type(&index.tokens[open + 1..close], &known_names).as_deref()
+            != Some("bool")
+        {
+            continue;
+        }
+        let Some(end) = unary_operand_end(&index.tokens, close + 1) else {
+            continue;
+        };
+        push_direct_nullptr(close + 1, end);
+    }
+    for at in 0..index.tokens.len() {
+        if index.tokens[at].text != "static_cast"
+            || index.tokens.get(at + 1).is_none_or(|token| token.text != "<")
+        {
+            continue;
+        }
+        let Some(type_end) = (at + 2..index.tokens.len())
+            .find(|candidate| index.tokens[*candidate].text == ">")
+        else {
+            continue;
+        };
+        if cast_destination_type(&index.tokens[at + 2..type_end], &known_names).as_deref()
+            != Some("bool")
+            || index.tokens.get(type_end + 1).is_none_or(|token| token.text != "(")
+        {
+            continue;
+        }
+        let Some(close) = index.matching_token_index(type_end + 1) else {
+            continue;
+        };
+        push_direct_nullptr(type_end + 2, close);
+    }
+
+    // Direct/functional/list bool initialization also materializes the same
+    // implicit conversion. This covers `bool x(nullptr)`, `bool(nullptr)`,
+    // `bool{nullptr}`, and `new bool(nullptr)` without treating copy-init as a
+    // valid conversion.
+    for open in 1..index.tokens.len() {
+        if !matches!(index.tokens[open].text.as_str(), "(" | "{") {
+            continue;
+        }
+        let Some(close) = index.matching_token_index(open) else {
+            continue;
+        };
+        let direct_bool = index.tokens[open - 1].text == "bool";
+        let named_bool = open >= 2
+            && index.tokens[open - 1].kind == TokKind::Ident
+            && index.tokens[open - 2].text == "bool";
+        if direct_bool || named_bool {
+            push_direct_nullptr(open + 1, close);
+        }
+    }
+
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
 fn unsafe_pointer_cast(destination: &str, source: &str) -> bool {
     let destination_pointer = is_pointer_type(destination);
     let source_pointer = is_pointer_type(source);
@@ -5675,6 +8441,692 @@ fn unsafe_pointer_cast(destination: &str, source: &str) -> bool {
     }
     destination_pointer && destination != "void*" && is_integer_type(source)
         || source_pointer && source != "void*" && is_integer_type(destination)
+}
+
+fn num_zero_cast_pointer_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let macro_argument_ranges = function_macro_argument_ranges(source, index);
+    let initializer_assignments = initializer_separators(index, declarations);
+    let signatures = pointer_parameter_signatures(declarations);
+    let mut offsets = Vec::new();
+
+    let mut push_zero = |range: (usize, usize)| {
+        let Some(token) = direct_integer_zero_literal_after_parens(index, range.0, range.1) else {
+            return;
+        };
+        let offset = index.tokens[token].start as usize;
+        if !macro_argument_ranges
+            .iter()
+            .any(|range| range.start <= offset && offset < range.end)
+        {
+            offsets.push(offset);
+        }
+    };
+
+    // VarDecl initializers are visited both at translation-unit scope and as
+    // part of a function body by the legacy checker. Non-static record fields
+    // are FieldDecls, not VarDecls, and therefore must not be treated as an
+    // equivalent callback here.
+    for declaration in &declarations.declarations {
+        if declaration.in_aggregate && !declaration.storage.iter().any(|item| item == "static") {
+            continue;
+        }
+        for declarator in &declaration.declarators {
+            let Some(initializer) = declarator.initializer.as_ref() else {
+                continue;
+            };
+            if !is_pointer_type(&type_with_derived(
+                &declaration.type_name,
+                &declarator.derived,
+            )) {
+                continue;
+            }
+            if let Some(range) = token_range_for_source_range(index, initializer) {
+                push_zero(range);
+            }
+        }
+    }
+
+    // Direct pointer assignments. Initializer '=' tokens were handled above
+    // and are excluded so the same literal is not reported twice.
+    for fact in index.facts.iter().filter(|fact| {
+        fact.kind == K::Assignment && !initializer_assignments.contains(&fact.offset)
+    }) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if index.tokens[operator].text != "=" {
+            continue;
+        }
+        let Some(left) = operator
+            .checked_sub(1)
+            .and_then(|at| unwrap_left_operand(index, at))
+        else {
+            continue;
+        };
+        if exact_operand_type(index, declarations, left)
+            .as_deref()
+            .is_none_or(|ty| !is_pointer_type(&canonical_type_text(ty)))
+        {
+            continue;
+        }
+        let end = direct_assignment_value_end(index, operator + 1, usize::MAX);
+        push_zero((operator + 1, end));
+    }
+
+    // ReturnStmt converts its operand to the declared function return type.
+    for returned in &declarations.returns {
+        let Some(value) = returned.value.as_ref() else {
+            continue;
+        };
+        let Some(function) = declarations.functions.get(returned.function) else {
+            continue;
+        };
+        if !is_pointer_type(&type_with_derived(
+            &function.return_type,
+            &function.return_derived,
+        )) {
+            continue;
+        }
+        if let Some(range) = token_range_for_source_range(index, value) {
+            push_zero(range);
+        }
+    }
+
+    // For a resolved direct call, a null pointer constant is implicitly cast
+    // to a pointer formal. With overloads, only report when all arity-compatible
+    // declarations agree that the corresponding formal is pointer-typed.
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        let Some((name, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        let Some(candidates) = signatures.get(name) else {
+            continue;
+        };
+        let arguments = direct_call_argument_ranges(index, name_at + 1, close);
+        for (position, range) in arguments.iter().copied().enumerate() {
+            let compatible = candidates
+                .iter()
+                .filter(|signature| signature.len() >= arguments.len())
+                .collect::<Vec<_>>();
+            if compatible.is_empty()
+                || compatible
+                    .iter()
+                    .any(|signature| !signature.get(position).copied().unwrap_or(false))
+            {
+                continue;
+            }
+            push_zero(range);
+        }
+    }
+
+    // Equality with a pointer applies the null-pointer conversion to a direct
+    // integer literal zero on the other side.
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Binary) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !matches!(index.tokens[operator].text.as_str(), "==" | "!=") {
+            continue;
+        }
+        let Some((precedence, _)) = binary_precedence(&index.tokens[operator].text) else {
+            continue;
+        };
+        let (lower, upper) = index
+            .smallest_group(fact.offset)
+            .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+        let left = left_operand_start(index, operator, lower, precedence);
+        let right = right_operand_end(index, operator, upper, precedence);
+        let left_range = (left, operator);
+        let right_range = (operator + 1, right);
+        if direct_integer_zero_literal_after_parens(index, left_range.0, left_range.1).is_some()
+            && direct_expression_is_pointer(index, declarations, right_range.0, right_range.1)
+        {
+            push_zero(left_range);
+        }
+        if direct_integer_zero_literal_after_parens(index, right_range.0, right_range.1).is_some()
+            && direct_expression_is_pointer(index, declarations, left_range.0, left_range.1)
+        {
+            push_zero(right_range);
+        }
+    }
+
+    // In `cond ? pointer : 0` (and the mirrored form), Clang inserts the same
+    // null-to-pointer implicit cast on the zero operand.
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Conditional) {
+        let Some(question) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        let Some([_, true_value, false_value]) = conditional_direct_operand_ranges(index, question)
+        else {
+            continue;
+        };
+        if direct_integer_zero_literal_after_parens(index, true_value.0, true_value.1).is_some()
+            && direct_expression_is_pointer(index, declarations, false_value.0, false_value.1)
+        {
+            push_zero(true_value);
+        }
+        if direct_integer_zero_literal_after_parens(index, false_value.0, false_value.1).is_some()
+            && direct_expression_is_pointer(index, declarations, true_value.0, true_value.1)
+        {
+            push_zero(false_value);
+        }
+    }
+
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn direct_integer_zero_literal_after_parens(
+    index: &CExpressionIndex,
+    start: usize,
+    end: usize,
+) -> Option<usize> {
+    let (start, end) = trim_outer_group(index, start, end);
+    (end == start + 1 && token_integer_value(index.tokens.get(start)?) == Some(0)).then_some(start)
+}
+
+fn direct_expression_is_pointer(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> bool {
+    let (start, end) = trim_outer_group(index, start, end);
+    if end == start + 1 {
+        return exact_operand_type(index, declarations, start)
+            .as_deref()
+            .is_some_and(|ty| is_pointer_type(&canonical_type_text(ty)));
+    }
+    if end == start + 2 && index.tokens.get(start).is_some_and(|token| token.text == "&") {
+        return exact_operand_type(index, declarations, start + 1).is_some();
+    }
+    direct_call_expression(index, start).is_some_and(|(name, close)| {
+        close + 1 == end && direct_callee_returns_pointer(declarations, name)
+    })
+}
+
+fn direct_callee_returns_pointer(declarations: &CDeclarationIndex, name: &str) -> bool {
+    let mut candidates = Vec::new();
+    for function in declarations.functions.iter().filter(|function| function.name == name) {
+        candidates.push(is_pointer_type(&type_with_derived(
+            &function.return_type,
+            &function.return_derived,
+        )));
+    }
+    for declaration in &declarations.declarations {
+        for declarator in declaration.declarators.iter().filter(|declarator| {
+            declarator.name.as_deref() == Some(name)
+                && matches!(declarator.derived.first(), Some(D::Function { .. }))
+        }) {
+            candidates.push(is_pointer_type(&type_with_derived(
+                &declaration.type_name,
+                declarator.derived.get(1..).unwrap_or_default(),
+            )));
+        }
+    }
+    !candidates.is_empty() && candidates.into_iter().all(|pointer| pointer)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PointerIntegerExpressionKind {
+    Pointer,
+    Integer,
+}
+
+fn pointer_integer_expression_kind(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> Option<PointerIntegerExpressionKind> {
+    let (start, end) = trim_outer_group(index, start, end);
+    if start >= end {
+        return None;
+    }
+    if direct_expression_is_pointer(index, declarations, start, end) {
+        return Some(PointerIntegerExpressionKind::Pointer);
+    }
+    if end == start + 1 {
+        if exact_operand_type(index, declarations, start)
+            .as_deref()
+            .is_some_and(|ty| canonical_type_text(ty).ends_with("[]"))
+            || index.tokens[start].kind == TokKind::Ident
+                && declarations
+                    .functions
+                    .iter()
+                    .any(|function| function.name == index.tokens[start].text)
+        {
+            return Some(PointerIntegerExpressionKind::Pointer);
+        }
+    }
+    expression_numeric_type(index, declarations, start, end)
+        .map(|ty| canonical_type_text(&ty))
+        .filter(|ty| is_integer_type(ty))
+        .map(|_| PointerIntegerExpressionKind::Integer)
+}
+
+fn expression_starts_with_any_explicit_cast(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> bool {
+    let (start, end) = trim_outer_group(index, start, end);
+    if start >= end {
+        return false;
+    }
+    if index.tokens[start].text == "(" {
+        if let Some(close) = index.matching_token_index(start).filter(|close| *close + 1 < end) {
+            let known_names = declarations
+                .aggregates
+                .iter()
+                .filter_map(|aggregate| aggregate.name.as_deref())
+                .chain(
+                    declarations
+                        .declarations
+                        .iter()
+                        .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+                        .flat_map(|declaration| &declaration.declarators)
+                        .filter_map(|declarator| declarator.name.as_deref()),
+                )
+                .collect::<HashSet<_>>();
+            if cast_destination_type(&index.tokens[start + 1..close], &known_names).is_some() {
+                return true;
+            }
+        }
+    }
+    if matches!(
+        index.tokens[start].text.as_str(),
+        "static_cast" | "dynamic_cast" | "reinterpret_cast" | "const_cast"
+    ) && index.tokens.get(start + 1).is_some_and(|token| token.text == "<")
+    {
+        let Some(type_end) = (start + 2..end).find(|at| index.tokens[*at].text == ">") else {
+            return false;
+        };
+        if index
+            .tokens
+            .get(type_end + 1)
+            .is_none_or(|token| token.text != "(")
+        {
+            return false;
+        }
+        return index
+            .matching_token_index(type_end + 1)
+            .is_some_and(|close| close + 1 == end);
+    }
+    false
+}
+
+fn unpointer_and_pointer_assign_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let initializer_assignments = initializer_separators(index, declarations);
+    let macro_argument_ranges = function_macro_argument_ranges(source, index);
+    let mut offsets = Vec::new();
+
+    let in_macro = |offset: usize| {
+        macro_argument_ranges
+            .iter()
+            .any(|range| range.start <= offset && offset < range.end)
+    };
+
+    // The legacy ASTDecl callback only receives VarDecls. Non-static record
+    // fields are FieldDecls and therefore are intentionally excluded here.
+    for declaration in &declarations.declarations {
+        if declaration.in_aggregate && !declaration.storage.iter().any(|item| item == "static") {
+            continue;
+        }
+        for declarator in &declaration.declarators {
+            let Some(initializer) = declarator.initializer.as_ref() else {
+                continue;
+            };
+            let destination = canonical_type_text(&type_with_derived(
+                &declaration.type_name,
+                &declarator.derived,
+            ));
+            let destination_kind = if is_pointer_type(&destination) {
+                PointerIntegerExpressionKind::Pointer
+            } else if is_integer_type(&destination) {
+                PointerIntegerExpressionKind::Integer
+            } else {
+                continue;
+            };
+            let Some((start, end)) = token_range_for_source_range(index, initializer) else {
+                continue;
+            };
+            if expression_starts_with_any_explicit_cast(index, declarations, start, end)
+                || destination_kind == PointerIntegerExpressionKind::Pointer
+                    && direct_integer_zero_literal_after_parens(index, start, end).is_some()
+            {
+                continue;
+            }
+            let Some(source_kind) = pointer_integer_expression_kind(index, declarations, start, end)
+            else {
+                continue;
+            };
+            if source_kind == destination_kind {
+                continue;
+            }
+            let offset = index.tokens[start].start as usize;
+            if !in_macro(offset) {
+                offsets.push(offset);
+            }
+        }
+    }
+
+    // The legacy ASTCodeBody callback visits two-child RecoveryExpr nodes and
+    // accepts only a textual `=` between the children. Initializer separators
+    // were handled by the VarDecl path above, and compound assignments remain
+    // deliberately outside this checker.
+    for fact in index.facts.iter().filter(|fact| {
+        fact.kind == K::Assignment && !initializer_assignments.contains(&fact.offset)
+    }) {
+        if !declarations.functions.iter().any(|function| {
+            function.body.start <= fact.offset && fact.offset < function.body.end
+        }) {
+            continue;
+        }
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if index.tokens[operator].text != "=" {
+            continue;
+        }
+        let Some(lhs_type) = assignment_lhs_object_type(index, declarations, operator)
+            .map(|ty| canonical_type_text(&ty))
+        else {
+            continue;
+        };
+        let lhs_kind = if is_pointer_type(&lhs_type) {
+            PointerIntegerExpressionKind::Pointer
+        } else if is_integer_type(&lhs_type) {
+            PointerIntegerExpressionKind::Integer
+        } else {
+            continue;
+        };
+        let end = direct_assignment_value_end(index, operator + 1, usize::MAX);
+        if operator + 1 >= end
+            || expression_starts_with_any_explicit_cast(
+                index,
+                declarations,
+                operator + 1,
+                end,
+            )
+            || lhs_kind == PointerIntegerExpressionKind::Pointer
+                && direct_integer_zero_literal_after_parens(index, operator + 1, end).is_some()
+        {
+            continue;
+        }
+        let Some(rhs_kind) =
+            pointer_integer_expression_kind(index, declarations, operator + 1, end)
+        else {
+            continue;
+        };
+        if rhs_kind == lhs_kind {
+            continue;
+        }
+        let offset = index.tokens[operator + 1].start as usize;
+        if !in_macro(offset) {
+            offsets.push(offset);
+        }
+    }
+
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn pointer_parameter_signatures(
+    declarations: &CDeclarationIndex,
+) -> HashMap<&str, Vec<Vec<bool>>> {
+    let mut signatures = HashMap::<&str, Vec<Vec<bool>>>::new();
+    for function in &declarations.functions {
+        signatures
+            .entry(function.name.as_str())
+            .or_default()
+            .push(pointer_parameters_in_range(declarations, &function.parameters));
+    }
+    for declaration in &declarations.declarations {
+        for declarator in &declaration.declarators {
+            let (Some(name), Some(D::Function { parameters })) =
+                (declarator.name.as_deref(), declarator.derived.first())
+            else {
+                continue;
+            };
+            signatures
+                .entry(name)
+                .or_default()
+                .push(pointer_parameters_in_range(declarations, parameters));
+        }
+    }
+    signatures
+}
+
+fn pointer_parameters_in_range(
+    declarations: &CDeclarationIndex,
+    range: &std::ops::Range<usize>,
+) -> Vec<bool> {
+    declarations
+        .parameters
+        .iter()
+        .filter(|parameter| range.start <= parameter.range.start && parameter.range.end <= range.end)
+        .map(|parameter| {
+            is_pointer_type(&type_with_derived(&parameter.type_name, &parameter.derived))
+                || parameter
+                    .derived
+                    .iter()
+                    .any(|derived| matches!(derived, D::Array { .. }))
+        })
+        .collect()
+}
+
+fn pointer_assignment_pointer_mismatch_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let casts = explicit_cast_facts(index, declarations);
+    let initializer_assignments = initializer_separators(index, declarations);
+    let macro_argument_ranges = function_macro_argument_ranges(source, index);
+    index
+        .facts
+        .iter()
+        .filter(|fact| fact.kind == K::Assignment && !initializer_assignments.contains(&fact.offset))
+        .filter(|fact| {
+            declarations.functions.iter().any(|function| {
+                function.body.start <= fact.offset && fact.offset < function.body.end
+            })
+        })
+        .filter(|fact| {
+            !macro_argument_ranges
+                .iter()
+                .any(|range| range.start <= fact.offset && fact.offset < range.end)
+        })
+        .filter_map(|fact| {
+            let operator = token_at_offset(index, fact.offset)?;
+            let end = direct_assignment_value_end(index, operator + 1, usize::MAX);
+            let (start, end) = trim_outer_group(index, operator + 1, end);
+            let rhs_start = index.tokens.get(start)?.start as usize;
+            let rhs_end = index.tokens.get(end.checked_sub(1)?)?.end as usize;
+            let cast = casts.iter().find(|cast| {
+                cast.offset == rhs_start && cast.offset < rhs_end
+            })?;
+            matches!(
+                cast.kind,
+                ExplicitCastKind::CStyle
+                    | ExplicitCastKind::Static
+                    | ExplicitCastKind::Reinterpret
+            )
+            .then_some(())?;
+            pointer_bitcast_has_incompatible_nonrecord_pointees(
+                declarations,
+                &cast.destination,
+                &cast.source,
+            )
+            .then_some(fact.offset)
+        })
+        .collect()
+}
+
+fn assignment_safety_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let assignment_owners = overloaded_assignment_owners(declarations);
+    if assignment_owners.is_empty() {
+        return Vec::new();
+    }
+    let initializer_assignments = initializer_separators(index, declarations);
+    let macro_argument_ranges = function_macro_argument_ranges(source, index);
+    index
+        .facts
+        .iter()
+        .filter(|fact| fact.kind == K::Assignment && !initializer_assignments.contains(&fact.offset))
+        .filter_map(|fact| {
+            let operator = token_at_offset(index, fact.offset)?;
+            (index.tokens.get(operator)?.text == "=").then_some(())?;
+            let lhs_type = assignment_lhs_object_type(index, declarations, operator)?;
+            assignment_owners
+                .iter()
+                .any(|owner| record_type_matches_owner(&lhs_type, owner))
+                .then_some(())?;
+
+            let end = direct_assignment_value_end(index, operator + 1, usize::MAX);
+            let (start, end) = trim_outer_group(index, operator + 1, end);
+            let address_of = index.tokens.get(start)?;
+            (address_of.text == "&").then_some(())?;
+            let (operand_start, operand_end) = trim_outer_group(index, start + 1, end);
+            (operand_end == operand_start + 1).then_some(())?;
+            let pointee = exact_operand_type(index, declarations, operand_start)?;
+            is_pointer_type(&pointee).then_some(())?;
+            let offset = address_of.start as usize;
+            (!macro_argument_ranges
+                .iter()
+                .any(|range| range.start <= offset && offset < range.end))
+            .then_some(offset)
+        })
+        .collect()
+}
+
+fn overloaded_assignment_owners(declarations: &CDeclarationIndex) -> HashSet<String> {
+    let mut owners = HashSet::new();
+    for function in &declarations.functions {
+        if function.name != "operator=" {
+            continue;
+        }
+        if let Some((owner, _)) = function.qualified_name.rsplit_once("::") {
+            owners.insert(owner.trim_matches(':').to_string());
+        }
+    }
+    for declaration in declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.in_aggregate)
+    {
+        if declaration.qualification.is_empty() {
+            continue;
+        }
+        if declaration.declarators.iter().any(|declarator| {
+            declarator.name.as_deref() == Some("operator=")
+                && matches!(declarator.derived.first(), Some(D::Function { .. }))
+        }) {
+            owners.insert(declaration.qualification.join("::"));
+        }
+    }
+    owners
+}
+
+fn assignment_lhs_object_type(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    operator: usize,
+) -> Option<String> {
+    let mut end = operator;
+    let mut start = operator.checked_sub(1)?;
+    while index.tokens.get(start).is_some_and(|token| token.text == ")") {
+        let open = index.matching_token_index(start)?;
+        if open >= end {
+            return None;
+        }
+        start = open;
+        if start == 0 {
+            break;
+        }
+        start -= 1;
+    }
+    while start > 0
+        && !matches!(
+            index.tokens[start - 1].text.as_str(),
+            ";" | "{" | "}" | "," | "?" | ":" | "=" | "+=" | "-=" | "*=" | "/="
+                | "%=" | "<<=" | ">>=" | "&=" | "^=" | "|="
+        )
+    {
+        start -= 1;
+    }
+    let (start, trimmed_end) = trim_outer_group(index, start, end);
+    end = trimmed_end;
+    if end == start + 1 {
+        return exact_operand_type(index, declarations, start);
+    }
+    if end == start + 2 && index.tokens[start].text == "*" {
+        let pointer = exact_operand_type(index, declarations, start + 1)?;
+        return pointer.strip_suffix('*').map(str::to_string);
+    }
+    None
+}
+
+fn record_type_matches_owner(ty: &str, owner: &str) -> bool {
+    let ty = canonical_type_text(ty).trim_matches(':').to_string();
+    let owner = owner.trim_matches(':');
+    !is_pointer_type(&ty)
+        && (ty == owner
+            || owner.ends_with(&format!("::{ty}"))
+            || ty.ends_with(&format!("::{owner}")))
+}
+
+fn pointer_bitcast_has_incompatible_nonrecord_pointees(
+    declarations: &CDeclarationIndex,
+    destination: &str,
+    source: &str,
+) -> bool {
+    let destination = canonical_type_text(destination);
+    let source = canonical_type_text(source);
+    if destination == source || !is_pointer_type(&destination) || !is_pointer_type(&source) {
+        return false;
+    }
+    let destination_pointee = destination.strip_suffix('*').unwrap_or(&destination);
+    let source_pointee = source.strip_suffix('*').unwrap_or(&source);
+    if destination_pointee == "void"
+        || source_pointee == "void"
+        || destination_pointee == source_pointee
+        || is_record_type_name(declarations, destination_pointee)
+        || is_record_type_name(declarations, source_pointee)
+    {
+        return false;
+    }
+    true
+}
+
+fn is_record_type_name(declarations: &CDeclarationIndex, ty: &str) -> bool {
+    let ty = ty.trim_matches(':');
+    declarations
+        .aggregates
+        .iter()
+        .any(|aggregate| {
+            matches!(aggregate.kind.as_str(), "struct" | "union" | "class")
+                && aggregate.name.as_deref() == Some(ty)
+        })
 }
 
 fn distinct_record_pointer_types(
@@ -6616,6 +10068,7 @@ fn pointer_parameter_assignment_offsets(
             });
             if !pointer_parameter
                 || local_declaration_shadows_parameter(
+                    index,
                     declarations,
                     syntax,
                     function_id,
@@ -6631,6 +10084,7 @@ fn pointer_parameter_assignment_offsets(
 }
 
 fn local_declaration_shadows_parameter(
+    index: &CExpressionIndex,
     declarations: &CDeclarationIndex,
     syntax: &JavaSyntax,
     function_id: usize,
@@ -6643,7 +10097,19 @@ fn local_declaration_shadows_parameter(
             || !declaration
                 .declarators
                 .iter()
-                .any(|declarator| declarator.name.as_deref() == Some(name))
+                .any(|declarator| {
+                    declarator.name.as_deref() == Some(name)
+                        && declarator
+                            .name_range
+                            .as_ref()
+                            .and_then(|range| {
+                                index.tokens.iter().position(|token| {
+                                    token.start as usize == range.start
+                                        && token.kind == TokKind::Ident
+                                })
+                            })
+                            .is_none_or(|token_at| !token_is_call_argument(index, token_at))
+                })
         {
             return false;
         }
@@ -6718,6 +10184,1441 @@ fn equality_loop_large_step_offsets(
         }
     }
     offsets
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum CVariableBinding {
+    Declarator(usize),
+    Parameter(usize),
+}
+
+const VALUE_DEPEND_GET: u8 = 1 << 0;
+const VALUE_DEPEND_SET: u8 = 1 << 1;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum ValueDependRegion {
+    Declaration(usize),
+    Return(usize),
+    Expression(usize, usize),
+}
+
+fn value_depend_sequence_point_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let macro_arguments = function_macro_argument_ranges(source, index);
+    let mut offsets = Vec::new();
+    for (function_id, function) in declarations.functions.iter().enumerate() {
+        let mut regions = Vec::<ValueDependRegion>::new();
+        for fact in index.facts.iter().filter(|fact| {
+            function.body.start <= fact.offset
+                && fact.offset < function.body.end
+                && matches!(fact.kind, K::Assignment | K::Update | K::Call | K::Binary | K::Comma)
+        }) {
+            let region = declarations
+                .declarations
+                .iter()
+                .enumerate()
+                .filter(|(_, declaration)| declaration.enclosing_function == Some(function_id))
+                .filter(|(_, declaration)| {
+                    declaration.range.start <= fact.offset && fact.offset < declaration.range.end
+                })
+                .min_by_key(|(_, declaration)| declaration.range.end - declaration.range.start)
+                .map(|(id, _)| ValueDependRegion::Declaration(id))
+                .or_else(|| {
+                    declarations
+                        .returns
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, returned)| returned.function == function_id)
+                        .find(|(_, returned)| {
+                            returned.range.start <= fact.offset && fact.offset < returned.range.end
+                        })
+                        .map(|(id, _)| ValueDependRegion::Return(id))
+                })
+                .or_else(|| {
+                    syntax
+                        .nodes
+                        .iter()
+                        .flat_map(|node| {
+                            [
+                                node.initializer.as_ref(),
+                                node.condition.as_ref(),
+                                node.update.as_ref(),
+                            ]
+                            .into_iter()
+                            .flatten()
+                        })
+                        .filter(|range| {
+                            function.body.start <= range.start
+                                && range.end <= function.body.end
+                                && range.start <= fact.offset
+                                && fact.offset < range.end
+                        })
+                        .min_by_key(|range| range.end - range.start)
+                        .map(|range| ValueDependRegion::Expression(range.start, range.end))
+                })
+                .or_else(|| {
+                    syntax
+                        .nodes
+                        .iter()
+                        .filter(|node| node.kind == JavaSyntaxKind::Other)
+                        .filter(|node| {
+                            function.body.start <= node.range.start
+                                && node.range.end <= function.body.end
+                                && node.range.start <= fact.offset
+                                && fact.offset < node.range.end
+                        })
+                        .min_by_key(|node| node.range.end - node.range.start)
+                        .map(|node| ValueDependRegion::Expression(node.range.start, node.range.end))
+                })
+                .or_else(|| {
+                    index.statement_range(fact.offset).map(|range| {
+                        ValueDependRegion::Expression(
+                            range.start.max(function.body.start),
+                            range.end.min(function.body.end),
+                        )
+                    })
+                });
+            if let Some(region) = region {
+                if !regions.contains(&region) {
+                    regions.push(region);
+                }
+            }
+        }
+
+        regions.sort_by_key(|region| match *region {
+            ValueDependRegion::Declaration(id) => declarations.declarations[id].range.start,
+            ValueDependRegion::Return(id) => declarations.returns[id].range.start,
+            ValueDependRegion::Expression(start, _) => start,
+        });
+        for region in regions {
+            let mut state = HashMap::<CVariableBinding, u8>::new();
+            match region {
+                ValueDependRegion::Declaration(id) => {
+                    let declaration = &declarations.declarations[id];
+                    for declarator in &declaration.declarators {
+                        for derived in &declarator.derived {
+                            if let D::Array { size } = derived {
+                                value_depend_visit_source_range(
+                                    index,
+                                    declarations,
+                                    syntax,
+                                    function_id,
+                                    size,
+                                    &mut state,
+                                    &mut offsets,
+                                );
+                            }
+                        }
+                        if let Some(width) = &declarator.bit_width {
+                            value_depend_visit_source_range(
+                                index,
+                                declarations,
+                                syntax,
+                                function_id,
+                                width,
+                                &mut state,
+                                &mut offsets,
+                            );
+                        }
+                        if let Some(initializer) = &declarator.initializer {
+                            value_depend_visit_source_range(
+                                index,
+                                declarations,
+                                syntax,
+                                function_id,
+                                initializer,
+                                &mut state,
+                                &mut offsets,
+                            );
+                        }
+                    }
+                }
+                ValueDependRegion::Return(id) => {
+                    if let Some(value) = &declarations.returns[id].value {
+                        value_depend_visit_source_range(
+                            index,
+                            declarations,
+                            syntax,
+                            function_id,
+                            value,
+                            &mut state,
+                            &mut offsets,
+                        );
+                    }
+                }
+                ValueDependRegion::Expression(start, end) => {
+                    if let Some((token_start, token_end)) =
+                        token_range_for_source_range(index, &(start..end))
+                    {
+                        value_depend_visit_expression(
+                            index,
+                            declarations,
+                            syntax,
+                            function_id,
+                            token_start,
+                            token_end,
+                            &mut state,
+                            &mut offsets,
+                            0,
+                        );
+                    }
+                }
+            }
+        }
+    }
+    offsets.retain(|offset| {
+        !macro_arguments
+            .iter()
+            .any(|range| range.start <= *offset && *offset < range.end)
+    });
+    offsets
+}
+
+fn value_depend_visit_source_range(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    range: &std::ops::Range<usize>,
+    state: &mut HashMap<CVariableBinding, u8>,
+    offsets: &mut Vec<usize>,
+) {
+    if let Some((start, end)) = token_range_for_source_range(index, range) {
+        value_depend_visit_expression(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            start,
+            end,
+            state,
+            offsets,
+            0,
+        );
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ValueDependRoot {
+    Binary(usize),
+    Conditional(usize, usize),
+}
+
+fn value_depend_visit_expression(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    mut start: usize,
+    mut end: usize,
+    state: &mut HashMap<CVariableBinding, u8>,
+    offsets: &mut Vec<usize>,
+    depth: usize,
+) {
+    if depth > 256 || start >= end || end > index.tokens.len() {
+        return;
+    }
+    while start < end
+        && matches!(
+            index.tokens[start].text.as_str(),
+            "return" | "co_return" | "co_yield" | "throw"
+        )
+    {
+        start += 1;
+    }
+    while start < end && matches!(index.tokens[end - 1].text.as_str(), ";") {
+        end -= 1;
+    }
+    if start >= end {
+        return;
+    }
+
+    if index.tokens[start].text == "("
+        && index.matching_token_index(start).is_some_and(|close| close + 1 == end)
+    {
+        value_depend_visit_expression(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            start + 1,
+            end - 1,
+            state,
+            offsets,
+            depth + 1,
+        );
+        return;
+    }
+
+    if index.tokens[start].text == "{"
+        && index.matching_token_index(start).is_some_and(|close| close + 1 == end)
+    {
+        let mut element_start = start + 1;
+        let mut at = element_start;
+        while at < end - 1 {
+            if matches!(index.tokens[at].text.as_str(), "(" | "[" | "{") {
+                at = index
+                    .matching_token_index(at)
+                    .map_or(at + 1, |close| close + 1);
+                continue;
+            }
+            if index.tokens[at].text == "," {
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    element_start,
+                    at,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                element_start = at + 1;
+            }
+            at += 1;
+        }
+        value_depend_visit_expression(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            element_start,
+            end - 1,
+            state,
+            offsets,
+            depth + 1,
+        );
+        return;
+    }
+
+    if let Some(root) = value_depend_root(index, start, end) {
+        match root {
+            ValueDependRoot::Binary(operator) => {
+                let op = index.tokens[operator].text.as_str();
+                if matches!(op, "&&" | "||" | ",") {
+                    state.clear();
+                } else {
+                    value_depend_handle_get(
+                        index,
+                        declarations,
+                        syntax,
+                        function_id,
+                        start,
+                        operator,
+                        state,
+                        offsets,
+                    );
+                    value_depend_handle_get(
+                        index,
+                        declarations,
+                        syntax,
+                        function_id,
+                        operator + 1,
+                        end,
+                        state,
+                        offsets,
+                    );
+                }
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    start,
+                    operator,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    operator + 1,
+                    end,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+            }
+            ValueDependRoot::Conditional(question, colon) => {
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    start,
+                    question,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    question + 1,
+                    colon,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    colon + 1,
+                    end,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+            }
+        }
+        return;
+    }
+
+    if matches!(index.tokens[end - 1].text.as_str(), "++" | "--") {
+        value_depend_handle_set(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            start,
+            end - 1,
+            state,
+            offsets,
+        );
+        value_depend_visit_expression(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            start,
+            end - 1,
+            state,
+            offsets,
+            depth + 1,
+        );
+        return;
+    }
+    if matches!(index.tokens[start].text.as_str(), "++" | "--") {
+        value_depend_handle_set(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            start + 1,
+            end,
+            state,
+            offsets,
+        );
+        value_depend_visit_expression(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            start + 1,
+            end,
+            state,
+            offsets,
+            depth + 1,
+        );
+        return;
+    }
+
+    if index.tokens[end - 1].text == ")" {
+        if let Some(open) = index.matching_token_index(end - 1) {
+            if start < open && value_depend_is_call_open(index, declarations, open) {
+                let arguments = direct_call_argument_ranges(index, open, end - 1);
+                for &(argument_start, argument_end) in &arguments {
+                    value_depend_handle_get(
+                        index,
+                        declarations,
+                        syntax,
+                        function_id,
+                        argument_start,
+                        argument_end,
+                        state,
+                        offsets,
+                    );
+                }
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    start,
+                    open,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                for (argument_start, argument_end) in arguments {
+                    value_depend_visit_expression(
+                        index,
+                        declarations,
+                        syntax,
+                        function_id,
+                        argument_start,
+                        argument_end,
+                        state,
+                        offsets,
+                        depth + 1,
+                    );
+                }
+                return;
+            }
+        }
+    }
+
+    if index.tokens[end - 1].text == "]" {
+        if let Some(open) = index.matching_token_index(end - 1) {
+            if start < open {
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    start,
+                    open,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    open + 1,
+                    end - 1,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                return;
+            }
+        }
+    }
+
+    if let Some(member) = value_depend_top_level_member(index, start, end) {
+        value_depend_visit_expression(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            start,
+            member,
+            state,
+            offsets,
+            depth + 1,
+        );
+        return;
+    }
+
+    if matches!(
+        index.tokens[start].text.as_str(),
+        "+" | "-" | "!" | "~" | "*" | "&" | "sizeof" | "alignof" | "_Alignof" | "co_await"
+    ) {
+        value_depend_visit_expression(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            start + 1,
+            end,
+            state,
+            offsets,
+            depth + 1,
+        );
+        return;
+    }
+
+    if index.tokens[start].text == "(" {
+        if let Some(close) = index.matching_token_index(start) {
+            if close + 1 < end && value_depend_looks_like_cast_type(index, declarations, start + 1, close)
+            {
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    close + 1,
+                    end,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                return;
+            }
+        }
+    }
+
+    // Unknown wrapper nodes (GNU extensions, attributes, etc.) have no callback
+    // in the legacy checker. Descend only into balanced child groups so nested
+    // calls/updates/binary expressions are still visited without inventing a
+    // direct DeclRefExpr access at this wrapper level.
+    let mut at = start;
+    while at < end {
+        if matches!(index.tokens[at].text.as_str(), "(" | "[" | "{") {
+            if let Some(close) = index.matching_token_index(at).filter(|close| *close < end) {
+                value_depend_visit_expression(
+                    index,
+                    declarations,
+                    syntax,
+                    function_id,
+                    at + 1,
+                    close,
+                    state,
+                    offsets,
+                    depth + 1,
+                );
+                at = close + 1;
+                continue;
+            }
+        }
+        at += 1;
+    }
+}
+
+fn value_depend_handle_get(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    start: usize,
+    end: usize,
+    state: &mut HashMap<CVariableBinding, u8>,
+    offsets: &mut Vec<usize>,
+) {
+    let Some(identifier) = direct_identifier_token(index, start, end) else {
+        return;
+    };
+    let Some(binding) = resolve_variable_binding(
+        index,
+        declarations,
+        syntax,
+        function_id,
+        identifier,
+    ) else {
+        return;
+    };
+    let entry = state.entry(binding).or_insert(0);
+    if *entry & VALUE_DEPEND_SET != 0 {
+        *entry |= VALUE_DEPEND_GET;
+        offsets.push(index.tokens[identifier].start as usize);
+    } else if *entry == 0 {
+        *entry = VALUE_DEPEND_GET;
+    }
+}
+
+fn value_depend_handle_set(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    start: usize,
+    end: usize,
+    state: &mut HashMap<CVariableBinding, u8>,
+    offsets: &mut Vec<usize>,
+) {
+    let Some(identifier) = direct_identifier_token(index, start, end) else {
+        return;
+    };
+    let Some(binding) = resolve_variable_binding(
+        index,
+        declarations,
+        syntax,
+        function_id,
+        identifier,
+    ) else {
+        return;
+    };
+    let entry = state.entry(binding).or_insert(0);
+    if *entry & (VALUE_DEPEND_GET | VALUE_DEPEND_SET) != 0 {
+        *entry |= VALUE_DEPEND_SET;
+        offsets.push(index.tokens[identifier].start as usize);
+    } else {
+        *entry = VALUE_DEPEND_SET;
+    }
+}
+
+fn value_depend_root(index: &CExpressionIndex, start: usize, end: usize) -> Option<ValueDependRoot> {
+    let mut depth = 0usize;
+    let mut comma = None;
+    let mut first_question = None;
+    for at in start..end {
+        match index.tokens[at].text.as_str() {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            "," if depth == 0 => comma = Some(at),
+            "?" if depth == 0 && first_question.is_none() => first_question = Some(at),
+            _ => {}
+        }
+    }
+    if let Some(operator) = comma {
+        return Some(ValueDependRoot::Binary(operator));
+    }
+
+    let assignment_limit = first_question.unwrap_or(end);
+    depth = 0;
+    for at in start..assignment_limit {
+        match index.tokens[at].text.as_str() {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "<<=" | ">>=" | "&=" | "^="
+            | "|=" if depth == 0 && at > start && at + 1 < end => {
+                return Some(ValueDependRoot::Binary(at));
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(question) = first_question {
+        let mut ternary_depth = 0usize;
+        depth = 0;
+        for at in question + 1..end {
+            match index.tokens[at].text.as_str() {
+                "(" | "[" | "{" => depth += 1,
+                ")" | "]" | "}" => depth = depth.saturating_sub(1),
+                "?" if depth == 0 => ternary_depth += 1,
+                ":" if depth == 0 && ternary_depth == 0 => {
+                    return Some(ValueDependRoot::Conditional(question, at));
+                }
+                ":" if depth == 0 => ternary_depth = ternary_depth.saturating_sub(1),
+                _ => {}
+            }
+        }
+    }
+
+    let mut best = None::<(u8, usize)>;
+    depth = 0;
+    for at in start..end {
+        match index.tokens[at].text.as_str() {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            operator if depth == 0 && value_depend_is_binary_at(index, start, end, at) => {
+                let Some(rank) = value_depend_binary_precedence(operator) else {
+                    continue;
+                };
+                match best {
+                    None => best = Some((rank, at)),
+                    Some((best_rank, _)) if rank < best_rank => best = Some((rank, at)),
+                    Some((best_rank, _)) if rank == best_rank => best = Some((rank, at)),
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+    best.map(|(_, at)| ValueDependRoot::Binary(at))
+}
+
+fn value_depend_binary_precedence(operator: &str) -> Option<u8> {
+    Some(match operator {
+        "||" => 3,
+        "&&" => 4,
+        "|" => 5,
+        "^" => 6,
+        "&" => 7,
+        "==" | "!=" => 8,
+        "<" | "<=" | ">" | ">=" | "<=>" => 9,
+        "<<" | ">>" => 10,
+        "+" | "-" => 11,
+        "*" | "/" | "%" => 12,
+        _ => return None,
+    })
+}
+
+fn value_depend_is_binary_at(
+    index: &CExpressionIndex,
+    start: usize,
+    end: usize,
+    at: usize,
+) -> bool {
+    if at <= start || at + 1 >= end || value_depend_binary_precedence(&index.tokens[at].text).is_none()
+    {
+        return false;
+    }
+    if !matches!(index.tokens[at].text.as_str(), "+" | "-" | "*" | "&") {
+        return true;
+    }
+    let previous = index.tokens[at - 1].text.as_str();
+    !matches!(
+        previous,
+        "(" | "[" | "{" | "," | "?" | ":" | "=" | "+=" | "-=" | "*=" | "/=" | "%="
+            | "<<=" | ">>=" | "&=" | "^=" | "|=" | "||" | "&&" | "|" | "^" | "&" | "=="
+            | "!=" | "<" | "<=" | ">" | ">=" | "<<" | ">>" | "+" | "-" | "*" | "/" | "%"
+            | "!" | "~"
+    )
+}
+
+fn value_depend_is_call_open(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    open: usize,
+) -> bool {
+    if open == 0 || index.tokens[open].text != "(" {
+        return false;
+    }
+    let previous = &index.tokens[open - 1];
+    if matches!(previous.text.as_str(), ")" | "]") {
+        return true;
+    }
+    if previous.kind != TokKind::Ident
+        || matches!(
+            previous.text.as_str(),
+            "if" | "for" | "while" | "switch" | "sizeof" | "alignof" | "_Alignof" | "catch"
+                | "decltype" | "static_assert" | "_Static_assert"
+        )
+    {
+        return false;
+    }
+    !value_depend_identifier_is_known_type(declarations, previous.text.as_str())
+}
+
+fn value_depend_identifier_is_known_type(declarations: &CDeclarationIndex, name: &str) -> bool {
+    matches!(
+        name,
+        "void" | "bool" | "char" | "wchar_t" | "char8_t" | "char16_t" | "char32_t" | "short"
+            | "int" | "long" | "float" | "double" | "signed" | "unsigned"
+    ) || declarations
+        .aggregates
+        .iter()
+        .any(|aggregate| aggregate.name.as_deref() == Some(name))
+        || declarations.declarations.iter().any(|declaration| {
+            declaration.storage.iter().any(|item| item == "typedef")
+                && declaration
+                    .declarators
+                    .iter()
+                    .any(|declarator| declarator.name.as_deref() == Some(name))
+        })
+}
+
+fn value_depend_top_level_member(index: &CExpressionIndex, start: usize, end: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    let mut found = None;
+    for at in start..end {
+        match index.tokens[at].text.as_str() {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            "." | "->" | ".*" | "->*" if depth == 0 => found = Some(at),
+            _ => {}
+        }
+    }
+    found
+}
+
+fn value_depend_looks_like_cast_type(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> bool {
+    if start >= end {
+        return false;
+    }
+    let mut saw_type = false;
+    for token in &index.tokens[start..end] {
+        if token.kind == TokKind::Ident {
+            if matches!(
+                token.text.as_str(),
+                "const" | "volatile" | "restrict" | "_Atomic" | "struct" | "class" | "union" | "enum"
+            ) || value_depend_identifier_is_known_type(declarations, token.text.as_str())
+            {
+                saw_type = true;
+                continue;
+            }
+            return false;
+        }
+        if !matches!(token.text.as_str(), "*" | "&" | "&&" | "::" | "<" | ">" | ",") {
+            return false;
+        }
+    }
+    saw_type
+}
+
+fn disable_for_body_modify_ctrl_var_offsets(
+    source: &str,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let macro_argument_ranges = function_macro_argument_ranges(source, index);
+    let mut offsets = Vec::new();
+    for node in syntax.nodes.iter().filter(|node| node.kind == JavaSyntaxKind::For) {
+        let (Some(condition), Some(body)) = (&node.condition, &node.body) else {
+            continue;
+        };
+        let Some(function_id) = declarations.functions.iter().position(|function| {
+            function.body.start <= node.range.start && node.range.end <= function.body.end
+        }) else {
+            continue;
+        };
+        let Some(control) = find_for_control_variable(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            node.initializer.as_ref(),
+            condition,
+            node.update.as_ref(),
+        ) else {
+            continue;
+        };
+        let Some(modified_at) = first_direct_variable_modification(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            body,
+            control,
+        ) else {
+            continue;
+        };
+        if macro_argument_ranges
+            .iter()
+            .any(|range| range.start <= modified_at && modified_at < range.end)
+        {
+            continue;
+        }
+        offsets.push(modified_at);
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn find_for_control_variable(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    initializer: Option<&std::ops::Range<usize>>,
+    condition: &std::ops::Range<usize>,
+    update: Option<&std::ops::Range<usize>>,
+) -> Option<CVariableBinding> {
+    let (condition_start, condition_end) = token_range_for_source_range(index, condition)?;
+    let (condition_start, condition_end) = trim_outer_group(index, condition_start, condition_end);
+
+    if let Some(identifier) = direct_identifier_after_paren_casts(
+        index,
+        declarations,
+        condition_start,
+        condition_end,
+    ) {
+        if let Some(binding) = resolve_variable_binding(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            identifier,
+        ) {
+            return Some(binding);
+        }
+    }
+    if condition_start < condition_end
+        && matches!(index.tokens[condition_start].text.as_str(), "!" | "*")
+    {
+        if let Some(identifier) = direct_identifier_after_paren_casts(
+            index,
+            declarations,
+            condition_start + 1,
+            condition_end,
+        ) {
+            if let Some(binding) = resolve_variable_binding(
+                index,
+                declarations,
+                syntax,
+                function_id,
+                identifier,
+            ) {
+                return Some(binding);
+            }
+        }
+    }
+
+    let valid_variables = variable_bindings_in_range(
+        index,
+        declarations,
+        syntax,
+        function_id,
+        condition_start,
+        condition_end,
+    );
+    if valid_variables.is_empty() {
+        return None;
+    }
+    let loop_control_variables = update
+        .and_then(|range| token_range_for_source_range(index, range))
+        .map_or_else(Vec::new, |(start, end)| {
+            directly_modified_variables_in_tokens(
+                index,
+                declarations,
+                syntax,
+                function_id,
+                start,
+                end,
+            )
+        });
+
+    let has_initializer = initializer.is_some_and(|range| range.start < range.end);
+    if let Some(initializer) = initializer.filter(|range| range.start < range.end) {
+        let mut init_declarations = declarations
+            .declarations
+            .iter()
+            .filter(|declaration| declaration.enclosing_function == Some(function_id))
+            .filter(|declaration| {
+                initializer.start <= declaration.range.start
+                    && declaration.range.start < initializer.end
+            })
+            .collect::<Vec<_>>();
+        init_declarations.sort_by_key(|declaration| declaration.range.start);
+        if !init_declarations.is_empty() {
+            for declaration in init_declarations {
+                for declarator in &declaration.declarators {
+                    if declaration.storage.iter().any(|item| item == "typedef")
+                        || matches!(declarator.derived.first(), Some(D::Function { .. }))
+                    {
+                        continue;
+                    }
+                    let Some(name_range) = declarator.name_range.as_ref() else {
+                        continue;
+                    };
+                    let binding = CVariableBinding::Declarator(name_range.start);
+                    if (loop_control_variables.is_empty()
+                        || loop_control_variables.contains(&binding))
+                        && valid_variables.contains(&binding)
+                    {
+                        return Some(binding);
+                    }
+                }
+            }
+            return None;
+        }
+
+        let (start, end) = token_range_for_source_range(index, initializer)?;
+        let (start, end) = trim_outer_group(index, start, end);
+        let operator = root_c_binary_operator(index, start, end)?;
+        let identifier = direct_lhs_identifier_token(index, start, operator)?;
+        let binding = resolve_variable_binding(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            identifier,
+        )?;
+        return valid_variables.contains(&binding).then_some(binding);
+    }
+
+    if !has_initializer {
+        return loop_control_variables
+            .into_iter()
+            .find(|binding| valid_variables.contains(binding));
+    }
+    None
+}
+
+fn direct_identifier_after_paren_casts(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    mut start: usize,
+    mut end: usize,
+) -> Option<usize> {
+    let known_names = declarations
+        .aggregates
+        .iter()
+        .filter_map(|aggregate| aggregate.name.as_deref())
+        .chain(
+            declarations
+                .declarations
+                .iter()
+                .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+                .flat_map(|declaration| &declaration.declarators)
+                .filter_map(|declarator| declarator.name.as_deref()),
+        )
+        .collect::<HashSet<_>>();
+
+    loop {
+        (start, end) = trim_outer_group(index, start, end);
+        if start >= end {
+            return None;
+        }
+
+        if index.tokens[start].text == "(" {
+            if let Some(close) = index.matching_token_index(start) {
+                if close + 1 < end
+                    && cast_destination_type(&index.tokens[start + 1..close], &known_names)
+                        .is_some()
+                {
+                    start = close + 1;
+                    continue;
+                }
+            }
+        }
+
+        if matches!(
+            index.tokens[start].text.as_str(),
+            "static_cast" | "dynamic_cast" | "reinterpret_cast" | "const_cast"
+        ) && index.tokens.get(start + 1).is_some_and(|token| token.text == "<")
+        {
+            let type_end = (start + 2..end).find(|at| index.tokens[*at].text == ">")?;
+            if cast_destination_type(&index.tokens[start + 2..type_end], &known_names).is_none()
+                || index
+                    .tokens
+                    .get(type_end + 1)
+                    .is_none_or(|token| token.text != "(")
+            {
+                return None;
+            }
+            let close = index.matching_token_index(type_end + 1)?;
+            if close + 1 != end {
+                return None;
+            }
+            start = type_end + 2;
+            end = close;
+            continue;
+        }
+
+        return direct_identifier_token(index, start, end);
+    }
+}
+
+fn variable_bindings_in_range(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    start: usize,
+    end: usize,
+) -> HashSet<CVariableBinding> {
+    (start..end)
+        .filter(|at| index.tokens[*at].kind == TokKind::Ident)
+        .filter_map(|at| {
+            resolve_variable_binding(index, declarations, syntax, function_id, at)
+        })
+        .collect()
+}
+
+fn directly_modified_variables_in_tokens(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    start: usize,
+    end: usize,
+) -> Vec<CVariableBinding> {
+    let range_start = index.tokens.get(start).map_or(usize::MAX, |token| token.start as usize);
+    let range_end = index.tokens.get(end.saturating_sub(1)).map_or(0, |token| token.end as usize);
+    let mut found = Vec::<(usize, CVariableBinding)>::new();
+    for fact in index.facts.iter().filter(|fact| {
+        matches!(fact.kind, K::Assignment | K::Update)
+            && range_start <= fact.offset
+            && fact.offset < range_end
+    }) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        let identifier = match fact.kind {
+            K::Assignment => direct_assignment_identifier_token(index, operator),
+            K::Update => direct_update_identifier_token(index, operator).map(|value| value.0),
+            _ => None,
+        };
+        let Some(identifier) = identifier else {
+            continue;
+        };
+        let Some(binding) = resolve_variable_binding(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            identifier,
+        ) else {
+            continue;
+        };
+        let offset = index.tokens[identifier].start as usize;
+        if !found.iter().any(|(_, existing)| *existing == binding) {
+            found.push((offset, binding));
+        }
+    }
+    found.sort_by_key(|(offset, _)| *offset);
+    found.into_iter().map(|(_, binding)| binding).collect()
+}
+
+fn first_direct_variable_modification(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    body: &std::ops::Range<usize>,
+    control: CVariableBinding,
+) -> Option<usize> {
+    let mut candidates = Vec::new();
+    for fact in index.facts.iter().filter(|fact| {
+        matches!(fact.kind, K::Assignment | K::Update)
+            && body.start <= fact.offset
+            && fact.offset < body.end
+    }) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        let (identifier, expression_start) = match fact.kind {
+            K::Assignment => {
+                let Some(identifier) = direct_assignment_identifier_token(index, operator) else {
+                    continue;
+                };
+                let expression_start = direct_lhs_expression_start(index, operator, identifier);
+                (identifier, expression_start)
+            }
+            K::Update => {
+                let Some(update) = direct_update_identifier_token(index, operator) else {
+                    continue;
+                };
+                update
+            }
+            _ => continue,
+        };
+        if resolve_variable_binding(
+            index,
+            declarations,
+            syntax,
+            function_id,
+            identifier,
+        ) == Some(control)
+        {
+            candidates.push(expression_start);
+        }
+    }
+    candidates.into_iter().min()
+}
+
+fn resolve_variable_binding(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+    function_id: usize,
+    token_at: usize,
+) -> Option<CVariableBinding> {
+    let token = index.tokens.get(token_at)?;
+    if token.kind != TokKind::Ident {
+        return None;
+    }
+    let name = token.text.as_str();
+    let offset = token.start as usize;
+    let use_scope = c_lexical_scope(syntax, offset);
+
+    let local = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.enclosing_function == Some(function_id))
+        .filter(|declaration| declaration.range.start <= offset)
+        .filter(|declaration| !declaration.storage.iter().any(|item| item == "typedef"))
+        .filter(|declaration| {
+            let scope = c_lexical_scope(syntax, declaration.range.start);
+            scope.start <= use_scope.start && use_scope.end <= scope.end
+        })
+        .flat_map(|declaration| &declaration.declarators)
+        .filter(|declarator| declarator.name.as_deref() == Some(name))
+        .filter(|declarator| !matches!(declarator.derived.first(), Some(D::Function { .. })))
+        .filter_map(|declarator| declarator.name_range.as_ref())
+        .filter(|range| range.start < offset)
+        .max_by_key(|range| range.start);
+    if let Some(range) = local {
+        return Some(CVariableBinding::Declarator(range.start));
+    }
+
+    let function = declarations.functions.get(function_id)?;
+    if let Some(parameter) = declarations
+        .parameters
+        .iter()
+        .filter(|parameter| {
+            function.parameters.start <= parameter.range.start
+                && parameter.range.end <= function.parameters.end
+                && parameter.name.as_deref() == Some(name)
+        })
+        .find_map(|parameter| parameter.name_range.as_ref())
+    {
+        return Some(CVariableBinding::Parameter(parameter.start));
+    }
+
+    declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.enclosing_function.is_none())
+        .filter(|declaration| declaration.range.start <= offset)
+        .filter(|declaration| !declaration.storage.iter().any(|item| item == "typedef"))
+        .flat_map(|declaration| &declaration.declarators)
+        .filter(|declarator| declarator.name.as_deref() == Some(name))
+        .filter(|declarator| !matches!(declarator.derived.first(), Some(D::Function { .. })))
+        .filter_map(|declarator| declarator.name_range.as_ref())
+        .max_by_key(|range| range.start)
+        .map(|range| CVariableBinding::Declarator(range.start))
+}
+
+fn direct_assignment_identifier_token(index: &CExpressionIndex, operator: usize) -> Option<usize> {
+    let previous = operator.checked_sub(1)?;
+    let (identifier, expression_start) = if index.tokens[previous].kind == TokKind::Ident {
+        (previous, previous)
+    } else if index.tokens[previous].text == ")" {
+        let open = index.matching_token_index(previous)?;
+        let (inner_start, inner_end) = trim_outer_group(index, open, previous + 1);
+        let identifier = direct_identifier_token(index, inner_start, inner_end)?;
+        (identifier, open)
+    } else {
+        return None;
+    };
+    let before = expression_start
+        .checked_sub(1)
+        .and_then(|at| index.tokens.get(at));
+    if before.is_some_and(|token| {
+        matches!(
+            token.text.as_str(),
+            "." | "->" | "::" | "*" | "&" | "++" | "--" | "]"
+        )
+    }) {
+        return None;
+    }
+    Some(identifier)
+}
+
+fn direct_lhs_identifier_token(
+    index: &CExpressionIndex,
+    start: usize,
+    operator: usize,
+) -> Option<usize> {
+    let (start, end) = trim_outer_group(index, start, operator);
+    let identifier = direct_identifier_token(index, start, end)?;
+    let before = start.checked_sub(1).and_then(|at| index.tokens.get(at));
+    if before.is_some_and(|token| {
+        matches!(token.text.as_str(), "." | "->" | "::" | "*" | "&" | "++" | "--")
+    }) {
+        return None;
+    }
+    Some(identifier)
+}
+
+fn direct_lhs_expression_start(
+    index: &CExpressionIndex,
+    operator: usize,
+    identifier: usize,
+) -> usize {
+    let mut start = identifier;
+    while start > 0 && index.tokens[start - 1].text == "(" {
+        let open = start - 1;
+        if index.matching_token_index(open).is_some_and(|close| close < operator) {
+            start = open;
+        } else {
+            break;
+        }
+    }
+    index.tokens[start].start as usize
+}
+
+fn direct_update_identifier_token(
+    index: &CExpressionIndex,
+    operator: usize,
+) -> Option<(usize, usize)> {
+    if index.tokens.get(operator)?.text != "++" && index.tokens[operator].text != "--" {
+        return None;
+    }
+    if let Some(next) = index.tokens.get(operator + 1) {
+        if next.kind == TokKind::Ident
+            && index.tokens.get(operator + 2).is_none_or(|token| {
+                !matches!(token.text.as_str(), "." | "->" | "::" | "[" | "(")
+            })
+        {
+            return Some((operator + 1, index.tokens[operator].start as usize));
+        }
+        if next.text == "(" {
+            let close = index.matching_token_index(operator + 1)?;
+            let (operand_start, operand_end) =
+                trim_outer_group(index, operator + 1, close + 1);
+            let identifier = direct_identifier_token(index, operand_start, operand_end)?;
+            if index.tokens.get(close + 1).is_some_and(|token| {
+                matches!(token.text.as_str(), "." | "->" | "::" | "[")
+            }) {
+                return None;
+            }
+            return Some((identifier, index.tokens[operator].start as usize));
+        }
+    }
+    let previous = operator.checked_sub(1)?;
+    let (identifier, expression_start) = if index.tokens[previous].kind == TokKind::Ident {
+        (previous, index.tokens[previous].start as usize)
+    } else if index.tokens[previous].text == ")" {
+        let open = index.matching_token_index(previous)?;
+        let (inner_start, inner_end) = trim_outer_group(index, open, previous + 1);
+        let identifier = direct_identifier_token(index, inner_start, inner_end)?;
+        (identifier, index.tokens[open].start as usize)
+    } else {
+        return None;
+    };
+    let before = expression_token_start(index, expression_start)
+        .and_then(|start| start.checked_sub(1))
+        .and_then(|at| index.tokens.get(at));
+    if before.is_some_and(|token| {
+        matches!(token.text.as_str(), "." | "->" | "::" | "*" | "&" | "++" | "--")
+    }) {
+        return None;
+    }
+    Some((identifier, expression_start))
+}
+
+fn expression_token_start(index: &CExpressionIndex, offset: usize) -> Option<usize> {
+    index.tokens.iter().position(|token| token.start as usize == offset)
+}
+
+fn root_c_binary_operator(index: &CExpressionIndex, start: usize, end: usize) -> Option<usize> {
+    fn precedence(operator: &str) -> Option<u8> {
+        Some(match operator {
+            "," => 1,
+            "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "<<=" | ">>=" | "&="
+            | "^=" | "|=" => 2,
+            "||" => 3,
+            "&&" => 4,
+            "|" => 5,
+            "^" => 6,
+            "&" => 7,
+            "==" | "!=" => 8,
+            "<" | "<=" | ">" | ">=" | "<=>" => 9,
+            "<<" | ">>" => 10,
+            "+" | "-" => 11,
+            "*" | "/" | "%" => 12,
+            _ => return None,
+        })
+    }
+    let mut depth = 0usize;
+    let mut best = None::<(u8, usize)>;
+    for at in start..end {
+        match index.tokens[at].text.as_str() {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            operator if depth == 0 => {
+                let Some(rank) = precedence(operator) else {
+                    continue;
+                };
+                match best {
+                    None => best = Some((rank, at)),
+                    Some((best_rank, _)) if rank < best_rank => best = Some((rank, at)),
+                    Some((best_rank, _)) if rank == best_rank && rank != 2 => {
+                        best = Some((rank, at));
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+    best.map(|(_, at)| at)
 }
 
 fn direct_identifier<'a>(

@@ -1,5 +1,6 @@
 #[derive(Clone, Default)]
 struct CLikeEnv {
+    language: Option<Language>,
     vars: HashMap<String, SymbolId>,
     types: HashMap<String, String>,
     pointer_aliases: HashMap<String, String>,
@@ -150,18 +151,48 @@ fn is_declaration(left: &str, env: &CLikeEnv) -> bool {
 }
 
 
-fn parse_typed_name(text: &str) -> Option<(String, String)> {
-    let mut trimmed = text.trim().trim_end_matches(';').trim().to_string();
-    if trimmed.is_empty() {
-        return None;
-    }
-    while let Some(open) = trimmed.rfind('[') {
-        if trimmed[open..].ends_with(']') {
-            trimmed.truncate(open);
-            trimmed = trimmed.trim_end().to_string();
-        } else {
+fn split_array_declarator_suffix(text: &str) -> (String, Vec<Option<String>>) {
+    let mut declarator = text.trim().trim_end_matches(';').trim().to_string();
+    let mut extents = Vec::new();
+    loop {
+        let trimmed = declarator.trim_end();
+        if !trimmed.ends_with(']') {
             break;
         }
+        let mut depth = 0usize;
+        let mut open = None;
+        for (idx, ch) in trimmed.char_indices().rev() {
+            match ch {
+                ']' => depth += 1,
+                '[' => {
+                    if depth == 0 {
+                        return (declarator, Vec::new());
+                    }
+                    depth -= 1;
+                    if depth == 0 {
+                        open = Some(idx);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(open) = open else {
+            break;
+        };
+        let extent = trimmed[open + 1..trimmed.len() - 1].trim();
+        extents.push((!extent.is_empty()).then(|| extent.to_string()));
+        declarator.truncate(open);
+        declarator = declarator.trim_end().to_string();
+    }
+    extents.reverse();
+    (declarator, extents)
+}
+
+fn parse_typed_name(text: &str) -> Option<(String, String)> {
+    let (trimmed, _) = split_array_declarator_suffix(text);
+    if trimmed.is_empty() {
+        return None;
     }
     let ident_re = Regex::new(r"([A-Za-z_][A-Za-z0-9_]*)\s*$").expect("valid regex");
     let caps = ident_re.captures(&trimmed)?;
@@ -177,6 +208,23 @@ fn parse_typed_name(text: &str) -> Option<(String, String)> {
         .collect::<Vec<_>>()
         .join(" ");
     Some((name, ty))
+}
+
+fn record_array_extents(
+    builder: &mut ModuleBuilder,
+    symbol: SymbolId,
+    declaration: &str,
+    env: &mut CLikeEnv,
+) {
+    let (_, extent_texts) = split_array_declarator_suffix(declaration);
+    if extent_texts.is_empty() {
+        return;
+    }
+    let extents = extent_texts
+        .into_iter()
+        .map(|extent| extent.map(|text| parse_expr(builder, &text, env)))
+        .collect();
+    builder.set_symbol_array_extents(symbol, extents);
 }
 
 fn parse_variable_declaration(stmt: &str) -> Option<(String, String)> {
@@ -303,15 +351,13 @@ fn parse_alloc_expr(
     declared_type: Option<&str>,
 ) -> Option<Expr> {
     let trimmed = text.trim();
-    let alloc_name = if trimmed.contains("malloc(") {
-        Some("malloc")
-    } else if trimmed.contains("calloc(") {
-        Some("calloc")
-    } else if trimmed.contains("realloc(") {
-        Some("realloc")
-    } else {
-        None
-    }?;
+    // Match the allocator identifier itself, not an arbitrary substring. In
+    // particular `_aligned_malloc(...)` must stay a normal named call so
+    // path-sensitive checkers can distinguish its provenance from malloc.
+    let allocator_re =
+        Regex::new(r"(?:^|[^A-Za-z0-9_])(?P<name>malloc|calloc)\s*\(").expect("valid regex");
+    let alloc_caps = allocator_re.captures(trimmed)?;
+    let alloc_name = alloc_caps.name("name")?.as_str();
 
     let type_name = declared_type
         .map(strip_pointer_qualifiers)
@@ -389,4 +435,3 @@ fn parse_copy_propagation_stmt(
         },
     ])
 }
-

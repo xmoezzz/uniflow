@@ -5,6 +5,7 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::thread;
 use uniflow_hir::{Language, Program, ProgramMerger};
 use uniflow_lang_c::CParser;
 use uniflow_lang_cpp::CppParser;
@@ -118,14 +119,7 @@ pub fn parse_project_sources_with_options(
     match language {
         Language::Java => parse_java_project_sources(&prepared_entries),
         Language::Python => parse_python_project_sources(&prepared_entries),
-        Language::C | Language::Cpp => {
-            let mut project = ProgramMerger::new(language.clone());
-            for (path, source) in &prepared_entries {
-                let parsed = parse_prepared_source(language.clone(), path, source)?;
-                project.merge(parsed);
-            }
-            Ok(project.finish())
-        }
+        Language::C | Language::Cpp => parse_c_family_project_sources(language, &prepared_entries),
         Language::CSharp
         | Language::ObjC
         | Language::ObjCpp
@@ -141,6 +135,68 @@ pub fn parse_project_sources_with_options(
         | Language::Shell => parse_descriptor_project_sources(language, &prepared_entries),
         Language::Unknown => bail!("language must be specified"),
     }
+}
+
+fn parse_c_family_project_sources(
+    language: Language,
+    entries: &[(String, String)],
+) -> Result<Program> {
+    let worker_count = thread::available_parallelism()
+        .map(|count| count.get())
+        .unwrap_or(1)
+        .min(entries.len());
+    parse_c_family_project_sources_with_workers(language, entries, worker_count)
+}
+
+fn parse_c_family_project_sources_with_workers(
+    language: Language,
+    entries: &[(String, String)],
+    worker_count: usize,
+) -> Result<Program> {
+    let worker_count = worker_count.max(1).min(entries.len().max(1));
+    if worker_count <= 1 || entries.len() <= 1 {
+        let mut project = ProgramMerger::new(language.clone());
+        for (path, source) in entries {
+            project.merge(parse_prepared_source(language.clone(), path, source)?);
+        }
+        return Ok(project.finish());
+    }
+
+    let chunk_size = entries.len().div_ceil(worker_count);
+    let mut parsed = thread::scope(|scope| -> Result<Vec<(usize, Result<Program>)>> {
+        let mut handles = Vec::with_capacity(worker_count);
+        for (chunk_index, chunk) in entries.chunks(chunk_size).enumerate() {
+            let worker_language = language.clone();
+            handles.push(scope.spawn(move || {
+                chunk
+                    .iter()
+                    .enumerate()
+                    .map(|(offset, (path, source))| {
+                        (
+                            chunk_index * chunk_size + offset,
+                            parse_prepared_source(worker_language.clone(), path, source),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            }));
+        }
+
+        let mut parsed = Vec::with_capacity(entries.len());
+        for handle in handles {
+            let mut batch = handle
+                .join()
+                .map_err(|_| anyhow::anyhow!("C-family parser worker panicked"))?;
+            parsed.append(&mut batch);
+        }
+        Ok(parsed)
+    })?;
+    parsed.sort_by_key(|(index, _)| *index);
+
+    let mut project = ProgramMerger::new(language);
+    for (_, unit) in parsed {
+        project.merge(unit?);
+    }
+    Ok(project.finish())
 }
 
 #[cfg(test)]
@@ -181,6 +237,32 @@ mod tests {
             assert_eq!(program.language, language, "{path}");
             assert!(!program.modules.is_empty(), "{path}");
         }
+    }
+
+    #[test]
+    fn c_family_parallel_project_parse_preserves_input_file_order() {
+        let entries = (0..8)
+            .map(|index| {
+                (
+                    format!("unit_{index}.c"),
+                    format!("int value_{index}(void) {{ return {index}; }}"),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let program = parse_c_family_project_sources_with_workers(Language::C, &entries, 4)
+            .expect("parallel C project parse");
+        let paths = program
+            .files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>();
+        let expected = entries
+            .iter()
+            .map(|(path, _)| path.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(paths, expected);
     }
 }
 

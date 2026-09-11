@@ -47,6 +47,175 @@ fn detects_c_gets() {
 }
 
 #[test]
+fn native_dataflow_rule_metadata_is_bundled_without_frontend_execution() {
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let rule = pack
+        .rules
+        .iter()
+        .find(|rule| rule.id == "ANZU-POINTER-MUST-BE-NULL-AFTER-FREE")
+        .expect("pointer-after-free metadata must be bundled");
+    assert!(rule.matcher.native_dataflow);
+    assert_eq!(
+        rule.standards,
+        [
+            "0701000010130024",
+            "0101000010110263",
+            "0901000010110263"
+        ]
+    );
+    assert_eq!(rule.localized_message("en"), "{} should be set to NULL");
+    assert_eq!(rule.localized_message("zh-CN"), "{} 应该设置为NULL");
+
+    let findings = pack.scan_text(
+        &Language::C,
+        Path::new("after_free.c"),
+        "int run(int *p) { free(p); return *p; }\n",
+    );
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.rule_id != "ANZU-POINTER-MUST-BE-NULL-AFTER-FREE"),
+        "native dataflow rules must not be duplicated by the baseline frontend"
+    );
+}
+
+#[test]
+fn aligned_alloc_realloc_metadata_is_bundled_without_frontend_execution() {
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let rule = pack
+        .rules
+        .iter()
+        .find(|rule| rule.id == "ANZU-ALIGNED-ALLOC-REALLOC")
+        .expect("aligned-allocation realloc metadata must be bundled");
+    assert!(rule.matcher.native_dataflow);
+    assert_eq!(rule.standards, ["0101000010110423"]);
+    assert_eq!(
+        rule.localized_message("en"),
+        "Memory allocated by aligned_alloc should not be resized using realloc()."
+    );
+    assert_eq!(
+        rule.localized_message("zh-CN"),
+        "使用 aligned_alloc 分配的内存不应该用 realloc() 改变大小。"
+    );
+
+    let findings = pack.scan_text(
+        &Language::C,
+        Path::new("aligned_realloc.c"),
+        "int run(void *p) { p = aligned_alloc(16, 64); p = realloc(p, 128); return 0; }\n",
+    );
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.rule_id != "ANZU-ALIGNED-ALLOC-REALLOC"),
+        "native dataflow rules must not be duplicated by the baseline frontend"
+    );
+}
+
+#[test]
+fn argument_validation_metadata_is_bundled_without_frontend_execution() {
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let rule = pack
+        .rules
+        .iter()
+        .find(|rule| rule.id == "ANZU-ARGUMENT-VALIDATION")
+        .expect("argument-validation metadata must be bundled");
+    assert!(rule.matcher.native_dataflow);
+    assert_eq!(rule.languages, [Language::Cpp]);
+    assert_eq!(rule.standards, ["0101000010110430"]);
+    assert_eq!(
+        rule.localized_message("en"),
+        "Pointer argument '{}' might be null and should be validated."
+    );
+    assert_eq!(
+        rule.localized_message("zh-CN"),
+        "指针参数 ‘{}’需要确认是否为空指针。"
+    );
+    assert!(rule.translations.zh_tw.is_none());
+
+    let findings = pack.scan_text(
+        &Language::Cpp,
+        Path::new("argument_validation.cpp"),
+        "void sink(int *value); void run() { int *p = nullptr; sink(p); }\n",
+    );
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.rule_id != "ANZU-ARGUMENT-VALIDATION"),
+        "native dataflow rules must not be duplicated by the baseline frontend"
+    );
+}
+
+#[test]
+fn array_index_metadata_is_bundled_without_frontend_execution() {
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let rule = pack
+        .rules
+        .iter()
+        .find(|rule| rule.id == "ANZU-ARRAY-INDEX")
+        .expect("array-index metadata must be bundled");
+    assert!(rule.matcher.native_dataflow);
+    assert_eq!(rule.languages, [Language::C, Language::Cpp]);
+    assert_eq!(rule.standards, ["0701000010130047"]);
+    assert_eq!(rule.localized_message("en"), "Array index is less than zero");
+    assert_eq!(rule.localized_message("zh-CN"), "数组索引小于0。");
+    assert!(rule.translations.zh_tw.is_none());
+
+    let findings = pack.scan_text(
+        &Language::C,
+        Path::new("negative_index.c"),
+        "int run(int *a) { return a[-1]; }\n",
+    );
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.rule_id != "ANZU-ARRAY-INDEX"),
+        "native dataflow rules must not be duplicated by the baseline frontend"
+    );
+}
+
+#[test]
+fn array_bound_metadata_is_bundled_without_frontend_execution() {
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let rule = pack
+        .rules
+        .iter()
+        .find(|rule| rule.id == "ANZU-ARRAY-BOUND")
+        .expect("array-bound metadata must be bundled");
+    assert!(rule.matcher.native_dataflow);
+    assert_eq!(rule.languages, [Language::C, Language::Cpp]);
+    assert_eq!(
+        rule.standards,
+        [
+            "0201000010120009",
+            "0301000010120009",
+            "0501000010120009",
+            "1301000010120009",
+            "2401000010120009",
+            "0701000010130046",
+            "0601000010140037",
+        ]
+    );
+    assert_eq!(
+        rule.localized_message("en"),
+        "Array bound read/write exceeds size"
+    );
+    assert_eq!(rule.localized_message("zh-CN"), "数组读写越界。");
+    assert!(rule.translations.zh_tw.is_none());
+
+    let findings = pack.scan_text(
+        &Language::C,
+        Path::new("array_bound.c"),
+        "int run(void) { int a[2]; return a[2]; }\n",
+    );
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.rule_id != "ANZU-ARRAY-BOUND"),
+        "native dataflow rules must not be duplicated by the baseline frontend"
+    );
+}
+
+#[test]
 fn executable_pack_count_matches_manifest_sum() {
     let manifest: Manifest = serde_json::from_str(uniflow_baseline::builtin_pack_manifest())
         .expect("parse built-in manifest");

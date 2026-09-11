@@ -473,6 +473,7 @@ fn restore_cpp_class_semantics(
                                 declared_in: Some(module.id),
                                 span: function.span,
                                 attributes: Default::default(),
+                                array_extents: Vec::new(),
                                 cpp: Some(uniflow_hir::CppSymbolSemantics {
                                     method: None,
                                     value: cpp.clone(),
@@ -2018,11 +2019,12 @@ pub fn normalize_cpp_for_hir(source: &str) -> String {
         Regex::new(r"\bnew\s+([A-Za-z_][A-Za-z0-9_:]*)\s*(?:\([^;\n]*\))?").expect("valid regex");
     out = new_re.replace_all(&out, "malloc(sizeof($1))").into_owned();
 
-    // Deallocation is represented as an ordinary call so baseline/value-flow rules can attach
-    // ownership models without requiring a C++-specific HIR statement.
+    // Source-level delete is kept distinct from compiler-injected RAII destruction.  The former
+    // is a raw deallocation event (and participates in the legacy dangling-pointer checker),
+    // while `__uniflow_cpp_destroy` is also used for automatic owner cleanup.
     let delete_re = Regex::new(r"\bdelete(?:\s*\[\s*\])?\s+([^;]+);").expect("valid regex");
     out = delete_re
-        .replace_all(&out, "__uniflow_cpp_destroy($1);")
+        .replace_all(&out, "__uniflow_cpp_delete($1);")
         .into_owned();
 
     let rref_re = Regex::new(r"&&").expect("valid regex");

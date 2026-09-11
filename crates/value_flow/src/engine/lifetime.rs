@@ -27,6 +27,18 @@ enum BorrowValidity {
     Invalid,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RawFreeState {
+    Freed,
+    MaybeFreed,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AlignedAllocationState {
+    Aligned,
+    MaybeAligned,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct LifetimeDataflowState {
     handles: HashMap<ValueId, LifetimeState>,
@@ -48,6 +60,16 @@ struct LifetimeDataflowState {
     /// Index-insensitive container element identity. All indices of one abstract container share
     /// a conservative cell unless a more precise heap model is available.
     index_roots: HashMap<ValueId, ValueId>,
+    /// Raw-pointer deallocation state used by the legacy
+    /// PointerMustBeNullAfterFreeChecker. This deliberately does not reuse
+    /// `handles`/`objects`: the legacy checker diagnoses only dereference,
+    /// member-base, array-base, and repeated-free sites, not arbitrary uses.
+    raw_freed: HashMap<ValueId, RawFreeState>,
+    /// Allocation provenance used by the legacy AlignedAllocReallocChecker.
+    /// The key is the effective pointer root so ordinary copies/casts preserve
+    /// provenance. A maybe state is retained across CFG joins so a realloc is
+    /// still diagnosed when at least one feasible predecessor is aligned.
+    aligned_allocations: HashMap<ValueId, AlignedAllocationState>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -298,6 +320,10 @@ fn infer_lifetime_contract(function: &Function) -> FunctionLifetimeContract {
                             LifetimeEvent::Construct => ParamLifetimeEffect::None,
                             LifetimeEvent::MoveFrom => ParamLifetimeEffect::Move,
                             LifetimeEvent::Release => ParamLifetimeEffect::Release,
+                            // Keep raw deallocation local to the function containing the
+                            // resolved free/delete call. The legacy checker does not infer
+                            // wrapper summaries such as `my_free(p)`.
+                            LifetimeEvent::Free => ParamLifetimeEffect::None,
                             LifetimeEvent::Destroy => ParamLifetimeEffect::Destroy,
                             LifetimeEvent::Escape => ParamLifetimeEffect::Escape,
                         };
@@ -547,6 +573,30 @@ fn transfer_lifetime_instruction(
     diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
 ) {
     match &instruction.kind {
+        InstKind::Deref { src, .. } => diagnose_raw_free_use(
+            function,
+            instruction,
+            *src,
+            roots,
+            state,
+            diagnostics,
+            diagnostic_keys,
+        ),
+        InstKind::LoadField { base, .. } | InstKind::LoadIndex { base, .. } => {
+            diagnose_raw_free_use(
+                function,
+                instruction,
+                *base,
+                roots,
+                state,
+                diagnostics,
+                diagnostic_keys,
+            );
+        }
+        _ => {}
+    }
+
+    match &instruction.kind {
         InstKind::Lifetime { value, event } => {
             transfer_explicit_lifetime_event(
                 function,
@@ -588,8 +638,16 @@ fn transfer_lifetime_instruction(
 
     match &instruction.kind {
         InstKind::ConstInt { dst, .. } | InstKind::ConstString { dst, .. }
-        | InstKind::NumericStep { dst, .. } => {
+        | InstKind::NumericStep { dst, .. }
+        | InstKind::NumericNeg { dst, .. }
+        | InstKind::Compare { dst, .. } => {
             state.handles.insert(*dst, LifetimeState::Alive);
+        }
+        InstKind::Deref { dst, .. } => {
+            state.handles.insert(*dst, LifetimeState::Alive);
+            let root = lifetime_root(roots, *dst);
+            state.dynamic_roots.insert(*dst, root);
+            state.objects.entry(root).or_insert(LifetimeState::Alive);
         }
         InstKind::Copy { dst, src } => {
             state.handles.insert(*dst, LifetimeState::Alive);
@@ -633,6 +691,7 @@ fn transfer_lifetime_instruction(
                 .insert(*dst, handle.unwrap_or(LifetimeState::Unknown));
             merge_dynamic_roots(roots, state, *dst, inputs);
             merge_cpp_phi_borrow(*dst, inputs, state);
+            merge_aligned_allocation_phi(roots, state, *dst, inputs);
         }
         InstKind::LoadField { dst, base, field } => {
             state.handles.insert(*dst, LifetimeState::Alive);
@@ -666,6 +725,15 @@ fn transfer_lifetime_instruction(
                 state.objects.entry(root).or_insert(LifetimeState::Alive);
                 register_cpp_owner(function, dst, root, state);
             }
+            transfer_aligned_allocation_call(
+                function,
+                instruction,
+                call,
+                roots,
+                state,
+                diagnostics,
+                diagnostic_keys,
+            );
             transfer_smart_pointer_call(function, call, roots, state);
             let applied_contract = resolve_lifetime_contract(call, lifetime_contracts)
                 .map(|contract| {
@@ -695,6 +763,98 @@ fn transfer_lifetime_instruction(
             transfer_aggregate_ownership_store(function, *src, src_root, state);
         }
         InstKind::Lifetime { .. } => {}
+    }
+}
+
+fn merge_aligned_allocation_phi(
+    roots: &HashMap<ValueId, ValueId>,
+    state: &mut LifetimeDataflowState,
+    dst: ValueId,
+    inputs: &[ValueId],
+) {
+    let dst_root = effective_lifetime_root(roots, state, dst);
+    let mut saw_aligned = false;
+    let mut all_aligned = !inputs.is_empty();
+    for input in inputs {
+        let input_root = effective_lifetime_root(roots, state, *input);
+        match state.aligned_allocations.get(&input_root).copied() {
+            Some(AlignedAllocationState::Aligned) => saw_aligned = true,
+            Some(AlignedAllocationState::MaybeAligned) => {
+                saw_aligned = true;
+                all_aligned = false;
+            }
+            None => all_aligned = false,
+        }
+    }
+    if saw_aligned {
+        state.aligned_allocations.insert(
+            dst_root,
+            if all_aligned {
+                AlignedAllocationState::Aligned
+            } else {
+                AlignedAllocationState::MaybeAligned
+            },
+        );
+    } else {
+        state.aligned_allocations.remove(&dst_root);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn transfer_aligned_allocation_call(
+    function: &Function,
+    instruction: &Instruction,
+    call: &CallInst,
+    roots: &HashMap<ValueId, ValueId>,
+    state: &mut LifetimeDataflowState,
+    diagnostics: &mut Vec<LifetimeDiagnostic>,
+    diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
+) {
+    let Callee::Static(name) = &call.callee else { return };
+    let simple = name
+        .rsplit(|ch| ch == '.' || ch == ':')
+        .next()
+        .unwrap_or(name.as_str());
+    match simple {
+        "aligned_alloc" | "_aligned_malloc" => {
+            if let Some(dst) = call.dst {
+                let root = effective_lifetime_root(roots, state, dst);
+                state
+                    .aligned_allocations
+                    .insert(root, AlignedAllocationState::Aligned);
+            }
+        }
+        "free" => {
+            if let Some(value) = call.args.first().copied() {
+                let root = effective_lifetime_root(roots, state, value);
+                state.aligned_allocations.remove(&root);
+            }
+        }
+        "realloc" => {
+            let Some(value) = call.args.first().copied() else { return };
+            let root = effective_lifetime_root(roots, state, value);
+            let Some(aligned_state) = state.aligned_allocations.get(&root).copied() else {
+                return;
+            };
+            let potential = aligned_state == AlignedAllocationState::MaybeAligned;
+            push_lifetime_diagnostic(
+                function,
+                Some(instruction),
+                value,
+                if potential {
+                    LifetimeState::MaybeAlive
+                } else {
+                    LifetimeState::Alive
+                },
+                "ANZU-ALIGNED-ALLOC-REALLOC",
+                "warning",
+                "Memory allocated by aligned_alloc should not be resized using realloc().",
+                potential,
+                diagnostics,
+                diagnostic_keys,
+            );
+        }
+        _ => {}
     }
 }
 
@@ -774,6 +934,36 @@ fn transfer_explicit_lifetime_event(
                 ownership.shared.remove(&value);
                 ownership.escaped = true;
             }
+        }
+        LifetimeEvent::Free => {
+            match state.raw_freed.get(&root).copied() {
+                Some(RawFreeState::Freed) => push_lifetime_diagnostic(
+                    function,
+                    Some(instruction),
+                    value,
+                    LifetimeState::Released,
+                    "ANZU-POINTER-MUST-BE-NULL-AFTER-FREE",
+                    "warning",
+                    "pointer should be set to NULL after deallocation",
+                    false,
+                    diagnostics,
+                    diagnostic_keys,
+                ),
+                Some(RawFreeState::MaybeFreed) => push_lifetime_diagnostic(
+                    function,
+                    Some(instruction),
+                    value,
+                    LifetimeState::MaybeReleased,
+                    "ANZU-POINTER-MUST-BE-NULL-AFTER-FREE",
+                    "warning",
+                    "pointer should be set to NULL after deallocation",
+                    true,
+                    diagnostics,
+                    diagnostic_keys,
+                ),
+                None => {}
+            }
+            state.raw_freed.insert(root, RawFreeState::Freed);
         }
         LifetimeEvent::Destroy => {
             let handle = lifetime_handle_state(state, value);
@@ -1128,6 +1318,38 @@ fn diagnose_lifetime_use(
     }
 }
 
+fn diagnose_raw_free_use(
+    function: &Function,
+    instruction: &Instruction,
+    value: ValueId,
+    roots: &HashMap<ValueId, ValueId>,
+    state: &LifetimeDataflowState,
+    diagnostics: &mut Vec<LifetimeDiagnostic>,
+    diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
+) {
+    let root = effective_lifetime_root(roots, state, value);
+    let Some(free_state) = state.raw_freed.get(&root).copied() else {
+        return;
+    };
+    let potential = free_state == RawFreeState::MaybeFreed;
+    push_lifetime_diagnostic(
+        function,
+        Some(instruction),
+        value,
+        if potential {
+            LifetimeState::MaybeReleased
+        } else {
+            LifetimeState::Released
+        },
+        "ANZU-POINTER-MUST-BE-NULL-AFTER-FREE",
+        "warning",
+        "pointer should be set to NULL after deallocation",
+        potential,
+        diagnostics,
+        diagnostic_keys,
+    );
+}
+
 fn weak_owner_operation_is_safe(instruction: Option<&Instruction>, value: ValueId) -> bool {
     let Some(instruction) = instruction else { return true };
     match &instruction.kind {
@@ -1183,10 +1405,13 @@ fn push_lifetime_diagnostic(
 fn lifetime_instruction_uses(kind: &InstKind) -> Vec<ValueId> {
     match kind {
         InstKind::ConstInt { .. } | InstKind::ConstString { .. } => Vec::new(),
-        InstKind::Copy { src, .. } | InstKind::Cast { src, .. } => vec![*src],
-        InstKind::NumericStep { src, .. } => vec![*src],
+        InstKind::Copy { src, .. } | InstKind::Cast { src, .. } | InstKind::Deref { src, .. } => {
+            vec![*src]
+        }
+        InstKind::NumericStep { src, .. } | InstKind::NumericNeg { src, .. } => vec![*src],
         InstKind::Move { src, .. } => vec![*src],
         InstKind::Lifetime { .. } => Vec::new(),
+        InstKind::Compare { lhs, rhs, .. } => vec![*lhs, *rhs],
         InstKind::Phi { inputs, .. } => inputs.clone(),
         InstKind::LoadField { base, .. } => vec![*base],
         InstKind::StoreField { base, src, .. } => vec![*base, *src],
@@ -1764,7 +1989,50 @@ fn join_lifetime_dataflow_states(
         weak_validity: join_validity_maps(&left.weak_validity, &right.weak_validity),
         field_roots: join_exact_root_maps(&left.field_roots, &right.field_roots),
         index_roots: join_exact_root_maps(&left.index_roots, &right.index_roots),
+        raw_freed: join_raw_free_maps(&left.raw_freed, &right.raw_freed),
+        aligned_allocations: join_aligned_allocation_maps(
+            &left.aligned_allocations,
+            &right.aligned_allocations,
+        ),
     }
+}
+
+fn join_aligned_allocation_maps(
+    left: &HashMap<ValueId, AlignedAllocationState>,
+    right: &HashMap<ValueId, AlignedAllocationState>,
+) -> HashMap<ValueId, AlignedAllocationState> {
+    let mut keys = left.keys().copied().collect::<Vec<_>>();
+    keys.extend(right.keys().copied());
+    keys.sort_unstable();
+    keys.dedup();
+    keys.into_iter()
+        .filter_map(|key| match (left.get(&key).copied(), right.get(&key).copied()) {
+            (None, None) => None,
+            (Some(AlignedAllocationState::Aligned), Some(AlignedAllocationState::Aligned)) => {
+                Some((key, AlignedAllocationState::Aligned))
+            }
+            _ => Some((key, AlignedAllocationState::MaybeAligned)),
+        })
+        .collect()
+}
+
+fn join_raw_free_maps(
+    left: &HashMap<ValueId, RawFreeState>,
+    right: &HashMap<ValueId, RawFreeState>,
+) -> HashMap<ValueId, RawFreeState> {
+    let mut keys = left.keys().copied().collect::<Vec<_>>();
+    keys.extend(right.keys().copied());
+    keys.sort_unstable();
+    keys.dedup();
+    keys.into_iter()
+        .filter_map(|key| match (left.get(&key).copied(), right.get(&key).copied()) {
+            (None, None) => None,
+            (Some(RawFreeState::Freed), Some(RawFreeState::Freed)) => {
+                Some((key, RawFreeState::Freed))
+            }
+            _ => Some((key, RawFreeState::MaybeFreed)),
+        })
+        .collect()
 }
 
 fn join_exact_root_maps<K>(

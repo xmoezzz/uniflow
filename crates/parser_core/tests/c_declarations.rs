@@ -1,4 +1,6 @@
-use uniflow_parser_core::c_declarations::{CDeclarationIndex, DerivedDeclarator as D};
+use uniflow_parser_core::c_declarations::{
+    CDeclarationIndex, CFunctionContext, DerivedDeclarator as D,
+};
 
 #[test]
 fn c_declarator_operators_preserve_function_ownership() {
@@ -27,6 +29,106 @@ fn c_declarator_operators_preserve_function_ownership() {
 }
 
 #[test]
+fn c_function_definitions_preserve_return_declarator_layers() {
+    let source = "int *f() { return 0; } void *g() { return 0; } int (*factory())(int) { return 0; } int value() { return 0; }";
+    let index = CDeclarationIndex::parse(source);
+    assert_eq!(index.functions.len(), 4);
+    assert!(matches!(index.functions[0].return_derived.as_slice(), [D::Pointer]));
+    assert!(matches!(index.functions[1].return_derived.as_slice(), [D::Pointer]));
+    assert!(matches!(
+        index.functions[2].return_derived.as_slice(),
+        [D::Pointer, D::Function { .. }]
+    ));
+    assert!(index.functions[3].return_derived.is_empty());
+}
+
+#[test]
+fn c_function_definitions_preserve_storage_and_exact_name_ranges() {
+    let source = "static void hidden(void) { } void visible(void) { }";
+    let index = CDeclarationIndex::parse(source);
+    assert_eq!(index.functions.len(), 2);
+    assert!(index.functions[0].is_static);
+    assert!(!index.functions[1].is_static);
+    assert_eq!(&source[index.functions[0].name_range.clone()], "hidden");
+    assert_eq!(&source[index.functions[1].name_range.clone()], "visible");
+}
+
+#[test]
+fn cpp_function_definitions_preserve_overloaded_operator_names() {
+    let source = r#"
+struct Box {
+    Box& operator=(const Box& other) { return *this; }
+    void* operator new(unsigned long size) { return 0; }
+    void operator delete(void* ptr) { }
+    int& operator[](unsigned long index) { return value; }
+    int value;
+};
+Box& Box::operator=(const Box& other) { return *this; }
+void* Box::operator new[](unsigned long size) { return 0; }
+void Box::operator delete[](void* ptr) { }
+"#;
+    let index = CDeclarationIndex::parse(source);
+    let names = index
+        .functions
+        .iter()
+        .map(|function| {
+            (
+                function.name.as_str(),
+                function.qualified_name.as_str(),
+                &source[function.name_range.clone()],
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names,
+        vec![
+            ("operator=", "Box::operator=", "operator="),
+            ("operator new", "Box::operator new", "operator new"),
+            ("operator delete", "Box::operator delete", "operator delete"),
+            ("operator[]", "Box::operator[]", "operator[]"),
+            ("operator=", "Box::operator=", "operator="),
+            ("operator new[]", "Box::operator new[]", "operator new[]"),
+            ("operator delete[]", "Box::operator delete[]", "operator delete[]"),
+        ]
+    );
+}
+
+#[test]
+fn cpp_function_definitions_preserve_decl_context_for_allocation_operators() {
+    let source = r#"
+namespace outer {
+namespace domain {
+void* operator new(unsigned long size) { return 0; }
+}
+struct Box {
+    void* operator new(unsigned long size) { return 0; }
+};
+void Box::operator delete(void* ptr) { }
+}
+void* operator new[](unsigned long size) { return 0; }
+"#;
+    let index = CDeclarationIndex::parse(source);
+
+    assert!(matches!(
+        &index.functions[0].context,
+        CFunctionContext::Namespace { name, qualified_name }
+            if name == "domain" && qualified_name == "outer::domain"
+    ));
+    assert!(matches!(
+        &index.functions[1].context,
+        CFunctionContext::Record { qualified_name } if qualified_name == "outer::Box"
+    ));
+    assert!(matches!(
+        &index.functions[2].context,
+        CFunctionContext::Record { qualified_name } if qualified_name == "outer::Box"
+    ));
+    assert!(matches!(
+        &index.functions[3].context,
+        CFunctionContext::TranslationUnit
+    ));
+}
+
+#[test]
 fn c_declarators_split_a_lexed_double_star_into_two_pointer_layers() {
     let source = "typedef int (**CallbackHandle)(void);";
     let index = CDeclarationIndex::parse(source);
@@ -44,6 +146,70 @@ fn c_parameters_preserve_pointer_layers_for_declaration_checkers() {
     assert!(matches!(
         index.parameters[0].derived.as_slice(),
         [D::Pointer, D::Pointer, D::Pointer]
+    ));
+}
+
+#[test]
+fn cpp_parameters_preserve_undeduced_placeholder_types() {
+    let source = "void direct(auto value, const auto& reference, int typed) {} void prototype(auto only_declared);";
+    let index = CDeclarationIndex::parse(source);
+    assert_eq!(index.functions.len(), 1);
+    let parameters = index
+        .parameters
+        .iter()
+        .map(|parameter| {
+            (
+                &source[parameter.range.clone()],
+                parameter.undeduced_type,
+                parameter.name.as_deref(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        parameters,
+        vec![
+            ("auto value", true, Some("value")),
+            ("const auto& reference", true, Some("reference")),
+            ("int typed", false, Some("typed")),
+            ("auto only_declared", true, Some("only_declared")),
+        ]
+    );
+}
+
+#[test]
+fn cpp_declarators_distinguish_references_from_pointers() {
+    let source = "struct C {}; void f(int *p, int &r, int &&rr, int *&rp, int C::*member);";
+    let index = CDeclarationIndex::parse(source);
+    let function = index
+        .declarations
+        .iter()
+        .flat_map(|declaration| &declaration.declarators)
+        .find(|declarator| declarator.name.as_deref() == Some("f"))
+        .expect("function declaration");
+    let D::Function { parameters } = &function.derived[0] else {
+        panic!("expected function declarator");
+    };
+    let params = index
+        .parameters
+        .iter()
+        .filter(|parameter| {
+            parameters.start <= parameter.range.start && parameter.range.end <= parameters.end
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(params.len(), 5);
+    assert!(matches!(params[0].derived.as_slice(), [D::Pointer]));
+    assert!(matches!(params[1].derived.as_slice(), [D::Reference]));
+    assert!(matches!(
+        params[2].derived.as_slice(),
+        [D::RvalueReference]
+    ));
+    assert!(matches!(
+        params[3].derived.as_slice(),
+        [D::Reference, D::Pointer]
+    ));
+    assert!(matches!(
+        params[4].derived.as_slice(),
+        [D::MemberPointer]
     ));
 }
 
@@ -146,6 +312,14 @@ fn c_returns_exclude_lambda_and_nested_function_bodies() {
             .map(|r| (r.function, r.has_value))
             .collect::<Vec<_>>(),
         vec![(0, true), (1, true), (2, false)]
+    );
+    assert_eq!(
+        index
+            .returns
+            .iter()
+            .map(|r| r.value.as_ref().map(|range| &source[range.clone()]))
+            .collect::<Vec<_>>(),
+        vec![Some("1"), Some("2"), None]
     );
 }
 

@@ -34,6 +34,34 @@ fn check(rule: &str, source: &str, expected: usize) -> Vec<(usize, usize)> {
     coordinates
 }
 
+fn check_cpp(rule: &str, source: &str, expected: usize) -> Vec<(usize, usize)> {
+    static PACK: OnceLock<BaselinePack> = OnceLock::new();
+    let mut pack = PACK
+        .get_or_init(|| builtin_security_pack().unwrap())
+        .clone();
+    pack.rules.retain(|candidate| candidate.id == rule);
+    assert_eq!(pack.rules.len(), 1, "missing {rule}");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("Expressions.cpp"), source);
+    assert_eq!(findings.len(), expected, "{rule} {source}\n{findings:#?}");
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    let hir = parse_c_like_file(Language::Cpp, "Expressions.cpp", source).unwrap();
+    let integrated = pack.scan_hir(
+        &hir,
+        &HashMap::from([("Expressions.cpp".into(), source.into())]),
+    );
+    assert_eq!(
+        integrated
+            .iter()
+            .map(|finding| (finding.line, finding.column))
+            .collect::<Vec<_>>(),
+        coordinates
+    );
+    coordinates
+}
+
 fn check_c_only(rule: &str, source: &str, expected: usize) -> Vec<(usize, usize)> {
     static PACK: OnceLock<BaselinePack> = OnceLock::new();
     let mut pack = PACK
@@ -157,6 +185,87 @@ fn migrated_c_expression_rules_preserve_source_boundaries() {
         let quoted = source.replace('\\', "\\\\").replace('"', "\\\"");
         check(rule, &format!("const char *text = \"{quoted}\";"), 0);
     }
+}
+
+#[test]
+fn anzu_pointer_comparison_preserves_relational_type_and_macro_semantics() {
+    let rule = "ANZU-POINTER-RELATIONAL-COMPARISON";
+    let source = r#"
+typedef int *IntPtr;
+int *factory(void);
+struct Node { int *next; };
+int compare(int *left, int *right, int value, struct Node *node) {
+    IntPtr alias = left;
+    int array1[2];
+    int array2[2];
+    if (left < right) return 1;
+    if ((left + 1) >= right) return 2;
+    if (&value > right) return 3;
+    if (factory() <= alias) return 4;
+    if (node->next < right) return 5;
+    if (left == right) return 6;
+    if (array1 < array2) return 7;
+    if (value < 4) return 8;
+    return 0;
+}
+"#;
+    assert_eq!(check(rule, source, 5), vec![(9, 14), (10, 20), (11, 16), (12, 19), (13, 20)]);
+
+    check(
+        rule,
+        "#define WRAP(value) (value)\nint f(int *a, int *b) { return WRAP(a < b); }",
+        0,
+    );
+    check(
+        rule,
+        "#define PTR_LT(a, b) ((a) < (b))\nint f(int *a, int *b) { return PTR_LT(a, b); }",
+        0,
+    );
+}
+
+#[test]
+fn anzu_pointer_arithmetic_reports_pointer_addition_and_subtraction_only() {
+    let rule = "ANZU-POINTER-ARITHMETIC";
+    check(
+        rule,
+        r#"
+int f(int *left, int *right, int value, int *__range1) {
+    int *a = left + 1;
+    int *b = 1 + right;
+    int *c = left - 1;
+    long distance = right - left;
+    int ordinary = value + 1;
+    int *synthetic_range = __range1 + 1;
+    return *a + *b + *c + (int)distance + ordinary;
+}
+"#,
+        4,
+    );
+    check(rule, "int f(int left, int right) { return left + right; }", 0);
+    check(
+        rule,
+        "#define PTR_ADD(value) ((value) + 1)\nint f(int *value) { return PTR_ADD(value); }",
+        0,
+    );
+}
+
+#[test]
+fn anzu_mixed_type_operation_reports_nonconstant_mismatched_operands() {
+    let rule = "ANZU-MIXED-TYPE-OPERATION";
+    check(
+        rule,
+        r#"
+int f(int integer, long wider, double floating) {
+    int first = integer + wider;
+    double second = floating * integer;
+    int constant = integer + 1;
+    long another_constant = 1 + wider;
+    return first + (int)second + constant + (int)another_constant;
+}
+"#,
+        2,
+    );
+    check(rule, "int f(int left, int right) { return left + right; }", 0);
 }
 
 #[test]
@@ -873,6 +982,126 @@ void demo(int value, int *integers, char *characters, void *generic) {
 }
 
 #[test]
+fn anzu_pointer_assignment_pointer_checker_preserves_bitcast_and_pointee_exemptions() {
+    let source = r#"
+#define WRAP(value) value
+struct A { int value; };
+struct B { int value; };
+void demo(int *integers, char *characters, void *generic, struct A *a, struct B *b, int **integer_rows, char **character_rows) {
+    characters = (char *)integers;
+    characters = ((char *)integers);
+    characters = (char *)characters;
+    generic = (void *)integers;
+    integers = (int *)generic;
+    b = (struct B *)a;
+    character_rows = (char **)integer_rows;
+    WRAP(characters = (char *)integers);
+    char *initialized = (char *)integers;
+}
+"#;
+    assert_eq!(
+        check("ANZU-POINTER-ASSIGNMENT-POINTER-MISMATCH", source, 3),
+        vec![(6, 16), (7, 16), (12, 20)]
+    );
+
+    let cpp_source = r#"
+void demo(int *integers, char *characters, void *generic) {
+    characters = reinterpret_cast<char *>(integers);
+    characters = const_cast<char *>(characters);
+    generic = static_cast<void *>(integers);
+    integers = static_cast<int *>(generic);
+}
+"#;
+    assert_eq!(
+        check_cpp(
+            "ANZU-POINTER-ASSIGNMENT-POINTER-MISMATCH",
+            cpp_source,
+            1,
+        ),
+        vec![(3, 16)]
+    );
+}
+
+#[test]
+fn anzu_unpointer_and_pointer_assign_requires_explicit_integer_pointer_conversion() {
+    let source = r#"
+#define APPLY(value) (value)
+int *returns_pointer(void);
+int returns_integer(void);
+
+void exercise(int *pointer, int integer) {
+    int *bad_pointer_init = 7;
+    int bad_integer_init = pointer;
+    int *zero_init = 0;
+    int *paren_zero_init = (0);
+    int *explicit_pointer_init = (int *)integer;
+    int explicit_integer_init = (int)pointer;
+    int *same_pointer_init = pointer;
+    int same_integer_init = integer;
+
+    pointer = 9;
+    integer = pointer;
+    pointer = 0;
+    pointer = (0);
+    pointer = (int *)integer;
+    integer = (int)pointer;
+    pointer = pointer;
+    integer = integer;
+    pointer += 1;
+    APPLY(pointer = 11);
+    integer = returns_pointer();
+    pointer = returns_integer();
+}
+"#;
+    assert_eq!(
+        check("ANZU-UNPOINTER-AND-POINTER-ASSIGN", source, 6),
+        vec![(7, 29), (8, 28), (16, 15), (17, 15), (26, 15), (27, 15)]
+    );
+
+    let cpp = r#"
+void exercise(int *pointer, long integer) {
+    int *pointer_init = reinterpret_cast<int *>(integer);
+    long integer_init = reinterpret_cast<long>(pointer);
+    pointer = reinterpret_cast<int *>(integer);
+    integer = reinterpret_cast<long>(pointer);
+}
+"#;
+    assert!(
+        check_cpp("ANZU-UNPOINTER-AND-POINTER-ASSIGN", cpp, 0).is_empty()
+    );
+}
+
+#[test]
+fn anzu_assignment_safety_matches_only_overloaded_assignment_address_of_pointer_arguments() {
+    let source = r#"
+#define APPLY(value) value
+struct Box {
+    Box& operator=(int **value) { return *this; }
+    Box& operator+=(int **value) { return *this; }
+};
+void demo(Box &box, int *pointer, int integer, int **rows) {
+    box = &pointer;
+    box = (&pointer);
+    box = &integer;
+    rows = &pointer;
+    box += &pointer;
+    APPLY(box = &pointer);
+}
+"#;
+    assert_eq!(
+        check_cpp("ANZU-CPP-ASSIGNMENT-SAFETY", source, 2),
+        vec![(8, 11), (9, 12)]
+    );
+
+    let builtin_only = r#"
+void demo(int *pointer, int **rows) {
+    rows = &pointer;
+}
+"#;
+    assert!(check_cpp("ANZU-CPP-ASSIGNMENT-SAFETY", builtin_only, 0).is_empty());
+}
+
+#[test]
 fn anzu_static_cast_between_distinct_record_pointers_prefers_dynamic_cast() {
     let source = r#"
 class Base {};
@@ -1451,6 +1680,129 @@ void demo(time_t start, time_t end, int delta) {
 }
 
 #[test]
+fn anzu_magic_numbers_preserve_literal_and_constant_semantics() {
+    let numeric_literals = r#"
+void demo(void) {
+    int five = 5;
+    int six = 6;
+    int seven = 7;
+    int eight = 8;
+    double fraction = 2.5;
+    double hundred = 100.0;
+}
+"#;
+    assert_eq!(
+        check("ANZU-MAGIC-NUMBER", numeric_literals, 4),
+        vec![(3, 16), (4, 15), (5, 17), (7, 23)]
+    );
+
+    let constant_contexts = r#"
+void demo(void) {
+    const int named = 42;
+    int const also_named = 43;
+    enum Local { Value = 45 };
+    struct Bits { unsigned width : 7; };
+    int * const fixed_pointer = (int *)46;
+    const int *mutable_pointer = (const int *)47;
+}
+"#;
+    assert_eq!(
+        check("ANZU-MAGIC-NUMBER", constant_contexts, 1),
+        vec![(8, 47)]
+    );
+
+    check("ANZU-MAGIC-NUMBER", "int global = 47; void demo(void) {}", 0);
+    check(
+        "ANZU-MAGIC-NUMBER",
+        "#define WRAP(value) (value)\nvoid demo(void) { int value = WRAP(47); }",
+        0,
+    );
+    check_cpp_only(
+        "ANZU-MAGIC-NUMBER",
+        "void demo() { constexpr int named = 49; }",
+        0,
+    );
+}
+
+#[test]
+fn anzu_struct_sizeof_preserves_padding_and_sizeof_sum_semantics() {
+    let padded = r#"
+struct Padded { char tag; int value; };
+void *malloc(unsigned long);
+void demo(void) {
+    struct Padded *value = (struct Padded *)malloc(sizeof(char) + sizeof(int));
+}
+"#;
+    assert_eq!(check("ANZU-STRUCT-SIZEOF", padded, 1), vec![(5, 45)]);
+
+    let member_expressions = r#"
+struct Padded { char tag; int value; };
+void *malloc(unsigned long);
+void demo(void) {
+    struct Padded current;
+    struct Padded *value = (struct Padded *)malloc(sizeof(current.tag) + sizeof(current.value));
+}
+"#;
+    check("ANZU-STRUCT-SIZEOF", member_expressions, 1);
+
+    let self_referential = r#"
+struct Node { char tag; struct Node *next; };
+void *malloc(unsigned long);
+void demo(void) {
+    struct Node *node = (struct Node *)malloc(sizeof(char) + sizeof(struct Node *));
+}
+"#;
+    check("ANZU-STRUCT-SIZEOF", self_referential, 1);
+
+    check(
+        "ANZU-STRUCT-SIZEOF",
+        "struct Flat { int a; int b; }; void *malloc(unsigned long); void f(void) { struct Flat *p = (struct Flat *)malloc(sizeof(int) + sizeof(int)); }",
+        0,
+    );
+    check(
+        "ANZU-STRUCT-SIZEOF",
+        "struct Padded { char tag; int value; }; void *malloc(unsigned long); void f(void) { struct Padded *p = (struct Padded *)malloc(sizeof(struct Padded)); }",
+        0,
+    );
+    check(
+        "ANZU-STRUCT-SIZEOF",
+        "struct Padded { char tag; int value; }; void *malloc(unsigned long); void f(void) { struct Padded *p = (struct Padded *)malloc(sizeof(char) * sizeof(int)); }",
+        0,
+    );
+    check(
+        "ANZU-STRUCT-SIZEOF",
+        "struct Padded { char tag; int value; }; void *malloc(unsigned long); void f(void) { struct Padded *p = (struct Padded *)malloc(sizeof(char) + sizeof(int) + sizeof(double)); }",
+        0,
+    );
+    check(
+        "ANZU-STRUCT-SIZEOF",
+        "struct Padded { char tag; int value; }; void *calloc(unsigned long, unsigned long); void f(void) { struct Padded *p = (struct Padded *)calloc(sizeof(char) + sizeof(int), 1); }",
+        0,
+    );
+    check(
+        "ANZU-STRUCT-SIZEOF",
+        "void *malloc(unsigned long); void f(void) { int *p = (int *)malloc(sizeof(char) + sizeof(int)); }",
+        0,
+    );
+    check(
+        "ANZU-STRUCT-SIZEOF",
+        "#define MAKE(sz) ((struct Padded *)malloc(sz))\nstruct Padded { char tag; int value; }; void f(void) { struct Padded *p = MAKE(sizeof(char) + sizeof(int)); }",
+        0,
+    );
+    check(
+        "ANZU-STRUCT-SIZEOF",
+        "#pragma pack(push, 1)\nstruct Padded { char tag; int value; };\n#pragma pack(pop)\nvoid *malloc(unsigned long); void f(void) { struct Padded *p = (struct Padded *)malloc(sizeof(char) + sizeof(int)); }",
+        0,
+    );
+
+    check_cpp(
+        "ANZU-STRUCT-SIZEOF",
+        "struct Padded { char tag; int value; }; void *malloc(unsigned long); void f() { Padded *p = static_cast<Padded *>(malloc(sizeof(char) + sizeof(int))); }",
+        1,
+    );
+}
+
+#[test]
 fn anzu_printf_family_requires_arguments_for_each_conversion() {
     let source = r#"
 void demo(void *stream, char *buffer, int size, int value, char *text, char *format) {
@@ -1910,6 +2262,494 @@ struct Flags {
 }
 
 #[test]
+fn anzu_bit_field_size_preserves_legacy_signed_width_threshold() {
+    let source = r#"
+struct Flags {
+    signed int one : 1;
+    int zero : 0;
+    signed short computed : (3 - 2);
+    unsigned int unsigned_one : 1;
+    signed int valid : 2;
+    signed int unknown : WIDTH;
+};
+"#;
+    assert_eq!(
+        check("ANZU-BIT-FIELD-SIZE", source, 3),
+        vec![(3, 16), (4, 9), (5, 18)]
+    );
+}
+
+#[test]
+fn anzu_bit_size_type_preserves_legacy_cast_source_type_semantics() {
+    let source = r#"
+enum Width { WIDTH_ONE = 1 };
+struct Bits {
+    unsigned from_float : (unsigned)1.5;
+    unsigned from_string : (unsigned)"x";
+    unsigned from_integer : (unsigned)1;
+    unsigned from_enum : (unsigned)WIDTH_ONE;
+};
+#define BAD_WIDTH ((unsigned)2.5)
+struct MacroBits { unsigned macro_width : BAD_WIDTH; };
+"#;
+    assert_eq!(
+        check("ANZU-BIT-SIZE-TYPE", source, 2),
+        vec![(4, 37), (5, 38)]
+    );
+
+    let cpp = r#"
+struct Bits {
+    unsigned functional_bad : unsigned(2.5);
+    unsigned functional_good : unsigned(2);
+    unsigned named_bad : static_cast<unsigned>(3.5);
+    unsigned named_good : static_cast<unsigned>(3);
+};
+"#;
+    assert_eq!(
+        check_cpp("ANZU-BIT-SIZE-TYPE", cpp, 2),
+        vec![(3, 40), (5, 48)]
+    );
+}
+
+#[test]
+fn anzu_logical_expr_paren_preserves_direct_child_ast_semantics() {
+    let source = r#"
+int demo(int a, int b, int c, int d) {
+    int chained = a && b && c;
+    int precedence = a || b && c;
+    int both = a && b || c && d;
+    int grouped_left = (a && b) && c;
+    int grouped_right = a || (b && c);
+    int grouped_both = (a && b) || (c && d);
+    int nested_inside_group = a && (b || c && d);
+    return chained + precedence + both + grouped_left + grouped_right + grouped_both + nested_inside_group;
+}
+"#;
+    assert_eq!(
+        check("ANZU-LOGICAL-EXPR-PAREN", source, 5),
+        vec![(3, 19), (4, 27), (5, 16), (5, 26), (9, 42)]
+    );
+}
+
+#[test]
+fn anzu_condition_expr_paren_preserves_direct_child_ast_semantics() {
+    let source = r#"
+#define WRAP(x) (x)
+int demo(int a, int b, int c, int d, int e, int *p) {
+    int condition = a + b ? c : d;
+    int lhs = a ? b + c : d;
+    int rhs = a ? b : c + d;
+    int grouped_condition = (a + b) ? c : d;
+    int grouped_branches = a ? (b + c) : (c + d);
+    int nested_lhs = a ? b ? c : d : e;
+    int nested_rhs = a ? b : c ? d : e;
+    int assignment_lhs = a ? b = c : d;
+    int comma_lhs = a ? b, c : d;
+    int unary = a ? *p : d;
+    int cast_unary = a ? (int)*p : d;
+    int macro_argument = WRAP(a + b ? c : d);
+    return condition + lhs + rhs + grouped_condition + grouped_branches + nested_lhs
+        + nested_rhs + assignment_lhs + comma_lhs + unary + cast_unary + macro_argument;
+}
+"#;
+
+    assert_eq!(
+        check("ANZU-CONDITIONAL-OPERAND-PAREN", source, 7),
+        vec![(4, 21), (5, 19), (6, 23), (9, 26), (10, 30), (11, 30), (12, 25)]
+    );
+}
+
+#[test]
+fn anzu_unused_static_function_resolves_real_identifier_uses() {
+    let source = r#"
+static void unused_simple(void) { }
+static void direct_used(void) { }
+static void address_used(void) { }
+static void passed_used(void) { }
+static void shadowed(void) { }
+static void shadowed_param(void) { }
+static void macro_only(void) { }
+static void prose_only(void) { }
+void public_unused(void) { }
+static void prototype_only(void);
+void takes(void (*callback)(void));
+
+void exercise(int shadowed_param) {
+    direct_used();
+    void (*pointer)(void) = &address_used;
+    takes(passed_used);
+    int shadowed = 0;
+    shadowed++;
+    shadowed_param++;
+    const char *text = "prose_only";
+    (void)pointer;
+    (void)text;
+}
+
+#define NEVER_INVOKED() macro_only()
+/* prose_only(); */
+"#;
+
+    assert_eq!(
+        check("ANZU-UNUSED-STATIC-FUNCTION", source, 5),
+        vec![(2, 13), (6, 13), (7, 13), (8, 13), (9, 13)]
+    );
+
+    let mut pack = builtin_security_pack().unwrap();
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-UNUSED-STATIC-FUNCTION");
+    let findings = pack.scan_text(&Language::C, Path::new("unused.c"), source);
+    assert_eq!(findings[0].message, "The static function 'unused_simple' is defined but not used.");
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "静态函数 ‘unused_simple’ 定义但未使用。"
+    );
+}
+
+#[test]
+fn anzu_unused_parameter_resolves_declref_binding_and_shadowing() {
+    let source = r#"
+int consume(int value);
+
+int direct_use(int used, int unused) {
+    return used;
+}
+
+int call_use(int value) {
+    return consume(value);
+}
+
+int shadow_only(int value) {
+    {
+        int value = 1;
+        return value;
+    }
+}
+
+struct Sample { int field; };
+int member_only(int field, struct Sample sample) {
+    return sample.field;
+}
+
+int prose_only(int ghost) {
+    const char *text = "ghost";
+    /* ghost */
+    return text != 0;
+}
+
+int sizeof_use(int value) {
+    return sizeof(value);
+}
+
+int unnamed(int, int used) {
+    return used;
+}
+"#;
+
+    assert_eq!(
+        check("ANZU-UNUSED-PARAMETER", source, 4),
+        vec![(4, 30), (12, 21), (20, 21), (24, 20)]
+    );
+
+    let cpp = r#"
+struct Holder { int value; };
+int cpp_member(int value, Holder holder) {
+    return holder.value;
+}
+int cpp_shadow(int value) {
+    { int value = 3; (void)value; }
+    return 0;
+}
+"#;
+    assert_eq!(
+        check_cpp("ANZU-UNUSED-PARAMETER", cpp, 2),
+        vec![(3, 20), (6, 20)]
+    );
+}
+
+#[test]
+fn anzu_return_type_checker_preserves_legacy_assignment_semantics() {
+    let source = r#"
+int ok_int(void) { return 1; }
+int bad_float(void) { return 1.5; }
+double bad_int(void) { return 1; }
+unsigned char too_big(void) { return 300; }
+unsigned char zero_ok(void) { return (int)0; }
+unsigned char nonconstant_ok(unsigned int value) { return value; }
+char *pointer_return(void) { return 0; }
+double produce(void) { return 1.0; }
+int bad_call(void) { return produce(); }
+int nested(int ready) { if (ready) { return 2.5; } return 0; }
+"#;
+
+    assert_eq!(
+        check("ANZU-RETURN-TYPE", source, 5),
+        vec![(3, 30), (4, 31), (5, 38), (10, 29), (11, 45)]
+    );
+
+    let mut pack = builtin_security_pack().unwrap();
+    pack.rules.retain(|candidate| candidate.id == "ANZU-RETURN-TYPE");
+    let findings = pack.scan_text(&Language::C, Path::new("return.c"), source);
+    assert_eq!(
+        findings[0].message,
+        "Return type mismatch between return and definition. Expected 'double' but defined as 'int'."
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "返回类型和定义不匹配。期望 ‘double’ 实际定义为 ‘int’"
+    );
+}
+
+#[test]
+fn anzu_num_zero_cast_pointer_preserves_implicit_null_pointer_conversions() {
+    let source = r#"
+#define WRAP_ZERO(x) (x)
+int *global_pointer = 0;
+void takes_pointer(int *pointer, int value);
+
+int *returns_pointer(void) {
+    return (0);
+}
+
+int exercise(int condition) {
+    int *pointer = (0);
+    pointer = 0;
+    takes_pointer((0), 0);
+    if (pointer == 0) { pointer = (int *)0; }
+    if (0 != pointer) { pointer = WRAP_ZERO(0); }
+    int *from_false = condition ? pointer : 0;
+    int *from_true = condition ? (0) : pointer;
+    pointer = 1;
+    int *explicit_init = (int *)0;
+    (void)explicit_init;
+    return condition;
+}
+"#;
+
+    assert_eq!(
+        check("ANZU-NUM-ZERO-CAST-POINTER", source, 9),
+        vec![
+            (3, 23),
+            (7, 13),
+            (11, 21),
+            (12, 15),
+            (13, 20),
+            (14, 20),
+            (15, 9),
+            (16, 45),
+            (17, 35),
+        ]
+    );
+
+    let mut pack = builtin_security_pack().unwrap();
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-NUM-ZERO-CAST-POINTER");
+    let findings = pack.scan_text(&Language::C, Path::new("zero-pointer.c"), source);
+    assert_eq!(findings[0].message, "0 should not be used as an pointer");
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "0不应该被用作指针"
+    );
+}
+
+#[test]
+fn anzu_null_as_int_preserves_legacy_nullptr_to_bool_casts_and_macro_suppression() {
+    let source = r#"
+#define NULL 0
+#define BOOL_NULL() nullptr
+
+bool exercise(void *pointer) {
+    bool direct_paren(nullptr);
+    bool direct_brace{nullptr};
+    auto functional_paren = bool(nullptr);
+    auto functional_brace = bool{nullptr};
+    bool *heap = new bool(nullptr);
+    if ((nullptr)) { }
+    while (nullptr) { break; }
+    for (; nullptr; ) { break; }
+    do { } while (nullptr);
+    bool negated = !nullptr;
+    bool conjunction = nullptr && true;
+    bool disjunction = false || (nullptr);
+    bool conditional = nullptr ? true : false;
+    bool named_cast = static_cast<bool>(nullptr);
+    bool c_style_cast = (bool)(nullptr);
+
+    bool macro_null = NULL;
+    auto macro_nullptr = BOOL_NULL();
+    auto preserved_nullptr_type = nullptr;
+    void *pointer_value = nullptr;
+    bool comparison = pointer == nullptr;
+    return direct_paren || direct_brace || functional_paren || functional_brace || *heap
+        || negated || conjunction || disjunction || conditional || named_cast || c_style_cast
+        || macro_null || macro_nullptr || preserved_nullptr_type == nullptr
+        || pointer_value == nullptr || comparison;
+}
+"#;
+
+    let findings = check_cpp("ANZU-NULL-AS-INT", source, 15);
+    assert_eq!(
+        findings,
+        vec![
+            (6, 23),
+            (7, 23),
+            (8, 34),
+            (9, 34),
+            (10, 27),
+            (11, 10),
+            (12, 12),
+            (13, 12),
+            (14, 19),
+            (15, 21),
+            (16, 24),
+            (17, 34),
+            (18, 24),
+            (19, 41),
+            (20, 32),
+        ]
+    );
+
+    let mut pack = builtin_security_pack().unwrap();
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-NULL-AS-INT");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("null-as-int.cpp"), source);
+    assert_eq!(findings[0].message, "NULL should not be used as an integer 0");
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "NULL不能当作整数0来使用"
+    );
+}
+
+#[test]
+fn anzu_disable_for_body_modify_ctrl_var_preserves_legacy_binding_and_macro_semantics() {
+    let source = r#"
+#define WRAP(x) (x)
+
+void exercise(int *pointer, int limit, int condition) {
+    for (int i = 0; i < limit; ++i) {
+        i = i + 1;
+    }
+
+    int j = 0;
+    for (j = 0; j < limit; ++j) {
+        j += 2;
+    }
+
+    int k = 0;
+    for (; k < limit; k++) {
+        ++k;
+    }
+
+    int flag = 1;
+    for (; flag; ) {
+        flag--;
+    }
+
+    int negated = 0;
+    for (; !negated; ) {
+        ++negated;
+    }
+
+    int casted = 1;
+    for (; (int)casted; ) {
+        casted--;
+    }
+
+    int unary_casted = 0;
+    for (; !(int)unary_casted; ) {
+        unary_casted++;
+    }
+
+    int *cursor = pointer;
+    for (; *cursor; ) {
+        cursor = pointer;
+    }
+
+    int left = 0;
+    int right = 0;
+    for (left = 0; left < limit && right < limit; ++left) {
+        left++;
+    }
+    for (; left < limit && right < limit; ++right) {
+        --right;
+    }
+
+    for (int outer = 0; outer < limit; ++outer) {
+        { int outer = 0; outer++; }
+        pointer[0] = outer;
+        (outer)++;
+    }
+
+    for (int prefix = 0; prefix < limit; ++prefix) {
+        ++(prefix);
+    }
+
+    for (int compound = 0; compound < limit; ++compound) {
+        compound <<= 1;
+    }
+
+    for (int nested = 0; nested < limit; ++nested) {
+        if (condition) nested = 3;
+    }
+
+    for (int macro_value = 0; macro_value < limit; ++macro_value) {
+        WRAP(macro_value++);
+    }
+
+    for (int untouched = 0; untouched < limit; ++untouched) {
+        pointer[untouched]++;
+    }
+}
+"#;
+
+    let findings = check(
+        "ANZU-DISABLE-FOR-BODY-MODIFY-CTRL-VAR",
+        source,
+        14,
+    );
+    assert_eq!(findings.len(), 14);
+
+    let mut pack = builtin_security_pack().unwrap();
+    pack.rules.retain(|candidate| {
+        candidate.id == "ANZU-DISABLE-FOR-BODY-MODIFY-CTRL-VAR"
+    });
+    let findings = pack.scan_text(&Language::C, Path::new("for-control.c"), source);
+    assert_eq!(
+        findings[0].message,
+        "Modifying the loop control variable inside the body of a for loop is prohibited."
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "禁止修改for循环体内的循环控制变量。"
+    );
+}
+
+#[test]
 fn anzu_plain_char_arithmetic_reports_each_direct_character_operand() {
     let source = r#"
 int demo(char left, char right, signed char signed_value, unsigned char unsigned_value, int number) {
@@ -2303,4 +3143,160 @@ void demo(float floating, long wide) {
         check("ANZU-INCONSISTENT-NUMERIC-ASSIGNMENT-TYPE", source, 5),
         vec![(3, 22), (4, 22), (7, 40), (8, 36), (12, 12)]
     );
+}
+
+#[test]
+fn anzu_argument_count_checker_preserves_resolved_function_arity_semantics() {
+    let source = r#"
+int pair(int left, int right);
+int variadic(const char *format, ...);
+void demo(void) {
+    pair(1);
+    pair(1, 2, 3);
+    pair(1, 2);
+    variadic("%d");
+    unresolved(1);
+    int (*callback)(int, int) = pair;
+    callback(1);
+}
+"#;
+    assert_eq!(
+        check("ANZU-ARGUMENT-COUNT-MISMATCH", source, 2),
+        vec![(5, 10), (6, 16)]
+    );
+
+    let mut pack = builtin_security_pack().unwrap();
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-ARGUMENT-COUNT-MISMATCH");
+    let findings = pack.scan_text(&Language::C, Path::new("argument-count.c"), source);
+    assert_eq!(findings.len(), 2);
+    assert_eq!(
+        findings[0].message,
+        "Argument count mismatch: Expected 2 arguments but provided 1."
+    );
+    assert_eq!(
+        findings[1].message,
+        "Argument count mismatch: Expected 2 arguments but provided 3."
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "参数数量不匹配：期望提供 2 个参数，实际提供 1 个参数。"
+    );
+
+    let cpp_source = r#"
+int with_default(int first, int second = 2);
+struct Widget {
+    Widget(int first, int second);
+};
+void demo_cpp(void) {
+    with_default(1);
+    Widget value(1);
+}
+"#;
+    assert_eq!(
+        check_cpp("ANZU-ARGUMENT-COUNT-MISMATCH", cpp_source, 1),
+        vec![(7, 18)]
+    );
+}
+
+#[test]
+fn anzu_argument_type_checker_preserves_legacy_numeric_assignment_semantics() {
+    let source = r#"
+int take_int(int value);
+int take_short(short value);
+int take_double(double value);
+int take_pointer(const int *value);
+int take_variadic(int value, ...);
+void demo(int i, short s, long long wide, double d, int *ptr) {
+    take_int(d);
+    take_double(i);
+    take_short(i);
+    take_short(0);
+    take_int(s);
+    take_int(wide);
+    take_pointer(i);
+    take_int(ptr);
+    take_int(i);
+    take_variadic(d, d);
+    unresolved(d);
+    int (*callback)(int) = take_int;
+    callback(d);
+}
+"#;
+    assert_eq!(
+        check("ANZU-ARGUMENT-TYPE-MISMATCH", source, 6),
+        vec![(8, 14), (9, 17), (10, 16), (13, 14), (15, 14), (17, 19)]
+    );
+
+    let mut pack = builtin_security_pack().unwrap();
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-ARGUMENT-TYPE-MISMATCH");
+    let findings = pack.scan_text(&Language::C, Path::new("argument-type.c"), source);
+    assert_eq!(findings.len(), 6);
+    assert_eq!(
+        findings[0].message,
+        "Argument type mismatch: Expected 'int' but provided 'double'."
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "参数类型不匹配：期望 ‘int’类型，实际得到‘double’类型。"
+    );
+}
+
+#[test]
+fn anzu_value_depend_sequence_point_preserves_legacy_ast_visitor_state() {
+    let source = r#"
+struct Item { int value; };
+void use2(int, int);
+void demo(struct Item *item, int i) {
+    int first = i++ + i;
+    int second = i + i++;
+    int third = i++ + i++;
+    use2(i++, i);
+    use2(i, i++);
+    i++;
+    use2(i, 0);
+    int logical_direct = i++ && i;
+    int comma_direct = (i++, i);
+    int logical_nested = i++ && (i + 0);
+    int comma_nested = (i++, i + 0);
+    int parenthesized_update = (i)++ + i;
+    int member_update = item->value++ + i;
+    use2((i), i++);
+    use2(i++ + 1, i);
+    i = i++;
+}
+"#;
+    assert_eq!(
+        check("ANZU-VALUE-DEPEND-SEQUENCE-POINT", source, 9),
+        vec![
+            (5, 17),
+            (6, 22),
+            (7, 23),
+            (8, 10),
+            (9, 13),
+            (14, 34),
+            (15, 30),
+            (19, 10),
+            (20, 9),
+        ]
+    );
+
+    let macro_source = r#"
+#define PAIR(a, b) ((a) + (b))
+void demo(int i) {
+    PAIR(i++, i);
+}
+"#;
+    check("ANZU-VALUE-DEPEND-SEQUENCE-POINT", macro_source, 0);
 }

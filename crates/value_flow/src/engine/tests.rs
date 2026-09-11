@@ -15,6 +15,155 @@ mod tests {
         graph
     }
 
+    #[test]
+    fn api_rule_index_routes_exact_and_fallback_matchers_without_duplicates() {
+        use uniflow_rules::{ApiMatcher, CallInfo};
+
+        let matchers = [
+            ApiMatcher {
+                exact: Some("pkg.Service.run".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                method_name: Some("run".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                method_regex: Some("^(run|execute)$".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                method_name: Some("other".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                receiver_type: Some("pkg.Service".into()),
+                method_name: Some("run".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                receiver_type: Some("pkg.OtherService".into()),
+                method_name: Some("run".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                receiver_type: Some("pkg.Service".into()),
+                method_regex: Some("^(run|execute)$".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                regex: Some(r"^pkg\.Service\.run$".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                receiver_regex: Some(r"^pkg\.Service$".into()),
+                method_regex: Some("^(run|execute)$".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                receiver_regex: Some(r"^pkg\.Service$".into()),
+                method_regex: Some("^run.*$".into()),
+                ..Default::default()
+            },
+        ];
+        let index = uniflow_rules::ApiMatcherIndex::new(matchers.iter());
+        let call = CallInfo::from_callee_name("pkg.Service.run");
+        let mut candidates = Vec::new();
+        index.for_each_candidate(&call, |position| candidates.push(position));
+        candidates.sort_unstable();
+        assert_eq!(candidates, vec![0, 1, 2, 4, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn identity_adjacency_separates_projection_from_projected_contents() {
+        use petgraph::visit::EdgeRef;
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let base = graph.values[&(F(0), V(0))];
+        let stored = graph.values[&(F(0), V(1))];
+        let loaded = graph.values[&(F(0), V(2))];
+        let cell = super::ensure_field_cell(&mut graph, F(0), V(0), "item");
+        graph.graph.add_edge(
+            stored,
+            cell,
+            super::FlowEdge {
+                kind: super::EdgeKind::StoreField {
+                    field: "item".to_string(),
+                },
+            },
+        );
+        graph.graph.add_edge(
+            cell,
+            loaded,
+            super::FlowEdge {
+                kind: super::EdgeKind::LoadField {
+                    field: "item".to_string(),
+                },
+            },
+        );
+
+        super::materialize_sparse_data_adjacency(&mut graph);
+
+        let identity = |from: petgraph::graph::NodeIndex, to: petgraph::graph::NodeIndex| {
+            graph
+                .identity_neighbors
+                .get(&from.index())
+                .is_some_and(|neighbors| neighbors.contains(&to.index()))
+        };
+        assert!(!identity(base, cell), "base object must not alias its field cell");
+        assert!(identity(stored, cell), "stored object is the cell contents");
+        assert!(identity(cell, loaded), "loaded value is the cell contents");
+
+        let projection_edge = graph
+            .graph
+            .edges_connecting(base, cell)
+            .find(|edge| matches!(edge.weight().kind, super::EdgeKind::LoadField { .. }))
+            .expect("base-to-cell projection edge");
+        assert!(!super::is_identity_preserving_edge(
+            &graph,
+            projection_edge.source(),
+            projection_edge.target(),
+            &projection_edge.weight().kind,
+        ));
+    }
+
+    #[test]
+    fn taint_only_edges_do_not_enter_identity_adjacency() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let left = graph.values[&(F(0), V(0))];
+        let right = graph.values[&(F(0), V(1))];
+        graph.graph.add_edge(
+            left,
+            right,
+            super::FlowEdge {
+                kind: super::EdgeKind::Source {
+                    rule_id: "test.source".to_string(),
+                },
+            },
+        );
+        graph.graph.add_edge(
+            right,
+            left,
+            super::FlowEdge {
+                kind: super::EdgeKind::Summary {
+                    rule_id: "test.summary".to_string(),
+                },
+            },
+        );
+
+        super::materialize_sparse_data_adjacency(&mut graph);
+
+        assert!(graph.sparse_successors[&left.index()].contains(&right.index()));
+        assert!(graph.sparse_successors[&right.index()].contains(&left.index()));
+        assert!(!graph
+            .identity_neighbors
+            .get(&left.index())
+            .is_some_and(|neighbors| neighbors.contains(&right.index())));
+    }
+
     fn last_call_targets(graph: &super::FlowGraph, function: &uniflow_ir::Function) -> Vec<String> {
         let call = function
             .blocks
@@ -67,6 +216,66 @@ mod tests {
     }
 
     #[test]
+    fn region_live_state_preserves_known_empty_cell_live_values() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let cell = super::ensure_index_cell(&mut graph, F(0), V(0), "*");
+        graph
+            .cell_memory_regions
+            .insert(cell.index(), vec!["mem:known-empty".into()]);
+        let source = graph.values[&(F(0), V(1))];
+        graph.graph.add_edge(
+            source,
+            cell,
+            super::FlowEdge {
+                kind: super::EdgeKind::StoreIndex,
+            },
+        );
+
+        // Empty is an analyzed result, not a cache miss. Region
+        // materialization must not re-run raw/transitive store queries and
+        // resurrect a value that the live-state pass has already discarded.
+        graph.cell_live_values.insert(cell.index(), Vec::new());
+        super::materialize_region_live_state(&mut graph);
+
+        assert!(graph.region_live_values_of("mem:known-empty").is_empty());
+        assert_eq!(graph.region_live_cells_of("mem:known-empty"), vec![cell]);
+    }
+
+    #[test]
+    fn region_live_state_coalesces_overlapping_ancestor_chains_per_cell() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let first = super::ensure_index_cell(&mut graph, F(0), V(0), "first");
+        let second = super::ensure_index_cell(&mut graph, F(0), V(0), "second");
+        graph.cell_live_regions.insert(
+            first.index(),
+            vec!["root.items".into(), "root.items[0]".into()],
+        );
+        graph
+            .cell_live_regions
+            .insert(second.index(), vec!["root.items[1]".into()]);
+        graph
+            .cell_live_values
+            .insert(first.index(), vec![(F(0).0, V(1).0)]);
+        graph
+            .cell_live_values
+            .insert(second.index(), vec![(F(0).0, V(1).0)]);
+
+        super::materialize_region_live_state(&mut graph);
+
+        assert_eq!(graph.region_live_cells_of("root"), vec![first, second]);
+        assert_eq!(graph.region_live_cells_of("root.items"), vec![first, second]);
+        assert_eq!(graph.region_live_cells_of("root.items[0]"), vec![first]);
+        assert_eq!(
+            graph.region_live_values_of("root"),
+            vec![(F(0), V(1))]
+        );
+    }
+
+    #[test]
     fn java_constructor_receiver_is_the_constructed_return_object() {
         use uniflow_ir::{CallInst, Callee, FunctionId as F, InstId, ValueId as V};
         use uniflow_rules::Port;
@@ -81,6 +290,8 @@ mod tests {
             receiver: None,
             args: vec![V(0)],
             arg_names: vec![None],
+            arg_spans: Vec::new(),
+            arg_origins: Vec::new(),
         };
         super::connect_call_value_ports(&mut graph, F(0), InstId(0), &call);
         let receiver = super::get_or_create_call_port(
@@ -127,6 +338,8 @@ mod tests {
             receiver: None,
             args: vec![V(0)],
             arg_names: vec![None],
+            arg_spans: Vec::new(),
+            arg_origins: Vec::new(),
         };
         assert_eq!(
             super::normalized_static_callee_name(&graph, F(0), &constructor).as_deref(),
@@ -139,6 +352,8 @@ mod tests {
             receiver: None,
             args: vec![V(0)],
             arg_names: vec![None],
+            arg_spans: Vec::new(),
+            arg_origins: Vec::new(),
         };
         assert_eq!(
             super::normalized_static_callee_name(&graph, F(0), &factory).as_deref(),
@@ -167,6 +382,9 @@ mod tests {
             meta.arg_constants,
             vec![Some("false".into()), Some("true".into())]
         );
+        assert!(graph.lifetime_states.is_empty());
+        assert!(graph.lifetime_block_states.is_empty());
+        assert!(graph.lifetime_diagnostics.is_empty());
     }
 
     #[test]
@@ -240,6 +458,10 @@ mod tests {
             "repeated bridges must not duplicate edges"
         );
         let batched = super::all_transitive_cell_store_records(&graph);
+        let alias_snapshot = super::CellAliasSnapshot::build(&graph);
+        let snapshot_batched =
+            super::all_transitive_cell_store_records_with_alias_snapshot(&graph, &alias_snapshot);
+        assert_eq!(snapshot_batched, batched);
         for cell in super::all_cell_nodes(&graph) {
             let direct = super::transitive_cell_store_records(&graph, cell)
                 .into_iter()
@@ -249,6 +471,228 @@ mod tests {
                 direct
             );
         }
+        let mut strong_update_cache = std::collections::HashMap::new();
+        for cell in super::all_cell_nodes(&graph) {
+            assert_eq!(
+                super::cell_store_values_from_transitive_records(
+                    &graph,
+                    cell,
+                    &batched,
+                    &mut strong_update_cache,
+                ),
+                super::cell_store_values(&graph, cell),
+                "batched store visibility must preserve per-cell semantics for cell {}",
+                cell.index(),
+            );
+        }
+    }
+
+    #[test]
+    fn access_path_parser_borrows_labels_and_preserves_filtering_semantics() {
+        let parsed = super::parse_access_path(
+            " field: user .ignored. index: * . field: profile . field:   . index: 0 ",
+        );
+        assert_eq!(
+            parsed,
+            vec![
+                super::AccessPathSegment {
+                    kind: super::AccessPathKind::Field,
+                    label: "user",
+                },
+                super::AccessPathSegment {
+                    kind: super::AccessPathKind::Index,
+                    label: "*",
+                },
+                super::AccessPathSegment {
+                    kind: super::AccessPathKind::Field,
+                    label: "profile",
+                },
+                super::AccessPathSegment {
+                    kind: super::AccessPathKind::Index,
+                    label: "0",
+                },
+            ]
+        );
+        assert!(super::parse_access_path(" . invalid . field: . index:   ").is_empty());
+    }
+
+    #[test]
+    fn relative_region_access_path_cache_preserves_direct_derivation() {
+        use std::collections::HashMap;
+
+        let bases = vec![
+            "mem:root".to_string(),
+            "mem:root".to_string(),
+            "mem:other".to_string(),
+        ];
+        let cases = [
+            "mem:root",
+            "mem:root.user",
+            "mem:root.user[0].profile[ key ]",
+            "mem:root.用户[0].名称",
+            "mem:rooted.user",
+            "mem:other[item].value",
+        ];
+        let mut cache = HashMap::new();
+
+        for region in cases {
+            let direct = super::region_relative_access_paths(&bases, region);
+            let cached = super::region_relative_access_paths_cached(&bases, region, &mut cache);
+            assert_eq!(cached, direct.as_slice(), "region {region}");
+        }
+        assert_eq!(cache.len(), cases.len());
+
+        assert!(super::region_relative_access_paths(&bases, "mem:root").is_empty());
+        assert_eq!(
+            super::region_relative_access_paths(&bases, "mem:root.user"),
+            ["field:user"]
+        );
+        assert_eq!(
+            super::region_relative_access_paths(&bases, "mem:root.user[0].profile[ key ]"),
+            ["field:user.index:0.field:profile.index:key"]
+        );
+        assert_eq!(
+            super::region_relative_access_paths(&bases, "mem:root.用户[0].名称"),
+            ["field:用户.index:0.field:名称"]
+        );
+        assert!(super::region_relative_access_paths(&bases, "mem:rooted.user").is_empty());
+        assert_eq!(
+            super::region_relative_access_paths(&bases, "mem:other[item].value"),
+            ["index:item.field:value"]
+        );
+
+        let before = cache.len();
+        assert_eq!(
+            super::region_relative_access_paths_cached(
+                &bases,
+                "mem:root.user[0].profile[ key ]",
+                &mut cache,
+            ),
+            ["field:user.index:0.field:profile.index:key"]
+        );
+        assert_eq!(cache.len(), before, "cache hit must not add a new entry");
+    }
+
+    #[test]
+    fn relative_region_path_index_matches_legacy_boundary_semantics() {
+        let bases = vec![
+            "".to_string(),
+            "mem:root".to_string(),
+            "mem:root.user".to_string(),
+            "mem:rooted".to_string(),
+            "mem:root[0]".to_string(),
+            "mem:root[0]".to_string(),
+            "mem:用户".to_string(),
+            "mem:root.".to_string(),
+        ];
+        let cases = [
+            "",
+            ".top",
+            "mem:root",
+            "mem:root.user",
+            "mem:root.user.name",
+            "mem:root[0].name",
+            "mem:root[01].name",
+            "mem:rooted.name",
+            "mem:root.userish.name",
+            "mem:用户.名称[0]",
+        ];
+        let mut index = super::RelativeRegionPathIndex::new(&bases);
+        let mut interner = super::AccessPathInterner::default();
+
+        for region in cases {
+            let expected = super::region_relative_access_paths(&bases, region);
+            let mut actual = index
+                .path_ids_for(region, &mut interner)
+                .iter()
+                .map(|id| interner.resolve(*id).to_string())
+                .collect::<Vec<_>>();
+            actual.sort_unstable();
+            assert_eq!(
+                actual,
+                expected,
+                "region {region}"
+            );
+        }
+
+        let cached_entries = index.paths_by_region.len();
+        let mut actual = index
+            .path_ids_for("mem:root.user.name", &mut interner)
+            .iter()
+            .map(|id| interner.resolve(*id).to_string())
+            .collect::<Vec<_>>();
+        actual.sort_unstable();
+        assert_eq!(
+            actual,
+            super::region_relative_access_paths(&bases, "mem:root.user.name")
+        );
+        assert_eq!(index.paths_by_region.len(), cached_entries);
+    }
+
+    #[test]
+    fn relative_region_path_index_borrows_cached_region_keys() {
+        let bases = vec!["mem:root".to_string()];
+        let region = "mem:root.user.profile".to_string();
+        let region_ptr = region.as_ptr();
+        let mut index = super::RelativeRegionPathIndex::new(&bases);
+        let mut interner = super::AccessPathInterner::default();
+
+        let ids = index.path_ids_for(region.as_str(), &mut interner);
+        assert_eq!(ids.len(), 1);
+        assert_eq!(interner.resolve(ids[0]), "field:user.field:profile");
+        let cached_region = *index
+            .paths_by_region
+            .keys()
+            .next()
+            .expect("cached region key");
+        assert_eq!(cached_region.as_ptr(), region_ptr);
+    }
+
+    #[test]
+    fn access_path_interner_reuses_exact_path_identity() {
+        let mut interner = super::AccessPathInterner::default();
+        let first = interner.intern("field:user.index:0".to_string());
+        let second = interner.intern("field:user.index:0".to_string());
+        let distinct = interner.intern("field:user.index:1".to_string());
+
+        assert_eq!(first, second);
+        assert_ne!(first, distinct);
+        assert_eq!(interner.paths.len(), 2);
+        assert_eq!(interner.resolve(first), "field:user.index:0");
+        assert_eq!(interner.resolve(distinct), "field:user.index:1");
+    }
+
+    #[test]
+    fn relative_path_cell_cache_reuses_exact_resolution() {
+        use std::collections::HashMap;
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let expected = super::ensure_field_cell(&mut graph, F(0), V(0), "payload");
+        let mut cache = HashMap::new();
+
+        let mut first = Vec::new();
+        super::extend_cached_relative_path_cells(
+            &mut cache,
+            &mut first,
+            &graph,
+            F(0),
+            V(0),
+            "field:payload",
+        );
+        let mut second = Vec::new();
+        super::extend_cached_relative_path_cells(
+            &mut cache,
+            &mut second,
+            &graph,
+            F(0),
+            V(0),
+            "field:payload",
+        );
+
+        assert_eq!(first, vec![expected]);
+        assert_eq!(second, first);
+        assert_eq!(cache.len(), 1);
     }
 
     #[test]
@@ -338,6 +782,41 @@ mod tests {
     }
 
     #[test]
+    fn cell_alias_snapshot_matches_direct_alias_queries() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+        let mut graph = heap_fixture();
+        graph.language = uniflow_hir::Language::Python;
+        let zero = super::ensure_index_cell(&mut graph, F(0), V(0), "0");
+        let one = super::ensure_index_cell(&mut graph, F(0), V(0), "1");
+        let wildcard = super::ensure_index_cell(&mut graph, F(0), V(0), "*");
+        let field = super::ensure_field_cell(&mut graph, F(0), V(0), "value");
+        for cell in [zero, one, wildcard, field] {
+            graph
+                .cell_memory_regions
+                .insert(cell.index(), vec!["mem:shared".into()]);
+            graph
+                .cell_points_to_object_ids
+                .insert(cell.index(), vec![7, 11]);
+        }
+
+        let snapshot = super::CellAliasSnapshot::build(&graph);
+        for left in super::all_cell_nodes(&graph) {
+            for right in super::all_cell_nodes(&graph) {
+                if left == right {
+                    continue;
+                }
+                assert_eq!(
+                    snapshot.may_alias_neighbors_of(left).contains(&right),
+                    graph.cell_may_alias(left, right),
+                    "alias snapshot mismatch for {} <-> {}",
+                    left.index(),
+                    right.index(),
+                );
+            }
+        }
+    }
+
+    #[test]
     fn cell_object_id_index_matches_overlap_scan_contract() {
         use uniflow_ir::{FunctionId as F, ValueId as V};
         let mut graph = heap_fixture();
@@ -398,6 +877,255 @@ mod tests {
             super::cell_candidates_for_object_ids_indexed(&mut index, &large_object_ids),
             super::cell_candidates_for_object_ids(&graph, &large_object_ids)
         );
+    }
+
+    #[test]
+    fn cell_points_to_target_index_matches_overlap_scan_contract() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+        let mut graph = heap_fixture();
+        let first = super::ensure_index_cell(&mut graph, F(0), V(0), "0");
+        let second = super::ensure_index_cell(&mut graph, F(0), V(0), "1");
+        let field = super::ensure_field_cell(&mut graph, F(0), V(1), "value");
+        graph.cell_points_to_targets.insert(
+            first.index(),
+            vec!["obj:site:a".into(), "cell:field:x".into()],
+        );
+        graph
+            .cell_points_to_targets
+            .insert(second.index(), vec!["obj:site:b".into()]);
+        graph.cell_points_to_targets.insert(
+            field.index(),
+            vec!["obj:site:a".into(), "obj:site:b".into()],
+        );
+
+        let mut index = super::cell_candidates_by_points_to_target(&graph);
+        for targets in [
+            Vec::<String>::new(),
+            vec!["obj:site:a".into()],
+            vec!["obj:site:b".into(), "obj:site:a".into()],
+            vec!["cell:field:x".into(), "cell:field:x".into()],
+            vec!["missing".into()],
+            vec!["missing".into(), "obj:site:b".into()],
+        ] {
+            graph
+                .value_points_to_targets
+                .insert((F(0), V(2)), targets.clone());
+            assert_eq!(
+                super::cell_candidates_for_value_targets_indexed(
+                    &graph,
+                    &mut index,
+                    F(0),
+                    V(2),
+                ),
+                super::cell_candidates_for_value_targets(&graph, F(0), V(2)),
+                "targets {targets:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn sorted_vector_union_preserves_canonical_contextual_points_to_state() {
+        assert_eq!(
+            super::merge_sorted_unique_owned(
+                vec!["a".to_string(), "b".to_string(), "b".to_string(), "d".to_string()],
+                vec!["b".to_string(), "c".to_string(), "d".to_string(), "d".to_string()],
+            ),
+            vec![
+                "a".to_string(),
+                "b".to_string(),
+                "c".to_string(),
+                "d".to_string()
+            ]
+        );
+        assert_eq!(
+            super::merge_sorted_unique_owned(vec![1_u32, 1, 3, 7], vec![1, 2, 3, 3, 9]),
+            vec![1, 2, 3, 7, 9]
+        );
+        assert_eq!(
+            super::merge_sorted_unique_owned(Vec::<u32>::new(), vec![2, 2, 4]),
+            vec![2, 4]
+        );
+        assert_eq!(
+            super::merge_sorted_unique_owned(vec![2, 2, 4], Vec::<u32>::new()),
+            vec![2, 4]
+        );
+    }
+
+    #[test]
+    fn cached_initial_points_to_seeds_preserve_allowed_partition_results() {
+        use std::collections::HashSet;
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        graph.value_memory_regions.insert(
+            (F(0), V(0)),
+            vec!["field:user.index:0".into(), "field:user.index:0".into()],
+        );
+        graph.value_memory_regions.insert(
+            (F(0), V(2)),
+            vec!["field:account.index:1".into()],
+        );
+        let allowed = [0usize, 1, 2, 4].into_iter().collect::<HashSet<_>>();
+
+        let expected =
+            super::compute_points_to_targets_fixpoint_for_allowed_nodes(&graph, Some(&allowed));
+        let seeds = super::initial_node_points_to_target_seeds(&graph);
+        let cached = super::compute_points_to_targets_fixpoint_for_allowed_nodes_with_seeds(
+            &graph,
+            Some(&allowed),
+            &seeds,
+        );
+
+        assert_eq!(cached, expected);
+        assert!(seeds.values().all(|targets| {
+            targets.windows(2).all(|window| window[0] < window[1])
+        }));
+    }
+
+    #[test]
+    fn shared_points_to_adjacency_preserves_both_partition_fixpoints() {
+        use std::collections::HashSet;
+
+        let mut graph = heap_fixture();
+        graph.sparse_successors.insert(0, vec![1]);
+        graph.sparse_predecessors.insert(1, vec![0]);
+        graph.sparse_successors.insert(1, vec![2]);
+        graph.sparse_predecessors.insert(2, vec![1]);
+        graph.abstract_object_seed_nodes.insert(0, vec![7, 7]);
+        graph.abstract_object_seed_nodes.insert(2, vec![9]);
+        let allowed = [0usize, 1, 2, 4].into_iter().collect::<HashSet<_>>();
+        let target_seeds = super::initial_node_points_to_target_seeds(&graph);
+
+        let expected_targets =
+            super::compute_points_to_targets_fixpoint_for_allowed_nodes_with_seeds(
+                &graph,
+                Some(&allowed),
+                &target_seeds,
+            );
+        let expected_object_ids =
+            super::compute_points_to_object_ids_fixpoint_for_allowed_nodes(&mut graph, Some(&allowed));
+        let adjacency = super::points_to_propagation_adjacency(&graph);
+        let (actual_targets, actual_object_ids) =
+            super::compute_points_to_partition_fixpoints_with_adjacency(
+                &graph,
+                &allowed,
+                &target_seeds,
+                &adjacency,
+            );
+
+        assert_eq!(actual_targets, expected_targets);
+        assert_eq!(actual_object_ids, expected_object_ids);
+    }
+
+    #[test]
+    fn partition_fixpoint_does_not_bridge_through_excluded_nodes() {
+        use std::collections::HashSet;
+
+        let mut graph = heap_fixture();
+        graph.sparse_successors.insert(0, vec![1]);
+        graph.sparse_predecessors.insert(1, vec![0]);
+        graph.sparse_successors.insert(1, vec![2]);
+        graph.sparse_predecessors.insert(2, vec![1]);
+        graph.abstract_object_seed_nodes.insert(0, vec![7]);
+        graph.abstract_object_seed_nodes.insert(2, vec![9]);
+        let allowed = [0usize, 2].into_iter().collect::<HashSet<_>>();
+        let target_seeds = super::initial_node_points_to_target_seeds(&graph);
+        let adjacency = super::points_to_propagation_adjacency(&graph);
+
+        let (targets, object_ids) =
+            super::compute_points_to_partition_fixpoints_with_adjacency(
+                &graph,
+                &allowed,
+                &target_seeds,
+                &adjacency,
+            );
+
+        assert_ne!(targets.get(&0), targets.get(&2));
+        assert_eq!(object_ids.get(&0), Some(&vec![7]));
+        assert_eq!(object_ids.get(&2), Some(&vec![9]));
+        assert!(!targets.contains_key(&1));
+        assert!(!object_ids.contains_key(&1));
+    }
+
+    #[test]
+    fn heap_effect_hash_accumulation_restores_canonical_order() {
+        use std::collections::HashSet;
+
+        let strings = ["z", "alpha", "middle", "alpha"]
+            .into_iter()
+            .map(str::to_string)
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            super::into_sorted_unique_vec(strings),
+            vec!["alpha".to_string(), "middle".to_string(), "z".to_string()]
+        );
+
+        let tuples = [
+            (2usize, "beta".to_string()),
+            (1usize, "zeta".to_string()),
+            (1usize, "alpha".to_string()),
+            (1usize, "alpha".to_string()),
+        ]
+        .into_iter()
+        .collect::<HashSet<_>>();
+        assert_eq!(
+            super::into_sorted_unique_vec(tuples),
+            vec![
+                (1usize, "alpha".to_string()),
+                (1usize, "zeta".to_string()),
+                (2usize, "beta".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn heap_effect_lookup_preserves_partitioned_summary_membership() {
+        let summary = super::FunctionHeapEffectSummary {
+            param_to_read_cells: vec![(1, 11), (0, 7), (1, 13), (1, 11)],
+            param_to_read_objects: vec![(1, 101), (0, 99), (1, 103)],
+            param_to_read_paths: vec![
+                (1, ".left".into()),
+                (0, ".root".into()),
+                (1, ".right".into()),
+            ],
+            param_to_write_cells: vec![(2, 17), (2, 19)],
+            param_to_write_objects: vec![(2, 201), (2, 203)],
+            param_to_write_paths: vec![(2, ".payload".into())],
+            param_to_return_cells: vec![(3, 23), (3, 29)],
+            param_to_return_objects: vec![(3, 301)],
+            param_to_return_paths: vec![(3, ".result".into())],
+            return_value_cells: vec![(4, 5, 31), (4, 6, 37), (4, 5, 41)],
+            return_value_objects: vec![(4, 5, 401), (4, 6, 409)],
+            return_value_paths: vec![
+                (4, 5, ".a".into()),
+                (4, 6, ".b".into()),
+                (4, 5, ".c".into()),
+            ],
+            ..Default::default()
+        };
+
+        let lookup = super::HeapEffectLookup::new(&summary);
+        let node_indices = |nodes: &[petgraph::graph::NodeIndex]| {
+            nodes.iter().map(|node| node.index()).collect::<Vec<_>>()
+        };
+
+        assert_eq!(node_indices(&lookup.read_cells[&1]), vec![11, 13, 11]);
+        assert_eq!(lookup.read_objects[&1], vec![101, 103]);
+        assert_eq!(lookup.read_paths[&1], vec![".left", ".right"]);
+        assert_eq!(node_indices(&lookup.write_cells[&2]), vec![17, 19]);
+        assert_eq!(lookup.write_objects[&2], vec![201, 203]);
+        assert_eq!(lookup.write_paths[&2], vec![".payload"]);
+        assert_eq!(node_indices(&lookup.return_cells[&3]), vec![23, 29]);
+        assert_eq!(lookup.return_objects[&3], vec![301]);
+        assert_eq!(lookup.return_paths[&3], vec![".result"]);
+        assert_eq!(
+            node_indices(&lookup.return_value_cells[&(4, 5)]),
+            vec![31, 41]
+        );
+        assert_eq!(lookup.return_value_objects[&(4, 5)], vec![401]);
+        assert_eq!(lookup.return_value_paths[&(4, 5)], vec![".a", ".c"]);
+        assert_eq!(node_indices(&lookup.return_value_cells[&(4, 6)]), vec![37]);
+        assert_eq!(lookup.return_value_paths[&(4, 6)], vec![".b"]);
     }
 
     #[test]
@@ -488,12 +1216,75 @@ mod tests {
     }
 
     #[test]
+    fn sorted_label_components_preserve_membership_and_canonical_order() {
+        use petgraph::graph::NodeIndex;
+        use std::collections::HashMap;
+
+        let adjacency = [
+            vec![NodeIndex::new(1)],
+            vec![NodeIndex::new(0), NodeIndex::new(2)],
+            vec![NodeIndex::new(1)],
+            vec![],
+        ];
+        let seeds = HashMap::from([
+            (0, vec![9_u32, 3, 9]),
+            (2, vec![7_u32, 3]),
+            (3, vec![5_u32, 5]),
+        ]);
+        let nodes = (0..4).map(NodeIndex::new).collect::<Vec<_>>();
+        let actual = super::propagate_symmetric_sorted_labels(&nodes, seeds, |node| {
+            adjacency[node.index()].clone()
+        });
+
+        assert_eq!(actual[&0], [3, 7, 9]);
+        assert_eq!(actual[&1], [3, 7, 9]);
+        assert_eq!(actual[&2], [3, 7, 9]);
+        assert_eq!(actual[&3], [5]);
+    }
+
+    #[test]
     fn solver_signature_detects_equal_size_live_state_changes() {
         let mut graph = heap_fixture();
         graph.cell_live_values.insert(0, vec![(0, 1)]);
         let before = super::analysis_state_signature(&graph);
         graph.cell_live_values.insert(0, vec![(0, 2)]);
         assert_ne!(before, super::analysis_state_signature(&graph));
+    }
+
+    #[test]
+    fn stable_sparse_materialization_preserves_query_cache_and_edge_changes_invalidate_it() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let first = graph.values[&(F(0), V(0))];
+        let second = graph.values[&(F(0), V(1))];
+        graph.graph.add_edge(
+            first,
+            second,
+            super::FlowEdge {
+                kind: super::EdgeKind::Assign,
+            },
+        );
+
+        // Settle all derived overlays before populating the demand cache.
+        while super::materialize_sparse_data_adjacency(&mut graph) {}
+        let _ = graph.demand_summary_from_node(first, super::SparseDirection::Forward, 4, 32);
+        let cached = graph.demand_summary_cache.borrow().len();
+        assert!(cached > 0);
+
+        assert!(!super::materialize_sparse_data_adjacency(&mut graph));
+        assert_eq!(graph.demand_summary_cache.borrow().len(), cached);
+
+        let third = graph.values[&(F(0), V(2))];
+        graph.graph.add_edge(
+            second,
+            third,
+            super::FlowEdge {
+                kind: super::EdgeKind::Assign,
+            },
+        );
+        assert!(super::materialize_sparse_data_adjacency(&mut graph));
+        assert!(graph.demand_summary_cache.borrow().is_empty());
     }
 
     #[test]
@@ -691,6 +1482,8 @@ mod tests {
                 receiver: None,
                 args: vec![V(1)],
                 arg_names: vec![None],
+                arg_spans: Vec::new(),
+                arg_origins: Vec::new(),
             }),
             Copy {
                 dst: V(3),
@@ -707,6 +1500,8 @@ mod tests {
                 receiver: Some(V(3)),
                 args: vec![],
                 arg_names: vec![],
+                arg_spans: Vec::new(),
+                arg_origins: Vec::new(),
             }),
             Copy {
                 dst: V(6),
@@ -759,6 +1554,8 @@ mod tests {
                 receiver: None,
                 args: vec![V(1), V(2)],
                 arg_names: vec![None, None],
+                arg_spans: Vec::new(),
+                arg_origins: Vec::new(),
             }),
         ]);
         let literals =
@@ -802,6 +1599,20 @@ mod tests {
             );
         }
         super::materialize_region_graph_adjacency(&mut graph);
+        for (&left, rights) in &graph.region_graph_successors {
+            for &right in rights {
+                assert!(
+                    graph.node_memory_regions[&left].iter().any(|left_region| {
+                        graph.node_memory_regions[&right]
+                            .iter()
+                            .any(|right_region| {
+                                super::memory_region_related(left_region, right_region)
+                            })
+                    }),
+                    "materialized region edge {left}->{right} is not a logical region edge"
+                );
+            }
+        }
         for left in graph.graph.node_indices() {
             let expected = graph
                 .graph
@@ -899,24 +1710,343 @@ mod tests {
         );
     }
 
+    #[test]
+    fn region_adjacency_many_shared_regions_materializes_only_a_forest() {
+        let mut graph = super::FlowGraph::default();
+        let shared_regions = (0..32)
+            .map(|index| format!("mem:shared.{index}"))
+            .collect::<Vec<_>>();
+        for index in 0..128 {
+            let node = graph.graph.add_node(super::FlowNode::Value {
+                func: uniflow_ir::FunctionId(0),
+                value: uniflow_ir::ValueId(index),
+            });
+            graph
+                .node_memory_regions
+                .insert(node.index(), shared_regions.clone());
+        }
+
+        super::materialize_region_graph_adjacency(&mut graph);
+
+        let materialized_edges = graph
+            .region_graph_successors
+            .values()
+            .map(Vec::len)
+            .sum::<usize>();
+        // A symmetric spanning tree over 128 nodes has 2 * 127 stored arcs.
+        // Sharing another 31 labels must not multiply the materialized graph.
+        assert_eq!(materialized_edges, 254);
+        assert_eq!(
+            graph
+                .region_graph_successors_of(petgraph::graph::NodeIndex::new(0))
+                .len(),
+            127
+        );
+    }
+
+    #[test]
+    fn memory_region_graph_rebuilds_until_region_state_is_stable() {
+        use uniflow_ir::FunctionId as F;
+
+        let mut graph = super::FlowGraph::default();
+        let root = graph
+            .graph
+            .add_node(super::FlowNode::Return { func: F(0) });
+        let child = graph
+            .graph
+            .add_node(super::FlowNode::Return { func: F(1) });
+        graph
+            .object_shape_paths
+            .insert(root.index(), vec!["a".to_string()]);
+        graph
+            .object_shape_paths
+            .insert(child.index(), vec!["a.field".to_string()]);
+
+        // First pass seeds the two related regions and builds their backbone.
+        assert!(super::materialize_memory_region_graph(&mut graph));
+        assert_eq!(graph.node_memory_regions[&root.index()], vec!["mem:a"]);
+        assert_eq!(
+            graph.node_memory_regions[&child.index()],
+            vec!["mem:a.field"]
+        );
+        assert_eq!(
+            graph.region_graph_successors_of(root),
+            vec![child]
+        );
+
+        // The existing region backbone participates in memory-region
+        // propagation, so a second pass is semantically required here.
+        assert!(super::materialize_memory_region_graph(&mut graph));
+        assert_eq!(
+            graph.node_memory_regions[&root.index()],
+            vec!["mem:a", "mem:a.field"]
+        );
+        assert_eq!(
+            graph.node_memory_regions[&child.index()],
+            vec!["mem:a", "mem:a.field"]
+        );
+
+        // Once the fixed point is reached, an identical pass must retain the
+        // already-correct graph instead of rebuilding it again.
+        let stable_graph = graph.region_graph_successors.clone();
+        assert!(!super::materialize_memory_region_graph(&mut graph));
+        assert_eq!(graph.region_graph_successors, stable_graph);
+    }
+
+    #[test]
+    fn object_graph_materialization_reports_exact_live_value_changes() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let cell = super::ensure_field_cell(&mut graph, F(0), V(0), "item");
+        graph.cell_live_values.insert(cell.index(), vec![(0, 1)]);
+
+        assert!(super::materialize_object_graph_adjacency(&mut graph));
+        let first_successors = graph.object_graph_successors.clone();
+        let first_labels = graph.object_graph_labels.clone();
+        assert!(!super::materialize_object_graph_adjacency(&mut graph));
+        assert_eq!(graph.object_graph_successors, first_successors);
+        assert_eq!(graph.object_graph_labels, first_labels);
+
+        // Keep the cardinality identical while changing the actual live value.
+        // The invalidation must be content-exact rather than size based.
+        graph.cell_live_values.insert(cell.index(), vec![(0, 2)]);
+        assert!(super::materialize_object_graph_adjacency(&mut graph));
+        assert_ne!(graph.object_graph_successors, first_successors);
+    }
+
+    #[test]
+    fn memory_region_value_seed_cache_matches_direct_seed_and_field_reuse() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let root = graph.values[&(F(0), V(0))];
+        graph
+            .object_shape_paths
+            .insert(root.index(), vec!["field:item".to_string()]);
+        let cell = super::ensure_field_cell(&mut graph, F(0), V(0), "child");
+
+        let cache = super::memory_region_value_seed_cache(&graph);
+        assert_eq!(
+            cache[&(F(0), V(0))],
+            super::memory_region_seed_for_value(&graph, F(0), V(0))
+        );
+
+        let seeded = super::initial_memory_regions_for_node(&graph, cell, &cache);
+        let mut expected = cache[&(F(0), V(0))]
+            .iter()
+            .map(|base| format!("{base}.child"))
+            .collect::<Vec<_>>();
+        expected.sort_unstable();
+        expected.dedup();
+        assert_eq!(seeded, expected);
+    }
+
     use super::{
         build, canonical_heap_value, heap_projection_values_compatible, value_identity_site,
         ContextSensitivity, DemandEngine, DemandQuery, DemandSeed, EdgeKind, FlowEdge, FlowGraph,
-        FlowNode, QueryBudgetProfile, SparseDirection,
+        FlowNode, LifetimeDiagnostic, QueryBudgetProfile, QueryCompleteness, SparseDirection,
     };
     use petgraph::visit::EdgeRef;
     use petgraph::Direction;
     use uniflow_hir::Language;
     use uniflow_ir::{Callee, Function, FunctionId, InstKind, Program as IrProgram, ValueId};
+    use uniflow_lang_c::CParser;
     use uniflow_lang_cpp::CppParser;
     use uniflow_lang_python::{parse_project_sources, PythonParser};
     use uniflow_lowering::lower_program;
     use uniflow_parser_core::SourceParser;
     use uniflow_rules::{
         ApiMatcher, FieldMatcher, FieldSinkRule, FieldSourceRule, FunctionMatcher,
-        FunctionSinkRule, FunctionSourceRule, NamedValueSourceRule, Port, RuleSet, SinkRule,
-        SourceRule,
+        FunctionSinkRule, FunctionSourceRule, NamedValueSourceRule, NativeDataflowRule, Port,
+        RuleSet, SinkRule, SourceRule,
     };
+
+    fn lightweight_rules() -> RuleSet {
+        RuleSet {
+            named_value_sources: vec![NamedValueSourceRule {
+                id: "test.input".to_string(),
+                language: Some(Language::Python),
+                name_regex: r"^input$".to_string(),
+                kind: "UserControlled".to_string(),
+            }],
+            ..RuleSet::default()
+        }
+    }
+
+    #[test]
+    fn rule_driven_build_skips_whole_program_solver_for_local_flow() {
+        let hir = PythonParser
+            .parse_file(
+                "local.py",
+                "def handle(input):\n    forwarded = input\n    return forwarded\n",
+            )
+            .expect("parse local flow");
+        let ir = lower_program(&hir);
+        let rules = lightweight_rules();
+        let capabilities = super::AnalysisCapabilities::for_rules(&ir, &rules);
+        assert_eq!(
+            capabilities,
+            super::AnalysisCapabilities {
+                points_to: false,
+                heap: false,
+                dynamic_calls: false,
+                global_closure: false,
+            }
+        );
+
+        let mut stages = Vec::new();
+        let graph = super::build_for_rules_with_progress(&ir, &rules, |progress| {
+            stages.push(progress.stage);
+        });
+
+        assert!(!stages.contains(&"points-to"));
+        assert!(!stages.contains(&"bridge-internal-heap-cells"));
+        assert!(!stages.contains(&"resolve-dynamic-calls"));
+        assert!(!stages.contains(&"global-closure-1"));
+        assert_eq!(graph.stats().global_solver_iterations, 0);
+        assert!(graph.graph.edge_weights().any(|edge| {
+            matches!(edge.kind, EdgeKind::Source { ref rule_id } if rule_id == "test.input")
+        }));
+    }
+
+    #[test]
+    fn default_build_keeps_full_solver_semantics() {
+        let hir = PythonParser
+            .parse_file(
+                "full.py",
+                "def handle(input):\n    forwarded = input\n    return forwarded\n",
+            )
+            .expect("parse full flow");
+        let ir = lower_program(&hir);
+        let mut stages = Vec::new();
+        let _graph = super::build_with_progress(&ir, &lightweight_rules(), |progress| {
+            stages.push(progress.stage);
+        });
+
+        assert!(stages.contains(&"points-to"));
+        assert!(stages.contains(&"bridge-internal-heap-cells"));
+        assert!(stages.contains(&"resolve-dynamic-calls"));
+        assert!(stages.contains(&"global-closure-1"));
+    }
+
+    #[test]
+    fn rule_driven_capabilities_escalate_for_heap_ir() {
+        let hir = PythonParser
+            .parse_file(
+                "heap.py",
+                "def handle(input, obj):\n    obj.value = input\n    return obj.value\n",
+            )
+            .expect("parse heap flow");
+        let ir = lower_program(&hir);
+        assert!(ir.functions.iter().flat_map(|function| &function.blocks).flat_map(|block| &block.insts).any(|inst| {
+            matches!(inst.kind, InstKind::LoadField { .. } | InstKind::StoreField { .. })
+        }));
+
+        let capabilities = super::AnalysisCapabilities::for_rules(&ir, &lightweight_rules());
+        assert!(capabilities.points_to);
+        assert!(capabilities.heap);
+        assert!(!capabilities.global_closure);
+    }
+
+    #[test]
+    fn rule_driven_heap_flow_stays_reachable_without_eager_global_closure() {
+        let hir = PythonParser
+            .parse_file(
+                "heap.py",
+                "def handle(input, obj):\n    obj.value = input\n    return obj.value\n",
+            )
+            .expect("parse heap flow");
+        let ir = lower_program(&hir);
+        let rules = lightweight_rules();
+        let mut stages = Vec::new();
+        let graph = super::build_for_rules_with_progress(&ir, &rules, |progress| {
+            stages.push(progress.stage);
+        });
+        let handle = ir
+            .find_function_by_name("heap.handle")
+            .or_else(|| ir.find_function_by_name("handle"))
+            .expect("handle function");
+        let returned = handle
+            .blocks
+            .iter()
+            .find_map(|block| match block.term {
+                uniflow_ir::Terminator::Return(Some(value)) => Some(value),
+                _ => None,
+            })
+            .expect("returned value");
+        let summary = graph.demand_value_summary(
+            handle.id,
+            returned,
+            SparseDirection::Backward,
+            16,
+            256,
+        );
+
+        assert!(stages.contains(&"points-to"));
+        assert!(stages.contains(&"bridge-internal-heap-cells"));
+        assert!(!stages.contains(&"global-closure-1"));
+        assert_eq!(graph.stats().global_solver_iterations, 0);
+        assert!(summary.params.iter().any(|(func, index, value)| {
+            *func == handle.id.0 && *index == 0 && *value == handle.params[0].0
+        }));
+    }
+
+    #[test]
+    fn rule_driven_dynamic_call_stays_reachable_without_eager_global_closure() {
+        let hir = PythonParser
+            .parse_file(
+                "dynamic.py",
+                "def handle(input):\n    cb = lambda x: x\n    return cb(input)\n",
+            )
+            .expect("parse dynamic flow");
+        let ir = lower_program(&hir);
+        let rules = lightweight_rules();
+        let capabilities = super::AnalysisCapabilities::for_rules(&ir, &rules);
+        assert!(capabilities.points_to);
+        assert!(capabilities.dynamic_calls);
+        assert!(!capabilities.global_closure);
+
+        let mut stages = Vec::new();
+        let graph = super::build_for_rules_with_progress(&ir, &rules, |progress| {
+            stages.push(progress.stage);
+        });
+        let handle = ir
+            .find_function_by_name("dynamic.handle")
+            .or_else(|| ir.find_function_by_name("handle"))
+            .expect("handle function");
+        let returned = handle
+            .blocks
+            .iter()
+            .find_map(|block| match block.term {
+                uniflow_ir::Terminator::Return(Some(value)) => Some(value),
+                _ => None,
+            })
+            .expect("returned value");
+        let summary = graph.demand_value_summary(
+            handle.id,
+            returned,
+            SparseDirection::Backward,
+            16,
+            256,
+        );
+        let resolved_lambda = handle
+            .blocks
+            .iter()
+            .flat_map(|block| block.insts.iter())
+            .filter_map(|inst| graph.resolved_internal_targets.get(&(handle.id, inst.id)))
+            .flatten()
+            .any(|name| name.contains("__lambda_"));
+
+        assert!(stages.contains(&"points-to"));
+        assert!(stages.contains(&"resolve-dynamic-calls"));
+        assert!(!stages.contains(&"global-closure-1"));
+        assert_eq!(graph.stats().global_solver_iterations, 0);
+        assert!(resolved_lambda, "dynamic call must resolve to the local lambda");
+        assert!(summary.params.iter().any(|(func, index, value)| {
+            *func == handle.id.0 && *index == 0 && *value == handle.params[0].0
+        }));
+    }
 
     #[test]
     fn named_value_source_attaches_only_to_matching_values() {
@@ -1136,10 +2266,12 @@ def handle(cmd):
             .blocks
             .iter()
             .flat_map(|block| block.insts.iter())
-            .find_map(|inst| {
-                fg.resolved_internal_targets
+            .find_map(|inst| match &inst.kind {
+                InstKind::Call(call) if matches!(call.callee, Callee::Dynamic(_)) => fg
+                    .resolved_internal_targets
                     .get(&(handle.id, inst.id))
-                    .cloned()
+                    .cloned(),
+                _ => None,
             })
             .unwrap_or_default();
         assert!(resolved.iter().any(|name| name == "repo.load"));
@@ -1633,10 +2765,12 @@ def handle(cmd):
             .blocks
             .iter()
             .flat_map(|block| block.insts.iter())
-            .find_map(|inst| {
-                fg.resolved_internal_targets
+            .find_map(|inst| match &inst.kind {
+                InstKind::Call(call) if matches!(call.callee, Callee::Dynamic(_)) => fg
+                    .resolved_internal_targets
                     .get(&(handle.id, inst.id))
-                    .cloned()
+                    .cloned(),
+                _ => None,
             })
             .unwrap_or_default();
         assert!(resolved.iter().any(|name| name == "repo.load"));
@@ -1688,10 +2822,12 @@ def handle(cmd):
             .blocks
             .iter()
             .flat_map(|block| block.insts.iter())
-            .find_map(|inst| {
-                fg.resolved_internal_targets
+            .find_map(|inst| match &inst.kind {
+                InstKind::Call(call) if matches!(call.callee, Callee::Dynamic(_)) => fg
+                    .resolved_internal_targets
                     .get(&(handle.id, inst.id))
-                    .cloned()
+                    .cloned(),
+                _ => None,
             })
             .unwrap_or_default();
         assert!(resolved.iter().any(|name| name == "repo.load"));
@@ -3830,6 +4966,40 @@ def handle(repo):
     }
 
     #[test]
+    fn one_shot_node_reachability_does_not_retain_summary_cache_entries() {
+        let mut fg = FlowGraph::default();
+        fg.language = Language::Python;
+        let f = FunctionId(1);
+        let n1 = fg.ensure_value(f, ValueId(1));
+        let n2 = fg.ensure_value(f, ValueId(2));
+        fg.graph.add_edge(
+            n1,
+            n2,
+            FlowEdge {
+                kind: EdgeKind::Assign,
+            },
+        );
+        fg.materialize_sparse_data_adjacency();
+        fg.clear_sparse_caches();
+
+        let reachable = fg.one_shot_node_reachability(
+            n1,
+            SparseDirection::Forward,
+            DemandEngine::Fixpoint,
+            4,
+            32,
+            false,
+        );
+
+        assert!(reachable.contains(n1.index()));
+        assert!(reachable.contains(n2.index()));
+        assert_eq!(reachable.len(), 2);
+        assert_eq!(reachable.completeness, QueryCompleteness::Complete);
+        assert!(fg.demand_query_summary_cache.borrow().is_empty());
+        assert!(fg.demand_fixpoint_summary_cache.borrow().is_empty());
+    }
+
+    #[test]
     fn repeated_loads_do_not_back_alias_through_cell_only_load_history() {
         let src = r#"
 class Box:
@@ -3934,6 +5104,16 @@ def handle():
             .copied()
             .expect("item cell");
         assert!(fg.is_strong_update_cell(cell));
+        let aliases = super::CellAliasSnapshot::build(&fg);
+        let strong_cache = super::strong_update_cache_from_alias_snapshot(&fg, &aliases);
+        for candidate in super::all_cell_nodes(&fg) {
+            assert_eq!(
+                strong_cache.get(&candidate.index()).copied().unwrap_or(false),
+                super::cell_allows_strong_update(&fg, candidate),
+                "strong-update snapshot mismatch for cell {}",
+                candidate.index(),
+            );
+        }
         assert!(fg.demand_reaches_value(
             handle.id,
             current,
@@ -5276,6 +6456,17 @@ def handle():
         let live = fg.cell_live_values_of(cell);
         assert_eq!(live.len(), 1);
         assert_eq!(live[0], (handle.id, latest_repo));
+        assert_eq!(super::cell_store_values(&fg, cell), live);
+        let transitive_records = super::all_transitive_cell_store_records(&fg);
+        assert_eq!(
+            super::cell_store_values_from_transitive_records(
+                &fg,
+                cell,
+                &transitive_records,
+                &mut Default::default(),
+            ),
+            live
+        );
     }
 
     #[test]
@@ -5416,6 +6607,42 @@ def handle():
         assert!(live_cells.contains(&cell));
         assert!(fg.stats().live_region_values > 0);
         assert!(fg.stats().live_region_cells > 0);
+    }
+
+    #[test]
+    fn memory_region_ancestor_chain_borrows_exact_legacy_boundaries() {
+        assert_eq!(
+            super::memory_region_ancestor_chain("  root.items[0].name  "),
+            vec!["root.items[0].name", "root.items", "root"]
+        );
+        assert_eq!(
+            super::memory_region_ancestor_chain("root[0][1]"),
+            vec!["root[0][1]", "root[0]", "root"]
+        );
+    }
+
+    #[test]
+    fn normalized_memory_region_preserves_legacy_rewrite_semantics() {
+        let cases = [
+            " field:user.index:0.name ",
+            "field:index:field:value",
+            "already.compact[0]",
+            "字段.field:名称.index:键",
+            "",
+        ];
+        for input in cases {
+            let expected = format!(
+                "mem:{}",
+                input
+                    .trim()
+                    .replace("field:", ".")
+                    .replace("index:", "[")
+                    .replace('.', ".")
+                    .replace("[", "[")
+                    .replace("]", "]")
+            );
+            assert_eq!(super::normalized_memory_region(input), expected, "{input:?}");
+        }
     }
 
     #[test]
@@ -5622,6 +6849,127 @@ class Service:
     }
 
     #[test]
+    fn clear_sparse_caches_invalidates_function_heap_effect_summary_cache() {
+        let src = r#"
+class Repo:
+    pass
+
+class Service:
+    def bind(self, repo):
+        self.repo = repo
+        return self
+"#;
+        let hir = PythonParser.parse_file("app.py", src).expect("parse ok");
+        let ir = lower_program(&hir);
+        let fg = build(&ir, &RuleSet::default());
+        let bind = ir.find_function_by_name("app.Service.bind").expect("bind");
+
+        let first = fg
+            .function_heap_effect_summary(bind.id, 16, 4096, DemandEngine::Fixpoint, true)
+            .expect("heap summary");
+        assert!(!fg.function_heap_effect_summary_cache.borrow().is_empty());
+
+        fg.clear_sparse_caches();
+        assert!(fg.function_heap_effect_summary_cache.borrow().is_empty());
+        let second = fg
+            .function_heap_effect_summary(bind.id, 16, 4096, DemandEngine::Fixpoint, true)
+            .expect("heap summary after refresh");
+        assert_eq!(second, first);
+    }
+
+    #[test]
+    fn fixpoint_demand_queries_reuse_and_invalidate_scc_index() {
+        let mut fg = heap_fixture();
+        fg.sparse_successors.insert(0, vec![1]);
+        fg.sparse_successors.insert(1, vec![2]);
+        fg.sparse_predecessors.insert(1, vec![0]);
+        fg.sparse_predecessors.insert(2, vec![1]);
+
+        let first = super::DemandQuery {
+            seeds: vec![super::DemandSeed::Node(0)],
+            direction: super::SparseDirection::Forward,
+            engine: super::DemandEngine::Fixpoint,
+            include_heap: true,
+        };
+        let second = super::DemandQuery {
+            seeds: vec![super::DemandSeed::Node(1)],
+            direction: super::SparseDirection::Forward,
+            engine: super::DemandEngine::Fixpoint,
+            include_heap: true,
+        };
+        let without_heap = super::DemandQuery {
+            seeds: vec![super::DemandSeed::Node(0)],
+            direction: super::SparseDirection::Forward,
+            engine: super::DemandEngine::Fixpoint,
+            include_heap: false,
+        };
+
+        assert!(fg.demand_query_summary(&first, 16, 64).is_some());
+        assert_eq!(fg.demand_query_scc_cache.borrow().len(), 1);
+        assert!(fg.demand_query_summary(&second, 16, 64).is_some());
+        assert_eq!(fg.demand_query_scc_cache.borrow().len(), 1);
+        assert!(fg.demand_query_summary(&without_heap, 16, 64).is_some());
+        assert_eq!(fg.demand_query_scc_cache.borrow().len(), 2);
+
+        fg.clear_sparse_caches();
+        assert!(fg.demand_query_scc_cache.borrow().is_empty());
+    }
+
+    #[test]
+    fn function_heap_effect_summary_refreshes_after_sparse_cache_invalidation() {
+        let src = r#"
+class Repo:
+    pass
+
+class Service:
+    def bind(self, repo):
+        self.repo = repo
+        return self
+"#;
+        let hir = PythonParser.parse_file("app.py", src).expect("parse ok");
+        let ir = lower_program(&hir);
+        let mut fg = build(&ir, &RuleSet::default());
+        let bind = ir.find_function_by_name("app.Service.bind").expect("bind");
+        let self_param = bind.params.first().copied().expect("self param");
+        let cell = fg
+            .field_cells
+            .get(&(bind.id, self_param, "repo".to_string()))
+            .copied()
+            .expect("repo cell");
+
+        fg.cell_points_to_object_ids
+            .insert(cell.index(), vec![7_001]);
+        fg.clear_sparse_caches();
+        let first = fg
+            .function_heap_effect_summary(bind.id, 16, 4096, DemandEngine::Fixpoint, true)
+            .expect("heap summary");
+        assert!(first
+            .param_to_read_objects
+            .iter()
+            .any(|(_index, object)| *object == 7_001));
+        let entry_count = fg.cell_points_to_object_ids.len();
+
+        // Keep collection cardinality identical while changing actual content.
+        // Solver state transitions invalidate sparse-dependent summaries before
+        // the next materialization pass.
+        fg.cell_points_to_object_ids
+            .insert(cell.index(), vec![7_002]);
+        assert_eq!(fg.cell_points_to_object_ids.len(), entry_count);
+        fg.clear_sparse_caches();
+        let second = fg
+            .function_heap_effect_summary(bind.id, 16, 4096, DemandEngine::Fixpoint, true)
+            .expect("refreshed heap summary");
+        assert!(second
+            .param_to_read_objects
+            .iter()
+            .any(|(_index, object)| *object == 7_002));
+        assert!(!second
+            .param_to_read_objects
+            .iter()
+            .any(|(_index, object)| *object == 7_001));
+    }
+
+    #[test]
     fn contextual_solver_state_tracks_return_targets() {
         let src = r#"
 class Repo:
@@ -5741,6 +7089,204 @@ def handle():
         let ids = fg.value_points_to_object_ids_of(handle.id, left);
         assert!(!ids.is_empty());
         assert!(ids.iter().all(|id| fg.abstract_objects.contains_key(id)));
+    }
+
+    #[test]
+    fn abstract_object_seed_snapshot_matches_legacy_global_enumeration() {
+        let src = r#"
+class Box:
+    pass
+
+def handle(box):
+    box.value = Box()
+    return box.value
+"#;
+        let hir = PythonParser.parse_file("app.py", src).expect("parse ok");
+        let ir = lower_program(&hir);
+        let fg = build(&ir, &RuleSet::default());
+
+        let mut legacy_seeds = std::collections::BTreeSet::new();
+        for (&(func, value), _) in &fg.values {
+            legacy_seeds.extend(super::abstract_object_seeds_for_value(&fg, func, value));
+        }
+        for cell in super::all_cell_nodes(&fg) {
+            legacy_seeds.extend(super::abstract_object_seeds_for_cell(&fg, cell));
+        }
+
+        let (snapshot_seeds, seeds_by_node) = super::seeded_abstract_object_seeds_by_node(&fg);
+        assert_eq!(snapshot_seeds, legacy_seeds);
+
+        let mut rebuilt = fg.clone();
+        super::materialize_abstract_object_catalog(&mut rebuilt);
+        for (node_idx, node_seeds) in seeds_by_node {
+            let expected_ids = node_seeds
+                .into_iter()
+                .map(|seed| {
+                    rebuilt
+                        .object_seed_ids
+                        .get(&seed)
+                        .copied()
+                        .expect("snapshotted seed must exist in catalog")
+                })
+                .collect::<std::collections::BTreeSet<_>>();
+            let actual_ids = rebuilt
+                .abstract_object_seed_nodes
+                .get(&node_idx)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>();
+            assert_eq!(actual_ids, expected_ids);
+        }
+    }
+
+    #[test]
+    fn abstract_object_catalog_hash_accumulation_is_deterministic() {
+        let src = r#"
+class Box:
+    pass
+
+class Repo:
+    pass
+
+def handle(box):
+    box.left = Repo()
+    box.right = Box()
+    return box.left
+"#;
+        let hir = PythonParser.parse_file("app.py", src).expect("parse ok");
+        let ir = lower_program(&hir);
+        let mut fg = build(&ir, &RuleSet::default());
+
+        super::materialize_abstract_object_catalog(&mut fg);
+        let first_points_to_object_ids = fg.points_to_object_ids.clone();
+        let first_object_seed_ids = fg.object_seed_ids.clone();
+        let first_abstract_objects = fg.abstract_objects.clone();
+        let first_seed_nodes = fg.abstract_object_seed_nodes.clone();
+
+        super::materialize_abstract_object_catalog(&mut fg);
+        assert_eq!(fg.points_to_object_ids, first_points_to_object_ids);
+        assert_eq!(fg.object_seed_ids, first_object_seed_ids);
+        assert_eq!(fg.abstract_objects, first_abstract_objects);
+        assert_eq!(fg.abstract_object_seed_nodes, first_seed_nodes);
+        assert!(fg
+            .abstract_object_seed_nodes
+            .values()
+            .all(|ids| ids.windows(2).all(|pair| pair[0] < pair[1])));
+    }
+
+    #[test]
+    fn abstract_object_catalog_reuses_unchanged_exact_input_snapshot() {
+        let src = r#"
+class Box:
+    pass
+
+def handle(box):
+    box.value = Box()
+    return box.value
+"#;
+        let hir = PythonParser.parse_file("app.py", src).expect("parse ok");
+        let ir = lower_program(&hir);
+        let mut fg = build(&ir, &RuleSet::default());
+
+        // Force one observable cold refresh, then prove the identical input
+        // snapshot hits the catalog cache instead of sorting/rebuilding again.
+        fg.abstract_object_catalog_input_snapshot = None;
+        super::materialize_abstract_object_catalog(&mut fg);
+        let rebuilds = fg.abstract_object_catalog_rebuilds;
+        let points_to_object_ids = fg.points_to_object_ids.clone();
+        let object_seed_ids = fg.object_seed_ids.clone();
+        let abstract_objects = fg.abstract_objects.clone();
+        let seed_nodes = fg.abstract_object_seed_nodes.clone();
+
+        assert!(!super::materialize_abstract_object_catalog(&mut fg));
+        assert_eq!(fg.abstract_object_catalog_rebuilds, rebuilds);
+        assert_eq!(fg.points_to_object_ids, points_to_object_ids);
+        assert_eq!(fg.object_seed_ids, object_seed_ids);
+        assert_eq!(fg.abstract_objects, abstract_objects);
+        assert_eq!(fg.abstract_object_seed_nodes, seed_nodes);
+    }
+
+    #[test]
+    fn abstract_object_catalog_refreshes_on_equal_size_dependency_mutation() {
+        let src = r#"
+def handle(value):
+    alias = value
+    return alias
+"#;
+        let hir = PythonParser.parse_file("app.py", src).expect("parse ok");
+        let ir = lower_program(&hir);
+        let mut fg = build(&ir, &RuleSet::default());
+        let value_key = fg
+            .values
+            .keys()
+            .copied()
+            .next()
+            .expect("value node");
+
+        fg.value_memory_regions
+            .insert(value_key, vec!["mem:test:aa".to_string()]);
+        super::materialize_abstract_object_catalog(&mut fg);
+        let rebuilds = fg.abstract_object_catalog_rebuilds;
+        let region_entry_count = fg.value_memory_regions.len();
+        let old_seed = super::AbstractObjectSeed::ValueRegion("mem:test:aa".to_string());
+        let new_seed = super::AbstractObjectSeed::ValueRegion("mem:test:bb".to_string());
+        assert!(fg.object_seed_ids.contains_key(&old_seed));
+
+        // Replace one value with another of the same length while keeping the
+        // map and vector cardinalities unchanged. Exact-content invalidation
+        // must still rebuild the catalog.
+        fg.value_memory_regions
+            .insert(value_key, vec!["mem:test:bb".to_string()]);
+        assert_eq!(fg.value_memory_regions.len(), region_entry_count);
+        assert!(super::materialize_abstract_object_catalog(&mut fg));
+        assert_eq!(fg.abstract_object_catalog_rebuilds, rebuilds + 1);
+        assert!(!fg.object_seed_ids.contains_key(&old_seed));
+        assert!(fg.object_seed_ids.contains_key(&new_seed));
+    }
+
+    #[test]
+    fn abstract_object_catalog_cold_rebuild_keeps_precise_memory_unit_seed() {
+        let src = r#"
+class Box:
+    pass
+
+class Repo:
+    pass
+
+def handle():
+    box = Box()
+    box.item = Repo()
+    return box.item
+"#;
+        let hir = PythonParser.parse_file("app.py", src).expect("parse ok");
+        let ir = lower_program(&hir);
+        let fg = build(&ir, &RuleSet::default());
+        let cell = fg
+            .field_cells
+            .values()
+            .copied()
+            .find(|cell| {
+                matches!(
+                    &fg.graph[*cell],
+                    FlowNode::FieldCell { field, .. } if field == "item"
+                )
+            })
+            .expect("item cell");
+
+        let mut rebuilt = fg.clone();
+        super::materialize_abstract_object_catalog(&mut rebuilt);
+        let unit = super::precise_memory_unit_key_for_cell(&rebuilt, cell)
+            .expect("precise memory unit after cold catalog rebuild");
+        let memory_unit_id = rebuilt
+            .points_to_object_ids
+            .get(&format!("memunit:{}", unit))
+            .copied()
+            .expect("memory-unit object id must be materialized");
+        assert!(rebuilt
+            .abstract_object_seed_nodes
+            .get(&cell.index())
+            .is_some_and(|ids| ids.contains(&memory_unit_id)));
     }
 
     #[test]
@@ -5961,6 +7507,584 @@ void run(int condition, Widget *widget) {
                     .get(&finding.function)
                     .is_some_and(|name| name.ends_with("run"))
         }));
+    }
+
+    fn anzu_pointer_must_be_null_after_free_count(src: &str) -> usize {
+        let hir = CppParser
+            .parse_file("anzu_pointer_after_free.cpp", src)
+            .expect("parse C++ pointer-after-free fixture");
+        let ir = lower_program(&hir);
+        let flow = build(&ir, &RuleSet::default());
+        flow.lifetime_diagnostics
+            .iter()
+            .filter(|finding| finding.rule_id == "ANZU-POINTER-MUST-BE-NULL-AFTER-FREE")
+            .count()
+    }
+
+    fn anzu_aligned_alloc_realloc_findings(src: &str) -> Vec<LifetimeDiagnostic> {
+        let hir = CppParser
+            .parse_file("anzu_aligned_alloc_realloc.cpp", src)
+            .expect("parse C++ aligned-allocation fixture");
+        let ir = lower_program(&hir);
+        let flow = build(&ir, &RuleSet::default());
+        flow.lifetime_diagnostics
+            .iter()
+            .filter(|finding| finding.rule_id == "ANZU-ALIGNED-ALLOC-REALLOC")
+            .cloned()
+            .collect()
+    }
+
+    fn anzu_argument_validation_findings(src: &str) -> Vec<super::NativeDataflowDiagnostic> {
+        let hir = CppParser
+            .parse_file("anzu_argument_validation.cpp", src)
+            .expect("parse C++ argument-validation fixture");
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            native_dataflow_rules: vec![NativeDataflowRule {
+                id: "ANZU-ARGUMENT-VALIDATION".to_string(),
+                language: Some(Language::Cpp),
+            }],
+            ..RuleSet::default()
+        };
+        build(&ir, &rules)
+            .native_dataflow_diagnostics
+            .into_iter()
+            .filter(|finding| finding.rule_id == "ANZU-ARGUMENT-VALIDATION")
+            .collect()
+    }
+
+    fn anzu_array_index_findings(
+        language: Language,
+        src: &str,
+    ) -> Vec<super::NativeDataflowDiagnostic> {
+        let hir = match language {
+            Language::C => CParser
+                .parse_file("anzu_array_index.c", src)
+                .expect("parse C array-index fixture"),
+            Language::Cpp => CppParser
+                .parse_file("anzu_array_index.cpp", src)
+                .expect("parse C++ array-index fixture"),
+            other => panic!("unsupported array-index fixture language: {other:?}"),
+        };
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            native_dataflow_rules: vec![NativeDataflowRule {
+                id: "ANZU-ARRAY-INDEX".to_string(),
+                language: Some(language),
+            }],
+            ..RuleSet::default()
+        };
+        build(&ir, &rules)
+            .native_dataflow_diagnostics
+            .into_iter()
+            .filter(|finding| finding.rule_id == "ANZU-ARRAY-INDEX")
+            .collect()
+    }
+
+    fn anzu_array_safety_findings(
+        language: Language,
+        src: &str,
+        rule_ids: &[&str],
+    ) -> Vec<super::NativeDataflowDiagnostic> {
+        let hir = match language {
+            Language::C => CParser
+                .parse_file("anzu_array_safety.c", src)
+                .expect("parse C array-safety fixture"),
+            Language::Cpp => CppParser
+                .parse_file("anzu_array_safety.cpp", src)
+                .expect("parse C++ array-safety fixture"),
+            other => panic!("unsupported array-safety fixture language: {other:?}"),
+        };
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            native_dataflow_rules: rule_ids
+                .iter()
+                .map(|rule_id| NativeDataflowRule {
+                    id: (*rule_id).to_string(),
+                    language: Some(language.clone()),
+                })
+                .collect(),
+            ..RuleSet::default()
+        };
+        build(&ir, &rules).native_dataflow_diagnostics
+    }
+
+    fn anzu_array_bound_findings(
+        language: Language,
+        src: &str,
+    ) -> Vec<super::NativeDataflowDiagnostic> {
+        anzu_array_safety_findings(language, src, &["ANZU-ARRAY-BOUND"])
+            .into_iter()
+            .filter(|finding| finding.rule_id == "ANZU-ARRAY-BOUND")
+            .collect()
+    }
+
+    fn anzu_case_break_findings(
+        language: Language,
+        src: &str,
+    ) -> Vec<super::NativeDataflowDiagnostic> {
+        let hir = match language {
+            Language::C => CParser
+                .parse_file("anzu_case_break.c", src)
+                .expect("parse C case-break fixture"),
+            Language::Cpp => CppParser
+                .parse_file("anzu_case_break.cpp", src)
+                .expect("parse C++ case-break fixture"),
+            other => panic!("unsupported case-break fixture language: {other:?}"),
+        };
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            native_dataflow_rules: vec![NativeDataflowRule {
+                id: "ANZU-CASE-BREAK".to_string(),
+                language: Some(language),
+            }],
+            ..RuleSet::default()
+        };
+        build(&ir, &rules)
+            .native_dataflow_diagnostics
+            .into_iter()
+            .filter(|finding| finding.rule_id == "ANZU-CASE-BREAK")
+            .collect()
+    }
+
+    #[test]
+    fn anzu_case_break_preserves_legacy_cfg_termination_semantics() {
+        let cases = [
+            ("int f(int x) { switch (x) { case 1: x++; break; } return x; }", 0),
+            (
+                "int f(int x) { switch (x) { case 1: x++; case 2: break; } return x; }",
+                1,
+            ),
+            ("int f(int x) { switch (x) { case 1: return x; } }", 0),
+            // The legacy CFG walk accepts any reachable block containing a
+            // ReturnStmt, including a return after the enclosing switch.
+            ("int f(int x) { switch (x) { case 1: x++; } return x; }", 0),
+            // Reaching the CFG exit without break/return remains a finding.
+            ("void f(int x) { switch (x) { case 1: x++; } }", 1),
+            (
+                "int f(int x, int y) { switch (x) { case 1: switch (y) { case 2: y++; } x++; } return x; }",
+                0,
+            ),
+            ("int f(int x) { switch (x) { default: x++; } return x; }", 0),
+            (
+                "int f(int x, int y) { switch (x) { case 1: if (y) break; else return x; case 2: break; } return x; }",
+                0,
+            ),
+            (
+                "int f(int x, int y) { switch (x) { case 1: if (y) break; else x++; case 2: break; } return x; }",
+                1,
+            ),
+        ];
+        for (source, expected) in cases {
+            let findings = anzu_case_break_findings(Language::Cpp, source);
+            assert_eq!(findings.len(), expected, "unexpected result for: {source}");
+            for finding in findings {
+                assert_eq!(finding.message, "Case statement without break termination");
+            }
+        }
+    }
+
+    #[test]
+    fn anzu_case_break_is_enabled_for_c_as_well_as_cpp() {
+        let findings = anzu_case_break_findings(
+            Language::C,
+            "int f(int x) { switch (x) { case 1: x++; case 2: break; } return x; }",
+        );
+        assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn anzu_case_break_suppresses_macro_origin_case_labels() {
+        let findings = anzu_case_break_findings(
+            Language::Cpp,
+            "#define CASE_ONE case 1:\nvoid f(int x) { switch (x) { CASE_ONE x++; } }",
+        );
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn anzu_array_index_reports_negative_literal_and_unknown_signed_parameter() {
+        for source in [
+            "int run(int *a) { return a[-1]; }",
+            "int run(int *a, int i) { return a[i]; }",
+            "int run(int *a, int i) { return a[-i]; }",
+        ] {
+            let findings = anzu_array_index_findings(Language::Cpp, source);
+            assert_eq!(findings.len(), 1, "negative index must be feasible for: {source}");
+            assert_eq!(findings[0].message, "Array index is less than zero");
+        }
+    }
+
+    #[test]
+    fn anzu_array_index_suppresses_proven_nonnegative_and_unsigned_indices() {
+        for source in [
+            "int run(int *a) { return a[0]; }",
+            "int run(int *a, unsigned int i) { return a[i]; }",
+            "int run(int *a, unsigned int i) { return a[-i]; }",
+            "int run(int *a, int i) { if (i >= 0) { return a[i]; } return 0; }",
+            "int run(int *a, int i) { if (i <= 0) { return a[-i]; } return 0; }",
+        ] {
+            assert!(
+                anzu_array_index_findings(Language::Cpp, source).is_empty(),
+                "negative index must be infeasible for: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn anzu_array_index_reports_only_on_feasible_negative_branch() {
+        let findings = anzu_array_index_findings(
+            Language::Cpp,
+            "int run(int *a, int i) { if (i < 0) { return a[i]; } return a[i]; }",
+        );
+        assert_eq!(findings.len(), 1, "only the i < 0 branch should remain reportable");
+    }
+
+    #[test]
+    fn anzu_array_index_applies_to_c_and_ignores_non_index_expressions() {
+        let c_findings = anzu_array_index_findings(
+            Language::C,
+            "int run(int *a, int i) { return a[i]; }",
+        );
+        assert_eq!(c_findings.len(), 1, "legacy registration enables C");
+        assert!(
+            anzu_array_index_findings(Language::C, "int run(int i) { return i; }").is_empty(),
+            "ordinary integer expressions are not array-index checks"
+        );
+    }
+
+    #[test]
+    fn anzu_array_bound_reports_fixed_oob_and_unknown_signed_index_for_c_and_cpp() {
+        for language in [Language::C, Language::Cpp] {
+            for source in [
+                "int run(void) { int a[2]; return a[2]; }",
+                "int run(int i) { int a[2]; return a[i]; }",
+            ] {
+                let findings = anzu_array_bound_findings(language.clone(), source);
+                assert_eq!(findings.len(), 1, "OOB state must be feasible for: {source}");
+                assert_eq!(findings[0].message, "Array bound read/write exceeds size");
+            }
+        }
+    }
+
+    #[test]
+    fn anzu_array_bound_suppresses_fixed_in_bounds_and_path_proven_in_bounds() {
+        for source in [
+            "int run(void) { int a[2]; return a[1]; }",
+            "int run(int i) { int a[2]; if (i >= 0) { if (i < 2) { return a[i]; } } return 0; }",
+        ] {
+            assert!(
+                anzu_array_bound_findings(Language::Cpp, source).is_empty(),
+                "out-of-bounds state must be infeasible for: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn anzu_array_bound_suppresses_zero_or_unknown_extent() {
+        for source in [
+            "int run(void) { int a[0]; return a[0]; }",
+            "int run(int a[], int i) { return a[i]; }",
+        ] {
+            assert!(
+                anzu_array_bound_findings(Language::C, source).is_empty(),
+                "legacy checker suppresses zero/unknown extent: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn anzu_array_bound_uses_vla_extent_when_path_proves_it_nonzero() {
+        let findings = anzu_array_bound_findings(
+            Language::C,
+            "int run(int n) { if (n > 0) { int a[n]; return a[n]; } return 0; }",
+        );
+        assert_eq!(findings.len(), 1, "index equal to positive VLA extent must report");
+    }
+
+    #[test]
+    fn anzu_array_bound_checks_current_multidimensional_extent() {
+        assert!(
+            anzu_array_bound_findings(
+                Language::C,
+                "int run(void) { int a[2][3]; return a[1][2]; }",
+            )
+            .is_empty()
+        );
+        let findings = anzu_array_bound_findings(
+            Language::C,
+            "int run(void) { int a[2][3]; return a[1][3]; }",
+        );
+        assert_eq!(findings.len(), 1, "inner dimension extent must be three");
+    }
+
+    #[test]
+    fn anzu_array_bound_suppresses_macro_expansion_subscript() {
+        let findings = anzu_array_bound_findings(
+            Language::C,
+            r#"
+#define OOB(array) array[2]
+int run(void) {
+    int a[2];
+    return OOB(a);
+}
+"#,
+        );
+        assert!(
+            findings.is_empty(),
+            "legacy ArrayBoundChecker2 returns immediately for macro-origin subscripts"
+        );
+    }
+
+    #[test]
+    fn anzu_array_index_and_bound_can_report_same_instruction() {
+        let findings = anzu_array_safety_findings(
+            Language::C,
+            "int run(int i) { int a[2]; return a[i]; }",
+            &["ANZU-ARRAY-INDEX", "ANZU-ARRAY-BOUND"],
+        );
+        let mut rule_ids = findings
+            .iter()
+            .map(|finding| finding.rule_id.as_str())
+            .collect::<Vec<_>>();
+        rule_ids.sort_unstable();
+        assert_eq!(rule_ids, ["ANZU-ARRAY-BOUND", "ANZU-ARRAY-INDEX"]);
+        assert_eq!(findings[0].instruction, findings[1].instruction);
+    }
+
+    #[test]
+    fn anzu_argument_validation_reports_definitely_null_pointer_argument() {
+        let findings = anzu_argument_validation_findings(
+            "void consume(int *value) {} void run() { int *p = nullptr; consume(p); }",
+        );
+        assert_eq!(findings.len(), 1, "definitely-null pointer actual must report");
+        assert_eq!(findings[0].message_args, ["value"]);
+        assert_eq!(
+            findings[0].message,
+            "Pointer argument 'value' might be null and should be validated."
+        );
+    }
+
+    #[test]
+    fn anzu_argument_validation_refines_nullness_across_cpp_branch() {
+        let null_branch = anzu_argument_validation_findings(
+            "void consume(int *value) {} void run(int *p) { if (p == nullptr) { consume(p); } }",
+        );
+        assert_eq!(null_branch.len(), 1, "null branch must be definite null");
+
+        let nonnull_branch = anzu_argument_validation_findings(
+            "void consume(int *value) {} void run(int *p) { if (p != nullptr) { consume(p); } }",
+        );
+        assert!(
+            nonnull_branch.is_empty(),
+            "nonnull branch must not report argument validation"
+        );
+    }
+
+    #[test]
+    fn anzu_argument_validation_suppresses_macro_expansion_location() {
+        let findings = anzu_argument_validation_findings(
+            r#"
+#define PASS(value) consume(value)
+void consume(int *value) {}
+void run() {
+    int *p = nullptr;
+    PASS(p);
+    consume(p);
+}
+"#,
+        );
+        assert_eq!(
+            findings.len(),
+            1,
+            "legacy checker suppresses macro-expanded argument locations but reports direct calls"
+        );
+    }
+
+    #[test]
+    fn anzu_argument_validation_ignores_unknown_and_non_pointer_arguments() {
+        for source in [
+            "void consume(int *value) {} void run(int *p) { consume(p); }",
+            "void consume(int value) {} void run() { int value = 0; consume(value); }",
+        ] {
+            assert!(
+                anzu_argument_validation_findings(source).is_empty(),
+                "legacy checker only reports definitely-null pointer actuals: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn anzu_argument_validation_propagates_definite_null_through_pointer_copy() {
+        let findings = anzu_argument_validation_findings(
+            "void consume(int *value) {} void run() { int *p = nullptr; int *alias = p; consume(alias); }",
+        );
+        assert_eq!(findings.len(), 1, "pointer copies must preserve definite nullness");
+        assert_eq!(findings[0].message_args, ["value"]);
+    }
+
+    #[test]
+    fn anzu_aligned_alloc_realloc_reports_both_legacy_aligned_allocators_and_aliases() {
+        for source in [
+            "int run() { void *p = aligned_alloc(16, 64); void *alias = p; alias = realloc(alias, 128); return 0; }",
+            "int run() { void *p = _aligned_malloc(64, 16); p = realloc(p, 128); return 0; }",
+        ] {
+            let findings = anzu_aligned_alloc_realloc_findings(source);
+            assert_eq!(findings.len(), 1, "expected one aligned realloc finding for: {source}");
+            assert!(!findings[0].potential, "straight-line aligned provenance is definite");
+            assert_eq!(
+                findings[0].message,
+                "Memory allocated by aligned_alloc should not be resized using realloc()."
+            );
+        }
+    }
+
+    #[test]
+    fn anzu_aligned_alloc_realloc_ignores_ordinary_malloc_and_free_clears_provenance() {
+        for source in [
+            "int run() { void *p = malloc(64); p = realloc(p, 128); return 0; }",
+            "int run() { void *p = aligned_alloc(16, 64); free(p); p = realloc(p, 128); return 0; }",
+        ] {
+            assert!(
+                anzu_aligned_alloc_realloc_findings(source).is_empty(),
+                "legacy checker must stay clean for: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn anzu_aligned_alloc_realloc_preserves_feasible_branch_provenance() {
+        let findings = anzu_aligned_alloc_realloc_findings(
+            r#"
+int run(int cond) {
+    void *p;
+    if (cond) {
+        p = aligned_alloc(16, 64);
+    } else {
+        p = malloc(64);
+    }
+    p = realloc(p, 128);
+    return 0;
+}
+"#,
+        );
+        assert_eq!(findings.len(), 1, "the aligned predecessor must remain reportable");
+        assert!(findings[0].potential, "joined aligned/non-aligned provenance is path-conditional");
+    }
+
+    #[test]
+    fn cpp_delete_and_dereference_lower_to_raw_free_and_deref_ir() {
+        let hir = CppParser
+            .parse_file(
+                "raw_delete.cpp",
+                r#"
+struct Item { int value; };
+int run(Item *left, Item *right) {
+    delete left;
+    delete[] right;
+    return *left;
+}
+"#,
+            )
+            .expect("parse C++ raw delete");
+        let ir = lower_program(&hir);
+        let run = ir.find_function_by_name("run").expect("run function");
+        let instructions = run
+            .blocks
+            .iter()
+            .flat_map(|block| block.insts.iter())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            instructions
+                .iter()
+                .filter(|inst| matches!(
+                    inst.kind,
+                    InstKind::Lifetime {
+                        event: uniflow_ir::LifetimeEvent::Free,
+                        ..
+                    }
+                ))
+                .count(),
+            2,
+            "delete and delete[] must both be raw frees"
+        );
+        assert!(
+            instructions
+                .iter()
+                .any(|inst| matches!(inst.kind, InstKind::Deref { .. })),
+            "unary * must survive lowering as Deref"
+        );
+    }
+
+    #[test]
+    fn anzu_pointer_after_free_reports_second_free() {
+        let count = anzu_pointer_must_be_null_after_free_count(
+            "void run(int *p) { free(p); free(p); }",
+        );
+        assert_eq!(count, 1, "only the second free should report");
+    }
+
+    #[test]
+    fn anzu_pointer_after_free_reports_only_dangling_access_forms() {
+        for source in [
+            "int run(int *p) { free(p); return *p; }",
+            "struct Item { int field; }; int run(Item *p) { free(p); return p->field; }",
+            "int run(int *p) { free(p); return p[0]; }",
+        ] {
+            assert_eq!(
+                anzu_pointer_must_be_null_after_free_count(source),
+                1,
+                "expected one legacy dangling access finding for: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn anzu_pointer_after_free_reassignment_does_not_inherit_released_state() {
+        let count = anzu_pointer_must_be_null_after_free_count(
+            "int run(int *p, int *fresh) { free(p); p = fresh; return *p; }",
+        );
+        assert_eq!(count, 0, "a fresh pointer value must not inherit the old free state");
+    }
+
+    #[test]
+    fn anzu_pointer_after_free_ignores_non_dereference_uses() {
+        let count = anzu_pointer_must_be_null_after_free_count(
+            r#"
+void consume(int *value) { }
+int run(int *p, int *q) {
+    free(p);
+    int same = p == q;
+    int *copy = p;
+    consume(p);
+    return same + (copy == q);
+}
+"#,
+        );
+        assert_eq!(count, 0, "comparison, copy, and ordinary call arguments are not legacy dangling accesses");
+    }
+
+    #[test]
+    fn anzu_pointer_after_free_single_free_without_dangling_access_is_clean() {
+        assert_eq!(
+            anzu_pointer_must_be_null_after_free_count("void run(int *p) { free(p); }"),
+            0
+        );
+    }
+
+    #[test]
+    fn anzu_pointer_after_free_source_delete_and_delete_array_are_tracked() {
+        let count = anzu_pointer_must_be_null_after_free_count(
+            r#"
+struct Item { int field; };
+int run(Item *left, Item *right) {
+    delete left;
+    delete[] right;
+    return left->field + right[0].field;
+}
+"#,
+        );
+        assert_eq!(count, 2, "delete and delete[] must both poison their original pointer values");
     }
 
     #[test]

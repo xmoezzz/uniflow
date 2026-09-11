@@ -47,10 +47,93 @@ fn parse_lvalue(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> 
     }
 }
 
+fn parse_expr_at(
+    builder: &mut ModuleBuilder,
+    text: &str,
+    absolute_start: usize,
+    env: &mut CLikeEnv,
+) -> Expr {
+    let leading_ws = text.len().saturating_sub(text.trim_start().len());
+    let trimmed = text.trim();
+    let mut expr = parse_expr(builder, trimmed, env);
+    annotate_expr_occurrence(&mut expr, trimmed, absolute_start + leading_ws);
+    expr
+}
+
+fn occurrence_span(start: usize, end: usize) -> uniflow_hir::Span {
+    uniflow_hir::Span {
+        file: 0,
+        start_byte: start as u32,
+        end_byte: end.max(start) as u32,
+        ..uniflow_hir::Span::default()
+    }
+}
+
+fn set_expr_span(expr: &mut Expr, span: uniflow_hir::Span) {
+    match expr {
+        Expr::VarRef { span: current, .. }
+        | Expr::Literal { span: current, .. }
+        | Expr::Unary { span: current, .. }
+        | Expr::Binary { span: current, .. }
+        | Expr::FieldRead { span: current, .. }
+        | Expr::IndexRead { span: current, .. }
+        | Expr::Lambda { span: current, .. }
+        | Expr::New { span: current, .. }
+        | Expr::Cast { span: current, .. }
+        | Expr::Conditional { span: current, .. }
+        | Expr::Assign { span: current, .. }
+        | Expr::Interp { span: current, .. }
+        | Expr::Collection { span: current, .. }
+        | Expr::Range { span: current, .. }
+        | Expr::Opaque { span: current, .. }
+        | Expr::Unknown { span: current, .. } => *current = span,
+        Expr::Call(call) => call.span = span,
+    }
+}
+
+fn annotate_expr_occurrence(expr: &mut Expr, source: &str, absolute_start: usize) {
+    set_expr_span(
+        expr,
+        occurrence_span(absolute_start, absolute_start + source.len()),
+    );
+
+    let Expr::Call(call) = expr else {
+        return;
+    };
+    let Some(open) = source.char_indices().find_map(|(index, ch)| {
+        (ch == '('
+            && matching_delimiter(source, index, '(', ')')
+                .is_some_and(|close| close + 1 == source.len()))
+        .then_some(index)
+    }) else {
+        return;
+    };
+    let args_source = &source[open + 1..source.len().saturating_sub(1)];
+    let parsed_args = split_top_level_commas(args_source);
+    let mut search_from = 0usize;
+    for (arg, parsed) in call.args.iter_mut().zip(parsed_args.iter()) {
+        let Some(relative) = args_source[search_from..].find(parsed) else {
+            break;
+        };
+        let arg_start = search_from + relative;
+        let arg_end = arg_start + parsed.len();
+        let absolute_arg_start = absolute_start + open + 1 + arg_start;
+        annotate_expr_occurrence(arg, parsed, absolute_arg_start);
+        search_from = arg_end;
+    }
+}
+
 fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Expr {
     let trimmed = text.trim();
     if let Some(inner) = strip_balanced_outer_parens(trimmed) {
         return parse_expr(builder, inner, env);
+    }
+    if trimmed == "nullptr" && matches!(env.language, Some(Language::Cpp)) {
+        return Expr::Literal {
+            id: builder.alloc_expr_id(),
+            kind: uniflow_hir::LiteralKind::Null,
+            span: default_span(),
+        };
     }
     if let Some((left, right)) = split_top_level_assignment(trimmed) {
         return Expr::Assign {
@@ -60,6 +143,10 @@ fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Ex
             span: default_span(),
         };
     }
+    // Normalize pointer-member syntax before scanning relational operators.  Otherwise the `>`
+    // in `ptr->field` is indistinguishable from a greater-than operator to the lightweight C
+    // expression splitter and the member access is lost before it can become a FieldRead.
+    let normalized = normalize_member_access(trimmed, env);
     for (operators, op) in [
         (&["||"][..], BinaryOp::Or),
         (&["&&"][..], BinaryOp::And),
@@ -70,7 +157,7 @@ fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Ex
         (&["<"][..], BinaryOp::Lt),
         (&[">"][..], BinaryOp::Gt),
     ] {
-        if let Some((left, right)) = split_top_level_operator(trimmed, operators) {
+        if let Some((left, right)) = split_top_level_operator(&normalized, operators) {
             return Expr::Binary {
                 id: builder.alloc_expr_id(),
                 op,
@@ -80,7 +167,20 @@ fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Ex
             };
         }
     }
-    let normalized = normalize_member_access(trimmed, env);
+    for operators in [
+        &[("+", BinaryOp::Add), ("-", BinaryOp::Sub)][..],
+        &[("*", BinaryOp::Mul), ("/", BinaryOp::Div), ("%", BinaryOp::Mod)][..],
+    ] {
+        if let Some((left, op, right)) = split_top_level_binary_group(&normalized, operators) {
+            return Expr::Binary {
+                id: builder.alloc_expr_id(),
+                op,
+                lhs: Box::new(parse_expr(builder, left, env)),
+                rhs: Box::new(parse_expr(builder, right, env)),
+                span: default_span(),
+            };
+        }
+    }
 
     if is_string_literal(trimmed) {
         return new_string(builder, &trimmed[1..trimmed.len() - 1]);
@@ -108,6 +208,30 @@ fn parse_expr(builder: &mut ModuleBuilder, text: &str, env: &mut CLikeEnv) -> Ex
         return Expr::Unary {
             id: builder.alloc_expr_id(),
             op: UnaryOp::Deref,
+            expr: Box::new(parse_expr(builder, inner, env)),
+            span: default_span(),
+        };
+    }
+    if let Some(inner) = trimmed.strip_prefix('-') {
+        return Expr::Unary {
+            id: builder.alloc_expr_id(),
+            op: UnaryOp::Neg,
+            expr: Box::new(parse_expr(builder, inner, env)),
+            span: default_span(),
+        };
+    }
+    if let Some(inner) = trimmed.strip_prefix('!') {
+        return Expr::Unary {
+            id: builder.alloc_expr_id(),
+            op: UnaryOp::Not,
+            expr: Box::new(parse_expr(builder, inner, env)),
+            span: default_span(),
+        };
+    }
+    if let Some(inner) = trimmed.strip_prefix('~') {
+        return Expr::Unary {
+            id: builder.alloc_expr_id(),
+            op: UnaryOp::BitNot,
             expr: Box::new(parse_expr(builder, inner, env)),
             span: default_span(),
         };
@@ -230,6 +354,93 @@ fn split_top_level_assignment(text: &str) -> Option<(&str, &str)> {
 
 fn split_top_level_operator<'a>(text: &'a str, operators: &[&str]) -> Option<(&'a str, &'a str)> {
     split_top_level_operator_at(text, operators).map(|(left, right, _)| (left, right))
+}
+
+fn split_top_level_binary_group<'a>(
+    text: &'a str,
+    operators: &[(&str, BinaryOp)],
+) -> Option<(&'a str, BinaryOp, &'a str)> {
+    let bytes = text.as_bytes();
+    let mut paren = 0usize;
+    let mut bracket = 0usize;
+    let mut brace = 0usize;
+    let mut quote = None;
+    let mut escape = false;
+    let mut candidate = None;
+    let mut index = 0usize;
+    while index < bytes.len() {
+        let ch = bytes[index] as char;
+        if let Some(active) = quote {
+            if escape {
+                escape = false;
+            } else if ch == '\\' {
+                escape = true;
+            } else if ch == active {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        match ch {
+            '\'' | '"' => quote = Some(ch),
+            '(' => paren += 1,
+            ')' => paren = paren.saturating_sub(1),
+            '[' => bracket += 1,
+            ']' => bracket = bracket.saturating_sub(1),
+            '{' => brace += 1,
+            '}' => brace = brace.saturating_sub(1),
+            _ => {}
+        }
+        if paren == 0 && bracket == 0 && brace == 0 {
+            if let Some((operator, op)) = operators
+                .iter()
+                .find(|(operator, _)| text[index..].starts_with(*operator))
+            {
+                let end = index + operator.len();
+                let left = text[..index].trim();
+                let right = text[end..].trim();
+                if !left.is_empty()
+                    && !right.is_empty()
+                    && !is_unary_binary_operator_position(text, index, operator)
+                {
+                    candidate = Some((left, *op, right));
+                }
+                index = end;
+                continue;
+            }
+        }
+        index += 1;
+    }
+    candidate
+}
+
+fn is_unary_binary_operator_position(text: &str, index: usize, operator: &str) -> bool {
+    if !matches!(operator, "+" | "-" | "*") {
+        return false;
+    }
+    let previous = text[..index].chars().rev().find(|ch| !ch.is_whitespace());
+    previous.is_none_or(|ch| {
+        matches!(
+            ch,
+            '(' | '['
+                | '{'
+                | ','
+                | ':'
+                | '?'
+                | '='
+                | '+'
+                | '-'
+                | '*'
+                | '/'
+                | '%'
+                | '!'
+                | '&'
+                | '|'
+                | '^'
+                | '<'
+                | '>'
+        )
+    })
 }
 
 fn split_top_level_operator_at<'a>(

@@ -87,6 +87,7 @@ impl ModuleBuilder {
             declared_in: Some(self.module.id),
             span: default_span(),
             attributes: IndexMap::new(),
+            array_extents: Vec::new(),
             cpp: None,
         });
         id
@@ -95,6 +96,12 @@ impl ModuleBuilder {
     pub fn set_symbol_attribute(&mut self, id: SymbolId, key: &str, value: String) {
         if let Some(symbol) = self.symbols.iter_mut().find(|symbol| symbol.id == id) {
             symbol.attributes.insert(key.to_string(), value);
+        }
+    }
+
+    pub fn set_symbol_array_extents(&mut self, id: SymbolId, extents: Vec<Option<Expr>>) {
+        if let Some(symbol) = self.symbols.iter_mut().find(|symbol| symbol.id == id) {
+            symbol.array_extents = extents;
         }
     }
 
@@ -140,6 +147,7 @@ impl ModuleBuilder {
             symbols: self.symbols,
             types: self.types,
             source_maps: Vec::new(),
+            source_origins: Vec::new(),
         }
     }
 }

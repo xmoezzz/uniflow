@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
+use serde::Serialize;
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use uniflow_baseline::{
@@ -25,7 +27,8 @@ use uniflow_lowering::lower_program;
 use uniflow_models::{
     audit_legacy_jvm_rule_tree, compile_legacy_csharp_pack, compile_legacy_go_pack,
     compile_legacy_jvm_rule_tree, compile_legacy_native_dataflow_pack,
-    compile_legacy_pysa_rule_tree, load_with_defaults, mit_catalog_manifest, mit_models_for,
+    attach_legacy_metadata_for_ids, compile_legacy_pysa_rule_tree,
+    load_with_defaults, load_with_defaults_for_analysis, mit_catalog_manifest, mit_models_for,
     LegacyCsharpPack, LegacyGoPack, LegacyNativeDataflowPack,
 };
 use uniflow_platform::PlatformProfile;
@@ -34,7 +37,9 @@ use uniflow_report::{
 };
 use uniflow_rules::RuleSet;
 use uniflow_taint::{analyze, pretty_findings, TaintFinding};
-use uniflow_value_flow::{build, build_with_progress, FlowGraph};
+use uniflow_value_flow::{
+    build_for_rules_with_progress, build_with_capabilities, AnalysisCapabilities, FlowGraph, FlowNode,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "uniflow")]
@@ -505,8 +510,8 @@ impl ProgressTracker {
     {
         let spinner = self.multi.add(ProgressBar::new_spinner());
         spinner.set_style(spinner_style());
-        spinner.enable_steady_tick(Duration::from_millis(100));
         spinner.set_message(format!("{}: {}", name, detail.into()));
+        spinner.tick();
         let start = Instant::now();
         let result = f(&self.multi, &spinner);
         let elapsed = start.elapsed();
@@ -949,7 +954,7 @@ fn main() -> Result<()> {
             let language = Language::Java;
             let rules = load_rules(language.clone(), rules.as_deref(), use_default_models)?;
             let program = sample_java_sql_program();
-            let flow = build(&program, &rules);
+            let flow = build_for_rules_with_progress(&program, &rules, |_| {});
             emit_flow_views(&flow, dump_graph, dump_call_report, dump_stats)?;
             let findings = analyze(&flow, &rules);
             maybe_write_reports(
@@ -988,6 +993,7 @@ fn main() -> Result<()> {
             checker_isolation,
         } => {
             let language: Language = language.into();
+            let hydrate_bundled_metadata = use_default_models || rules.is_none();
             let frontend_options = make_frontend_options(platform, c_family);
             let mut tracker = ProgressTracker::new(11);
             let source = tracker.phase("read-source", input.clone(), |_| {
@@ -997,7 +1003,7 @@ fn main() -> Result<()> {
             let mut rules = tracker.phase(
                 "load-rules",
                 rules.clone().unwrap_or_else(|| "defaults".to_string()),
-                |_| load_rules(language.clone(), rules.as_deref(), use_default_models),
+                |_| load_analysis_rules(language.clone(), rules.as_deref(), use_default_models),
             )?;
             rules.retain_reportable_ids(&rule_ids)?;
             let hir = tracker.phase("parse-source", input.clone(), |_| {
@@ -1006,7 +1012,8 @@ fn main() -> Result<()> {
             run_and_print_with_progress(
                 &mut tracker,
                 hir,
-                &rules,
+                rules,
+                hydrate_bundled_metadata,
                 dump_hir,
                 dump_ir,
                 dump_graph,
@@ -1053,6 +1060,7 @@ fn main() -> Result<()> {
             checker_isolation,
         } => {
             let language: Language = language.into();
+            let hydrate_bundled_metadata = use_default_models || rules.is_none();
             let frontend_options = make_frontend_options(platform, c_family);
             let paths = inputs.into_iter().map(PathBuf::from).collect::<Vec<_>>();
             let use_cache = cache_in.is_some() || cache_out.is_some() || dump_cache_plan;
@@ -1061,7 +1069,7 @@ fn main() -> Result<()> {
             let mut rules = tracker.phase(
                 "load-rules",
                 rules.clone().unwrap_or_else(|| "defaults".to_string()),
-                |_| load_rules(language.clone(), rules.as_deref(), use_default_models),
+                |_| load_analysis_rules(language.clone(), rules.as_deref(), use_default_models),
             )?;
             rules.retain_reportable_ids(&rule_ids)?;
             let files = tracker.phase(
@@ -1142,7 +1150,8 @@ fn main() -> Result<()> {
             run_and_print_with_progress(
                 &mut tracker,
                 hir,
-                &rules,
+                rules,
+                hydrate_bundled_metadata,
                 dump_hir,
                 dump_ir,
                 dump_graph,
@@ -1187,10 +1196,32 @@ fn load_rules(
     }
 }
 
+fn load_analysis_rules(
+    language: Language,
+    rules_path: Option<&str>,
+    use_default_models: bool,
+) -> Result<RuleSet> {
+    let yaml = if let Some(path) = rules_path {
+        Some(
+            fs::read_to_string(path)
+                .with_context(|| format!("failed to read rules from {path}"))?,
+        )
+    } else {
+        None
+    };
+
+    if use_default_models || yaml.is_none() {
+        load_with_defaults_for_analysis(language, yaml.as_deref())
+    } else {
+        RuleSet::from_yaml_str(yaml.as_deref().unwrap())
+    }
+}
+
 fn run_and_print_with_progress(
     tracker: &mut ProgressTracker,
     hir: uniflow_hir::Program,
-    rules: &RuleSet,
+    mut rules: RuleSet,
+    hydrate_bundled_metadata: bool,
     dump_hir: bool,
     dump_ir: bool,
     dump_graph: bool,
@@ -1221,15 +1252,17 @@ fn run_and_print_with_progress(
     )?;
     let checker_manifests = checker_manager.manifests();
     let mut checker_findings = Vec::new();
-    checker_findings.extend(checker_manager.broadcast(
-        event_kind::ANALYSIS_START,
-        json!({
-            "language": format!("{:?}", hir.language),
-            "files": hir.files.iter().map(|file| file.path.clone()).collect::<Vec<_>>(),
-            "checkers": &checker_manifests,
-        }),
-    )?);
-    if !checker_manager.is_empty() {
+    if checker_manager.has_subscriber(event_kind::ANALYSIS_START) {
+        checker_findings.extend(checker_manager.broadcast(
+            event_kind::ANALYSIS_START,
+            json!({
+                "language": format!("{:?}", hir.language),
+                "files": hir.files.iter().map(|file| file.path.clone()).collect::<Vec<_>>(),
+                "checkers": &checker_manifests,
+            }),
+        )?);
+    }
+    if checker_manager.has_subscriber(event_kind::SOURCE_FILE) {
         for file in &hir.files {
             let source = fs::read_to_string(&file.path).with_context(|| {
                 format!("failed to read checker source event from {}", file.path)
@@ -1240,10 +1273,12 @@ fn run_and_print_with_progress(
             )?);
         }
     }
-    checker_findings.extend(checker_manager.broadcast(
-        event_kind::HIR_PROGRAM,
-        serde_json::to_value(&hir).context("failed to serialize HIR checker event")?,
-    )?);
+    if checker_manager.has_subscriber(event_kind::HIR_PROGRAM) {
+        checker_findings.extend(checker_manager.broadcast(
+            event_kind::HIR_PROGRAM,
+            serde_json::to_value(&hir).context("failed to serialize HIR checker event")?,
+        )?);
+    }
 
     tracker.phase(
         "emit-hir",
@@ -1275,10 +1310,12 @@ fn run_and_print_with_progress(
         }
         Ok(ir)
     })?;
-    checker_findings.extend(checker_manager.broadcast(
-        event_kind::IR_PROGRAM,
-        serde_json::to_value(&ir).context("failed to serialize IR checker event")?,
-    )?);
+    if checker_manager.has_subscriber(event_kind::IR_PROGRAM) {
+        checker_findings.extend(checker_manager.broadcast(
+            event_kind::IR_PROGRAM,
+            serde_json::to_value(&ir).context("failed to serialize IR checker event")?,
+        )?);
+    }
     tracker.phase(
         "emit-ir",
         if dump_ir { "serializing IR" } else { "skipped" },
@@ -1293,6 +1330,16 @@ fn run_and_print_with_progress(
         },
     )?;
 
+    let force_full_flow = dump_graph
+        || dump_call_report
+        || dump_stats
+        || checker_manager.has_subscriber(event_kind::FLOW_SUMMARY)
+        || checker_manager.has_subscriber(event_kind::CALL);
+    let capabilities = if force_full_flow {
+        AnalysisCapabilities::full()
+    } else {
+        AnalysisCapabilities::for_rules(&ir, &rules)
+    };
     let flow = tracker.phase_with_spinner(
         "build-flow",
         format!("{} IR functions", ir.functions.len()),
@@ -1301,7 +1348,7 @@ fn run_and_print_with_progress(
                 "build-flow/init: {} IR functions",
                 ir.functions.len()
             ));
-            Ok(build_with_progress(&ir, rules, |progress| {
+            Ok(build_with_capabilities(&ir, &rules, capabilities, |progress| {
                 spinner.set_message(format!(
                     "build-flow/{}: {}",
                     progress.stage, progress.detail
@@ -1309,42 +1356,70 @@ fn run_and_print_with_progress(
             }))
         },
     )?;
-    let call_report = flow.call_report();
-    checker_findings.extend(checker_manager.broadcast(
-        event_kind::FLOW_SUMMARY,
-        json!({
-            "stats": flow.stats(),
-            "calls": &call_report,
-        }),
-    )?);
-    for call in &call_report {
-        checker_findings.extend(checker_manager.broadcast(
-            event_kind::CALL,
-            serde_json::to_value(call).context("failed to serialize call checker event")?,
-        )?);
+    let flow_summary_subscribed = checker_manager.has_subscriber(event_kind::FLOW_SUMMARY);
+    let call_subscribed = checker_manager.has_subscriber(event_kind::CALL);
+    if flow_summary_subscribed || call_subscribed {
+        let call_report = flow.call_report();
+        if flow_summary_subscribed {
+            checker_findings.extend(checker_manager.broadcast(
+                event_kind::FLOW_SUMMARY,
+                json!({
+                    "stats": flow.stats(),
+                    "calls": &call_report,
+                }),
+            )?);
+        }
+        if call_subscribed {
+            for call in &call_report {
+                checker_findings.extend(checker_manager.broadcast(
+                    event_kind::CALL,
+                    serde_json::to_value(call).context("failed to serialize call checker event")?,
+                )?);
+            }
+        }
     }
     tracker.phase("emit-flow-views", "graph / call report / stats", |_| {
         emit_flow_views(&flow, dump_graph, dump_call_report, dump_stats)
     })?;
+    if hydrate_bundled_metadata {
+        let mut report_ids = flow
+            .synthetic_sinks
+            .iter()
+            .filter_map(|node| match &flow.graph[*node] {
+                FlowNode::SyntheticSink { rule_id, .. } => Some(rule_id.clone()),
+                _ => None,
+            })
+            .collect::<HashSet<_>>();
+        report_ids.extend(
+            flow.native_dataflow_diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.rule_id.clone()),
+        );
+        attach_legacy_metadata_for_ids(&flow.language, &mut rules, &report_ids)?;
+    }
     let findings = tracker.phase(
         "taint-analysis",
         format!("{} flow nodes", flow.graph.node_count()),
-        |_| Ok(analyze(&flow, rules)),
+        |_| Ok(analyze(&flow, &rules)),
     )?;
-    for finding in &findings {
-        checker_findings.extend(checker_manager.broadcast(
-            event_kind::TAINT_FINDING,
-            serde_json::to_value(finding).context("failed to serialize taint checker event")?,
-        )?);
+    if checker_manager.has_subscriber(event_kind::TAINT_FINDING) {
+        for finding in &findings {
+            checker_findings.extend(checker_manager.broadcast(
+                event_kind::TAINT_FINDING,
+                serde_json::to_value(finding).context("failed to serialize taint checker event")?,
+            )?);
+        }
     }
     let checker_finding_count_before_end = checker_findings.len();
-    checker_findings.extend(checker_manager.broadcast(
-        event_kind::ANALYSIS_END,
-        json!({
-            "taintFindingCount": findings.len(),
-            "checkerFindingCount": checker_finding_count_before_end,
-        }),
-    )?);
+    if checker_manager.has_subscriber(event_kind::ANALYSIS_END) {
+        checker_findings.extend(checker_manager.broadcast(
+            event_kind::ANALYSIS_END,
+            json!({
+                "taintFindingCount": findings.len(),
+                "checkerFindingCount": checker_finding_count_before_end,
+            }),
+        )?);
+    }
     for diagnostic in checker_manager.take_diagnostics() {
         eprintln!(
             "checker diagnostic: {}",
@@ -1436,6 +1511,63 @@ fn write_text_file(path: &str, text: &str) -> Result<()> {
     fs::write(path, text).with_context(|| format!("failed to write report to {path}"))
 }
 
+/// The console is a transport for scan results, not a rule-catalog export.
+/// In particular, legacy translations can contain whole knowledge-base
+/// articles and examples. Repeating those documents on every finding made a
+/// tiny project consume gigabytes while `serde_json::to_string_pretty` built
+/// the output in memory. Keep the complete metadata for explicit reports, but
+/// emit a compact, streaming finding representation to the terminal.
+#[derive(Serialize)]
+struct ConsoleTaintFinding<'a> {
+    source_rule_id: &'a str,
+    sink_rule_id: &'a str,
+    source_kind: &'a str,
+    sink_kind: &'a str,
+    sink_node: usize,
+    path: &'a [usize],
+    source_label: &'a str,
+    sink_label: &'a str,
+    source_location: &'a str,
+    sink_location: &'a str,
+    path_labels: &'a [String],
+    steps: &'a [uniflow_taint::TaintStep],
+    finding_kind: &'a str,
+    severity: &'a str,
+    message: &'a str,
+    rule_title: &'a str,
+    cwe: &'a [String],
+    standards: &'a [String],
+    analysis_complete: bool,
+    completeness: &'a uniflow_value_flow::QueryCompleteness,
+}
+
+impl<'a> From<&'a TaintFinding> for ConsoleTaintFinding<'a> {
+    fn from(finding: &'a TaintFinding) -> Self {
+        Self {
+            source_rule_id: &finding.source_rule_id,
+            sink_rule_id: &finding.sink_rule_id,
+            source_kind: &finding.source_kind,
+            sink_kind: &finding.sink_kind,
+            sink_node: finding.sink_node,
+            path: &finding.path,
+            source_label: &finding.source_label,
+            sink_label: &finding.sink_label,
+            source_location: &finding.source_location,
+            sink_location: &finding.sink_location,
+            path_labels: &finding.path_labels,
+            steps: &finding.steps,
+            finding_kind: &finding.finding_kind,
+            severity: &finding.severity,
+            message: &finding.message,
+            rule_title: &finding.rule_title,
+            cwe: &finding.cwe,
+            standards: &finding.standards,
+            analysis_complete: finding.analysis_complete,
+            completeness: &finding.completeness,
+        }
+    }
+}
+
 fn print_all_findings(
     findings: &[TaintFinding],
     checker_findings: &[CheckerFinding],
@@ -1460,14 +1592,23 @@ fn print_all_findings(
         }
         Ok(())
     } else {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({
-                "taintFindings": findings,
-                "checkerFindings": checker_findings,
-            }))
-            .context("failed to serialize findings")?
-        );
+        #[derive(Serialize)]
+        struct ConsoleFindings<'a> {
+            #[serde(rename = "taintFindings")]
+            taint_findings: Vec<ConsoleTaintFinding<'a>>,
+            #[serde(rename = "checkerFindings")]
+            checker_findings: &'a [CheckerFinding],
+        }
+        let mut out = io::stdout().lock();
+        serde_json::to_writer_pretty(
+            &mut out,
+            &ConsoleFindings {
+                taint_findings: findings.iter().map(ConsoleTaintFinding::from).collect(),
+                checker_findings,
+            },
+        )
+        .context("failed to serialize findings")?;
+        writeln!(out).context("failed to finish findings output")?;
         Ok(())
     }
 }
@@ -1477,10 +1618,14 @@ fn print_findings(findings: &[TaintFinding], pretty: bool) -> Result<()> {
         print!("{}", pretty_findings(findings));
         Ok(())
     } else {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(findings).context("failed to serialize taint findings")?
-        );
+        let mut out = io::stdout().lock();
+        let compact = findings
+            .iter()
+            .map(ConsoleTaintFinding::from)
+            .collect::<Vec<_>>();
+        serde_json::to_writer_pretty(&mut out, &compact)
+            .context("failed to serialize taint findings")?;
+        writeln!(out).context("failed to finish findings output")?;
         Ok(())
     }
 }

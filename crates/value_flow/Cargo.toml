@@ -20,6 +20,7 @@ uniflow-ir = { path = "../ir" }
 uniflow-rules = { path = "../rules" }
 
 [dev-dependencies]
+uniflow-lang-c = { path = "../lang_c" }
 uniflow-lang-cpp = { path = "../lang_cpp" }
 uniflow-lang-java = { path = "../lang_java" }
 uniflow-parser-core = { path = "../parser_core" }

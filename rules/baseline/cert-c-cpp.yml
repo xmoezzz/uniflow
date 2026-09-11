@@ -923,6 +923,19 @@ rules:
     zh-CN: { title: 多个标签直接相邻, message: 直接相邻的多个标签是冗余的，应合并为一个标签。 }
     en: { title: A label directly labels another label, message: Combine directly adjacent labels into a single label. }
     zh-TW: { title: 多個標籤直接相鄰, message: 直接相鄰的多個標籤是多餘的，應合併為一個標籤。 }
+- id: ANZU-PARAMETER-TYPE-DECLARATION
+  title: Parameter must use type declaration
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: undeduced_parameter_type
+  standards: [LEGACY-MSG-0601000010140004]
+  message: Parameter must use type declaration
+  translations:
+    zh-CN: { title: 参数必须使用类型声明, message: 参数必须使用类型声明 }
+    en: { title: Parameter must use type declaration, message: Parameter must use type declaration }
+    zh-TW: { title: 參數必須使用型別宣告, message: 參數必須使用型別宣告 }
 - id: ANZU-ANONYMOUS-NESTED-AGGREGATE
   title: Anonymous aggregate is defined inside another record
   languages: [c, cpp]
@@ -1679,6 +1692,45 @@ rules:
     zh-CN: { title: 不安全的指针类型转换, message: 避免不兼容指针转换以及非 void 指针与整数之间的转换。 }
     en: { title: Unsafe pointer type conversion, message: Avoid incompatible pointer conversions and non-void pointer/integer conversions. }
     zh-TW: { title: 不安全的指標型別轉型, message: 避免不相容指標轉型以及非 void 指標與整數之間的轉型。 }
+- id: ANZU-POINTER-ASSIGNMENT-POINTER-MISMATCH
+  title: Pointer assignment uses an incompatible explicit pointer cast
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: pointer_assignment_pointer_mismatch
+  standards: [LEGACY-MSG-0701000010130076, LEGACY-MSG-0101000010110416]
+  message: The assignment type of a pointer variable must be consistent with the type of the pointer variable.
+  translations:
+    zh-CN: { title: 指针赋值类型不一致, message: 赋值给指针变量的类型必须与指针变量的类型一致。 }
+    en: { title: Pointer assignment type mismatch, message: The assignment type of a pointer variable must be consistent with the type of the pointer variable. }
+    zh-TW: { title: 指標指定型別不一致, message: 指定給指標變數的型別必須與指標變數的型別一致。 }
+- id: ANZU-UNPOINTER-AND-POINTER-ASSIGN
+  title: Pointer and integer assignment requires an explicit cast
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: un_pointer_and_pointer_assign
+  standards: ['0701000010130077']
+  message: When assigning a pointer variable to a non-pointer variable or assigning a non-pointer value to a pointer variable, a cast must be used.
+  translations:
+    zh-CN: { title: 指针与非指针赋值必须显式转换, message: 当将指针变量赋值给非指针变量或将非指针值赋值给指针变量时，必须使用类型转换。 }
+    en: { title: Pointer and integer assignment requires an explicit cast, message: When assigning a pointer variable to a non-pointer variable or assigning a non-pointer value to a pointer variable, a cast must be used. }
+    zh-TW: { title: 指標與非指標指定必須顯式轉型, message: 當將指標變數指定給非指標變數或將非指標值指定給指標變數時，必須使用型別轉換。 }
+- id: ANZU-CPP-ASSIGNMENT-SAFETY
+  title: Raw pointer address passed to overloaded assignment operator
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: assignment_safety
+  standards: [LEGACY-MSG-0101000010110405]
+  message: Shallow copying raw pointer in user-defined assignment operator can lead to issues.
+  translations:
+    zh-CN: { title: 用户定义赋值运算符中浅拷贝裸指针, message: 在用户定义的赋值运算符中浅拷贝裸指针可能导致问题。 }
+    en: { title: Raw pointer shallow copy in user-defined assignment operator, message: Shallow copying raw pointer in user-defined assignment operator can lead to issues. }
+    zh-TW: { title: 使用者定義指定運算子中淺拷貝裸指標, message: 在使用者定義的指定運算子中淺拷貝裸指標可能導致問題。 }
 - id: ANZU-CPP-STATIC-RECORD-POINTER-CAST
   title: static_cast converts between distinct record pointer types
   languages: [cpp]
@@ -3697,6 +3749,229 @@ rules:
     zh-CN: { title: 有符号位域宽度过小, message: 有符号位域宽度必须大于 1。 }
     en: { title: Signed bit-field width is too small, message: Signed bit-field width must be greater than 1. }
     zh-TW: { title: 有符號位元欄寬度過小, message: 有符號位元欄寬度必須大於 1。 }
+- id: ANZU-BIT-FIELD-SIZE
+  title: Signed bit-field width is less than two bits
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: signed_bit_field_width_at_most_one }
+  standards: ['0601000010140041']
+  message: Signed bit-field width is less than 2 bits.
+  translations:
+    zh-CN: { title: 有符号位域宽度小于两位, message: 有符号位域宽度小于 2 位。 }
+    en: { title: Signed bit-field width is less than two bits, message: Signed bit-field width is less than 2 bits. }
+    zh-TW: { title: 有符號位元欄寬度小於兩位, message: 有符號位元欄寬度小於 2 位。 }
+- id: ANZU-BIT-SIZE-TYPE
+  title: Bit-field width cast has a non-integer source
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: bit_field_width_non_integral_cast_source }
+  standards: ['0601000010140042']
+  message: The definition of a bit must be a signed or unsigned integer
+  translations:
+    zh-CN: { title: 位域宽度必须来自整数类型, message: 位的定义必须是有符号或无符号整数 }
+    en: { title: Bit-field width must use an integer type, message: The definition of a bit must be a signed or unsigned integer }
+    zh-TW: { title: 位元欄寬度必須來自整數型別, message: 位元的定義必須是有號或無號整數 }
+- id: ANZU-LOGICAL-EXPR-PAREN
+  title: Nested logical subexpression requires parentheses
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: logical_subexpression_without_parentheses }
+  standards: ['0601000010140020']
+  message: Expression in if statement should be a logical expression
+  translations:
+    zh-CN: { title: 嵌套逻辑子表达式需要括号, message: if语句中的表达应为逻辑表达式 }
+    en: { title: Nested logical subexpression requires parentheses, message: Expression in if statement should be a logical expression }
+    zh-TW: { title: 巢狀邏輯子運算式需要括號, message: if語句中的運算式應為邏輯運算式 }
+- id: ANZU-CONDITIONAL-OPERAND-PAREN
+  title: Ternary operands with operators require parentheses
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: conditional_operand_without_parentheses }
+  standards: ['0701000010130017']
+  message: Operands in logical discriminant expressions must use parentheses
+  translations:
+    zh-CN: { title: 三元表达式操作数需要括号, message: 逻辑判别表达式中的操作数必须使用括号 }
+    en: { title: Ternary operands with operators require parentheses, message: Operands in logical discriminant expressions must use parentheses }
+    zh-TW: { title: 三元運算式運算元需要括號, message: 邏輯判別運算式中的運算元必須使用括號 }
+- id: ANZU-NUM-ZERO-CAST-POINTER
+  title: Integer zero implicitly converted to a pointer
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: num_zero_cast_pointer }
+  standards: ['0701000010130028']
+  message: 0 should not be used as an pointer
+  translations:
+    zh-CN: { title: 整数零被隐式转换为指针, message: 0不应该被用作指针 }
+    en: { title: Integer zero implicitly converted to a pointer, message: 0 should not be used as an pointer }
+    zh-TW: { title: 整數零被隱式轉換為指標, message: 0不應該被用作指標 }
+- id: ANZU-NULL-AS-INT
+  title: nullptr converted to an integer
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: null_as_int }
+  standards: ['0701000010130098']
+  message: NULL should not be used as an integer 0
+  translations:
+    zh-CN: { title: nullptr 被转换为整数, message: NULL不能当作整数0来使用 }
+    en: { title: nullptr converted to an integer, message: NULL should not be used as an integer 0 }
+    zh-TW: { title: nullptr 被轉換為整數, message: NULL不能當作整數0來使用 }
+- id: ANZU-POINTER-MUST-BE-NULL-AFTER-FREE
+  title: Pointer should be set to NULL after release
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0701000010130024', '0101000010110263', '0901000010110263']
+  message: "{} should be set to NULL"
+  translations:
+    zh-CN: { title: 指针释放后应该设置为 NULL, message: "{} 应该设置为NULL" }
+    en: { title: Pointer should be set to NULL after release, message: "{} should be set to NULL" }
+    zh-TW: { title: 指標釋放後應該設定為 NULL, message: "{} 應該設定為NULL" }
+- id: ANZU-ALIGNED-ALLOC-REALLOC
+  title: Aligned allocation resized with realloc
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0101000010110423']
+  message: Memory allocated by aligned_alloc should not be resized using realloc().
+  translations:
+    zh-CN: { title: 对齐分配的内存使用 realloc 改变大小, message: 使用 aligned_alloc 分配的内存不应该用 realloc() 改变大小。 }
+    en: { title: Aligned allocation resized with realloc, message: Memory allocated by aligned_alloc should not be resized using realloc(). }
+    zh-TW: { title: 對齊分配的記憶體使用 realloc 改變大小, message: 使用 aligned_alloc 分配的記憶體不應該用 realloc() 改變大小。 }
+- id: ANZU-ARGUMENT-VALIDATION
+  title: ArgumentValidationChecker
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0101000010110430']
+  message: "Pointer argument '{}' might be null and should be validated."
+  translations:
+    zh-CN: { title: '', message: "指针参数 ‘{}’需要确认是否为空指针。" }
+    en: { title: ArgumentValidationChecker, message: "Pointer argument '{}' might be null and should be validated." }
+- id: ANZU-ARRAY-INDEX
+  title: ArrayIndexChecker2
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0701000010130047']
+  message: Array index is less than zero
+  translations:
+    zh-CN: { title: '', message: 数组索引小于0。 }
+    en: { title: ArrayIndexChecker2, message: Array index is less than zero }
+- id: ANZU-ARRAY-BOUND
+  title: ArrayBoundChecker2
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0201000010120009', '0301000010120009', '0501000010120009', '1301000010120009', '2401000010120009', '0701000010130046', '0601000010140037']
+  message: Array bound read/write exceeds size
+  translations:
+    zh-CN: { title: '', message: 数组读写越界。 }
+    en: { title: ArrayBoundChecker2, message: Array bound read/write exceeds size }
+- id: ANZU-CASE-BREAK
+  title: CheckCaseBreakChecker
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0101000010110479', '2401000010110479', '0601000010140029', '0101000010110279', '2401000010110279']
+  message: Case statement without break termination
+  translations:
+    zh-CN: { title: CheckCaseBreakChecker, message: Case语句没有以 break 终结。 }
+    en: { title: CheckCaseBreakChecker, message: Case statement without break termination }
+- id: ANZU-POINTER-RELATIONAL-COMPARISON
+  title: PointerComparisonChecker
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: pointer_relational_comparison }
+  standards: ['0701000010130083', '0601000010140033']
+  message: Comparison between pointers with relational operators is prohibited
+  translations:
+    zh-CN: { title: PointerComparisonChecker, message: 禁止指针与关系运算符之间的比较 }
+    en: { title: PointerComparisonChecker, message: Comparison between pointers with relational operators is prohibited }
+- id: ANZU-POINTER-ARITHMETIC
+  title: PointerArithmeticChecker
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: pointer_arithmetic }
+  standards: ['0601000010140034']
+  message: Pointer arithmetic detected
+  translations:
+    zh-CN: { title: PointerArithmeticChecker, message: 检测到指针算术运算 }
+    en: { title: PointerArithmeticChecker, message: Pointer arithmetic detected }
+    zh-TW: { title: PointerArithmeticChecker, message: 偵測到指標算術運算 }
+- id: ANZU-MIXED-TYPE-OPERATION
+  title: MixedTypeOperationChecker
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: mixed_type_operation }
+  standards: ['0601000010140054']
+  message: Mixed type operation
+  translations:
+    zh-CN: { title: MixedTypeOperationChecker, message: 混合类型操作 }
+    en: { title: MixedTypeOperationChecker, message: Mixed type operation }
+    zh-TW: { title: MixedTypeOperationChecker, message: 混合類型操作 }
+- id: ANZU-DISABLE-FOR-BODY-MODIFY-CTRL-VAR
+  title: For-loop control variable modified inside loop body
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: disable_for_body_modify_ctrl_var }
+  standards: ['0701000010130071']
+  message: Modifying the loop control variable inside the body of a for loop is prohibited.
+  translations:
+    zh-CN: { title: 禁止在 for 循环体中修改控制变量, message: 禁止修改for循环体内的循环控制变量。 }
+    en: { title: For-loop control variable modified inside loop body, message: Modifying the loop control variable inside the body of a for loop is prohibited. }
+    zh-TW: { title: 禁止在 for 迴圈體中修改控制變數, message: 禁止修改for迴圈體內的迴圈控制變數。 }
+- id: ANZU-UNUSED-STATIC-FUNCTION
+  title: Unused static function
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: unused_static_function }
+  standards: ['0701000010130064', '0601000010140058']
+  message: "The static function '{}' is defined but not used."
+  translations:
+    zh-CN: { title: 未使用的静态函数, message: "静态函数 ‘{}’ 定义但未使用。" }
+    en: { title: Unused static function, message: "The static function '{}' is defined but not used." }
+    zh-TW: { title: 未使用的靜態函式, message: "靜態函式 ‘{}’ 已定義但未使用。" }
+- id: ANZU-UNUSED-PARAMETER
+  title: Unused function parameter
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: unused_parameter }
+  standards: ['0601000010140061']
+  message: This parameter is not used in the function body
+  translations:
+    zh-CN: { title: 未使用的函数参数, message: 此参数没有在函数体中使用 }
+    en: { title: Unused function parameter, message: This parameter is not used in the function body }
+    zh-TW: { title: 未使用的函式參數, message: 此參數沒有在函式主體中使用 }
+- id: ANZU-RETURN-TYPE
+  title: Return type mismatch
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: return_type_mismatch }
+  standards: ['0601000010140075', '0701000010130061']
+  message: "Return type mismatch between return and definition. Expected '{0}' but defined as '{1}'."
+  translations:
+    zh-CN: { title: 返回类型不匹配, message: "返回类型和定义不匹配。期望 ‘{0}’ 实际定义为 ‘{1}’" }
+    en: { title: Return type mismatch, message: "Return type mismatch between return and definition. Expected '{0}' but defined as '{1}'." }
+    zh-TW: { title: 返回類型不匹配, message: "返回類型和定義不匹配。期望 ‘{0}’ 實際定義為 ‘{1}’" }
 - id: ANZU-PLAIN-CHAR-ARITHMETIC-OPERAND
   title: Plain char used in arithmetic
   languages: *id001
@@ -3805,6 +4080,42 @@ rules:
     zh-CN: { title: 重定义标准库函数, message: 覆盖标准库函数会导致未定义行为。 }
     en: { title: Standard library function is redefined, message: Redefining a standard library function can lead to undefined behavior. }
     zh-TW: { title: 重新定義標準函式庫函式, message: 覆寫標準函式庫函式可能導致未定義行為。 }
+- id: ANZU-CPP-ALLOCATION-DEALLOCATION-SCALAR-PAIR
+  title: Allocation and deallocation operators are not overloaded together
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_declaration: allocation_deallocation_scalar_pair }
+  standards: [LEGACY-MSG-0101000010110331]
+  message: When overloading one of the allocation/deallocation functions like operator new and operator delete, both should be overloaded in the same scope.
+  translations:
+    zh-CN:
+      title: 分配与释放运算符未成对重载
+      message: 应该在同一作用域中重载类似于 operator new and operator delete 的分配/释放函数。
+    en:
+      title: Allocation and deallocation operators are not overloaded together
+      message: When overloading one of the allocation/deallocation functions like operator new and operator delete, both should be overloaded in the same scope.
+    zh-TW:
+      title: 配置與釋放運算子未成對多載
+      message: 應該在同一作用域中多載類似於 operator new and operator delete 的配置/釋放函式。
+- id: ANZU-CPP-ALLOCATION-DEALLOCATION-ARRAY-PAIR
+  title: Array allocation and deallocation operators are not overloaded together
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_declaration: allocation_deallocation_array_pair }
+  standards: [LEGACY-MSG-0101000010110331]
+  message: "When overloading one of the allocation/deallocation functions like operator new[] and operator delete[], both should be overloaded in the same scope."
+  translations:
+    zh-CN:
+      title: 数组分配与释放运算符未成对重载
+      message: "应该在同一作用域中重载类似于 operator new[] and operator delete[] 的分配/释放函数。"
+    en:
+      title: Array allocation and deallocation operators are not overloaded together
+      message: "When overloading one of the allocation/deallocation functions like operator new[] and operator delete[], both should be overloaded in the same scope."
+    zh-TW:
+      title: 陣列配置與釋放運算子未成對多載
+      message: "應該在同一作用域中多載類似於 operator new[] and operator delete[] 的配置/釋放函式。"
 - id: ANZU-NEGATED-COMPARISON-IF-CONDITION
   title: Comparison is negated as a whole
   languages: *id001
@@ -4009,6 +4320,30 @@ rules:
     zh-CN: { title: 数值与变量类型不一致, message: 禁止赋入数值类别或常量范围与变量类型不一致的值。 }
     en: { title: Assigned numeric value is inconsistent with the variable type, message: Do not assign a value whose numeric category or constant range is inconsistent with the variable type. }
     zh-TW: { title: 數值與變數型別不一致, message: 禁止指定數值類別或常數範圍與變數型別不一致的值。 }
+- id: ANZU-MAGIC-NUMBER
+  title: Magic number used in a function body
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: magic_number_literal }
+  standards: ['0101000010110156', '0101000010110437']
+  message: Replace the magic numeric literal with a named constant.
+  translations:
+    zh-CN: { title: 函数体中使用魔数, message: 使用命名常量替换魔数数值字面量。 }
+    en: { title: Magic number used in a function body, message: Replace the magic numeric literal with a named constant. }
+    zh-TW: { title: 函式本體中使用魔數, message: 使用命名常數取代魔數數值字面值。 }
+- id: ANZU-STRUCT-SIZEOF
+  title: Struct allocation assumes member sizes equal record size
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: struct_sizeof_allocation }
+  standards: ['0101000010110439', '0101000010110187']
+  message: Do not assume the size of a class or struct is the sum of the sizes of its members
+  translations:
+    zh-CN: { title: 结构体分配忽略成员间填充, message: 不要假设类或结构体的大小是其成员大小的总和 }
+    en: { title: Struct allocation assumes member sizes equal record size, message: Do not assume the size of a class or struct is the sum of the sizes of its members }
+    zh-TW: { title: 結構體配置忽略成員間填充, message: 不要假設類別或結構體的大小是其成員大小的總和 }
 - id: ANZU-HARDCODED-CRYPTO-KEY
   title: Hardcoded cryptographic key
   languages: *id001
@@ -4035,3 +4370,39 @@ rules:
     zh-CN: { title: 使用弱加密或哈希函数, message: 请勿使用弱加密算法或哈希函数。 }
     en: { title: Weak OpenSSL encryption or digest function, message: Do not use weak encryption algorithms or hash functions. }
     zh-TW: { title: 使用弱加密或雜湊函式, message: 請勿使用弱加密演算法或雜湊函式。 }
+- id: ANZU-ARGUMENT-COUNT-MISMATCH
+  title: Function call argument count mismatch
+  languages: [c, cpp]
+  severity: error
+  confidence: high
+  matcher: { c_expression: argument_count_mismatch }
+  standards: ['0701000010130058', '0601000010140056', '2801000010180005', '0101000010110157', '0901000010110157']
+  message: 'Argument count mismatch: Expected {} arguments but provided {}.'
+  translations:
+    zh-CN: { title: 函数调用参数数量不匹配, message: '参数数量不匹配：期望提供 {} 个参数，实际提供 {} 个参数。' }
+    en: { title: Function call argument count mismatch, message: 'Argument count mismatch: Expected {} arguments but provided {}.' }
+    zh-TW: { title: 函式呼叫參數數量不匹配, message: '參數數量不匹配：期望提供 {} 個參數，實際提供 {} 個參數。' }
+- id: ANZU-ARGUMENT-TYPE-MISMATCH
+  title: Function call argument type mismatch
+  languages: [c, cpp]
+  severity: error
+  confidence: high
+  matcher: { c_expression: argument_type_mismatch }
+  standards: ['0701000010130057', '0601000010140060', '0201000010120100', '2401000010120100', '0101000010110142']
+  message: "Argument type mismatch: Expected '{}' but provided '{}'."
+  translations:
+    zh-CN: { title: 函数调用参数类型不匹配, message: "参数类型不匹配：期望 ‘{}’类型，实际得到‘{}’类型。" }
+    en: { title: Function call argument type mismatch, message: "Argument type mismatch: Expected '{}' but provided '{}'." }
+    zh-TW: { title: 函式呼叫參數型別不匹配, message: "參數型別不匹配：期望 ‘{}’型別，實際得到‘{}’型別。" }
+- id: ANZU-VALUE-DEPEND-SEQUENCE-POINT
+  title: Evaluation order relied on between sequence points
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: value_depend_sequence_point }
+  standards: ['0101000010110201', '0901000010110201', '2401000010110201', '0101000010110440', '0901000010110440', '2401000010110440', '0101000010110192', '0901000010110192', '0101000010110450', '0901000010110450']
+  message: Do not rely on the evaluation order between sequence points
+  translations:
+    zh-CN: { title: 依赖序列点之间的求值顺序, message: 不依赖序列点之间的生成顺序 }
+    en: { title: Evaluation order relied on between sequence points, message: Do not rely on the evaluation order between sequence points }
+    zh-TW: { title: 依賴序列點之間的求值順序, message: 不依賴序列點之間的生成順序 }

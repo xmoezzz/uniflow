@@ -3,7 +3,8 @@ use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use uniflow_rules::{
-    expand_port, language_matches, Port, RuleMetadata, RuleSet, RuleTranslations, TaintCondition,
+    expand_port, language_matches, ApiMatcherIndex, Port, RuleMetadata, RuleSet,
+    RuleTranslations, TaintCondition,
 };
 use uniflow_value_flow::{
     DemandEngine, DemandQuery, DemandSeed, EdgeKind, FlowGraph, FlowNode, QueryCompleteness,
@@ -72,6 +73,36 @@ struct LabelTransformEdge {
     remove_compatible: bool,
 }
 
+type LabelTransformMap = HashMap<usize, Vec<LabelTransformEdge>>;
+
+// A project can have hundreds of broad source and sink models. Materializing a
+// witness (labels, locations, and every edge) for their Cartesian product is
+// not useful to a reviewer and used to exhaust memory before the CLI could
+// print a result. The limit is explicit in the returned findings below.
+const MAX_MATERIALIZED_TAINT_FINDINGS: usize = 512;
+
+/// Rule-family indexes are built once per taint run. They preserve the final
+/// matcher check while avoiding an O(calls × all-models) regex walk.
+struct TaintMatcherIndex<'a> {
+    sanitizers: ApiMatcherIndex<'a>,
+    transforms: ApiMatcherIndex<'a>,
+    propagators: ApiMatcherIndex<'a>,
+}
+
+impl<'a> TaintMatcherIndex<'a> {
+    fn new(rules: &'a RuleSet) -> Self {
+        Self {
+            sanitizers: ApiMatcherIndex::new(rules.sanitizers.iter().map(|rule| &rule.matcher)),
+            transforms: ApiMatcherIndex::new(
+                rules.taint_transforms.iter().map(|rule| &rule.matcher),
+            ),
+            propagators: ApiMatcherIndex::new(
+                rules.propagators.iter().map(|rule| &rule.matcher),
+            ),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct TraversalState {
     node: NodeIndex,
@@ -85,13 +116,18 @@ fn default_true() -> bool {
 }
 
 pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
-    let label_transforms = build_label_transform_map(flow, rules);
-    let receiver_side_labels = build_receiver_side_labels(flow, rules);
+    let matcher_index = TaintMatcherIndex::new(rules);
+    let label_transforms = build_label_transform_map(flow, rules, &matcher_index);
+    let receiver_side_labels = build_receiver_side_labels(flow, rules, &matcher_index);
     let source_seeds = collect_source_seeds(flow);
+    let sink_seeds = collect_sink_seeds(flow);
+    let mut backward_cache = HashMap::new();
+    let mut kind_transform_cache = HashMap::<(String, String), bool>::new();
     let mut findings = Vec::new();
     let mut seen = HashSet::new();
+    let mut result_limit_reached = false;
 
-    for source in source_seeds {
+    'sources: for source in source_seeds {
         let forward_query = DemandQuery {
             seeds: vec![DemandSeed::Node(source.node.index())],
             direction: SparseDirection::Forward,
@@ -99,18 +135,31 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
             include_heap: true,
         };
         let forward_plan = flow.solver_plan_for_query(&forward_query);
-        let Some(forward_summary) = flow.execute_solver_plan(&forward_plan) else {
-            continue;
-        };
-        let forward_nodes = forward_summary
-            .traversal
-            .visited
-            .iter()
-            .copied()
-            .collect::<HashSet<_>>();
+        let forward_nodes = flow.one_shot_node_reachability(
+            source.node,
+            forward_plan.query.direction,
+            forward_plan.query.engine,
+            forward_plan.max_depth,
+            forward_plan.max_visits,
+            forward_plan.query.include_heap,
+        );
 
-        for sink in collect_candidate_sinks(flow, &forward_nodes) {
-            if !kind_can_transform_to(rules, &source.kind, &sink.kind) {
+        for sink in sink_seeds
+            .iter()
+            .filter(|sink| forward_nodes.contains(sink.node.index()))
+        {
+            if findings.len() >= MAX_MATERIALIZED_TAINT_FINDINGS {
+                result_limit_reached = true;
+                break 'sources;
+            }
+            let kind_key = (
+                normalize_kind(&source.kind).to_string(),
+                normalize_kind(&sink.kind).to_string(),
+            );
+            let kind_reachable = *kind_transform_cache
+                .entry(kind_key.clone())
+                .or_insert_with(|| kind_can_transform_to(rules, &kind_key.0, &kind_key.1));
+            if !kind_reachable {
                 continue;
             }
             if !source_event_can_reach_sink(flow, source.node, sink.node) {
@@ -127,21 +176,16 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
                 include_heap: true,
             };
             let backward_plan = flow.solver_plan_for_query(&backward_query);
-            let Some(backward_summary) = flow.execute_solver_plan(&backward_plan) else {
-                continue;
-            };
-            let backward_nodes = backward_summary
-                .traversal
-                .visited
-                .iter()
-                .copied()
-                .collect::<HashSet<_>>();
-            let mut allowed_nodes = forward_nodes
-                .intersection(&backward_nodes)
-                .copied()
-                .collect::<HashSet<_>>();
-            allowed_nodes.insert(source.node.index());
-            allowed_nodes.insert(sink.node.index());
+            let backward_nodes = backward_cache.entry(sink.node.index()).or_insert_with(|| {
+                flow.one_shot_node_reachability(
+                    sink.node,
+                    backward_plan.query.direction,
+                    backward_plan.query.engine,
+                    backward_plan.max_depth,
+                    backward_plan.max_visits,
+                    backward_plan.query.include_heap,
+                )
+            });
 
             let context_limit = forward_plan
                 .max_depth
@@ -154,15 +198,16 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
                 &receiver_side_labels,
                 &source,
                 &sink,
-                &allowed_nodes,
+                &forward_nodes,
+                backward_nodes,
                 context_limit,
             ) else {
                 continue;
             };
 
             let mut completeness = merge_completeness(
-                forward_summary.traversal.completeness,
-                backward_summary.traversal.completeness,
+                forward_nodes.completeness,
+                backward_nodes.completeness,
             );
             if context_truncated {
                 completeness =
@@ -194,8 +239,41 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
         }
     }
 
+    if result_limit_reached {
+        findings.push(taint_result_limit_finding());
+    }
+
     findings.extend(lifetime_findings(flow));
+    findings.extend(native_dataflow_findings(flow, rules));
     findings
+}
+
+fn taint_result_limit_finding() -> TaintFinding {
+    TaintFinding {
+        source_rule_id: "UNIFLOW-TAINT-RESULT-LIMIT".to_string(),
+        sink_rule_id: "UNIFLOW-TAINT-RESULT-LIMIT".to_string(),
+        source_kind: "analysis-limit".to_string(),
+        sink_kind: "analysis-limit".to_string(),
+        sink_node: 0,
+        path: Vec::new(),
+        source_label: "taint finding budget".to_string(),
+        sink_label: "taint finding budget".to_string(),
+        source_location: "@analysis".to_string(),
+        sink_location: "@analysis".to_string(),
+        path_labels: Vec::new(),
+        steps: Vec::new(),
+        finding_kind: "analysis-limit".to_string(),
+        severity: "warning".to_string(),
+        message: format!(
+            "Taint result budget of {MAX_MATERIALIZED_TAINT_FINDINGS} findings reached; refine rule IDs or split the scan to inspect additional results."
+        ),
+        rule_title: "Taint result limit reached".to_string(),
+        cwe: Vec::new(),
+        standards: Vec::new(),
+        translations: RuleTranslations::default(),
+        analysis_complete: false,
+        completeness: QueryCompleteness::VisitLimitReached,
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -205,10 +283,9 @@ struct SinkSeed {
     kind: String,
 }
 
-fn collect_candidate_sinks(flow: &FlowGraph, forward_nodes: &HashSet<usize>) -> Vec<SinkSeed> {
+fn collect_sink_seeds(flow: &FlowGraph) -> Vec<SinkSeed> {
     flow.synthetic_sinks
         .iter()
-        .filter(|node| forward_nodes.contains(&node.index()))
         .filter_map(|node| match &flow.graph[*node] {
             FlowNode::SyntheticSink { rule_id, kind, .. } => Some(SinkSeed {
                 node: *node,
@@ -307,11 +384,12 @@ fn sink_condition_matches(
 fn find_contextual_path_to_sink(
     flow: &FlowGraph,
     rules: &RuleSet,
-    label_transforms: &[LabelTransformEdge],
+    label_transforms: &LabelTransformMap,
     receiver_side_labels: &HashMap<(u32, u32), Vec<String>>,
     source: &SourceSeed,
     sink: &SinkSeed,
-    allowed_nodes: &HashSet<usize>,
+    forward_nodes: &uniflow_value_flow::DemandReachability,
+    backward_nodes: &uniflow_value_flow::DemandReachability,
     context_limit: usize,
 ) -> Option<(Vec<usize>, bool, Vec<String>)> {
     let start = TraversalState {
@@ -356,7 +434,11 @@ fn find_contextual_path_to_sink(
         }
         for edge in flow.graph.edges(state.node) {
             let next_node = edge.target();
-            if !allowed_nodes.contains(&next_node.index()) {
+            let next_index = next_node.index();
+            if next_node != source.node
+                && next_node != sink.node
+                && !(forward_nodes.contains(next_index) && backward_nodes.contains(next_index))
+            {
                 continue;
             }
             let Some(mut next_state) =
@@ -620,7 +702,7 @@ fn build_finding(
             .map(|item| item.severity.clone())
             .unwrap_or_else(|| fallback_severity.to_string()),
         message: metadata
-            .map(|item| item.message.clone())
+            .map(|item| truncate_finding_translation(&item.message))
             .filter(|message| !message.trim().is_empty())
             .unwrap_or(fallback_message),
         rule_title: metadata.map(|item| item.title.clone()).unwrap_or_default(),
@@ -629,7 +711,7 @@ fn build_finding(
             .map(|item| item.standards.clone())
             .unwrap_or_default(),
         translations: metadata
-            .map(|item| item.translations.clone())
+            .map(|item| compact_finding_translations(item.translations.clone()))
             .unwrap_or_default(),
         analysis_complete: completeness == QueryCompleteness::Complete,
         completeness,
@@ -662,7 +744,7 @@ fn lifetime_findings(flow: &FlowGraph) -> Vec<TaintFinding> {
                 steps: Vec::new(),
                 finding_kind: "lifetime".to_string(),
                 severity: diagnostic.severity.clone(),
-                message: diagnostic.message.clone(),
+                message: truncate_finding_translation(&diagnostic.message),
                 rule_title: diagnostic.message.clone(),
                 cwe: Vec::new(),
                 standards: Vec::new(),
@@ -674,18 +756,136 @@ fn lifetime_findings(flow: &FlowGraph) -> Vec<TaintFinding> {
         .collect()
 }
 
-fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTransformEdge> {
-    let mut transforms = Vec::new();
+fn native_dataflow_findings(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
+    flow.native_dataflow_diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            rules.native_dataflow_rules.iter().any(|rule| {
+                rule.id == diagnostic.rule_id && language_matches(&rule.language, &flow.language)
+            })
+        })
+        .map(|diagnostic| {
+            let node = flow
+                .values
+                .get(&(diagnostic.function, diagnostic.value))
+                .copied();
+            let path = node.map(|node| vec![node.index()]).unwrap_or_default();
+            let location = flow.span_text(&diagnostic.span);
+            let metadata = rules.metadata_for(&diagnostic.rule_id);
+            let message = metadata
+                .map(|metadata| format_message_template(&metadata.message, &diagnostic.message_args))
+                .filter(|message| !message.trim().is_empty())
+                .unwrap_or_else(|| diagnostic.message.clone());
+            let translations = metadata
+                .map(|metadata| {
+                    let mut translations = metadata.translations.clone();
+                    if let Some(text) = translations.zh_cn.as_mut() {
+                        text.message =
+                            format_message_template(&text.message, &diagnostic.message_args);
+                    }
+                    if let Some(text) = translations.en.as_mut() {
+                        text.message =
+                            format_message_template(&text.message, &diagnostic.message_args);
+                    }
+                    if let Some(text) = translations.zh_tw.as_mut() {
+                        text.message =
+                            format_message_template(&text.message, &diagnostic.message_args);
+                    }
+                    translations
+                })
+                .unwrap_or_default();
+            TaintFinding {
+                source_rule_id: diagnostic.rule_id.clone(),
+                sink_rule_id: diagnostic.rule_id.clone(),
+                source_kind: diagnostic.finding_kind.clone(),
+                sink_kind: diagnostic.finding_kind.clone(),
+                sink_node: node.map(NodeIndex::index).unwrap_or(0),
+                path: path.clone(),
+                source_label: message.clone(),
+                sink_label: message.clone(),
+                source_location: location.clone(),
+                sink_location: location,
+                path_labels: vec![message.clone()],
+                steps: Vec::new(),
+                finding_kind: diagnostic.finding_kind.clone(),
+                severity: metadata
+                    .map(|metadata| metadata.severity.clone())
+                    .filter(|severity| !severity.trim().is_empty())
+                    .unwrap_or_else(|| diagnostic.severity.clone()),
+                message: truncate_finding_translation(&message),
+                rule_title: metadata
+                    .map(|metadata| metadata.title.clone())
+                    .unwrap_or_else(|| diagnostic.rule_id.clone()),
+                cwe: metadata.map(|metadata| metadata.cwe.clone()).unwrap_or_default(),
+                standards: metadata
+                    .map(|metadata| metadata.standards.clone())
+                    .unwrap_or_default(),
+                translations: compact_finding_translations(translations),
+                analysis_complete: true,
+                completeness: QueryCompleteness::Complete,
+            }
+        })
+        .collect()
+}
+
+// Legacy rule packs may embed full knowledge-base articles (including long
+// code samples) in each localized message. A finding is intentionally a
+// compact scan result, while the RuleSet remains the canonical full catalog.
+// Capping the per-finding copy prevents an N-findings × N-locales allocation
+// explosion without losing the title or actionable opening of the message.
+const MAX_FINDING_TRANSLATION_BYTES: usize = 4_096;
+
+fn compact_finding_translations(mut translations: RuleTranslations) -> RuleTranslations {
+    for text in [
+        &mut translations.zh_cn,
+        &mut translations.en,
+        &mut translations.zh_tw,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        text.title = truncate_finding_translation(&text.title);
+        text.message = truncate_finding_translation(&text.message);
+    }
+    translations
+}
+
+fn truncate_finding_translation(text: &str) -> String {
+    if text.len() <= MAX_FINDING_TRANSLATION_BYTES {
+        return text.to_string();
+    }
+    let mut end = MAX_FINDING_TRANSLATION_BYTES;
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}\n[truncated; see bundled rule catalog for full text]", &text[..end])
+}
+
+fn format_message_template(template: &str, args: &[String]) -> String {
+    let mut formatted = template.to_string();
+    for arg in args {
+        formatted = formatted.replacen("{}", arg, 1);
+    }
+    formatted
+}
+
+fn build_label_transform_map(
+    flow: &FlowGraph,
+    rules: &RuleSet,
+    matcher_index: &TaintMatcherIndex<'_>,
+) -> LabelTransformMap {
+    let mut transforms = LabelTransformMap::new();
     for ((func, inst), meta) in &flow.call_meta {
         let Some(call_info) = meta.as_call_info() else {
             continue;
         };
-        for rule in &rules.sanitizers {
+        matcher_index.sanitizers.for_each_candidate(&call_info, |position| {
+            let rule = &rules.sanitizers[position];
             if !language_matches(&rule.language, &flow.language)
                 || !rule.matcher.matches_call(&call_info)
                 || !rules.call_condition_matches(&rule.id, &call_info)
             {
-                continue;
+                return;
             }
             let arg_count = call_info.arg_count.unwrap_or(0);
             let outputs = rule
@@ -696,7 +896,7 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
             if rule.inputs.is_empty() {
                 for output in outputs {
                     if let Some(to) = flow.call_ports.get(&(*func, *inst, output)).copied() {
-                        transforms.push(LabelTransformEdge {
+                        transforms.entry(to.index()).or_default().push(LabelTransformEdge {
                             from: None,
                             to: to.index(),
                             add_kinds: Vec::new(),
@@ -705,7 +905,7 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
                         });
                     }
                 }
-                continue;
+                return;
             }
             for input in rule
                 .inputs
@@ -719,7 +919,7 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
                         .get(&(*func, *inst, output.clone()))
                         .copied();
                     if let (Some(from), Some(to)) = (from, to) {
-                        transforms.push(LabelTransformEdge {
+                        transforms.entry(to.index()).or_default().push(LabelTransformEdge {
                             from: Some(from.index()),
                             to: to.index(),
                             add_kinds: Vec::new(),
@@ -729,13 +929,14 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
                     }
                 }
             }
-        }
-        for rule in &rules.taint_transforms {
+        });
+        matcher_index.transforms.for_each_candidate(&call_info, |position| {
+            let rule = &rules.taint_transforms[position];
             if !language_matches(&rule.language, &flow.language)
                 || !rule.matcher.matches_call(&call_info)
                 || !rules.call_condition_matches(&rule.id, &call_info)
             {
-                continue;
+                return;
             }
             let arg_count = call_info.arg_count.unwrap_or(0);
             let outputs = rule
@@ -746,7 +947,7 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
             if rule.inputs.is_empty() {
                 for output in outputs {
                     if let Some(to) = flow.call_ports.get(&(*func, *inst, output)).copied() {
-                        transforms.push(LabelTransformEdge {
+                        transforms.entry(to.index()).or_default().push(LabelTransformEdge {
                             from: None,
                             to: to.index(),
                             add_kinds: rule.add_kinds.clone(),
@@ -755,7 +956,7 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
                         });
                     }
                 }
-                continue;
+                return;
             }
             for input in rule
                 .inputs
@@ -769,7 +970,7 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
                         .get(&(*func, *inst, output.clone()))
                         .copied();
                     if let (Some(from), Some(to)) = (from, to) {
-                        transforms.push(LabelTransformEdge {
+                        transforms.entry(to.index()).or_default().push(LabelTransformEdge {
                             from: Some(from.index()),
                             to: to.index(),
                             add_kinds: rule.add_kinds.clone(),
@@ -779,7 +980,7 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
                     }
                 }
             }
-        }
+        });
     }
     for node in flow.graph.node_indices() {
         let FlowNode::FieldCell {
@@ -802,9 +1003,10 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
                 if !matches!(edge.weight().kind, EdgeKind::LoadField { .. }) {
                     continue;
                 }
-                transforms.push(LabelTransformEdge {
+                let target = edge.target().index();
+                transforms.entry(target).or_default().push(LabelTransformEdge {
                     from: Some(node.index()),
-                    to: edge.target().index(),
+                    to: target,
                     add_kinds: Vec::new(),
                     remove_kinds: vec![rule.kind.clone()],
                     remove_compatible: true,
@@ -824,6 +1026,7 @@ fn build_label_transform_map(flow: &FlowGraph, rules: &RuleSet) -> Vec<LabelTran
 fn build_receiver_side_labels(
     flow: &FlowGraph,
     rules: &RuleSet,
+    matcher_index: &TaintMatcherIndex<'_>,
 ) -> HashMap<(u32, u32), Vec<String>> {
     let mut calls = flow.call_meta.iter().collect::<Vec<_>>();
     calls.sort_by_key(|((func, inst), _)| (func.0, inst.0));
@@ -842,14 +1045,15 @@ fn build_receiver_side_labels(
         let mut receiver_labels = labels_for_keys(&object_labels, &receiver_keys);
         labels_at_call.insert((func.0, inst.0), receiver_labels.iter().cloned().collect());
 
-        for rule in &rules.taint_transforms {
+        matcher_index.transforms.for_each_candidate(&call_info, |position| {
+            let rule = &rules.taint_transforms[position];
             if !rule.inputs.is_empty()
                 || !rule.outputs.iter().any(|output| output == &Port::Receiver)
                 || !language_matches(&rule.language, &flow.language)
                 || !rule.matcher.matches_call(&call_info)
                 || !rules.call_condition_matches(&rule.id, &call_info)
             {
-                continue;
+                return;
             }
             for key in &receiver_keys {
                 let labels = object_labels.entry(key.clone()).or_default();
@@ -865,21 +1069,25 @@ fn build_receiver_side_labels(
                         .map(|kind| normalize_kind(kind).to_string()),
                 );
             }
-        }
+        });
 
         receiver_labels = labels_for_keys(&object_labels, &receiver_keys);
         if receiver_labels.is_empty() {
             continue;
         }
-        let transfers_receiver_to_return = rules.propagators.iter().any(|rule| {
-            language_matches(&rule.language, &flow.language)
-                && rule.matcher.matches_call(&call_info)
-                && rules.call_condition_matches(&rule.id, &call_info)
-                && rule
-                    .flows
-                    .iter()
-                    .any(|spec| spec.from == Port::Receiver && spec.to == Port::Return)
-        });
+        let mut transfers_receiver_to_return = false;
+        matcher_index
+            .propagators
+            .for_each_candidate(&call_info, |position| {
+                let rule = &rules.propagators[position];
+                transfers_receiver_to_return |= language_matches(&rule.language, &flow.language)
+                    && rule.matcher.matches_call(&call_info)
+                    && rules.call_condition_matches(&rule.id, &call_info)
+                    && rule
+                        .flows
+                        .iter()
+                        .any(|spec| spec.from == Port::Receiver && spec.to == Port::Return);
+            });
         if !transfers_receiver_to_return {
             continue;
         }
@@ -981,24 +1189,22 @@ fn field_owner_candidates(flow: &FlowGraph, owner: &str) -> Vec<String> {
 }
 
 fn transformed_labels(
-    transforms: &[LabelTransformEdge],
+    transforms: &LabelTransformMap,
     labels: &[String],
     from: NodeIndex,
     to: NodeIndex,
 ) -> Vec<String> {
-    let applicable = transforms
-        .iter()
-        .filter(|edge| {
-            edge.from
-                .is_none_or(|transform_from| transform_from == from.index())
-                && edge.to == to.index()
-        })
-        .collect::<Vec<_>>();
-    if applicable.is_empty() {
+    let Some(applicable) = transforms.get(&to.index()) else {
         return labels.to_vec();
-    }
+    };
     let mut result = labels.iter().cloned().collect::<BTreeSet<_>>();
-    for edge in applicable {
+    let mut changed = false;
+    for edge in applicable.iter().filter(|edge| {
+        debug_assert_eq!(edge.to, to.index());
+        edge.from
+            .is_none_or(|transform_from| transform_from == from.index())
+    }) {
+        changed = true;
         result.retain(|label| {
             !edge.remove_kinds.iter().any(|removed| {
                 if edge.remove_compatible {
@@ -1013,6 +1219,9 @@ fn transformed_labels(
                 .iter()
                 .map(|kind| normalize_kind(kind).to_string()),
         );
+    }
+    if !changed {
+        return labels.to_vec();
     }
     result.into_iter().collect()
 }
@@ -2263,6 +2472,86 @@ int main() {
         assert_eq!(findings[0].source_rule_id, "c-getenv");
         assert_eq!(findings[0].sink_rule_id, "c-system");
         assert!(findings[0].path_labels.len() >= 5);
+    }
+
+    #[test]
+    fn reports_cpp_argument_validation_native_dataflow_with_legacy_metadata() {
+        let findings = analyze_source(
+            Language::Cpp,
+            "argument_validation.cpp",
+            "void consume(int *value) {} void run() { int *p = nullptr; consume(p); }",
+        );
+        let finding = findings
+            .iter()
+            .find(|finding| finding.sink_rule_id == "ANZU-ARGUMENT-VALIDATION")
+            .expect("native argument-validation finding");
+        assert_eq!(finding.finding_kind, "native-dataflow");
+        assert_eq!(finding.severity, "warning");
+        assert_eq!(finding.standards, ["0101000010110430"]);
+        assert_eq!(
+            finding.message,
+            "Pointer argument 'value' might be null and should be validated."
+        );
+        assert_eq!(
+            finding.translations.zh_cn.as_ref().map(|text| text.message.as_str()),
+            Some("指针参数 ‘value’需要确认是否为空指针。")
+        );
+        assert!(finding.translations.zh_tw.is_none());
+    }
+
+    #[test]
+    fn reports_c_array_index_native_dataflow_with_legacy_metadata() {
+        let findings = analyze_source(
+            Language::C,
+            "array_index.c",
+            "int run(int *a, int i) { return a[i]; }",
+        );
+        let finding = findings
+            .iter()
+            .find(|finding| finding.sink_rule_id == "ANZU-ARRAY-INDEX")
+            .expect("native array-index finding");
+        assert_eq!(finding.finding_kind, "native-dataflow");
+        assert_eq!(finding.severity, "warning");
+        assert_eq!(finding.standards, ["0701000010130047"]);
+        assert_eq!(finding.message, "Array index is less than zero");
+        assert_eq!(
+            finding.translations.zh_cn.as_ref().map(|text| text.message.as_str()),
+            Some("数组索引小于0。")
+        );
+        assert!(finding.translations.zh_tw.is_none());
+    }
+
+    #[test]
+    fn reports_c_array_bound_native_dataflow_with_legacy_metadata() {
+        let findings = analyze_source(
+            Language::C,
+            "array_bound.c",
+            "int run(void) { int a[2]; return a[2]; }",
+        );
+        let finding = findings
+            .iter()
+            .find(|finding| finding.sink_rule_id == "ANZU-ARRAY-BOUND")
+            .expect("native array-bound finding");
+        assert_eq!(finding.finding_kind, "native-dataflow");
+        assert_eq!(finding.severity, "warning");
+        assert_eq!(
+            finding.standards,
+            [
+                "0201000010120009",
+                "0301000010120009",
+                "0501000010120009",
+                "1301000010120009",
+                "2401000010120009",
+                "0701000010130046",
+                "0601000010140037",
+            ]
+        );
+        assert_eq!(finding.message, "Array bound read/write exceeds size");
+        assert_eq!(
+            finding.translations.zh_cn.as_ref().map(|text| text.message.as_str()),
+            Some("数组读写越界。")
+        );
+        assert!(finding.translations.zh_tw.is_none());
     }
 
     #[test]

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::c_expression_rules::evaluate_c_constant_integer;
 use std::collections::{HashMap, HashSet};
 use uniflow_parser_core::c_declarations::{
-    CDeclaration, CDeclarationIndex, CDeclarator, DerivedDeclarator as D,
+    CDeclaration, CDeclarationIndex, CDeclarator, CFunctionContext, DerivedDeclarator as D,
 };
 use uniflow_parser_core::TokKind;
 
@@ -13,6 +13,7 @@ pub enum CDeclarationCheck {
     NonVoidMissingReturn,
     NonVoidEmptyReturn,
     EmptyDefinitionParameters,
+    UndeducedParameterType,
     UnnamedParameter,
     UnnamedAggregate,
     UnionInsideStruct,
@@ -68,6 +69,8 @@ pub enum CDeclarationCheck {
     ClassConversionOperator,
     DefaultArgumentInVirtualMethod,
     StandardLibraryFunctionRedefinition,
+    AllocationDeallocationScalarPair,
+    AllocationDeallocationArrayPair,
 }
 
 impl CDeclarationCheck {
@@ -157,6 +160,27 @@ impl CDeclarationCheck {
                             .then_some(declaration.range.start)
                     })
                 }));
+            }
+            Self::AllocationDeallocationScalarPair => {
+                offsets.extend(allocation_deallocation_offsets(index, false));
+            }
+            Self::AllocationDeallocationArrayPair => {
+                offsets.extend(allocation_deallocation_offsets(index, true));
+            }
+            Self::UndeducedParameterType => {
+                for function in &index.functions {
+                    offsets.extend(
+                        direct_parameters(index, function.parameters.clone())
+                            .into_iter()
+                            .filter(|parameter| parameter.undeduced_type)
+                            .map(|parameter| {
+                                parameter
+                                    .name_range
+                                    .as_ref()
+                                    .map_or(parameter.range.start, |range| range.start)
+                            }),
+                    );
+                }
             }
             Self::UnnamedParameter => {
                 for declaration in &index.declarations {
@@ -1189,6 +1213,136 @@ impl CDeclarationCheck {
     }
 }
 
+#[derive(Default)]
+struct AllocationPairState {
+    has_new: bool,
+    has_delete: bool,
+    has_array_new: bool,
+    has_array_delete: bool,
+    last_scalar: Option<usize>,
+    last_array: Option<usize>,
+    last_operator: Option<usize>,
+}
+
+fn update_allocation_pair(state: &mut AllocationPairState, name: &str, offset: usize, all: bool) {
+    match name {
+        "operator new" => {
+            state.has_new = true;
+            state.last_scalar = Some(state.last_scalar.map_or(offset, |last| last.max(offset)));
+        }
+        "operator delete" => {
+            state.has_delete = true;
+            state.last_scalar = Some(state.last_scalar.map_or(offset, |last| last.max(offset)));
+        }
+        "operator new[]" => {
+            state.has_array_new = true;
+            state.last_array = Some(state.last_array.map_or(offset, |last| last.max(offset)));
+        }
+        "operator delete[]" => {
+            state.has_array_delete = true;
+            state.last_array = Some(state.last_array.map_or(offset, |last| last.max(offset)));
+        }
+        _ => {}
+    }
+    if all && name.starts_with("operator") {
+        state.last_operator = Some(state.last_operator.map_or(offset, |last| last.max(offset)));
+    }
+}
+
+fn allocation_deallocation_offsets(index: &CDeclarationIndex, array: bool) -> Vec<usize> {
+    let defined_records = index
+        .aggregates
+        .iter()
+        .filter(|aggregate| {
+            aggregate.kind != "enum"
+                && aggregate.body.is_some()
+                && !aggregate.qualified_name.is_empty()
+        })
+        .map(|aggregate| aggregate.qualified_name.as_str())
+        .collect::<HashSet<_>>();
+    let mut records = HashMap::<String, AllocationPairState>::new();
+
+    for declaration in &index.declarations {
+        if !declaration.in_aggregate {
+            continue;
+        }
+        let owner = declaration.qualification.join("::");
+        if !defined_records.contains(owner.as_str()) {
+            continue;
+        }
+        for declarator in &declaration.declarators {
+            if !matches!(declarator.derived.first(), Some(D::Function { .. })) {
+                continue;
+            }
+            if let Some(name) = declarator.name.as_deref() {
+                update_allocation_pair(
+                    records.entry(owner.clone()).or_default(),
+                    name,
+                    declaration.range.start,
+                    false,
+                );
+            }
+        }
+    }
+
+    for function in &index.functions {
+        let CFunctionContext::Record { qualified_name } = &function.context else {
+            continue;
+        };
+        if !defined_records.contains(qualified_name.as_str()) {
+            continue;
+        }
+        update_allocation_pair(
+            records.entry(qualified_name.clone()).or_default(),
+            &function.name,
+            function.range.start,
+            false,
+        );
+    }
+
+    let mut offsets = records
+        .values()
+        .filter_map(|state| {
+            if array {
+                (state.has_array_new != state.has_array_delete)
+                    .then_some(state.last_array)
+                    .flatten()
+            } else {
+                (state.has_new != state.has_delete)
+                    .then_some(state.last_scalar)
+                    .flatten()
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let mut free_functions = HashMap::<String, AllocationPairState>::new();
+    for function in &index.functions {
+        let domain = match &function.context {
+            CFunctionContext::TranslationUnit => "".to_string(),
+            CFunctionContext::Namespace { name, .. } => name.clone(),
+            CFunctionContext::Record { .. } | CFunctionContext::Other => continue,
+        };
+        if !function.name.starts_with("operator") {
+            continue;
+        }
+        update_allocation_pair(
+            free_functions.entry(domain).or_default(),
+            &function.name,
+            function.range.start,
+            true,
+        );
+    }
+    offsets.extend(free_functions.values().filter_map(|state| {
+        let mismatch = if array {
+            state.has_array_new != state.has_array_delete
+        } else {
+            state.has_new != state.has_delete
+        };
+        mismatch.then_some(state.last_operator).flatten()
+    }));
+    offsets
+}
+
 fn uninitialized_pointer_offsets(index: &CDeclarationIndex) -> Vec<usize> {
     index
         .declarations
@@ -1453,6 +1607,8 @@ fn method_parameter_signature(
             for derived in &parameter.derived {
                 signature.push_str(match derived {
                     D::Pointer => "*",
+                    D::Reference => "&",
+                    D::RvalueReference => "&&",
                     D::MemberPointer => "::*",
                     D::Array { .. } => "[]",
                     D::Function { .. } => "()",

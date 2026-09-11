@@ -153,6 +153,46 @@ fn migrated_c_parameter_rules_handle_function_pointer_descendants() {
 }
 
 #[test]
+fn anzu_parameter_type_checker_requires_definition_and_undeduced_type() {
+    let rule = "ANZU-PARAMETER-TYPE-DECLARATION";
+    let source = r#"
+void prototype(auto only_declared);
+void concrete(int typed, auto first, const auto& second) { }
+#define MACRO_PARAMETER auto hidden
+void macro_origin(MACRO_PARAMETER) { }
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules.retain(|candidate| candidate.id == rule);
+    assert_eq!(pack.rules.len(), 1, "missing {rule}");
+
+    let findings = pack.scan_text(&Language::Cpp, Path::new("parameter_type.cpp"), source);
+    assert_eq!(
+        findings
+            .iter()
+            .map(|finding| (finding.line, finding.column, finding.message.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            (3, 31, "Parameter must use type declaration"),
+            (3, 50, "Parameter must use type declaration"),
+        ],
+        "{findings:#?}"
+    );
+
+    let hir = parse_c_like_file(Language::Cpp, "parameter_type.cpp", source).unwrap();
+    let integrated = pack.scan_hir(
+        &hir,
+        &HashMap::from([("parameter_type.cpp".into(), source.into())]),
+    );
+    assert_eq!(
+        integrated
+            .iter()
+            .map(|finding| (finding.line, finding.column))
+            .collect::<Vec<_>>(),
+        vec![(3, 31), (3, 50)]
+    );
+}
+
+#[test]
 fn migrated_c_aggregate_array_and_extern_rules_keep_declaration_gates() {
     check(
         "LEGACY-C-AST-no-unnamed-struct",
@@ -969,6 +1009,98 @@ void free_function(int value = 6);
         .collect::<Vec<_>>(),
         coordinates
     );
+}
+
+#[test]
+fn anzu_allocation_deallocation_checker_preserves_record_and_namespace_pairing() {
+    fn scan(rule: &str, source: &str) -> Vec<(usize, usize, String)> {
+        static PACK: OnceLock<BaselinePack> = OnceLock::new();
+        let mut pack = PACK
+            .get_or_init(|| builtin_security_pack().expect("pack"))
+            .clone();
+        pack.rules.retain(|candidate| candidate.id == rule);
+        assert_eq!(pack.rules.len(), 1, "missing {rule}");
+        pack.scan_text(&Language::Cpp, Path::new("allocation.cpp"), source)
+            .into_iter()
+            .map(|finding| (finding.line, finding.column, finding.message))
+            .collect()
+    }
+
+    let scalar = "ANZU-CPP-ALLOCATION-DEALLOCATION-SCALAR-PAIR";
+    let array = "ANZU-CPP-ALLOCATION-DEALLOCATION-ARRAY-PAIR";
+
+    let source = r#"struct ScalarBad {
+    void* operator new(unsigned long size);
+};
+struct ScalarGood {
+    void* operator new(unsigned long size);
+    void operator delete(void* ptr);
+};
+struct ArrayBad {
+    void* operator new[](unsigned long size);
+};
+struct ArrayGood {
+    void* operator new[](unsigned long size);
+    void operator delete[](void* ptr);
+};
+namespace product {
+struct Box {
+    void* operator new(unsigned long size);
+    void operator delete(void* ptr);
+};
+void* Box::operator new(unsigned long size) { return 0; }
+void Box::operator delete(void* ptr) { }
+}
+namespace first {
+void* operator new(unsigned long size) { return 0; }
+Token operator+(Token lhs, Token rhs) { return lhs; }
+}
+namespace second {
+void operator delete(void* ptr) { }
+}
+namespace left { namespace same {
+void* operator new(unsigned long size) { return 0; }
+} }
+namespace right { namespace same {
+void operator delete(void* ptr) { }
+} }
+void* operator new(unsigned long size) { return 0; }
+void operator delete(void* ptr) { }
+void* operator new[](unsigned long size) { return 0; }
+void operator delete[](void* ptr) { }
+"#;
+
+    let scalar_findings = scan(scalar, source);
+    assert_eq!(
+        scalar_findings
+            .iter()
+            .map(|finding| (finding.0, finding.1))
+            .collect::<Vec<_>>(),
+        vec![(2, 5), (25, 1), (28, 1)]
+    );
+    assert!(scalar_findings
+        .iter()
+        .all(|finding| finding.2.contains("operator new and operator delete")));
+
+    let array_findings = scan(array, source);
+    assert_eq!(
+        array_findings
+            .iter()
+            .map(|finding| (finding.0, finding.1))
+            .collect::<Vec<_>>(),
+        vec![(9, 5)]
+    );
+    assert!(array_findings[0]
+        .2
+        .contains("operator new[] and operator delete[]"));
+
+    // The legacy checker keys free-function state only by the immediate
+    // namespace name, so the two `same` namespaces intentionally collide.
+    let mut c_pack = builtin_security_pack().expect("pack");
+    c_pack.rules.retain(|candidate| candidate.id == scalar);
+    assert!(c_pack
+        .scan_text(&Language::C, Path::new("allocation.c"), source)
+        .is_empty());
 }
 
 #[test]

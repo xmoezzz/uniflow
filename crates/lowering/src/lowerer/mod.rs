@@ -2,12 +2,13 @@ use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 use uniflow_hir::{
     Block, CallExpr, CallTarget, CppConstructorInitializerKind, CppValueSemantics, Expr,
-    Function as HirFunction, Item, LValue, Language, LiteralKind, Module, Program, SourceMap, Stmt,
-    SymbolId, TypeId,
+    Function as HirFunction, Item, LValue, Language, LiteralKind, Module, Program, SourceMap,
+    SourceOriginKind, SourceOriginRange, Stmt, SymbolId, TypeId,
 };
 use uniflow_ir::{
-    BasicBlock, BlockId, CallInst, Callee, ExceptionEdge, Function, FunctionId, InstId, InstKind,
-    Instruction, Program as IrProgram, SourceFile as IrSourceFile, Terminator, Type, ValueId,
+    BasicBlock, BlockId, CallInst, Callee, ComparisonOp, ExceptionEdge, Function, FunctionId,
+    InstId, InstKind, Instruction, Program as IrProgram, SourceFile as IrSourceFile, Terminator,
+    Type, ValueId,
 };
 
 include!("entry.rs");

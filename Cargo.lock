@@ -79,6 +79,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -613,6 +622,7 @@ dependencies = [
  "clap",
  "indicatif",
  "regex-syntax",
+ "serde",
  "serde_json",
  "serde_yaml",
  "uniflow-baseline",
@@ -723,6 +733,8 @@ dependencies = [
  "indexmap",
  "uniflow-hir",
  "uniflow-ir",
+ "uniflow-lang-c",
+ "uniflow-lang-cpp",
  "uniflow-lang-frontends",
  "uniflow-lang-java",
  "uniflow-lang-python",
@@ -734,6 +746,7 @@ name = "uniflow-models"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "regex",
  "regex-syntax",
  "serde",
@@ -778,6 +791,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "regex",
+ "regex-syntax",
  "serde",
  "serde_yaml",
  "uniflow-hir",
@@ -806,6 +820,7 @@ dependencies = [
  "serde",
  "uniflow-hir",
  "uniflow-ir",
+ "uniflow-lang-c",
  "uniflow-lang-cpp",
  "uniflow-lang-java",
  "uniflow-lang-python",

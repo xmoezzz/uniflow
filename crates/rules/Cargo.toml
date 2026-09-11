@@ -8,6 +8,7 @@ authors.workspace = true
 [dependencies]
 anyhow.workspace = true
 regex.workspace = true
+regex-syntax.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 uniflow-hir = { path = "../hir" }

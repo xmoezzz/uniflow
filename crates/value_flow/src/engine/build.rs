@@ -4,11 +4,179 @@ pub struct BuildProgress {
     pub detail: String,
 }
 
+/// Expensive whole-program capabilities that may be materialized while
+/// building a flow graph.  The public `build` APIs intentionally request the
+/// full set for backwards compatibility; project scans can derive the smaller
+/// set actually required by the selected rules and the IR they are scanning.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AnalysisCapabilities {
+    pub points_to: bool,
+    pub heap: bool,
+    pub dynamic_calls: bool,
+    pub global_closure: bool,
+}
+
+impl AnalysisCapabilities {
+    pub const fn full() -> Self {
+        Self {
+            points_to: true,
+            heap: true,
+            dynamic_calls: true,
+            global_closure: true,
+        }
+    }
+
+    /// Derive the least expensive solver plan that preserves the selected
+    /// taint rules.  Direct assignments and statically resolved calls are
+    /// already connected during the initial graph build, so they do not need
+    /// points-to/global closure. Heap projections and dynamic calls do.
+    pub fn for_rules(program: &Program, rules: &RuleSet) -> Self {
+        if !rules_require_flow(rules) {
+            return Self {
+                points_to: false,
+                heap: false,
+                dynamic_calls: false,
+                global_closure: false,
+            };
+        }
+
+        let mut program_has_heap = false;
+        let mut program_has_dynamic_calls = false;
+        for function in &program.functions {
+            for block in &function.blocks {
+                for inst in &block.insts {
+                    match &inst.kind {
+                        InstKind::LoadField { .. }
+                        | InstKind::StoreField { .. }
+                        | InstKind::LoadIndex { .. }
+                        | InstKind::StoreIndex { .. } => program_has_heap = true,
+                        InstKind::Call(call) if matches!(call.callee, Callee::Dynamic(_)) => {
+                            program_has_dynamic_calls = true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        let heap = program_has_heap || rules_require_heap(rules);
+        let dynamic_calls = program_has_dynamic_calls;
+        let points_to = heap || dynamic_calls;
+        Self {
+            points_to,
+            heap,
+            dynamic_calls,
+            // Project/rule-driven scans keep the whole-program summary closure
+            // lazy. Static calls are wired during the initial graph build,
+            // heap projections are connected by `bridge_internal_heap_cells`,
+            // and dynamic calls are resolved explicitly below. Demand queries
+            // can still build contextual/function summaries on demand without
+            // eagerly retaining every global closure table in memory.
+            //
+            // `build()` / `build_with_progress()` continue to request
+            // `AnalysisCapabilities::full()` for callers that explicitly need
+            // the historical fully-materialized graph.
+            global_closure: false,
+        }
+    }
+}
+
+fn rules_require_flow(rules: &RuleSet) -> bool {
+    !rules.sources.is_empty()
+        || !rules.sinks.is_empty()
+        || !rules.unused_return_sinks.is_empty()
+        || !rules.sanitizers.is_empty()
+        || !rules.taint_transforms.is_empty()
+        || !rules.propagators.is_empty()
+        || !rules.summaries.is_empty()
+        || !rules.field_sources.is_empty()
+        || !rules.named_value_sources.is_empty()
+        || !rules.field_sinks.is_empty()
+        || !rules.index_sinks.is_empty()
+        || !rules.field_sanitizers.is_empty()
+        || !rules.function_sources.is_empty()
+        || !rules.function_sinks.is_empty()
+}
+
+fn port_requires_heap(port: &Port) -> bool {
+    matches!(port, Port::Member(_))
+}
+
+fn rules_require_heap(rules: &RuleSet) -> bool {
+    !rules.field_sources.is_empty()
+        || !rules.field_sinks.is_empty()
+        || !rules.index_sinks.is_empty()
+        || !rules.field_sanitizers.is_empty()
+        || rules.sources.iter().any(|rule| port_requires_heap(&rule.out))
+        || rules
+            .sinks
+            .iter()
+            .flat_map(|rule| &rule.inputs)
+            .any(port_requires_heap)
+        || rules
+            .sanitizers
+            .iter()
+            .flat_map(|rule| rule.inputs.iter().chain(&rule.outputs))
+            .any(port_requires_heap)
+        || rules
+            .taint_transforms
+            .iter()
+            .flat_map(|rule| rule.inputs.iter().chain(&rule.outputs))
+            .any(port_requires_heap)
+        || rules
+            .propagators
+            .iter()
+            .flat_map(|rule| &rule.flows)
+            .any(|flow| port_requires_heap(&flow.from) || port_requires_heap(&flow.to))
+        || rules
+            .summaries
+            .iter()
+            .flat_map(|rule| &rule.flows)
+            .any(|flow| port_requires_heap(&flow.from) || port_requires_heap(&flow.to))
+        || rules
+            .function_sources
+            .iter()
+            .any(|rule| port_requires_heap(&rule.out))
+        || rules
+            .function_sinks
+            .iter()
+            .flat_map(|rule| &rule.inputs)
+            .any(port_requires_heap)
+}
+
 pub fn build(program: &Program, rules: &RuleSet) -> FlowGraph {
     build_with_progress(program, rules, |_| {})
 }
 
 pub fn build_with_progress<F>(program: &Program, rules: &RuleSet, mut on_progress: F) -> FlowGraph
+where
+    F: FnMut(BuildProgress),
+{
+    // The public build API is the compatibility path: preserve the historical
+    // fully materialized graph semantics. Rule-driven callers that need lazy
+    // planning should use `build_for_rules_with_progress`.
+    let capabilities = AnalysisCapabilities::full();
+    build_with_capabilities(program, rules, capabilities, &mut on_progress)
+}
+
+pub fn build_for_rules_with_progress<F>(
+    program: &Program,
+    rules: &RuleSet,
+    mut on_progress: F,
+) -> FlowGraph
+where
+    F: FnMut(BuildProgress),
+{
+    let capabilities = AnalysisCapabilities::for_rules(program, rules);
+    build_with_capabilities(program, rules, capabilities, &mut on_progress)
+}
+
+pub fn build_with_capabilities<F>(
+    program: &Program,
+    rules: &RuleSet,
+    capabilities: AnalysisCapabilities,
+    mut on_progress: F,
+) -> FlowGraph
 where
     F: FnMut(BuildProgress),
 {
@@ -22,17 +190,52 @@ where
     });
     let mut fg = FlowGraph::default();
     fg.language = program.language.clone();
+    let argument_validation_enabled = rules.native_dataflow_rules.iter().any(|rule| {
+        rule.id == ANZU_ARGUMENT_VALIDATION_RULE_ID
+            && language_matches(&rule.language, &program.language)
+    });
+    let array_index_enabled = rules.native_dataflow_rules.iter().any(|rule| {
+        rule.id == ANZU_ARRAY_INDEX_RULE_ID && language_matches(&rule.language, &program.language)
+    });
+    let array_bound_enabled = rules.native_dataflow_rules.iter().any(|rule| {
+        rule.id == ANZU_ARRAY_BOUND_RULE_ID && language_matches(&rule.language, &program.language)
+    });
+    let case_break_enabled = rules.native_dataflow_rules.iter().any(|rule| {
+        rule.id == ANZU_CASE_BREAK_RULE_ID && language_matches(&rule.language, &program.language)
+    });
+    if argument_validation_enabled && matches!(program.language, Language::Cpp) {
+        fg.nullness_before_insts = analyze_program_nullness(program);
+    }
+    if (array_index_enabled || array_bound_enabled)
+        && matches!(program.language, Language::C | Language::Cpp)
+    {
+        fg.native_dataflow_diagnostics
+            .extend(analyze_array_safety_diagnostics(
+                program,
+                array_index_enabled,
+                array_bound_enabled,
+            ));
+    }
+    if case_break_enabled && matches!(program.language, Language::C | Language::Cpp) {
+        fg.native_dataflow_diagnostics
+            .extend(analyze_case_break_diagnostics(program));
+    }
     for file in &program.source_files {
         fg.file_paths.insert(file.id, file.path.clone());
     }
     for (ty, parents) in &program.type_hierarchy {
         fg.type_hierarchy.insert(ty.clone(), parents.clone());
     }
-    let (lifetime_states, lifetime_block_states, lifetime_diagnostics) =
-        analyze_program_lifetimes(program);
-    fg.lifetime_states = lifetime_states;
-    fg.lifetime_block_states = lifetime_block_states;
-    fg.lifetime_diagnostics = lifetime_diagnostics;
+    if matches!(
+        program.language,
+        Language::C | Language::Cpp | Language::ObjC | Language::ObjCpp
+    ) {
+        let (lifetime_states, lifetime_block_states, lifetime_diagnostics) =
+            analyze_program_lifetimes(program);
+        fg.lifetime_states = lifetime_states;
+        fg.lifetime_block_states = lifetime_block_states;
+        fg.lifetime_diagnostics = lifetime_diagnostics;
+    }
     for function in &program.functions {
         for (value, semantics) in &function.value_cpp {
             fg.value_cpp
@@ -83,6 +286,7 @@ where
         detail: format!("{} candidate callees", program.functions.len()),
     });
     let func_index = FunctionIndex::new(program);
+    let rule_index = RuleMatcherIndex::new(rules);
 
     on_progress(BuildProgress {
         stage: "scan-function-bodies",
@@ -157,8 +361,14 @@ where
                 fg.inst_control_positions
                     .insert((func.id, inst.id), (block.id, position));
                 match &inst.kind {
-                    InstKind::ConstInt { .. } | InstKind::ConstString { .. } => {}
-                    InstKind::Copy { dst, src } | InstKind::NumericStep { dst, src, .. } => {
+                    InstKind::ConstInt { .. } | InstKind::ConstString { .. }
+                    | InstKind::Compare { .. } => {}
+                    InstKind::Copy { dst, src }
+                    | InstKind::NumericStep { dst, src, .. }
+                    | InstKind::NumericNeg { dst, src } => {
+                        edge_value_to_value(&mut fg, func.id, *src, *dst, EdgeKind::Assign);
+                    }
+                    InstKind::Deref { dst, src } => {
                         edge_value_to_value(&mut fg, func.id, *src, *dst, EdgeKind::Assign);
                     }
                     InstKind::Move { dst, src } => {
@@ -359,8 +569,18 @@ where
                             &literal_index_keys,
                         );
                         connect_builtin_language_call_semantics(&mut fg, func, call);
+                        let resolved_callees = func_index.resolve_call(&meta);
+                        if argument_validation_enabled {
+                            emit_argument_validation_diagnostics(
+                                &mut fg,
+                                func,
+                                inst,
+                                call,
+                                &resolved_callees,
+                            );
+                        }
                         let mut resolved_targets = Vec::new();
-                        for callee_func in func_index.resolve_call(&meta) {
+                        for callee_func in resolved_callees {
                             if !resolved_targets
                                 .iter()
                                 .any(|existing| existing == &callee_func.name)
@@ -384,12 +604,31 @@ where
                             // Escape/consume effects are handled by the CFG-sensitive lifetime
                             // solver using typed reference and ownership semantics.
                         }
-                        connect_rule_summaries(&mut fg, rules, func.id, inst.id, call, &meta);
+                        connect_rule_summaries(
+                            &mut fg,
+                            rules,
+                            &rule_index,
+                            func.id,
+                            inst.id,
+                            call,
+                            &meta,
+                        );
                         attach_rule_sources_and_sinks(
-                            &mut fg, rules, func.id, inst.id, call, &meta,
+                            &mut fg,
+                            rules,
+                            &rule_index,
+                            func.id,
+                            inst.id,
+                            call,
+                            &meta,
                         );
                         attach_unused_return_sinks(
-                            &mut fg, rules, func.id, inst.id, call, &meta,
+                            &mut fg,
+                            rules,
+                            func.id,
+                            inst.id,
+                            call,
+                            &meta,
                         );
                     }
                 }
@@ -455,25 +694,58 @@ where
         detail: format!("{} graph nodes", fg.graph.node_count()),
     });
     materialize_sparse_data_adjacency(&mut fg);
-    materialize_points_to_fixpoint(&mut fg);
-    materialize_points_to_targets_fixpoint(&mut fg);
-    materialize_points_to_object_ids(&mut fg);
-    materialize_points_to_partitions(&mut fg);
     on_progress(BuildProgress {
-        stage: "bridge-internal-heap-cells",
-        detail: format!("{} functions", program.functions.len()),
+        stage: "sparse-summary",
+        detail: format!(
+            "{} nodes, {} edges, {} sparse edges",
+            fg.graph.node_count(),
+            fg.graph.edge_count(),
+            fg.sparse_successors.values().map(|v| v.len()).sum::<usize>()
+        ),
     });
-    // Return projections must exist before resolving a callback returned from
-    // an internal function. Bridges only consult direct IR-derived cells.
-    bridge_internal_heap_cells(&mut fg, program);
-    materialize_sparse_data_adjacency(&mut fg);
-    resolve_dynamic_internal_calls(&mut fg, program, &func_index, rules);
-    materialize_sparse_data_adjacency(&mut fg);
-    on_progress(BuildProgress {
-        stage: "global-closure-1",
-        detail: format!("{} functions", program.functions.len()),
-    });
-    materialize_global_solver_closure(&mut fg, program);
+    if capabilities.points_to {
+        on_progress(BuildProgress {
+            stage: "points-to",
+            detail: format!("{} graph nodes", fg.graph.node_count()),
+        });
+        materialize_points_to_fixpoint(&mut fg);
+        materialize_points_to_targets_fixpoint(&mut fg);
+        materialize_points_to_object_ids(&mut fg);
+        materialize_points_to_partitions(&mut fg);
+        on_progress(BuildProgress {
+            stage: "points-to-summary",
+            detail: format!(
+                "{} targets, {} objects",
+                fg.node_points_to_targets.len(),
+                fg.abstract_objects.len()
+            ),
+        });
+    }
+    if capabilities.heap {
+        on_progress(BuildProgress {
+            stage: "bridge-internal-heap-cells",
+            detail: format!("{} functions", program.functions.len()),
+        });
+        // Return projections must exist before resolving a callback returned from
+        // an internal function. Bridges only consult direct IR-derived cells.
+        bridge_internal_heap_cells(&mut fg, program);
+        materialize_sparse_data_adjacency(&mut fg);
+    }
+    if capabilities.dynamic_calls {
+        on_progress(BuildProgress {
+            stage: "resolve-dynamic-calls",
+            detail: format!("{} functions", program.functions.len()),
+        });
+        resolve_dynamic_internal_calls(&mut fg, program, &func_index, rules, &rule_index);
+        materialize_sparse_data_adjacency(&mut fg);
+    }
+    if capabilities.global_closure {
+        on_progress(BuildProgress {
+            stage: "global-closure-1",
+            detail: format!("{} functions", program.functions.len()),
+        });
+        materialize_global_solver_closure(&mut fg, program);
+    }
     // All existing structural bridges participate in the global closure.
     on_progress(BuildProgress {
         stage: "sparse-adjacency-3",

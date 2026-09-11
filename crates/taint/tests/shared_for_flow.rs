@@ -111,10 +111,56 @@ void run(int ready) {
     char *value = "safe";
     for (; ready; value = input()) { sink(value); continue; }
 }
+
 "#
         ),
         1
     );
+}
+
+#[test]
+fn language_frontends_carry_taint_through_the_unified_flow_engine() {
+    let cases = [
+        (
+            Language::C,
+            "char *input(void); void sink(char *); void run(void) { char *value = input(); sink(value); }",
+        ),
+        (
+            Language::Cpp,
+            "char *input(); void sink(char *); void run() { auto value = input(); sink(value); }",
+        ),
+        (
+            Language::Java,
+            "class Demo { String input() { return \"\"; } void sink(String value) {} void run() { String value = input(); sink(value); } }",
+        ),
+        (
+            Language::Python,
+            "def run():\n  value = input()\n  sink(value)\n",
+        ),
+        (
+            Language::Kotlin,
+            "fun run() { val value = input(); sink(value) }",
+        ),
+        (
+            Language::Swift,
+            "func run() { let value = input(); sink(value) }",
+        ),
+        (
+            Language::Ruby,
+            "def run\n  value = input()\n  sink(value)\nend\n",
+        ),
+        (
+            Language::Rust,
+            "fn run() { let value = input(); sink(value); }",
+        ),
+        (
+            Language::Shell,
+            "function run() {\n  value=$(input marker)\n  sink \"$value\"\n}\n",
+        ),
+    ];
+    for (language, source) in cases {
+        assert_eq!(check(language.clone(), source), 1, "{language:?}");
+    }
 }
 
 #[test]

@@ -147,6 +147,7 @@ fn portable_models(language: Language) -> RuleSet {
         field_sanitizers: vec![],
         function_sources: vec![],
         function_sinks: vec![],
+        native_dataflow_rules: vec![],
         model_dependencies: vec![],
     }
 }

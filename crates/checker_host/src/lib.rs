@@ -124,6 +124,12 @@ impl CheckerManager {
         self.checkers.iter().all(|checker| !checker.enabled)
     }
 
+    pub fn has_subscriber(&self, kind: &str) -> bool {
+        self.checkers
+            .iter()
+            .any(|checker| manifest_is_active_subscriber(&checker.manifest, checker.enabled, kind))
+    }
+
     pub fn manifests(&self) -> Vec<CheckerManifest> {
         self.checkers
             .iter()
@@ -201,6 +207,10 @@ impl CheckerManager {
         }
         Ok(findings)
     }
+}
+
+fn manifest_is_active_subscriber(manifest: &CheckerManifest, enabled: bool, kind: &str) -> bool {
+    enabled && manifest.subscribes_to(kind)
 }
 
 struct ManagedChecker {
@@ -1026,6 +1036,28 @@ mod tests {
         let mut manifest = manifest();
         manifest.event_kinds = vec!["call".to_string(), "call".to_string()];
         assert!(validate_manifest(&manifest, CHECKER_ABI_VERSION_V2, Path::new("test")).is_err());
+    }
+
+    #[test]
+    fn subscriber_gate_requires_enabled_checker_and_matching_event() {
+        let mut manifest = manifest();
+        manifest.event_kinds = vec![uniflow_checker_api::event_kind::HIR_PROGRAM.to_string()];
+
+        assert!(manifest_is_active_subscriber(
+            &manifest,
+            true,
+            uniflow_checker_api::event_kind::HIR_PROGRAM,
+        ));
+        assert!(!manifest_is_active_subscriber(
+            &manifest,
+            false,
+            uniflow_checker_api::event_kind::HIR_PROGRAM,
+        ));
+        assert!(!manifest_is_active_subscriber(
+            &manifest,
+            true,
+            uniflow_checker_api::event_kind::IR_PROGRAM,
+        ));
     }
 
     #[test]

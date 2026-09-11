@@ -55,6 +55,31 @@ impl FunctionLoweringContext<'_> {
                         symbol_types.insert(*symbol, name.clone());
                         value_types.insert(dst, name);
                     }
+                    let array_extents = self
+                        .owner
+                        .program_symbols
+                        .get(symbol)
+                        .map(|symbol| symbol.array_extents.clone())
+                        .unwrap_or_default();
+                    if !array_extents.is_empty() {
+                        let mut lowered_extents = Vec::with_capacity(array_extents.len());
+                        for extent in array_extents {
+                            let value = extent.map(|extent| {
+                                self.lower_expr(
+                                    &extent,
+                                    &mut insts,
+                                    &mut value_map,
+                                    symbol_types,
+                                    locals,
+                                    value_types,
+                                    value_spans,
+                                )
+                                .0
+                            });
+                            lowered_extents.push(value);
+                        }
+                        self.value_array_extents.insert(dst, lowered_extents);
+                    }
                     if let Some(expr) = init {
                         let (src, inferred) = self.lower_expr(
                             expr,
@@ -172,6 +197,10 @@ impl FunctionLoweringContext<'_> {
                     value_spans,
                 ),
                 Stmt::Return { value, .. } => {
+                    // Keep the source ReturnStmt distinct from the implicit
+                    // function-exit `Return(None)` used by IR. Legacy CFG
+                    // checkers inspect statement elements, not terminators.
+                    self.source_return_blocks.insert(current_id);
                     let return_value = value.as_ref().map(|expr| {
                         self.lower_expr(
                             expr,
@@ -219,6 +248,7 @@ impl FunctionLoweringContext<'_> {
                         continue;
                     };
                     let _ = span;
+                    self.source_break_blocks.insert(current_id);
                     return self.lower_abrupt_transfer(
                         AbruptTransfer::Break, Terminator::Goto(target), current_id, insts,
                         value_map, symbol_types, locals, value_types, value_spans,
@@ -311,6 +341,11 @@ impl FunctionLoweringContext<'_> {
                     span,
                     ..
                 } => {
+                    // Preserve the source-level `SwitchStmt` terminator.  A
+                    // few legacy path-sensitive checkers intentionally treat
+                    // encountering a child switch as a terminating condition;
+                    // lowering otherwise erases that distinction into gotos.
+                    self.source_switch_blocks.insert(current_id);
                     // Case dispatch stays conservative: every clause body
                     // remains reachable because value equality is not resolved
                     // at lowering time. That is sound for value flow and taint,
@@ -357,6 +392,18 @@ impl FunctionLoweringContext<'_> {
                     }
                     let mut envs = vec![value_map.clone()];
                     for (index, clause) in clauses.iter().enumerate() {
+                        if !clause.values.is_empty() {
+                            let from_macro = span_has_source_origin(
+                                &self.owner.source_origins,
+                                clause.span,
+                                SourceOriginKind::MacroExpansion,
+                            );
+                            self.source_case_blocks.push((
+                                body_ids[index],
+                                clause.span,
+                                from_macro,
+                            ));
+                        }
                         // C-style fallthrough continues into the next body (or
                         // the default), otherwise control reaches the switch join.
                         let next_body = body_ids

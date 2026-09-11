@@ -6,6 +6,11 @@ pub struct Symbol {
     pub declared_in: Option<ModuleId>,
     pub span: Span,
     pub attributes: IndexMap<String, String>,
+    /// Source-level array extents, outermost dimension first. `None` preserves
+    /// an explicitly unsized/unknown dimension such as `int a[]` while later
+    /// dimensions remain available for nested indexing.
+    #[serde(default)]
+    pub array_extents: Vec<Option<Expr>>,
     #[serde(default)]
     pub cpp: Option<CppSymbolSemantics>,
 }
@@ -43,5 +48,4 @@ pub enum TypeKind {
     },
     Unknown,
 }
-
 

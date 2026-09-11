@@ -16,11 +16,12 @@ pub fn parse_c_like_file(
     path: &str,
     source: &str,
 ) -> Result<uniflow_hir::Program> {
-    let source = preprocess_c_source(source);
-    let source = normalize_c_surface(&source);
-    let source = strip_c_like_comments(&source);
+    let source = preprocess_c_source_with_origins(source);
+    let source = normalize_c_surface_tracked(source);
+    let macro_ranges = source.macro_ranges();
+    let source = strip_c_like_comments(&source.text);
     let module_name = module_name_from_path(path);
-    let mut builder = ModuleBuilder::new(language, path, &module_name);
+    let mut builder = ModuleBuilder::new(language.clone(), path, &module_name);
     parse_includes(&source, &mut builder);
 
     let classes = extract_struct_items(&source, &mut builder);
@@ -55,6 +56,7 @@ pub fn parse_c_like_file(
         let hir_func = parse_function(
             &mut builder,
             &func,
+            language.clone(),
             &known_functions,
             &struct_field_types,
             &function_pointer_typedefs,
@@ -62,17 +64,57 @@ pub fn parse_c_like_file(
         builder.push_item(Item::Function(hir_func));
     }
 
-    Ok(builder.finish())
+    let mut program = builder.finish();
+    if let Some(file) = program.files.first() {
+        program.source_origins.extend(macro_ranges.into_iter().map(|(start_byte, end_byte)| {
+            uniflow_hir::SourceOriginRange {
+                file: file.id,
+                start_byte,
+                end_byte,
+                kind: uniflow_hir::SourceOriginKind::MacroExpansion,
+            }
+        }));
+    }
+    Ok(program)
 }
 
 /// Normalize C declaration and initializer sugar into the conservative HIR grammar.
 fn normalize_c_surface(source: &str) -> String {
-    let mut out = source.to_string();
+    normalize_c_surface_tracked(TrackedSource::plain(source.to_string())).text
+}
+
+fn rewrite_tracked_regex<F>(input: TrackedSource, regex: &Regex, mut replacement: F) -> TrackedSource
+where
+    F: FnMut(&regex::Captures<'_>) -> String,
+{
+    let mut text = String::with_capacity(input.text.len());
+    let mut macro_bytes = Vec::with_capacity(input.macro_bytes.len());
+    let mut cursor = 0usize;
+    for captures in regex.captures_iter(&input.text) {
+        let Some(matched) = captures.get(0) else {
+            continue;
+        };
+        text.push_str(&input.text[cursor..matched.start()]);
+        macro_bytes.extend_from_slice(&input.macro_bytes[cursor..matched.start()]);
+        let rewritten = replacement(&captures);
+        let macro_origin = input.macro_bytes[matched.start()..matched.end()]
+            .iter()
+            .copied()
+            .any(|marked| marked);
+        text.push_str(&rewritten);
+        macro_bytes.extend(std::iter::repeat(macro_origin).take(rewritten.len()));
+        cursor = matched.end();
+    }
+    text.push_str(&input.text[cursor..]);
+    macro_bytes.extend_from_slice(&input.macro_bytes[cursor..]);
+    TrackedSource { text, macro_bytes }
+}
+
+fn normalize_c_surface_tracked(mut out: TrackedSource) -> TrackedSource {
     let enum_re = Regex::new(
         r"(?s)(?:typedef\s+)?enum\s+([A-Za-z_][A-Za-z0-9_]*)?\s*\{([^}]*)\}\s*([A-Za-z_][A-Za-z0-9_]*)?\s*;",
     ).expect("valid regex");
-    out = enum_re
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
+    out = rewrite_tracked_regex(out, &enum_re, |caps: &regex::Captures<'_>| {
             let head = caps.get(1).map_or("", |m| m.as_str());
             let tail = caps.get(3).map_or("", |m| m.as_str());
             let name = if !tail.is_empty() { tail } else { head };
@@ -81,15 +123,13 @@ fn normalize_c_surface(source: &str) -> String {
             } else {
                 format!("typedef int {name};")
             }
-        })
-        .into_owned();
+        });
 
     let compound_re = Regex::new(
         r"\(\s*([A-Za-z_][A-Za-z0-9_]*(?:\s+[A-Za-z_][A-Za-z0-9_]*)*)\s*\)\s*\{(\s*\.[^{}]*)\}",
     )
     .expect("valid regex");
-    out = compound_re
-        .replace_all(&out, |caps: &regex::Captures<'_>| {
+    out = rewrite_tracked_regex(out, &compound_re, |caps: &regex::Captures<'_>| {
             let ty = caps
                 .get(1)
                 .map_or("compound", |m| m.as_str())
@@ -106,8 +146,7 @@ fn normalize_c_surface(source: &str) -> String {
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("__compound_{ty}({values})")
-        })
-        .into_owned();
+        });
 
     out
 }
@@ -118,11 +157,13 @@ struct CFunctionText {
     name: String,
     params: String,
     body: String,
+    body_start: usize,
 }
 
 fn parse_c_like_block(
     builder: &mut ModuleBuilder,
     body: &str,
+    base_offset: usize,
     env: &mut CLikeEnv,
     function_pointer_typedefs: &HashSet<String>,
 ) -> Vec<Stmt> {
@@ -136,7 +177,7 @@ fn parse_c_like_block(
 
         if keyword_at(body, cursor, "if") {
             if let Some((stmt, next)) =
-                parse_c_like_if(builder, body, cursor, env, function_pointer_typedefs)
+                parse_c_like_if(builder, body, base_offset, cursor, env, function_pointer_typedefs)
             {
                 out.push(stmt);
                 cursor = next;
@@ -145,8 +186,22 @@ fn parse_c_like_block(
         }
         if keyword_at(body, cursor, "while") {
             if let Some((stmt, next)) =
-                parse_c_like_while(builder, body, cursor, env, function_pointer_typedefs)
+                parse_c_like_while(builder, body, base_offset, cursor, env, function_pointer_typedefs)
             {
+                out.push(stmt);
+                cursor = next;
+                continue;
+            }
+        }
+        if keyword_at(body, cursor, "switch") {
+            if let Some((stmt, next)) = parse_c_like_switch(
+                builder,
+                body,
+                base_offset,
+                cursor,
+                env,
+                function_pointer_typedefs,
+            ) {
                 out.push(stmt);
                 cursor = next;
                 continue;
@@ -154,7 +209,7 @@ fn parse_c_like_block(
         }
         if keyword_at(body, cursor, "try") {
             if let Some((stmt, next)) =
-                parse_c_like_try(builder, body, cursor, env, function_pointer_typedefs)
+                parse_c_like_try(builder, body, base_offset, cursor, env, function_pointer_typedefs)
             {
                 out.push(stmt);
                 cursor = next;
@@ -167,6 +222,7 @@ fn parse_c_like_block(
                 out.extend(parse_c_like_block(
                     builder,
                     &body[cursor + 1..close],
+                    base_offset + cursor + 1,
                     env,
                     function_pointer_typedefs,
                 ));
@@ -178,7 +234,17 @@ fn parse_c_like_block(
         let end = find_c_like_statement_end(body, cursor).unwrap_or(body.len());
         let raw = body[cursor..end].trim().trim_end_matches(';').trim();
         if !raw.is_empty() {
-            parse_c_like_simple_statement(builder, raw, env, function_pointer_typedefs, &mut out);
+            let raw_offset = body[cursor..end]
+                .find(raw)
+                .map_or(base_offset + cursor, |relative| base_offset + cursor + relative);
+            parse_c_like_simple_statement(
+                builder,
+                raw,
+                raw_offset,
+                env,
+                function_pointer_typedefs,
+                &mut out,
+            );
         }
         cursor = if end < body.len() { end + 1 } else { end };
     }
@@ -188,6 +254,7 @@ fn parse_c_like_block(
 fn parse_c_like_if(
     builder: &mut ModuleBuilder,
     source: &str,
+    base_offset: usize,
     start: usize,
     env: &mut CLikeEnv,
     function_pointer_typedefs: &HashSet<String>,
@@ -197,61 +264,36 @@ fn parse_c_like_if(
         return None;
     }
     let close_paren = matching_delimiter(source, open_paren, '(', ')')?;
-    let condition = parse_expr(builder, &source[open_paren + 1..close_paren], env);
-    let open_body = skip_c_like_ws(source, close_paren + 1);
-    if source.as_bytes().get(open_body) != Some(&b'{') {
-        return None;
-    }
-    let close_body = find_matching_brace(source, open_body)?;
-    let mut then_env = env.clone();
-    let then_stmts = parse_c_like_block(
+    let condition = parse_expr_at(
         builder,
-        &source[open_body + 1..close_body],
+        &source[open_paren + 1..close_paren],
+        base_offset + open_paren + 1,
+        env,
+    );
+    let mut then_env = env.clone();
+    let (then_block, then_end) = parse_c_like_embedded_block(
+        builder,
+        source,
+        base_offset,
+        close_paren + 1,
         &mut then_env,
         function_pointer_typedefs,
-    );
-    let then_block = Block {
-        id: builder.alloc_block_id(),
-        stmts: then_stmts,
-        span: default_span(),
-    };
+    )?;
 
-    let mut next = skip_c_like_ws(source, close_body + 1);
+    let mut next = skip_c_like_ws(source, then_end);
     let else_block = if keyword_at(source, next, "else") {
         next = skip_c_like_ws(source, next + "else".len());
-        if keyword_at(source, next, "if") {
-            let mut else_env = env.clone();
-            let (nested, nested_end) = parse_c_like_if(
-                builder,
-                source,
-                next,
-                &mut else_env,
-                function_pointer_typedefs,
-            )?;
-            next = nested_end;
-            Some(Block {
-                id: builder.alloc_block_id(),
-                stmts: vec![nested],
-                span: default_span(),
-            })
-        } else if source.as_bytes().get(next) == Some(&b'{') {
-            let close_else = find_matching_brace(source, next)?;
-            let mut else_env = env.clone();
-            let stmts = parse_c_like_block(
-                builder,
-                &source[next + 1..close_else],
-                &mut else_env,
-                function_pointer_typedefs,
-            );
-            next = close_else + 1;
-            Some(Block {
-                id: builder.alloc_block_id(),
-                stmts,
-                span: default_span(),
-            })
-        } else {
-            None
-        }
+        let mut else_env = env.clone();
+        let (block, else_end) = parse_c_like_embedded_block(
+            builder,
+            source,
+            base_offset,
+            next,
+            &mut else_env,
+            function_pointer_typedefs,
+        )?;
+        next = else_end;
+        Some(block)
     } else {
         None
     };
@@ -271,6 +313,7 @@ fn parse_c_like_if(
 fn parse_c_like_while(
     builder: &mut ModuleBuilder,
     source: &str,
+    base_offset: usize,
     start: usize,
     env: &mut CLikeEnv,
     function_pointer_typedefs: &HashSet<String>,
@@ -280,37 +323,363 @@ fn parse_c_like_while(
         return None;
     }
     let close_paren = matching_delimiter(source, open_paren, '(', ')')?;
-    let condition = parse_expr(builder, &source[open_paren + 1..close_paren], env);
+    let condition = parse_expr_at(
+        builder,
+        &source[open_paren + 1..close_paren],
+        base_offset + open_paren + 1,
+        env,
+    );
+    let mut loop_env = env.clone();
+    let (body, next) = parse_c_like_embedded_block(
+        builder,
+        source,
+        base_offset,
+        close_paren + 1,
+        &mut loop_env,
+        function_pointer_typedefs,
+    )?;
+    Some((
+        Stmt::While {
+            id: builder.alloc_stmt_id(),
+            cond: condition,
+            body,
+            span: default_span(),
+        },
+        next,
+    ))
+}
+
+fn parse_c_like_embedded_block(
+    builder: &mut ModuleBuilder,
+    source: &str,
+    base_offset: usize,
+    start: usize,
+    env: &mut CLikeEnv,
+    function_pointer_typedefs: &HashSet<String>,
+) -> Option<(Block, usize)> {
+    let start = skip_c_like_ws(source, start);
+    if source.as_bytes().get(start) == Some(&b'{') {
+        let close = find_matching_brace(source, start)?;
+        let stmts = parse_c_like_block(
+            builder,
+            &source[start + 1..close],
+            base_offset + start + 1,
+            env,
+            function_pointer_typedefs,
+        );
+        return Some((
+            Block {
+                id: builder.alloc_block_id(),
+                stmts,
+                span: occurrence_span(base_offset + start, base_offset + close + 1),
+            },
+            close + 1,
+        ));
+    }
+
+    let structured = if keyword_at(source, start, "if") {
+        parse_c_like_if(
+            builder,
+            source,
+            base_offset,
+            start,
+            env,
+            function_pointer_typedefs,
+        )
+    } else if keyword_at(source, start, "while") {
+        parse_c_like_while(
+            builder,
+            source,
+            base_offset,
+            start,
+            env,
+            function_pointer_typedefs,
+        )
+    } else if keyword_at(source, start, "switch") {
+        parse_c_like_switch(
+            builder,
+            source,
+            base_offset,
+            start,
+            env,
+            function_pointer_typedefs,
+        )
+    } else if keyword_at(source, start, "try") {
+        parse_c_like_try(
+            builder,
+            source,
+            base_offset,
+            start,
+            env,
+            function_pointer_typedefs,
+        )
+    } else {
+        None
+    };
+    if let Some((stmt, next)) = structured {
+        return Some((
+            Block {
+                id: builder.alloc_block_id(),
+                stmts: vec![stmt],
+                span: occurrence_span(base_offset + start, base_offset + next),
+            },
+            next,
+        ));
+    }
+
+    let end = find_c_like_statement_end(source, start)?;
+    let raw = source[start..end].trim();
+    let raw_offset = source[start..end]
+        .find(raw)
+        .map_or(base_offset + start, |relative| base_offset + start + relative);
+    let mut stmts = Vec::new();
+    if !raw.is_empty() {
+        parse_c_like_simple_statement(
+            builder,
+            raw,
+            raw_offset,
+            env,
+            function_pointer_typedefs,
+            &mut stmts,
+        );
+    }
+    Some((
+        Block {
+            id: builder.alloc_block_id(),
+            stmts,
+            span: occurrence_span(base_offset + start, base_offset + end + 1),
+        },
+        end + 1,
+    ))
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CLikeSwitchLabel {
+    start: usize,
+    value_start: usize,
+    colon: usize,
+    is_default: bool,
+}
+
+fn parse_c_like_switch(
+    builder: &mut ModuleBuilder,
+    source: &str,
+    base_offset: usize,
+    start: usize,
+    env: &mut CLikeEnv,
+    function_pointer_typedefs: &HashSet<String>,
+) -> Option<(Stmt, usize)> {
+    let open_paren = skip_c_like_ws(source, start + "switch".len());
+    if source.as_bytes().get(open_paren) != Some(&b'(') {
+        return None;
+    }
+    let close_paren = matching_delimiter(source, open_paren, '(', ')')?;
+    let scrutinee = parse_expr_at(
+        builder,
+        &source[open_paren + 1..close_paren],
+        base_offset + open_paren + 1,
+        env,
+    );
     let open_body = skip_c_like_ws(source, close_paren + 1);
     if source.as_bytes().get(open_body) != Some(&b'{') {
         return None;
     }
     let close_body = find_matching_brace(source, open_body)?;
-    let mut loop_env = env.clone();
-    let stmts = parse_c_like_block(
-        builder,
-        &source[open_body + 1..close_body],
-        &mut loop_env,
-        function_pointer_typedefs,
-    );
+    let switch_body = &source[open_body + 1..close_body];
+    let switch_body_offset = base_offset + open_body + 1;
+    let labels = find_c_like_switch_labels(switch_body);
+    let mut clauses = Vec::new();
+    let mut default: Option<Block> = None;
+    let mut switch_env = env.clone();
+
+    for (index, label) in labels.iter().enumerate() {
+        let body_end = labels
+            .get(index + 1)
+            .map_or(switch_body.len(), |next| next.start);
+        let body_start = label.colon + 1;
+        let stmts = parse_c_like_block(
+            builder,
+            &switch_body[body_start..body_end],
+            switch_body_offset + body_start,
+            &mut switch_env,
+            function_pointer_typedefs,
+        );
+        let clause_span = occurrence_span(
+            switch_body_offset + label.start,
+            switch_body_offset + label.colon + 1,
+        );
+        let block = Block {
+            id: builder.alloc_block_id(),
+            stmts,
+            span: occurrence_span(
+                switch_body_offset + body_start,
+                switch_body_offset + body_end,
+            ),
+        };
+        if label.is_default {
+            if let Some(existing) = &mut default {
+                existing.stmts.extend(block.stmts);
+            } else {
+                default = Some(block);
+            }
+            continue;
+        }
+
+        let value_text = switch_body[label.value_start..label.colon].trim();
+        if value_text.is_empty() {
+            continue;
+        }
+        let value_relative = switch_body[label.value_start..label.colon]
+            .find(value_text)
+            .unwrap_or(0);
+        let value = parse_expr_at(
+            builder,
+            value_text,
+            switch_body_offset + label.value_start + value_relative,
+            &mut switch_env,
+        );
+        let fallthrough = !body_ends_control_flow(&block);
+        clauses.push(SwitchClause {
+            values: vec![value],
+            body: block,
+            fallthrough,
+            span: clause_span,
+        });
+    }
+
     Some((
-        Stmt::While {
+        Stmt::Switch {
             id: builder.alloc_stmt_id(),
-            cond: condition,
-            body: Block {
-                id: builder.alloc_block_id(),
-                stmts,
-                span: default_span(),
-            },
-            span: default_span(),
+            scrutinee,
+            clauses,
+            default,
+            span: occurrence_span(base_offset + start, base_offset + close_body + 1),
         },
         close_body + 1,
     ))
 }
 
+fn find_c_like_switch_labels(source: &str) -> Vec<CLikeSwitchLabel> {
+    let mut labels = Vec::new();
+    let mut cursor = 0usize;
+    let mut paren = 0usize;
+    let mut bracket = 0usize;
+    let mut brace = 0usize;
+    let mut quote = None;
+    let mut escaped = false;
+
+    while cursor < source.len() {
+        let byte = source.as_bytes()[cursor];
+        if let Some(active) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == active {
+                quote = None;
+            }
+            cursor += 1;
+            continue;
+        }
+        match byte {
+            b'\'' | b'"' => {
+                quote = Some(byte);
+                cursor += 1;
+                continue;
+            }
+            b'(' => paren += 1,
+            b')' => paren = paren.saturating_sub(1),
+            b'[' => bracket += 1,
+            b']' => bracket = bracket.saturating_sub(1),
+            b'{' => brace += 1,
+            b'}' => brace = brace.saturating_sub(1),
+            _ => {}
+        }
+        if paren == 0 && bracket == 0 && brace == 0 {
+            let (keyword, is_default) = if keyword_at(source, cursor, "case") {
+                ("case", false)
+            } else if keyword_at(source, cursor, "default") {
+                ("default", true)
+            } else {
+                cursor += 1;
+                continue;
+            };
+            let value_start = skip_c_like_ws(source, cursor + keyword.len());
+            if let Some(colon) = find_c_like_case_colon(source, value_start) {
+                labels.push(CLikeSwitchLabel {
+                    start: cursor,
+                    value_start,
+                    colon,
+                    is_default,
+                });
+                cursor = colon + 1;
+                continue;
+            }
+        }
+        cursor += 1;
+    }
+    labels
+}
+
+fn find_c_like_case_colon(source: &str, start: usize) -> Option<usize> {
+    let mut paren = 0usize;
+    let mut bracket = 0usize;
+    let mut brace = 0usize;
+    let mut ternary = 0usize;
+    let mut quote = None;
+    let mut escaped = false;
+    let mut cursor = start;
+    while cursor < source.len() {
+        let byte = source.as_bytes()[cursor];
+        if let Some(active) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == active {
+                quote = None;
+            }
+            cursor += 1;
+            continue;
+        }
+        match byte {
+            b'\'' | b'"' => quote = Some(byte),
+            b'(' => paren += 1,
+            b')' => paren = paren.saturating_sub(1),
+            b'[' => bracket += 1,
+            b']' => bracket = bracket.saturating_sub(1),
+            b'{' => brace += 1,
+            b'}' => {
+                if brace == 0 && paren == 0 && bracket == 0 {
+                    return None;
+                }
+                brace = brace.saturating_sub(1);
+            }
+            b'?' if paren == 0 && bracket == 0 && brace == 0 => ternary += 1,
+            b':' if paren == 0 && bracket == 0 && brace == 0 => {
+                let previous_is_colon = cursor > 0 && source.as_bytes()[cursor - 1] == b':';
+                let next_is_colon = source.as_bytes().get(cursor + 1) == Some(&b':');
+                if previous_is_colon || next_is_colon {
+                    cursor += 1;
+                    continue;
+                }
+                if ternary > 0 {
+                    ternary -= 1;
+                } else {
+                    return Some(cursor);
+                }
+            }
+            _ => {}
+        }
+        cursor += 1;
+    }
+    None
+}
+
 fn parse_c_like_try(
     builder: &mut ModuleBuilder,
     source: &str,
+    base_offset: usize,
     start: usize,
     env: &mut CLikeEnv,
     function_pointer_typedefs: &HashSet<String>,
@@ -326,6 +695,7 @@ fn parse_c_like_try(
         stmts: parse_c_like_block(
             builder,
             &source[open_try + 1..close_try],
+            base_offset + open_try + 1,
             &mut try_env,
             function_pointer_typedefs,
         ),
@@ -373,6 +743,7 @@ fn parse_c_like_try(
                 stmts: parse_c_like_block(
                     builder,
                     &source[open_body + 1..close_body],
+                    base_offset + open_body + 1,
                     &mut catch_env,
                     function_pointer_typedefs,
                 ),
@@ -398,14 +769,31 @@ fn parse_c_like_try(
 fn parse_c_like_simple_statement(
     builder: &mut ModuleBuilder,
     stmt: &str,
+    stmt_offset: usize,
     env: &mut CLikeEnv,
     function_pointer_typedefs: &HashSet<String>,
     out: &mut Vec<Stmt>,
 ) {
+    if stmt == "break" {
+        out.push(Stmt::Break {
+            id: builder.alloc_stmt_id(),
+            label: None,
+            span: occurrence_span(stmt_offset, stmt_offset + stmt.len()),
+        });
+        return;
+    }
+    if stmt == "continue" {
+        out.push(Stmt::Continue {
+            id: builder.alloc_stmt_id(),
+            label: None,
+            span: occurrence_span(stmt_offset, stmt_offset + stmt.len()),
+        });
+        return;
+    }
     if let Some(rest) = stmt.strip_prefix("return ") {
         out.push(Stmt::Return {
             id: builder.alloc_stmt_id(),
-            value: Some(parse_expr(builder, rest, env)),
+            value: Some(parse_expr_at(builder, rest, stmt_offset + "return ".len(), env)),
             span: default_span(),
         });
         return;
@@ -421,7 +809,7 @@ fn parse_c_like_simple_statement(
     if let Some(rest) = stmt.strip_prefix("throw ") {
         out.push(Stmt::Throw {
             id: builder.alloc_stmt_id(),
-            value: Some(parse_expr(builder, rest, env)),
+            value: Some(parse_expr_at(builder, rest, stmt_offset + "throw ".len(), env)),
             span: default_span(),
         });
         return;
@@ -462,6 +850,7 @@ fn parse_c_like_simple_statement(
             record_storage_duration(builder, symbol, &left);
             env.vars.insert(name.clone(), symbol);
             env.types.insert(name.clone(), ty_name.clone());
+            record_array_extents(builder, symbol, &left, env);
             if function_pointer_typedefs.contains(ty_name.trim()) {
                 env.function_pointer_vars.insert(name.clone());
             }
@@ -481,7 +870,10 @@ fn parse_c_like_simple_statement(
             if let Some(Expr::New { type_name, .. }) = alloc_init.as_ref() {
                 env.heap_types.insert(name.clone(), type_name.clone());
             }
-            let init = alloc_init.unwrap_or_else(|| parse_expr(builder, &right, env));
+            let right_offset = stmt
+                .find(&right)
+                .map_or(stmt_offset, |relative| stmt_offset + relative);
+            let init = alloc_init.unwrap_or_else(|| parse_expr_at(builder, &right, right_offset, env));
             out.push(Stmt::Let {
                 id: builder.alloc_stmt_id(),
                 symbol,
@@ -514,7 +906,10 @@ fn parse_c_like_simple_statement(
             if let Some(Expr::New { type_name, .. }) = alloc_rhs.as_ref() {
                 env.heap_types.insert(lhs_key.clone(), type_name.clone());
             }
-            let rhs = alloc_rhs.unwrap_or_else(|| parse_expr(builder, &right, env));
+            let right_offset = stmt
+                .find(&right)
+                .map_or(stmt_offset, |relative| stmt_offset + relative);
+            let rhs = alloc_rhs.unwrap_or_else(|| parse_expr_at(builder, &right, right_offset, env));
             out.push(Stmt::Assign {
                 id: builder.alloc_stmt_id(),
                 lhs,
@@ -530,6 +925,7 @@ fn parse_c_like_simple_statement(
         record_storage_duration(builder, symbol, stmt);
         env.vars.insert(name.clone(), symbol);
         env.types.insert(name.clone(), ty_name.clone());
+        record_array_extents(builder, symbol, stmt, env);
         out.push(Stmt::Let {
             id: builder.alloc_stmt_id(),
             symbol,
@@ -547,7 +943,7 @@ fn parse_c_like_simple_statement(
 
     out.push(Stmt::Expr {
         id: builder.alloc_stmt_id(),
-        expr: parse_expr(builder, stmt, env),
+        expr: parse_expr_at(builder, stmt, stmt_offset, env),
         span: default_span(),
     });
 }
@@ -750,6 +1146,7 @@ fn extract_functions(source: &str) -> Vec<CFunctionText> {
                 name,
                 params: source[open + 1..close_paren].to_string(),
                 body: source[cursor + 1..close_body].to_string(),
+                body_start: cursor + 1,
             });
         }
         search_from = close_body + 1;
@@ -761,11 +1158,13 @@ fn extract_functions(source: &str) -> Vec<CFunctionText> {
 fn parse_function(
     builder: &mut ModuleBuilder,
     func: &CFunctionText,
+    language: Language,
     known_functions: &HashSet<String>,
     struct_field_types: &HashMap<String, HashMap<String, String>>,
     function_pointer_typedefs: &HashSet<String>,
 ) -> uniflow_hir::Function {
     let mut env = CLikeEnv::default();
+    env.language = Some(language);
     env.known_functions = known_functions.clone();
     env.struct_field_types = struct_field_types.clone();
     let mut params = Vec::new();
@@ -780,6 +1179,7 @@ fn parse_function(
         let symbol = builder.add_symbol(&name, SymbolKind::Param);
         env.vars.insert(name.clone(), symbol);
         env.types.insert(name.clone(), ty_name.clone());
+        record_array_extents(builder, symbol, part, &mut env);
         if function_pointer_typedefs.contains(ty_name.trim()) {
             env.function_pointer_vars.insert(name.clone());
         }
@@ -795,7 +1195,13 @@ fn parse_function(
         });
     }
 
-    let stmts = parse_c_like_block(builder, &func.body, &mut env, function_pointer_typedefs);
+    let stmts = parse_c_like_block(
+        builder,
+        &func.body,
+        func.body_start,
+        &mut env,
+        function_pointer_typedefs,
+    );
 
     let body = Block {
         id: builder.alloc_block_id(),

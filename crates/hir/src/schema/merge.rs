@@ -7,6 +7,7 @@ impl Program {
             symbols: Vec::new(),
             types: Vec::new(),
             source_maps: Vec::new(),
+            source_origins: Vec::new(),
         }
     }
 
@@ -32,6 +33,9 @@ impl Program {
                 module.0 += offsets.module;
             }
             remap_span(&mut sym.span, offsets.file);
+            for extent in sym.array_extents.iter_mut().flatten() {
+                remap_expr(extent, &offsets);
+            }
         }
 
         let mut types = other.types;
@@ -49,16 +53,27 @@ impl Program {
             source_map.file.0 += offsets.file;
         }
 
+        let mut source_origins = other.source_origins;
+        for source_origin in &mut source_origins {
+            source_origin.file.0 += offsets.file;
+        }
+
         self.files.extend(files);
         self.modules.extend(modules);
         self.symbols.extend(symbols);
         self.types.extend(types);
         self.source_maps.extend(source_maps);
+        self.source_origins.extend(source_origins);
     }
 
     fn next_id_offsets(&self) -> IdOffsets {
         let mut nested = NestedIdMaxima::default();
         let mut function = None;
+        for symbol in &self.symbols {
+            for extent in symbol.array_extents.iter().flatten() {
+                observe_expr_ids(extent, &mut nested);
+            }
+        }
         for module in &self.modules {
             for item in &module.items {
                 match item {
@@ -733,6 +748,7 @@ mod merge_tests {
             symbols: vec![],
             types: vec![],
             source_maps: vec![],
+            source_origins: vec![],
         }
     }
 

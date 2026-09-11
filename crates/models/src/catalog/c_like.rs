@@ -667,10 +667,92 @@ fn c_like_models(language: Language) -> RuleSet {
         field_sanitizers: Vec::new(),
         function_sources: Vec::new(),
         function_sinks: Vec::new(),
+        native_dataflow_rules: Vec::new(),
         model_dependencies: Vec::new(),
     };
 
+    if matches!(language, Language::C | Language::Cpp) {
+        rules.native_dataflow_rules.push(NativeDataflowRule {
+            id: "ANZU-ARRAY-INDEX".to_string(),
+            language: Some(language.clone()),
+        });
+        rules.metadata.push(RuleMetadata {
+            id: "ANZU-ARRAY-INDEX".to_string(),
+            title: "ArrayIndexChecker2".to_string(),
+            message: "Array index is less than zero".to_string(),
+            severity: "warning".to_string(),
+            cwe: Vec::new(),
+            standards: vec!["0701000010130047".to_string()],
+            translations: RuleTranslations {
+                zh_cn: Some(LocalizedRuleText {
+                    title: String::new(),
+                    message: "数组索引小于0。".to_string(),
+                }),
+                en: Some(LocalizedRuleText {
+                    title: "ArrayIndexChecker2".to_string(),
+                    message: "Array index is less than zero".to_string(),
+                }),
+                zh_tw: None,
+            },
+        });
+        rules.native_dataflow_rules.push(NativeDataflowRule {
+            id: "ANZU-ARRAY-BOUND".to_string(),
+            language: Some(language.clone()),
+        });
+        rules.metadata.push(RuleMetadata {
+            id: "ANZU-ARRAY-BOUND".to_string(),
+            title: "ArrayBoundChecker2".to_string(),
+            message: "Array bound read/write exceeds size".to_string(),
+            severity: "warning".to_string(),
+            cwe: Vec::new(),
+            standards: vec![
+                "0201000010120009".to_string(),
+                "0301000010120009".to_string(),
+                "0501000010120009".to_string(),
+                "1301000010120009".to_string(),
+                "2401000010120009".to_string(),
+                "0701000010130046".to_string(),
+                "0601000010140037".to_string(),
+            ],
+            translations: RuleTranslations {
+                zh_cn: Some(LocalizedRuleText {
+                    title: String::new(),
+                    message: "数组读写越界。".to_string(),
+                }),
+                en: Some(LocalizedRuleText {
+                    title: "ArrayBoundChecker2".to_string(),
+                    message: "Array bound read/write exceeds size".to_string(),
+                }),
+                zh_tw: None,
+            },
+        });
+    }
+
     if matches!(language, Language::Cpp) {
+        rules.native_dataflow_rules.push(NativeDataflowRule {
+            id: "ANZU-ARGUMENT-VALIDATION".to_string(),
+            language: Some(Language::Cpp),
+        });
+        rules.metadata.push(RuleMetadata {
+            id: "ANZU-ARGUMENT-VALIDATION".to_string(),
+            title: "ArgumentValidationChecker".to_string(),
+            message: "Pointer argument '{}' might be null and should be validated.".to_string(),
+            severity: "warning".to_string(),
+            cwe: Vec::new(),
+            standards: vec!["0101000010110430".to_string()],
+            translations: RuleTranslations {
+                zh_cn: Some(LocalizedRuleText {
+                    title: String::new(),
+                    message: "指针参数 ‘{}’需要确认是否为空指针。".to_string(),
+                }),
+                en: Some(LocalizedRuleText {
+                    title: "ArgumentValidationChecker".to_string(),
+                    message: "Pointer argument '{}' might be null and should be validated."
+                        .to_string(),
+                }),
+                zh_tw: None,
+            },
+        });
         rules.sources.push(SourceRule {
             id: "cpp-std-getenv".to_string(),
             language: Some(Language::Cpp),

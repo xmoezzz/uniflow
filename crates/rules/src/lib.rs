@@ -1,7 +1,10 @@
 use anyhow::{bail, Result as AnyResult};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::borrow::Cow;
+use std::sync::Arc;
 use uniflow_hir::Language;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -47,6 +50,11 @@ pub struct RuleSet {
     pub function_sources: Vec<FunctionSourceRule>,
     #[serde(default)]
     pub function_sinks: Vec<FunctionSinkRule>,
+    /// Native path-sensitive/value-flow checkers implemented by the unified
+    /// Rust analysis engine. These are reportable rules in their own right,
+    /// even when they do not need a taint source/sink model.
+    #[serde(default)]
+    pub native_dataflow_rules: Vec<NativeDataflowRule>,
     /// Explicit helper models required by a reportable rule. This keeps
     /// policy filtering precise without loading unrelated transfer models.
     #[serde(default)]
@@ -79,6 +87,7 @@ impl RuleSet {
         self.field_sanitizers.extend(other.field_sanitizers);
         self.function_sources.extend(other.function_sources);
         self.function_sinks.extend(other.function_sinks);
+        self.native_dataflow_rules.extend(other.native_dataflow_rules);
         self.model_dependencies.extend(other.model_dependencies);
         dedup_by_id(&mut self.sources, |rule| &rule.id);
         dedup_by_id(&mut self.sinks, |rule| &rule.id);
@@ -98,6 +107,7 @@ impl RuleSet {
         dedup_by_id(&mut self.field_sanitizers, |rule| &rule.id);
         dedup_by_id(&mut self.function_sources, |rule| &rule.id);
         dedup_by_id(&mut self.function_sinks, |rule| &rule.id);
+        dedup_by_id(&mut self.native_dataflow_rules, |rule| &rule.id);
         dedup_by_id(&mut self.model_dependencies, |dependency| {
             &dependency.rule_id
         });
@@ -127,6 +137,11 @@ impl RuleSet {
             .chain(self.field_sanitizers.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
+            .chain(
+                self.native_dataflow_rules
+                    .iter()
+                    .map(|rule| rule.id.as_str()),
+            )
             .chain(
                 self.sink_reports
                     .iter()
@@ -178,6 +193,8 @@ impl RuleSet {
         self.field_sinks.retain(|rule| requested.contains(&rule.id));
         self.index_sinks.retain(|rule| requested.contains(&rule.id));
         self.function_sinks
+            .retain(|rule| requested.contains(&rule.id));
+        self.native_dataflow_rules
             .retain(|rule| requested.contains(&rule.id));
         let selected_kinds = self
             .sinks
@@ -281,6 +298,11 @@ impl RuleSet {
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
             .chain(
+                self.native_dataflow_rules
+                    .iter()
+                    .map(|rule| rule.id.as_str()),
+            )
+            .chain(
                 self.sink_reports
                     .iter()
                     .map(|rule| rule.report_rule_id.as_str()),
@@ -288,7 +310,10 @@ impl RuleSet {
             .collect::<HashSet<_>>();
         self.call_conditions
             .retain(|condition| retained.contains(condition.rule_id.as_str()));
-        self.validate()
+        // Filtering cannot make an already-valid matcher invalid. Rule packs
+        // are validated at their ingestion boundary, so revalidating here
+        // would compile every retained regex again before analysis starts.
+        Ok(())
     }
 
     pub fn validate(&self) -> AnyResult<()> {
@@ -309,6 +334,11 @@ impl RuleSet {
             .chain(self.field_sanitizers.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
+            .chain(
+                self.native_dataflow_rules
+                    .iter()
+                    .map(|rule| rule.id.as_str()),
+            )
             .chain(
                 self.sink_reports
                     .iter()
@@ -481,6 +511,11 @@ impl RuleSet {
             rule.matcher.validate()?;
             if rule.inputs.is_empty() {
                 bail!("function sink rule '{}' must define an input", rule.id);
+            }
+        }
+        for rule in &self.native_dataflow_rules {
+            if rule.id.trim().is_empty() {
+                bail!("native dataflow rule id must not be empty");
             }
         }
         for rule in &self.unused_return_sinks {
@@ -746,6 +781,13 @@ pub struct FunctionSinkRule {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NativeDataflowRule {
+    pub id: String,
+    #[serde(default)]
+    pub language: Option<Language>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RuleMetadata {
     pub id: String,
     pub title: String,
@@ -895,38 +937,19 @@ impl ApiMatcher {
     }
 
     pub fn matches_call(&self, call: &CallInfo) -> bool {
+        // Reject on cheap scalar constraints before touching regex engines.
         if !match_string_constraints(
             self.exact.as_deref(),
             self.contains.as_deref(),
-            self.regex.as_deref(),
+            None,
             &call.callee_name,
         ) {
             return false;
         }
         if !match_optional_string_constraints(
-            None,
-            None,
-            self.containing_function_regex.as_deref(),
-            call.containing_function.as_deref(),
-        ) {
-            return false;
-        }
-        if !match_receiver_constraints(
-            self.receiver_type.as_deref(),
-            self.receiver_contains.as_deref(),
-            self.receiver_regex.as_deref(),
-            call.receiver_type.as_deref(),
-            &call.receiver_type_candidates,
-        ) {
-            return false;
-        }
-        if self.receiver_parameter.is_some() && self.receiver_parameter != call.receiver_parameter {
-            return false;
-        }
-        if !match_optional_string_constraints(
             self.method_name.as_deref(),
             self.method_contains.as_deref(),
-            self.method_regex.as_deref(),
+            None,
             call.method_name.as_deref(),
         ) {
             return false;
@@ -945,6 +968,55 @@ impl ApiMatcher {
             if call.arg_count.is_none_or(|actual| actual > maximum) {
                 return false;
             }
+        }
+        if self.receiver_parameter.is_some() && self.receiver_parameter != call.receiver_parameter {
+            return false;
+        }
+        if !match_receiver_constraints(
+            self.receiver_type.as_deref(),
+            self.receiver_contains.as_deref(),
+            None,
+            call.receiver_type.as_deref(),
+            &call.receiver_type_candidates,
+        ) {
+            return false;
+        }
+        let callee_regex = cached_regex(self.regex.as_deref());
+        if !match_string_constraints(
+            None,
+            None,
+            callee_regex.as_deref(),
+            &call.callee_name,
+        ) {
+            return false;
+        }
+        let containing_function_regex = cached_regex(self.containing_function_regex.as_deref());
+        if !match_optional_string_constraints(
+            None,
+            None,
+            containing_function_regex.as_deref(),
+            call.containing_function.as_deref(),
+        ) {
+            return false;
+        }
+        let method_regex = cached_regex(self.method_regex.as_deref());
+        if !match_optional_string_constraints(
+            None,
+            None,
+            method_regex.as_deref(),
+            call.method_name.as_deref(),
+        ) {
+            return false;
+        }
+        let receiver_regex = cached_regex(self.receiver_regex.as_deref());
+        if !match_receiver_constraints(
+            None,
+            None,
+            receiver_regex.as_deref(),
+            call.receiver_type.as_deref(),
+            &call.receiver_type_candidates,
+        ) {
+            return false;
         }
         if !match_argument_types(self, call) {
             return false;
@@ -972,6 +1044,271 @@ impl ApiMatcher {
     }
 }
 
+/// Narrows a set of API matchers to the small subset that can match a call.
+///
+/// The final [`ApiMatcher::matches_call`] check remains mandatory: this index
+/// only uses exact or provably finite constraints to reject impossible
+/// candidates.  Keeping it in the rules crate lets every analysis phase use
+/// the same semantics without recompiling or scanning an entire rule family
+/// for every call site.
+#[derive(Default)]
+pub struct ApiMatcherIndex<'a> {
+    exact_callee: HashMap<Cow<'a, str>, Vec<usize>>,
+    exact_receiver: HashMap<Cow<'a, str>, Vec<usize>>,
+    exact_receiver_method: HashMap<Cow<'a, str>, HashMap<Cow<'a, str>, Vec<usize>>>,
+    exact_method: HashMap<Cow<'a, str>, Vec<usize>>,
+    fallback: Vec<usize>,
+}
+
+impl<'a> ApiMatcherIndex<'a> {
+    pub fn new(matchers: impl Iterator<Item = &'a ApiMatcher>) -> Self {
+        let mut index = Self::default();
+        for (position, matcher) in matchers.enumerate() {
+            let finite_callees = matcher
+                .exact
+                .as_ref()
+                .map(|exact| vec![Cow::Borrowed(exact.as_str())])
+                .or_else(|| {
+                    matcher.regex.as_deref().and_then(finite_anchored_regex_literals).map(
+                        |values| values.into_iter().map(Cow::Owned).collect(),
+                    )
+                });
+            if let Some(callees) = finite_callees {
+                for callee in callees {
+                    index.exact_callee.entry(callee).or_default().push(position);
+                }
+                continue;
+            }
+
+            let finite_methods = matcher
+                .method_name
+                .as_ref()
+                .map(|method| vec![Cow::Borrowed(method.as_str())])
+                .or_else(|| {
+                    matcher
+                        .method_regex
+                        .as_deref()
+                        .and_then(finite_anchored_regex_literals)
+                        .map(|values| values.into_iter().map(Cow::Owned).collect())
+                });
+            let finite_receivers = matcher
+                .receiver_type
+                .as_ref()
+                .map(|receiver| vec![Cow::Borrowed(receiver.as_str())])
+                .or_else(|| {
+                    matcher
+                        .receiver_regex
+                        .as_deref()
+                        .and_then(finite_anchored_regex_literals)
+                        .map(|values| values.into_iter().map(Cow::Owned).collect())
+                });
+
+            if let Some(receivers) = finite_receivers {
+                if let Some(methods) = finite_methods {
+                    for receiver in receivers {
+                        for method in &methods {
+                            index
+                                .exact_receiver_method
+                                .entry(receiver.clone())
+                                .or_default()
+                                .entry(method.clone())
+                                .or_default()
+                                .push(position);
+                        }
+                    }
+                } else {
+                    for receiver in receivers {
+                        index.exact_receiver.entry(receiver).or_default().push(position);
+                    }
+                }
+            } else if let Some(methods) = finite_methods {
+                for method in methods {
+                    index.exact_method.entry(method).or_default().push(position);
+                }
+            } else {
+                index.fallback.push(position);
+            }
+        }
+        index
+    }
+
+    pub fn for_each_candidate(&self, call: &CallInfo, mut visit: impl FnMut(usize)) {
+        for &position in &self.fallback {
+            visit(position);
+        }
+        if let Some(positions) = self.exact_callee.get(call.callee_name.as_str()) {
+            for &position in positions {
+                visit(position);
+            }
+        }
+        let mut visit_receiver = |receiver: &str| {
+            if let Some(positions) = self.exact_receiver.get(receiver) {
+                for &position in positions {
+                    visit(position);
+                }
+            }
+            if let Some(method) = &call.method_name {
+                if let Some(positions) = self
+                    .exact_receiver_method
+                    .get(receiver)
+                    .and_then(|methods| methods.get(method.as_str()))
+                {
+                    for &position in positions {
+                        visit(position);
+                    }
+                }
+            }
+        };
+        if let Some(receiver) = call.receiver_type.as_deref() {
+            visit_receiver(receiver);
+        }
+        for (candidate_index, receiver) in call.receiver_type_candidates.iter().enumerate() {
+            if call.receiver_type.as_deref() == Some(receiver.as_str())
+                || call.receiver_type_candidates[..candidate_index]
+                    .iter()
+                    .any(|previous| previous == receiver)
+            {
+                continue;
+            }
+            visit_receiver(receiver);
+        }
+        if let Some(method) = &call.method_name {
+            if let Some(positions) = self.exact_method.get(method.as_str()) {
+                for &position in positions {
+                    visit(position);
+                }
+            }
+        }
+    }
+}
+
+fn finite_anchored_regex_literals(expression: &str) -> Option<Vec<String>> {
+    const MAX_LITERALS: usize = 256;
+    let anchored_start = expression.starts_with('^') || expression.starts_with("\\A");
+    let anchored_end = expression.ends_with('$') || expression.ends_with("\\z");
+    if !anchored_start || !anchored_end {
+        return None;
+    }
+    let hir = regex_syntax::Parser::new().parse(expression).ok()?;
+    let bytes = finite_hir_language(&hir, MAX_LITERALS)?;
+    let mut literals = bytes
+        .into_iter()
+        .map(String::from_utf8)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    literals.sort();
+    literals.dedup();
+    (!literals.is_empty()).then_some(literals)
+}
+
+fn finite_hir_language(
+    hir: &regex_syntax::hir::Hir,
+    limit: usize,
+) -> Option<Vec<Vec<u8>>> {
+    use regex_syntax::hir::HirKind;
+
+    match hir.kind() {
+        HirKind::Empty | HirKind::Look(_) => Some(vec![Vec::new()]),
+        HirKind::Literal(literal) => Some(vec![literal.0.to_vec()]),
+        HirKind::Class(_) => None,
+        HirKind::Capture(capture) => finite_hir_language(&capture.sub, limit),
+        HirKind::Concat(parts) => {
+            let mut product = vec![Vec::new()];
+            for part in parts {
+                let suffixes = finite_hir_language(part, limit)?;
+                product = concatenate_languages(&product, &suffixes, limit)?;
+            }
+            Some(product)
+        }
+        HirKind::Alternation(branches) => {
+            let mut language = Vec::new();
+            for branch in branches {
+                language.extend(finite_hir_language(branch, limit)?);
+                if language.len() > limit {
+                    return None;
+                }
+            }
+            Some(language)
+        }
+        HirKind::Repetition(repetition) => {
+            let maximum = usize::try_from(repetition.max?).ok()?;
+            let minimum = usize::try_from(repetition.min).ok()?;
+            if maximum > 8 || minimum > maximum {
+                return None;
+            }
+            let unit = finite_hir_language(&repetition.sub, limit)?;
+            let mut power = vec![Vec::new()];
+            let mut language = Vec::new();
+            if minimum == 0 {
+                language.push(Vec::new());
+            }
+            for count in 1..=maximum {
+                power = concatenate_languages(&power, &unit, limit)?;
+                if count >= minimum {
+                    language.extend(power.iter().cloned());
+                    if language.len() > limit {
+                        return None;
+                    }
+                }
+            }
+            Some(language)
+        }
+    }
+}
+
+fn concatenate_languages(
+    prefixes: &[Vec<u8>],
+    suffixes: &[Vec<u8>],
+    limit: usize,
+) -> Option<Vec<Vec<u8>>> {
+    if prefixes.len().checked_mul(suffixes.len())? > limit {
+        return None;
+    }
+    let mut result = Vec::with_capacity(prefixes.len() * suffixes.len());
+    for prefix in prefixes {
+        for suffix in suffixes {
+            if prefix.len().checked_add(suffix.len())? > 256 {
+                return None;
+            }
+            let mut value = Vec::with_capacity(prefix.len() + suffix.len());
+            value.extend_from_slice(prefix);
+            value.extend_from_slice(suffix);
+            result.push(value);
+        }
+    }
+    Some(result)
+}
+
+const MATCHER_REGEX_CACHE_CAPACITY: usize = 32;
+
+thread_local! {
+    // A whole catalog can contain thousands of large legacy regexes. Keeping
+    // one compiled automaton inside every matcher trades a CPU problem for an
+    // unbounded per-scan memory problem. A small per-thread LRU keeps the hot
+    // call-site patterns compiled while bounding retained regex memory.
+    static MATCHER_REGEX_CACHE: RefCell<VecDeque<(String, Arc<Regex>)>> = const { RefCell::new(VecDeque::new()) };
+}
+
+fn cached_regex(expression: Option<&str>) -> Option<Arc<Regex>> {
+    let expression = expression?;
+    MATCHER_REGEX_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if let Some(position) = cache.iter().position(|(cached, _)| cached == expression) {
+            let (cached, regex) = cache.remove(position).expect("matched cache position");
+            let result = Arc::clone(&regex);
+            cache.push_front((cached, regex));
+            return Some(result);
+        }
+        let regex = Arc::new(Regex::new(expression).ok()?);
+        let result = Arc::clone(&regex);
+        cache.push_front((expression.to_string(), regex));
+        if cache.len() > MATCHER_REGEX_CACHE_CAPACITY {
+            cache.pop_back();
+        }
+        Some(result)
+    })
+}
+
 fn match_argument_types(matcher: &ApiMatcher, call: &CallInfo) -> bool {
     let constraint_count = matcher.arg_types.len().max(matcher.arg_type_regexes.len());
     for index in 0..constraint_count {
@@ -979,7 +1316,8 @@ fn match_argument_types(matcher: &ApiMatcher, call: &CallInfo) -> bool {
         let regex = matcher
             .arg_type_regexes
             .get(index)
-            .and_then(Option::as_deref);
+            .and_then(Option::as_deref)
+            .and_then(|expression| cached_regex(Some(expression)));
         if exact.is_none() && regex.is_none() {
             continue;
         }
@@ -1001,10 +1339,7 @@ fn match_argument_types(matcher: &ApiMatcher, call: &CallInfo) -> bool {
                 return false;
             }
         }
-        if let Some(expression) = regex {
-            let Ok(expression) = Regex::new(expression) else {
-                return false;
-            };
+        if let Some(expression) = regex.as_ref() {
             if !candidates
                 .iter()
                 .any(|candidate| expression.is_match(candidate))
@@ -1026,7 +1361,7 @@ fn validate_regex_opt(expr: &Option<String>) -> AnyResult<()> {
 fn match_string_constraints(
     exact: Option<&str>,
     contains: Option<&str>,
-    regex: Option<&str>,
+    regex: Option<&Regex>,
     actual: &str,
 ) -> bool {
     if let Some(exact) = exact {
@@ -1040,10 +1375,7 @@ fn match_string_constraints(
         }
     }
     if let Some(regex) = regex {
-        let Ok(re) = Regex::new(regex) else {
-            return false;
-        };
-        if !re.is_match(actual) {
+        if !regex.is_match(actual) {
             return false;
         }
     }
@@ -1053,7 +1385,7 @@ fn match_string_constraints(
 fn match_receiver_constraints(
     exact: Option<&str>,
     contains: Option<&str>,
-    regex: Option<&str>,
+    regex: Option<&Regex>,
     primary: Option<&str>,
     candidates: &[String],
 ) -> bool {
@@ -1061,23 +1393,16 @@ fn match_receiver_constraints(
         return true;
     }
 
-    let mut all = Vec::new();
-    if let Some(primary) = primary {
-        all.push(primary.to_string());
-    }
-    for candidate in candidates {
-        if !all.iter().any(|existing| existing == candidate) {
-            all.push(candidate.clone());
-        }
-    }
-    all.into_iter()
-        .any(|actual| match_string_constraints(exact, contains, regex, &actual))
+    primary.is_some_and(|actual| match_string_constraints(exact, contains, regex, actual))
+        || candidates
+            .iter()
+            .any(|actual| match_string_constraints(exact, contains, regex, actual))
 }
 
 fn match_optional_string_constraints(
     exact: Option<&str>,
     contains: Option<&str>,
-    regex: Option<&str>,
+    regex: Option<&Regex>,
     actual: Option<&str>,
 ) -> bool {
     if exact.is_none() && contains.is_none() && regex.is_none() {
@@ -1423,9 +1748,28 @@ pub struct RuleModelDependencies {
     pub model_ids: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "op", content = "args", rename_all = "snake_case")]
+#[derive(Clone, Debug)]
 pub enum TaintCondition {
+    HasKind(String),
+    IsType {
+        port: Port,
+        exact: Option<String>,
+        regex: Option<String>,
+    },
+    ValueMatches {
+        port: Port,
+        exact: Option<String>,
+        regex: Option<String>,
+    },
+    IsConstant(Port),
+    Not(Box<TaintCondition>),
+    All(Vec<TaintCondition>),
+    Any(Vec<TaintCondition>),
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "op", content = "args", rename_all = "snake_case")]
+enum HumanReadableTaintCondition {
     HasKind(String),
     IsType {
         port: Port,
@@ -1445,6 +1789,96 @@ pub enum TaintCondition {
     Not(Box<TaintCondition>),
     All(Vec<TaintCondition>),
     Any(Vec<TaintCondition>),
+}
+
+#[derive(Serialize, Deserialize)]
+enum BinaryTaintCondition {
+    HasKind(String),
+    IsType {
+        port: Port,
+        exact: Option<String>,
+        regex: Option<String>,
+    },
+    ValueMatches {
+        port: Port,
+        exact: Option<String>,
+        regex: Option<String>,
+    },
+    IsConstant(Port),
+    Not(Box<TaintCondition>),
+    All(Vec<TaintCondition>),
+    Any(Vec<TaintCondition>),
+}
+
+macro_rules! convert_taint_condition {
+    ($value:expr, $target:ident) => {
+        match $value {
+            TaintCondition::HasKind(value) => $target::HasKind(value),
+            TaintCondition::IsType { port, exact, regex } => {
+                $target::IsType { port, exact, regex }
+            }
+            TaintCondition::ValueMatches { port, exact, regex } => {
+                $target::ValueMatches { port, exact, regex }
+            }
+            TaintCondition::IsConstant(port) => $target::IsConstant(port),
+            TaintCondition::Not(value) => $target::Not(value),
+            TaintCondition::All(values) => $target::All(values),
+            TaintCondition::Any(values) => $target::Any(values),
+        }
+    };
+}
+
+impl Serialize for TaintCondition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let owned = self.clone();
+        if serializer.is_human_readable() {
+            convert_taint_condition!(owned, HumanReadableTaintCondition).serialize(serializer)
+        } else {
+            convert_taint_condition!(owned, BinaryTaintCondition).serialize(serializer)
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for TaintCondition {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            let value = HumanReadableTaintCondition::deserialize(deserializer)?;
+            Ok(match value {
+                HumanReadableTaintCondition::HasKind(value) => Self::HasKind(value),
+                HumanReadableTaintCondition::IsType { port, exact, regex } => {
+                    Self::IsType { port, exact, regex }
+                }
+                HumanReadableTaintCondition::ValueMatches { port, exact, regex } => {
+                    Self::ValueMatches { port, exact, regex }
+                }
+                HumanReadableTaintCondition::IsConstant(port) => Self::IsConstant(port),
+                HumanReadableTaintCondition::Not(value) => Self::Not(value),
+                HumanReadableTaintCondition::All(values) => Self::All(values),
+                HumanReadableTaintCondition::Any(values) => Self::Any(values),
+            })
+        } else {
+            let value = BinaryTaintCondition::deserialize(deserializer)?;
+            Ok(match value {
+                BinaryTaintCondition::HasKind(value) => Self::HasKind(value),
+                BinaryTaintCondition::IsType { port, exact, regex } => {
+                    Self::IsType { port, exact, regex }
+                }
+                BinaryTaintCondition::ValueMatches { port, exact, regex } => {
+                    Self::ValueMatches { port, exact, regex }
+                }
+                BinaryTaintCondition::IsConstant(port) => Self::IsConstant(port),
+                BinaryTaintCondition::Not(value) => Self::Not(value),
+                BinaryTaintCondition::All(values) => Self::All(values),
+                BinaryTaintCondition::Any(values) => Self::Any(values),
+            })
+        }
+    }
 }
 
 impl TaintCondition {
@@ -1563,6 +1997,64 @@ mod tests {
     use super::*;
 
     #[test]
+    fn api_matcher_index_preserves_exact_and_finite_regex_candidates() {
+        let matchers = [
+            ApiMatcher {
+                exact: Some("pkg.Service.run".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                regex: Some(r"^pkg\.Service\.(run|execute)$".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                receiver_regex: Some(r"^pkg\.Service$".into()),
+                method_regex: Some("^(run|execute)$".into()),
+                ..Default::default()
+            },
+            ApiMatcher {
+                method_regex: Some("^run.*$".into()),
+                ..Default::default()
+            },
+        ];
+        let index = ApiMatcherIndex::new(matchers.iter());
+        let call = CallInfo::from_callee_name("pkg.Service.run");
+        let mut candidates = Vec::new();
+        index.for_each_candidate(&call, |position| candidates.push(position));
+        candidates.sort_unstable();
+        assert_eq!(candidates, vec![0, 1, 2, 3]);
+
+        let other = CallInfo::from_callee_name("pkg.Other.stop");
+        let mut other_candidates = Vec::new();
+        index.for_each_candidate(&other, |position| other_candidates.push(position));
+        // Non-finite regexes deliberately remain in the fallback bucket;
+        // `matches_call` performs the final rejection.
+        assert_eq!(other_candidates, vec![3]);
+    }
+
+    #[test]
+    fn api_matcher_index_deduplicates_repeated_receiver_candidates() {
+        let matchers = [ApiMatcher {
+            receiver_type: Some("pkg.Parent".into()),
+            method_name: Some("run".into()),
+            ..Default::default()
+        }];
+        let index = ApiMatcherIndex::new(matchers.iter());
+        let call = CallInfo::new(
+            "pkg.Child.run",
+            Some("pkg.Child".into()),
+            vec!["pkg.Parent".into(), "pkg.Parent".into()],
+            Some("run".into()),
+            Some(0),
+            Vec::new(),
+            Vec::new(),
+        );
+        let mut candidates = Vec::new();
+        index.for_each_candidate(&call, |position| candidates.push(position));
+        assert_eq!(candidates, vec![0]);
+    }
+
+    #[test]
     fn taint_rule_metadata_round_trips_three_presentations() {
         let rules = RuleSet::from_yaml_str(
             r#"
@@ -1641,6 +2133,43 @@ sources: []
             Vec::new(),
         );
         assert!(!matcher.matches_call(&wrong_type));
+    }
+
+    #[test]
+    fn api_matcher_reuses_compiled_call_regexes() {
+        MATCHER_REGEX_CACHE.with(|cache| cache.borrow_mut().clear());
+        let matcher = ApiMatcher {
+            regex: Some(r"^pkg\.Service\.run$".to_string()),
+            containing_function_regex: Some(r"^Controller\..+$".to_string()),
+            receiver_regex: Some(r"^pkg\.Service$".to_string()),
+            method_regex: Some(r"^run$".to_string()),
+            ..Default::default()
+        };
+        let mut call = CallInfo::new(
+            "pkg.Service.run",
+            Some("pkg.Service".to_string()),
+            Vec::new(),
+            Some("run".to_string()),
+            Some(0),
+            Vec::new(),
+            Vec::new(),
+        );
+        call.containing_function = Some("Controller.handle".to_string());
+
+        assert!(matcher.matches_call(&call));
+        let initial_cache_size = MATCHER_REGEX_CACHE.with(|cache| cache.borrow().len());
+        assert_eq!(initial_cache_size, 4);
+
+        // A second match reuses the bounded cache rather than adding a new
+        // compiled automaton for each regex constraint.
+        assert!(matcher.matches_call(&call));
+        assert_eq!(
+            MATCHER_REGEX_CACHE.with(|cache| cache.borrow().len()),
+            initial_cache_size
+        );
+        let first = cached_regex(Some(r"^pkg\.Service\.run$")).unwrap();
+        let second = cached_regex(Some(r"^pkg\.Service\.run$")).unwrap();
+        assert!(Arc::ptr_eq(&first, &second));
     }
 
     #[test]

@@ -4,6 +4,40 @@ struct CMacro {
     body: String,
 }
 
+#[derive(Clone, Debug)]
+struct TrackedSource {
+    text: String,
+    macro_bytes: Vec<bool>,
+}
+
+impl TrackedSource {
+    fn plain(text: String) -> Self {
+        Self {
+            macro_bytes: vec![false; text.len()],
+            text,
+        }
+    }
+
+    fn macro_ranges(&self) -> Vec<(u32, u32)> {
+        let mut ranges = Vec::new();
+        let mut start = None;
+        for (index, marked) in self.macro_bytes.iter().copied().enumerate() {
+            match (start, marked) {
+                (None, true) => start = Some(index),
+                (Some(begin), false) => {
+                    ranges.push((begin as u32, index as u32));
+                    start = None;
+                }
+                _ => {}
+            }
+        }
+        if let Some(begin) = start {
+            ranges.push((begin as u32, self.macro_bytes.len() as u32));
+        }
+        ranges
+    }
+}
+
 /// A conservative, deterministic C preprocessor used by the source frontend.
 ///
 /// It deliberately handles only constructs that can be expanded without a filesystem or a
@@ -11,19 +45,27 @@ struct CMacro {
 /// groups. Include directives are retained for import extraction. Unsupported directives are
 /// replaced with blank lines so source line numbering remains stable.
 pub fn preprocess_c_source(source: &str) -> String {
+    preprocess_c_source_with_origins(source).text
+}
+
+fn preprocess_c_source_with_origins(source: &str) -> TrackedSource {
     let logical = join_line_continuations(source);
     let mut macros = HashMap::<String, CMacro>::new();
     let mut active_stack = vec![true];
     let mut branch_taken = Vec::<bool>::new();
     let mut out = String::new();
+    let mut macro_bytes = Vec::new();
 
     for line in logical.lines() {
         let trimmed = line.trim_start();
         if !trimmed.starts_with('#') {
             if *active_stack.last().unwrap_or(&true) {
-                out.push_str(&expand_macros(line, &macros));
+                let expanded = expand_macros_tracked(TrackedSource::plain(line.to_string()), &macros);
+                out.push_str(&expanded.text);
+                macro_bytes.extend(expanded.macro_bytes);
             }
             out.push('\n');
+            macro_bytes.push(false);
             continue;
         }
 
@@ -87,11 +129,13 @@ pub fn preprocess_c_source(source: &str) -> String {
             }
         } else if directive.starts_with("include") && *active_stack.last().unwrap_or(&true) {
             out.push_str(line);
+            macro_bytes.extend(std::iter::repeat(false).take(line.len()));
         }
         out.push('\n');
+        macro_bytes.push(false);
     }
 
-    out
+    TrackedSource { text: out, macro_bytes }
 }
 
 fn join_line_continuations(source: &str) -> String {
@@ -177,28 +221,47 @@ fn evaluate_pp_condition(text: &str, macros: &HashMap<String, CMacro>) -> bool {
 }
 
 fn expand_macros(line: &str, macros: &HashMap<String, CMacro>) -> String {
-    let mut current = line.to_string();
+    expand_macros_tracked(TrackedSource::plain(line.to_string()), macros).text
+}
+
+fn expand_macros_tracked(mut current: TrackedSource, macros: &HashMap<String, CMacro>) -> TrackedSource {
     for _ in 0..8 {
-        let next = expand_macros_once(&current, macros);
-        if next == current {
+        let (next, changed) = expand_macros_once_tracked(&current, macros);
+        current = next;
+        if !changed {
             break;
         }
-        current = next;
     }
     current
 }
 
 fn expand_macros_once(line: &str, macros: &HashMap<String, CMacro>) -> String {
-    let chars = line.char_indices().collect::<Vec<_>>();
+    expand_macros_once_tracked(&TrackedSource::plain(line.to_string()), macros).0.text
+}
+
+fn expand_macros_once_tracked(line: &TrackedSource, macros: &HashMap<String, CMacro>) -> (TrackedSource, bool) {
     let mut out = String::new();
+    let mut macro_bytes = Vec::new();
     let mut byte = 0usize;
     let mut in_string = None::<char>;
     let mut escaped = false;
+    let mut changed = false;
 
-    while byte < line.len() {
-        let ch = line[byte..].chars().next().expect("valid char boundary");
+    let push_original = |start: usize, end: usize, out: &mut String, origins: &mut Vec<bool>| {
+        out.push_str(&line.text[start..end]);
+        origins.extend_from_slice(&line.macro_bytes[start..end]);
+    };
+
+    let push_macro = |text: &str, out: &mut String, origins: &mut Vec<bool>| {
+        out.push_str(text);
+        origins.extend(std::iter::repeat(true).take(text.len()));
+    };
+
+    while byte < line.text.len() {
+        let ch = line.text[byte..].chars().next().expect("valid char boundary");
         if let Some(quote) = in_string {
-            out.push(ch);
+            let end = byte + ch.len_utf8();
+            push_original(byte, end, &mut out, &mut macro_bytes);
             byte += ch.len_utf8();
             if escaped {
                 escaped = false;
@@ -211,40 +274,41 @@ fn expand_macros_once(line: &str, macros: &HashMap<String, CMacro>) -> String {
         }
         if ch == '"' || ch == '\'' {
             in_string = Some(ch);
-            out.push(ch);
+            let end = byte + ch.len_utf8();
+            push_original(byte, end, &mut out, &mut macro_bytes);
             byte += ch.len_utf8();
             continue;
         }
         if ch.is_ascii_alphabetic() || ch == '_' {
             let start = byte;
             byte += ch.len_utf8();
-            while byte < line.len() {
-                let next = line[byte..].chars().next().expect("valid char boundary");
+            while byte < line.text.len() {
+                let next = line.text[byte..].chars().next().expect("valid char boundary");
                 if next.is_ascii_alphanumeric() || next == '_' {
                     byte += next.len_utf8();
                 } else {
                     break;
                 }
             }
-            let name = &line[start..byte];
+            let name = &line.text[start..byte];
             let Some(mac) = macros.get(name) else {
-                out.push_str(name);
+                push_original(start, byte, &mut out, &mut macro_bytes);
                 continue;
             };
             if let Some(params) = &mac.params {
                 let mut cursor = byte;
-                while cursor < line.len() && line.as_bytes()[cursor].is_ascii_whitespace() {
+                while cursor < line.text.len() && line.text.as_bytes()[cursor].is_ascii_whitespace() {
                     cursor += 1;
                 }
-                if cursor >= line.len() || line.as_bytes()[cursor] != b'(' {
-                    out.push_str(name);
+                if cursor >= line.text.len() || line.text.as_bytes()[cursor] != b'(' {
+                    push_original(start, byte, &mut out, &mut macro_bytes);
                     continue;
                 }
-                let Some(close) = matching_delimiter(line, cursor, '(', ')') else {
-                    out.push_str(name);
+                let Some(close) = matching_delimiter(&line.text, cursor, '(', ')') else {
+                    push_original(start, byte, &mut out, &mut macro_bytes);
                     continue;
                 };
-                let args = split_top_level_commas(&line[cursor + 1..close]);
+                let args = split_top_level_commas(&line.text[cursor + 1..close]);
                 let mut bindings = HashMap::<String, String>::new();
                 let variadic = params.last().is_some_and(|param| param == "__VA_ARGS__");
                 let fixed = if variadic { params.len().saturating_sub(1) } else { params.len() };
@@ -256,18 +320,20 @@ fn expand_macros_once(line: &str, macros: &HashMap<String, CMacro>) -> String {
                     bindings.insert("__VA_ARGS__".to_string(), rest);
                 }
                 let body = expand_function_macro_body(&mac.body, &bindings);
-                out.push_str(&body);
+                push_macro(&body, &mut out, &mut macro_bytes);
+                changed = true;
                 byte = close + 1;
             } else {
-                out.push_str(&mac.body);
+                push_macro(&mac.body, &mut out, &mut macro_bytes);
+                changed = true;
             }
             continue;
         }
-        out.push(ch);
+        let end = byte + ch.len_utf8();
+        push_original(byte, end, &mut out, &mut macro_bytes);
         byte += ch.len_utf8();
     }
-    let _ = chars;
-    out
+    (TrackedSource { text: out, macro_bytes }, changed)
 }
 
 fn expand_function_macro_body(body: &str, bindings: &HashMap<String, String>) -> String {
@@ -306,4 +372,3 @@ fn replace_identifier(text: &str, target: &str, replacement: &str) -> String {
     let pattern = Regex::new(&format!(r"\b{}\b", regex::escape(target))).expect("valid regex");
     pattern.replace_all(text, replacement).into_owned()
 }
-

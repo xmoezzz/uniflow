@@ -491,8 +491,11 @@ fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjecti
                 | InstKind::ConstString { dst, .. }
                 | InstKind::Copy { dst, .. }
                 | InstKind::NumericStep { dst, .. }
+                | InstKind::NumericNeg { dst, .. }
                 | InstKind::Move { dst, .. }
                 | InstKind::Cast { dst, .. }
+                | InstKind::Deref { dst, .. }
+                | InstKind::Compare { dst, .. }
                 | InstKind::Phi { dst, .. }
                 | InstKind::LoadField { dst, .. }
                 | InstKind::LoadIndex { dst, .. } => {
@@ -619,6 +622,9 @@ fn returned_projections(fg: &FlowGraph, func: &Function) -> Vec<ReturnedProjecti
                     }
                 }
                 InstKind::NumericStep { .. }
+                | InstKind::NumericNeg { .. }
+                | InstKind::Deref { .. }
+                | InstKind::Compare { .. }
                 | InstKind::ConstInt { .. }
                 | InstKind::ConstString { .. }
                 | InstKind::StoreField { .. }
@@ -1036,24 +1042,111 @@ fn alias_equivalent_cells(fg: &FlowGraph, cell: NodeIndex) -> Vec<NodeIndex> {
     out
 }
 
-fn cell_store_connectivity_adjacency(fg: &FlowGraph) -> HashMap<usize, Vec<NodeIndex>> {
-    let cells = all_cell_nodes(fg);
-    let mut neighbors = cells
-        .iter()
-        .map(|cell| (cell.index(), Vec::new()))
-        .collect::<HashMap<_, _>>();
+#[derive(Clone, Debug, Default)]
+struct CellAliasSnapshot {
+    cells: Vec<NodeIndex>,
+    may_alias_neighbors: HashMap<usize, Vec<NodeIndex>>,
+}
 
-    // `cell_may_alias` is symmetric. Evaluate each unordered cell pair once
-    // and reuse the result for the whole transitive-store fixed point instead
-    // of rescanning every cell from every BFS node.
-    for (offset, left) in cells.iter().copied().enumerate() {
-        for right in cells.iter().copied().skip(offset + 1) {
-            if fg.cell_may_alias(left, right) {
-                neighbors.entry(left.index()).or_default().push(right);
-                neighbors.entry(right.index()).or_default().push(left);
+impl CellAliasSnapshot {
+    fn build(fg: &FlowGraph) -> Self {
+        let cells = all_cell_nodes(fg);
+        let mut may_alias_neighbors = cells
+            .iter()
+            .map(|cell| (cell.index(), Vec::new()))
+            .collect::<HashMap<_, _>>();
+        for (offset, left) in cells.iter().copied().enumerate() {
+            for right in cells.iter().copied().skip(offset + 1) {
+                if fg.cell_may_alias(left, right) {
+                    may_alias_neighbors
+                        .entry(left.index())
+                        .or_default()
+                        .push(right);
+                    may_alias_neighbors
+                        .entry(right.index())
+                        .or_default()
+                        .push(left);
+                }
             }
         }
+        Self {
+            cells,
+            may_alias_neighbors,
+        }
     }
+
+    fn may_alias_neighbors_of(&self, cell: NodeIndex) -> &[NodeIndex] {
+        self.may_alias_neighbors
+            .get(&cell.index())
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+}
+
+fn cell_allows_strong_update_with_alias_snapshot(
+    fg: &FlowGraph,
+    cell: NodeIndex,
+    aliases: &CellAliasSnapshot,
+) -> bool {
+    let Some(memory_unit) = precise_memory_unit_key_for_cell(fg, cell) else {
+        return false;
+    };
+    // The ordinary implementation rejects a strong update as soon as any
+    // distinct cell may alias this one. The snapshot contains exactly those
+    // distinct cells, so this is equivalent without rescanning all cells.
+    if !aliases.may_alias_neighbors_of(cell).is_empty() {
+        return false;
+    }
+    let Some(memory_unit_object_id) = fg
+        .points_to_object_ids
+        .get(&format!("memunit:{}", memory_unit))
+        .copied()
+    else {
+        return false;
+    };
+    let cell_object_ids = fg.cell_points_to_object_ids_of(cell);
+    cell_object_ids.is_empty()
+        || cell_object_ids
+            .iter()
+            .any(|id| *id == memory_unit_object_id)
+}
+
+fn strong_update_cache_from_alias_snapshot(
+    fg: &FlowGraph,
+    aliases: &CellAliasSnapshot,
+) -> HashMap<usize, bool> {
+    aliases
+        .cells
+        .iter()
+        .copied()
+        .map(|cell| {
+            (
+                cell.index(),
+                cell_allows_strong_update_with_alias_snapshot(fg, cell, aliases),
+            )
+        })
+        .collect()
+}
+
+fn cell_store_connectivity_adjacency(fg: &FlowGraph) -> HashMap<usize, Vec<NodeIndex>> {
+    let aliases = CellAliasSnapshot::build(fg);
+    cell_store_connectivity_adjacency_with_alias_snapshot(fg, &aliases)
+}
+
+fn cell_store_connectivity_adjacency_with_alias_snapshot(
+    fg: &FlowGraph,
+    aliases: &CellAliasSnapshot,
+) -> HashMap<usize, Vec<NodeIndex>> {
+    let mut neighbors = aliases
+        .cells
+        .iter()
+        .map(|cell| {
+            (
+                cell.index(),
+                aliases.may_alias_neighbors_of(*cell).to_vec(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
 
     // Actual/formal heap-cell bridges are traversed in both directions by the
     // legacy transitive query, so they belong to the same undirected
@@ -1241,10 +1334,22 @@ fn visible_direct_cell_store_records_before_edge(
 }
 
 fn all_transitive_cell_store_records(fg: &FlowGraph) -> HashMap<usize, BTreeSet<DetailedStoreRecord>> {
-    let cells = all_cell_nodes(fg);
-    let neighbors = cell_store_connectivity_adjacency(fg);
-    let seeds = cells.iter().map(|cell| (cell.index(), direct_cell_store_records(fg, *cell).into_iter().collect())).collect();
-    propagate_symmetric_labels(cells.into_iter(), seeds, |cell| {
+    let aliases = CellAliasSnapshot::build(fg);
+    all_transitive_cell_store_records_with_alias_snapshot(fg, &aliases)
+}
+
+fn all_transitive_cell_store_records_with_alias_snapshot(
+    fg: &FlowGraph,
+    aliases: &CellAliasSnapshot,
+) -> HashMap<usize, BTreeSet<DetailedStoreRecord>> {
+    let neighbors = cell_store_connectivity_adjacency_with_alias_snapshot(fg, aliases);
+    let seeds = aliases.cells.iter().map(|cell| {
+        (
+            cell.index(),
+            direct_cell_store_records(fg, *cell).into_iter().collect(),
+        )
+    }).collect();
+    propagate_symmetric_labels(aliases.cells.iter().copied(), seeds, |cell| {
         neighbors.get(&cell.index()).cloned().unwrap_or_default()
     })
 }
@@ -1307,6 +1412,27 @@ fn visible_cell_store_records(
     out
 }
 
+fn cell_store_values_from_transitive_records(
+    fg: &FlowGraph,
+    cell: NodeIndex,
+    transitive_records: &HashMap<usize, BTreeSet<DetailedStoreRecord>>,
+    strong: &mut HashMap<usize, bool>,
+) -> Vec<(FunctionId, ValueId)> {
+    let records = transitive_records
+        .get(&cell.index())
+        .map(|records| records.iter().copied().collect::<Vec<_>>())
+        .unwrap_or_default();
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for (_edge_idx, func, value) in visible_cell_store_records(fg, cell, None, records, strong) {
+        let value = canonical_heap_value(fg, func, value);
+        if seen.insert((func, value)) {
+            out.push((func, value));
+        }
+    }
+    out
+}
+
 fn direct_cell_store_values_before_edge(
     fg: &FlowGraph,
     cell: NodeIndex,
@@ -1317,6 +1443,7 @@ fn direct_cell_store_values_before_edge(
     for (_edge_idx, func, value) in
         visible_direct_cell_store_records_before_edge(fg, cell, cutoff_edge_idx)
     {
+        let value = canonical_heap_value(fg, func, value);
         if seen.insert((func, value)) {
             out.push((func, value));
         }
@@ -1363,44 +1490,48 @@ fn suffix_to_access_path(suffix: &str) -> Option<String> {
     if trimmed.is_empty() {
         return None;
     }
-    let chars = trimmed.char_indices().collect::<Vec<_>>();
+    let bytes = trimmed.as_bytes();
     let mut pos = 0usize;
-    let mut labels = Vec::new();
-    while pos < chars.len() {
-        match chars[pos].1 {
-            '.' => {
+    let mut out = String::new();
+    while pos < bytes.len() {
+        match bytes[pos] {
+            b'.' => {
                 pos += 1;
                 let start = pos;
-                while pos < chars.len() && chars[pos].1 != '.' && chars[pos].1 != '[' {
+                while pos < bytes.len() && bytes[pos] != b'.' && bytes[pos] != b'[' {
                     pos += 1;
                 }
-                let start_byte = chars.get(start).map(|(i, _)| *i).unwrap_or(trimmed.len());
-                let end_byte = chars.get(pos).map(|(i, _)| *i).unwrap_or(trimmed.len());
-                let field = trimmed[start_byte..end_byte].trim();
+                let field = trimmed[start..pos].trim();
                 if !field.is_empty() {
-                    labels.push(format!("field:{}", field));
+                    if !out.is_empty() {
+                        out.push('.');
+                    }
+                    out.push_str("field:");
+                    out.push_str(field);
                 }
             }
-            '[' => {
+            b'[' => {
                 pos += 1;
                 let start = pos;
-                while pos < chars.len() && chars[pos].1 != ']' {
+                while pos < bytes.len() && bytes[pos] != b']' {
                     pos += 1;
                 }
-                let start_byte = chars.get(start).map(|(i, _)| *i).unwrap_or(trimmed.len());
-                let end_byte = chars.get(pos).map(|(i, _)| *i).unwrap_or(trimmed.len());
-                let key = trimmed[start_byte..end_byte].trim();
+                let key = trimmed[start..pos].trim();
                 if !key.is_empty() {
-                    labels.push(format!("index:{}", key));
+                    if !out.is_empty() {
+                        out.push('.');
+                    }
+                    out.push_str("index:");
+                    out.push_str(key);
                 }
-                if pos < chars.len() && chars[pos].1 == ']' {
+                if pos < bytes.len() && bytes[pos] == b']' {
                     pos += 1;
                 }
             }
             _ => pos += 1,
         }
     }
-    (!labels.is_empty()).then_some(labels.join("."))
+    (!out.is_empty()).then_some(out)
 }
 
 fn region_relative_access_paths(base_regions: &[String], region: &str) -> Vec<String> {
@@ -1419,6 +1550,111 @@ fn region_relative_access_paths(base_regions: &[String], region: &str) -> Vec<St
     out.into_iter().collect()
 }
 
+fn region_relative_access_paths_cached<'a>(
+    base_regions: &[String],
+    region: &str,
+    cache: &'a mut HashMap<String, Vec<String>>,
+) -> &'a [String] {
+    if !cache.contains_key(region) {
+        cache.insert(
+            region.to_string(),
+            region_relative_access_paths(base_regions, region),
+        );
+    }
+    cache
+        .get(region)
+        .map(Vec::as_slice)
+        .expect("relative access-path cache entry must exist")
+}
+
+#[derive(Clone, Debug, Default)]
+struct RelativeRegionPathIndex<'region> {
+    base_regions: Vec<String>,
+    // Region names are owned by the converged FlowGraph for the whole summary
+    // build. Borrow those stable strings instead of allocating another owned
+    // String for every cache miss. This cache is intentionally summary-local,
+    // so it can never outlive the graph data it indexes.
+    paths_by_region: HashMap<&'region str, Vec<u32>>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct AccessPathInterner {
+    paths: Vec<std::rc::Rc<str>>,
+    ids: HashMap<std::rc::Rc<str>, u32>,
+}
+
+impl AccessPathInterner {
+    fn intern(&mut self, path: String) -> u32 {
+        if let Some(id) = self.ids.get(path.as_str()).copied() {
+            return id;
+        }
+        let id = self.paths.len() as u32;
+        let path = std::rc::Rc::<str>::from(path);
+        self.paths.push(path.clone());
+        self.ids.insert(path, id);
+        id
+    }
+
+    fn resolve(&self, id: u32) -> &str {
+        self.paths
+            .get(id as usize)
+            .map(|path| path.as_ref())
+            .expect("interned access-path id must resolve")
+    }
+}
+
+impl<'region> RelativeRegionPathIndex<'region> {
+    fn new(base_regions: &[String]) -> Self {
+        let mut base_regions = base_regions.to_vec();
+        base_regions.sort_unstable();
+        base_regions.dedup();
+        Self {
+            base_regions,
+            paths_by_region: HashMap::new(),
+        }
+    }
+
+    fn path_ids_for<'a>(
+        &'a mut self,
+        region: &'region str,
+        interner: &mut AccessPathInterner,
+    ) -> &'a [u32] {
+        use std::collections::hash_map::Entry;
+
+        let base_regions = &self.base_regions;
+        match self.paths_by_region.entry(region) {
+            Entry::Occupied(entry) => entry.into_mut().as_slice(),
+            Entry::Vacant(entry) => {
+                let mut path_ids = Vec::new();
+
+                // `memory_region_has_boundary_prefix(base, region)` can only
+                // be true when `base` ends immediately before a `.`/`[` boundary
+                // (or equals `region`, which yields no relative access path).
+                // Enumerating those boundaries turns the old O(base_regions)
+                // scan for every distinct region into O(region boundaries)
+                // membership probes while preserving exact prefix semantics.
+                for (boundary, ch) in region.char_indices() {
+                    if ch != '.' && ch != '[' {
+                        continue;
+                    }
+                    if base_regions
+                        .binary_search_by(|base| base.as_str().cmp(&region[..boundary]))
+                        .is_err()
+                    {
+                        continue;
+                    }
+                    if let Some(path) = suffix_to_access_path(&region[boundary..]) {
+                        path_ids.push(interner.intern(path));
+                    }
+                }
+                path_ids.sort_unstable();
+                path_ids.dedup();
+                entry.insert(path_ids).as_slice()
+            }
+        }
+    }
+}
+
 fn value_root_memory_regions(fg: &FlowGraph, func: FunctionId, value: ValueId) -> Vec<String> {
     let mut roots = memory_region_seed_for_value(fg, func, value);
     roots.sort();
@@ -1426,20 +1662,82 @@ fn value_root_memory_regions(fg: &FlowGraph, func: FunctionId, value: ValueId) -
     roots
 }
 
-fn parse_access_path(path: &str) -> Vec<(String, String)> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AccessPathKind {
+    Field,
+    Index,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct AccessPathSegment<'a> {
+    kind: AccessPathKind,
+    label: &'a str,
+}
+
+fn parse_access_path(path: &str) -> Vec<AccessPathSegment<'_>> {
     path.split('.')
         .filter_map(|segment| {
             let trimmed = segment.trim();
             if let Some(field) = trimmed.strip_prefix("field:") {
-                return Some(("field".to_string(), field.trim().to_string()));
+                let label = field.trim();
+                return (!label.is_empty()).then_some(AccessPathSegment {
+                    kind: AccessPathKind::Field,
+                    label,
+                });
             }
             if let Some(index) = trimmed.strip_prefix("index:") {
-                return Some(("index".to_string(), index.trim().to_string()));
+                let label = index.trim();
+                return (!label.is_empty()).then_some(AccessPathSegment {
+                    kind: AccessPathKind::Index,
+                    label,
+                });
             }
             None
         })
-        .filter(|(_, label)| !label.is_empty())
         .collect()
+}
+
+fn existing_cells_for_parsed_relative_path_from_value(
+    fg: &FlowGraph,
+    func: FunctionId,
+    value: ValueId,
+    segments: &[AccessPathSegment<'_>],
+) -> Vec<NodeIndex> {
+    let mut bases = vec![(func, value)];
+    let mut cells = Vec::new();
+    for (step, segment) in segments.iter().enumerate() {
+        cells.clear();
+        for (base_func, base_value) in &bases {
+            let base = canonical_heap_value(fg, *base_func, *base_value);
+            let cell = match segment.kind {
+                AccessPathKind::Field => {
+                    fg.field_cells
+                        .get(&(*base_func, base, segment.label.to_string()))
+                }
+                AccessPathKind::Index => {
+                    fg.index_cells
+                        .get(&(*base_func, base, segment.label.to_string()))
+                }
+            };
+            if let Some(cell) = cell {
+                cells.push(*cell);
+            }
+        }
+        cells.sort_unstable_by_key(|cell| cell.index());
+        cells.dedup();
+        // The last step asks for cells, not their contents. Expanding contents
+        // here repeats a transitive bridge walk for every summary path.
+        if cells.is_empty() || step + 1 == segments.len() {
+            break;
+        }
+        bases = cells
+            .iter()
+            .flat_map(|cell| cell_projected_values(fg, *cell))
+            .collect();
+        bases.sort_unstable();
+        bases.dedup();
+    }
+    cells
 }
 
 /// Resolve a summary against the function that produced it without allocating
@@ -1449,28 +1747,7 @@ fn existing_cells_for_relative_path_from_value(
     fg: &FlowGraph, func: FunctionId, value: ValueId, path: &str,
 ) -> Vec<NodeIndex> {
     let segments = parse_access_path(path);
-    let mut bases = vec![(func, value)];
-    let mut cells = Vec::new();
-    for (step, (kind, label)) in segments.iter().enumerate() {
-        cells.clear();
-        for (base_func, base_value) in &bases {
-            let base = canonical_heap_value(fg, *base_func, *base_value);
-            let cell = if kind == "field" {
-                fg.field_cells.get(&(*base_func, base, label.clone()))
-            } else {
-                fg.index_cells.get(&(*base_func, base, label.clone()))
-            };
-            if let Some(cell) = cell { cells.push(*cell); }
-        }
-        cells.sort_unstable_by_key(|cell| cell.index());
-        cells.dedup();
-        // The last step asks for cells, not their contents. Expanding contents
-        // here repeats a transitive bridge walk for every summary path.
-        if cells.is_empty() || step + 1 == segments.len() { break; }
-        bases = cells.iter().flat_map(|cell| cell_projected_values(fg, *cell)).collect();
-        bases.sort_unstable(); bases.dedup();
-    }
-    cells
+    existing_cells_for_parsed_relative_path_from_value(fg, func, value, &segments)
 }
 
 fn relative_path_candidate_cells_for_port(
@@ -1533,6 +1810,39 @@ fn cell_values_for_flow(fg: &FlowGraph, cell: NodeIndex) -> Vec<(FunctionId, Val
     cell_values_for_flow_before_edge(fg, cell, None)
 }
 
+fn bound_cell_projection_values_compatible(
+    fg: &FlowGraph,
+    left_func: FunctionId,
+    left_value: ValueId,
+    right_func: FunctionId,
+    right_value: ValueId,
+) -> bool {
+    if heap_projection_values_compatible(fg, left_func, left_value, right_func, right_value) {
+        return true;
+    }
+
+    // These values are direct contents of two heap cells that have just been
+    // connected by an actual/formal binding. A load on one side can still be
+    // missing the allocation identity already known on the other side. Allow
+    // only that one-known/one-unresolved case locally; this does not weaken
+    // global heap projection compatibility or merge two known allocation sites.
+    let left_site = value_identity_site(fg, left_func, left_value);
+    let right_site = value_identity_site(fg, right_func, right_value);
+    if left_site.is_some() == right_site.is_some() {
+        return false;
+    }
+
+    let left_ty = fg
+        .value_types
+        .get(&(left_func, left_value))
+        .map(|value| value.as_str());
+    let right_ty = fg
+        .value_types
+        .get(&(right_func, right_value))
+        .map(|value| value.as_str());
+    object_types_compatible(left_ty, right_ty)
+}
+
 fn bridge_nested_heap_values(
     fg: &mut FlowGraph,
     left_func: FunctionId,
@@ -1569,7 +1879,7 @@ fn bridge_nested_heap_values(
         let right_projected = direct_cell_projected_values(fg, right_cell);
         for (lf, lv) in &left_projected {
             for (rf, rv) in &right_projected {
-                if !heap_projection_values_compatible(fg, *lf, *lv, *rf, *rv) {
+                if !bound_cell_projection_values_compatible(fg, *lf, *lv, *rf, *rv) {
                     continue;
                 }
                 connect_bidirectional_value_pair(fg, *lf, *lv, *rf, *rv);
@@ -1604,7 +1914,7 @@ fn bridge_nested_heap_values(
                 let right_projected = direct_cell_projected_values(fg, *right_cell);
                 for (lf, lv) in &left_projected {
                     for (rf, rv) in &right_projected {
-                        if !heap_projection_values_compatible(fg, *lf, *lv, *rf, *rv) {
+                        if !bound_cell_projection_values_compatible(fg, *lf, *lv, *rf, *rv) {
                             continue;
                         }
                         connect_bidirectional_value_pair(fg, *lf, *lv, *rf, *rv);

@@ -110,6 +110,30 @@ pub enum Expr {
     },
 }
 
+impl Expr {
+    pub fn span(&self) -> Span {
+        match self {
+            Expr::VarRef { span, .. }
+            | Expr::Literal { span, .. }
+            | Expr::Unary { span, .. }
+            | Expr::Binary { span, .. }
+            | Expr::FieldRead { span, .. }
+            | Expr::IndexRead { span, .. }
+            | Expr::Lambda { span, .. }
+            | Expr::New { span, .. }
+            | Expr::Cast { span, .. }
+            | Expr::Conditional { span, .. }
+            | Expr::Assign { span, .. }
+            | Expr::Interp { span, .. }
+            | Expr::Collection { span, .. }
+            | Expr::Range { span, .. }
+            | Expr::Opaque { span, .. }
+            | Expr::Unknown { span, .. } => *span,
+            Expr::Call(call) => call.span,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CollectionKind {
     List,
