@@ -129,6 +129,41 @@ mod tests {
     }
 
     #[test]
+    fn bounded_taint_adjacency_keeps_direct_store_to_load_flow() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let stored = graph.values[&(F(0), V(1))];
+        let loaded = graph.values[&(F(0), V(2))];
+        let cell = super::ensure_field_cell(&mut graph, F(0), V(0), "item");
+        graph.graph.add_edge(
+            stored,
+            cell,
+            super::FlowEdge {
+                kind: super::EdgeKind::StoreField {
+                    field: "item".to_string(),
+                },
+            },
+        );
+        graph.graph.add_edge(
+            cell,
+            loaded,
+            super::FlowEdge {
+                kind: super::EdgeKind::LoadField {
+                    field: "item".to_string(),
+                },
+            },
+        );
+
+        super::materialize_sparse_taint_adjacency(&mut graph);
+
+        assert!(graph.sparse_successors[&stored.index()].contains(&cell.index()));
+        assert!(graph.sparse_successors[&cell.index()].contains(&loaded.index()));
+        assert!(graph.heap_value_successors.is_empty());
+        assert!(graph.region_graph_successors.is_empty());
+    }
+
+    #[test]
     fn taint_only_edges_do_not_enter_identity_adjacency() {
         use uniflow_ir::{FunctionId as F, ValueId as V};
 
@@ -162,6 +197,31 @@ mod tests {
             .identity_neighbors
             .get(&left.index())
             .is_some_and(|neighbors| neighbors.contains(&right.index())));
+    }
+
+    #[test]
+    fn materialized_sparse_graph_omits_empty_adjacency_entries() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let mut graph = heap_fixture();
+        let left = graph.values[&(F(0), V(0))];
+        let isolated = graph.values[&(F(0), V(5))];
+        super::materialize_sparse_data_adjacency(&mut graph);
+
+        assert!(graph.sparse_adjacency_materialized);
+        assert!(!graph.sparse_successors.contains_key(&isolated.index()));
+        assert!(!graph.sparse_predecessors.contains_key(&isolated.index()));
+        assert!(graph.sparse_successors_of(isolated).is_empty());
+        assert!(graph.sparse_predecessors_of(isolated).is_empty());
+        assert!(graph.sparse_successors_of(left).is_empty());
+    }
+
+    #[test]
+    fn unknown_values_in_different_functions_are_not_aliases() {
+        use uniflow_ir::{FunctionId as F, ValueId as V};
+
+        let graph = heap_fixture();
+        assert!(!graph.value_may_alias(F(0), V(0), F(1), V(0)));
     }
 
     fn last_call_targets(graph: &super::FlowGraph, function: &uniflow_ir::Function) -> Vec<String> {
@@ -790,7 +850,12 @@ mod tests {
         let one = super::ensure_index_cell(&mut graph, F(0), V(0), "1");
         let wildcard = super::ensure_index_cell(&mut graph, F(0), V(0), "*");
         let field = super::ensure_field_cell(&mut graph, F(0), V(0), "value");
-        for cell in [zero, one, wildcard, field] {
+        let different_precise_field = super::ensure_field_cell(&mut graph, F(0), V(1), "value");
+        graph.object_identity_sites.insert((F(0), V(0)), "first".into());
+        graph.object_identity_sites.insert((F(0), V(1)), "second".into());
+        graph.points_to_object_ids.insert("obj:site:first".into(), 101);
+        graph.points_to_object_ids.insert("obj:site:second".into(), 202);
+        for cell in [zero, one, wildcard, field, different_precise_field] {
             graph
                 .cell_memory_regions
                 .insert(cell.index(), vec!["mem:shared".into()]);
@@ -1908,6 +1973,104 @@ mod tests {
         assert!(graph.graph.edge_weights().any(|edge| {
             matches!(edge.kind, EdgeKind::Source { ref rule_id } if rule_id == "test.input")
         }));
+    }
+
+    #[test]
+    fn scan_build_skips_expensive_solver_without_a_modeled_taint_pair() {
+        let hir = PythonParser
+            .parse_file(
+                "unmatched.py",
+                "def handle(input, obj):\n    obj.value = input\n    return obj.value\n",
+            )
+            .expect("parse unmatched flow");
+        let ir = lower_program(&hir);
+        let mut stages = Vec::new();
+        let _graph = super::build_for_scan_with_progress(&ir, &lightweight_rules(), |progress| {
+            stages.push(progress.stage);
+        });
+
+        assert!(stages.contains(&"skip-unmatched-expensive-flow"));
+        assert!(!stages.contains(&"points-to"));
+        assert!(!stages.contains(&"bridge-internal-heap-cells"));
+        assert!(!stages.contains(&"resolve-dynamic-calls"));
+        assert_eq!(_graph.stats().object_shape_paths, 0);
+        assert_eq!(_graph.stats().live_region_cells, 0);
+    }
+
+    #[test]
+    fn scan_build_keeps_heap_flow_when_a_modeled_taint_pair_exists() {
+        let hir = PythonParser
+            .parse_file(
+                "matched.py",
+                "def handle(input, obj):\n    obj.value = input\n    sink(obj.value)\n",
+            )
+            .expect("parse matched flow");
+        let ir = lower_program(&hir);
+        let mut rules = lightweight_rules();
+        rules.sinks.push(SinkRule {
+            id: "test.sink".to_string(),
+            language: Some(Language::Python),
+            matcher: ApiMatcher {
+                exact: Some("sink".to_string()),
+                ..ApiMatcher::default()
+            },
+            inputs: vec![Port::Arg(0)],
+            kind: "test".to_string(),
+        });
+        let mut stages = Vec::new();
+        let graph = super::build_for_scan_with_progress(&ir, &rules, |progress| {
+            stages.push(progress.stage);
+        });
+
+        assert!(!stages.contains(&"skip-unmatched-expensive-flow"));
+        assert!(stages.contains(&"bounded-taint-flow"));
+        assert!(!stages.contains(&"points-to"));
+        assert!(!stages.contains(&"bridge-internal-heap-cells"));
+        assert!(!graph.synthetic_sources.is_empty());
+        assert!(!graph.synthetic_sinks.is_empty());
+    }
+
+    #[test]
+    fn static_taint_scan_slice_keeps_interprocedural_source_to_sink_chain() {
+        let hir = PythonParser
+            .parse_file(
+                "chain.py",
+                "def source():\n    return input()\n\ndef relay(value):\n    return value\n\ndef sink(value):\n    eval(value)\n\ndef entry():\n    sink(relay(source()))\n",
+            )
+            .expect("parse chain");
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            sources: vec![SourceRule {
+                id: "test.input".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    contains: Some("input".to_string()),
+                    ..ApiMatcher::default()
+                },
+                out: Port::Return,
+                kind: "test".to_string(),
+            }],
+            sinks: vec![SinkRule {
+                id: "test.eval".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    contains: Some("eval".to_string()),
+                    ..ApiMatcher::default()
+                },
+                inputs: vec![Port::Arg(0)],
+                kind: "test".to_string(),
+            }],
+            ..RuleSet::default()
+        };
+
+        let graph = super::build_for_scan_with_progress(&ir, &rules, |_| {});
+        let names = graph.function_names.values().collect::<Vec<_>>();
+        assert!(names.iter().any(|name| name.ends_with("source")), "{names:?}");
+        assert!(names.iter().any(|name| name.ends_with("relay")));
+        assert!(names.iter().any(|name| name.ends_with("sink")));
+        assert!(names.iter().any(|name| name.ends_with("entry")));
+        assert!(!graph.synthetic_sources.is_empty());
+        assert!(!graph.synthetic_sinks.is_empty());
     }
 
     #[test]

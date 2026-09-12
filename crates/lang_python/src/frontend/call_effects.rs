@@ -93,7 +93,7 @@ fn merge_project_summary_effects_into_env(summary: &ProjectFunctionSummary, env:
             if root == "self" || env.self_name.as_deref() == Some(root.as_str()) {
                 env.field_types.insert(field.clone(), ty.clone());
                 if let Some(current_class) = env.current_class.clone() {
-                    env.class_field_index.entry(current_class).or_default().insert(field.clone(), ty.clone());
+                    env.class_field_index.set_field(current_class, field.clone(), ty.clone());
                 }
                 continue;
             }
@@ -101,7 +101,7 @@ fn merge_project_summary_effects_into_env(summary: &ProjectFunctionSummary, env:
             if let Some(base_ty) = env.types.get(root).cloned() {
                 let canonical = canonicalize_project_path(&env.project_index, &base_ty);
                 if env.project_index.class_exists(&canonical) {
-                    env.class_field_index.entry(canonical).or_default().insert(field.clone(), ty.clone());
+                    env.class_field_index.set_field(canonical, field.clone(), ty.clone());
                 }
             }
         }
@@ -154,7 +154,7 @@ fn apply_receiver_summary_effects(
                 update_local_object_field_type(env, receiver, field, ty);
                 let canonical = canonicalize_project_path(&env.project_index, receiver_ty);
                 if env.project_index.class_exists(&canonical) {
-                    env.class_field_index.entry(canonical).or_default().insert(field.clone(), ty.clone());
+                    env.class_field_index.set_field(canonical, field.clone(), ty.clone());
                 }
             }
         }
@@ -363,7 +363,7 @@ fn apply_bound_summary_effects(
                 if let Some(actual_ty) = actual_ty.as_deref() {
                     let canonical = canonicalize_project_path(index, actual_ty);
                     if index.class_exists(&canonical) {
-                        env.class_field_index.entry(canonical).or_default().insert(field.clone(), ty.clone());
+                        env.class_field_index.set_field(canonical, field.clone(), ty.clone());
                     }
                 }
             }
@@ -431,6 +431,10 @@ fn replay_plain_project_method_summary_effects(
     index: &PyProjectIndex,
     env: &mut PyEnv,
 ) -> Option<(PyFunctionText, String, PyImports)> {
+    // This direct method-summary route intentionally avoids the generic
+    // callable lookup so it can replay receiver writes. It must still join
+    // the same cycle guard, otherwise mutually recursive methods bypass it.
+    let _summary_guard = SummaryPathGuard::enter(method_path)?;
     let func = index.method_text(method_path)?.clone();
     let (owner_class, _) = method_path.rsplit_once('.')?;
     let (owner_module, _) = owner_class.rsplit_once('.')?;
@@ -705,4 +709,3 @@ fn apply_direct_call_summary_effects(
         env,
     );
 }
-

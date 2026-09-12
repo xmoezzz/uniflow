@@ -495,6 +495,18 @@ impl<'a> Pg<'a> {
             self.terminator();
             return Ok(Some(stmt));
         }
+        // Rust loop label: `'outer: for ...`. It is a control-flow target,
+        // not a character/string literal or a separate expression statement.
+        if self.d.language == uniflow_hir::Language::Rust
+            && self.cur.at("'")
+            && self.cur.peek(1).kind == TokKind::Ident
+            && self.cur.peek(2).text == ":"
+        {
+            self.cur.advance();
+            self.cur.advance();
+            self.cur.advance();
+            return self.statement(hooks);
+        }
         // `label:` (Go, Shell, C) — recorded as a no-op marker statement.
         if self.cur.peek(1).text == ":"
             && self.cur.current().kind == TokKind::Ident
@@ -502,7 +514,7 @@ impl<'a> Pg<'a> {
         {
             self.cur.advance();
             self.cur.advance();
-            return Ok(None);
+            return self.statement(hooks);
         }
         let kw = &self.d.kw;
 
@@ -604,6 +616,13 @@ impl<'a> Pg<'a> {
     }
 
     fn label_argument(&mut self) -> Option<String> {
+        if self.d.language == uniflow_hir::Language::Rust
+            && self.cur.at("'")
+            && self.cur.peek(1).kind == TokKind::Ident
+        {
+            self.cur.advance();
+            return Some(self.cur.name());
+        }
         let word = self.cur.current().text.clone();
         self.cur.advance();
         if self.cur.current().kind == TokKind::Ident && !self.cur.current().space_before {
@@ -1106,7 +1125,17 @@ impl<'a> Pg<'a> {
         let start = self.cur.pos;
         self.cur.advance();
         self.cur.skip_newlines();
-        let parenthesized = self.cur.eat("(");
+        // Rust permits a parenthesized destructuring pattern before `in`:
+        // `for (key, value) in entries { ... }`. Those parentheses wrap only
+        // the binding pattern, unlike C/Java's whole loop header.
+        let rust_pattern_header = self.d.language == uniflow_hir::Language::Rust
+            && self.cur.at("(")
+            && self
+                .cur
+                .tokens
+                .get(self.match_index(")").saturating_add(1))
+                .is_some_and(|token| token.text == "in");
+        let parenthesized = !rust_pattern_header && self.cur.eat("(");
         // Locate the header end so the header tokens can be re-parsed in place:
         // re-parsing (instead of rebuilding text) keeps every span accurate.
         let header_end = if parenthesized {
@@ -1240,11 +1269,11 @@ impl<'a> Pg<'a> {
             match token.text.as_str() {
                 "(" | "[" => depth += 1,
                 ")" | "]" => {
-                    if depth == 0 && token.text == close {
-                        return index;
-                    }
                     if depth > 0 {
                         depth -= 1;
+                    }
+                    if depth == 0 && token.text == close {
+                        return index;
                     }
                 }
                 _ => {}
@@ -1896,6 +1925,15 @@ impl<'a> Pg<'a> {
             if word == ">>" && generic_depth != 0 {
                 generic_depth = generic_depth.saturating_sub(2);
                 out.push_str(">>");
+                self.cur.advance();
+                continue;
+            }
+            // Rust (and several other supported languages) permit tuple and
+            // callable types inside generic arguments, e.g.
+            // `HashMap<usize, (usize, Vec<T>)>`. Parentheses at generic depth
+            // are part of the annotation, not the start of a new expression.
+            if matches!(word.as_str(), "(" | ")") && generic_depth != 0 {
+                out.push_str(&word);
                 self.cur.advance();
                 continue;
             }

@@ -628,10 +628,18 @@ fn newline_braces(language: Language, function_kw: &'static [&'static str]) -> L
             } else {
                 Vec::new()
             },
-            string_quotes: if language == Language::JavaScript {
-                vec!['"', '\'', '`']
-            } else {
-                LexerSpec::default().string_quotes
+            string_quotes: match language {
+                Language::JavaScript => vec!['"', '\'', '`'],
+                // In Rust, an apostrophe starts a lifetime (`&'a T`) much more
+                // often than it starts a character literal in declarations and
+                // signatures. Treating it as a general string delimiter lets a
+                // lifetime consume through the next apostrophe in the file,
+                // which in turn makes the shared parser lose function and
+                // block boundaries. Double-quoted literals are sufficient for
+                // the data-flow surface; character literals remain an opaque
+                // token until the Rust lexer grows a distinct CharLit kind.
+                Language::Rust => vec!['"'],
+                _ => LexerSpec::default().string_quotes,
             },
             dollar_idents: language == Language::JavaScript,
             ..LexerSpec::default()
@@ -1266,6 +1274,107 @@ mod tests {
         assert!(
             !rendered.contains("Unknown"),
             "turbofish must not become an unknown dynamic callee: {rendered}"
+        );
+    }
+
+    #[test]
+    fn rust_lifetime_parameter_does_not_consume_following_functions() {
+        let program = parse_file(
+            Language::Rust,
+            "lifetimes.rs",
+            r#"
+                struct Index<'a> { value: &'a str }
+                impl<'a> Index<'a> {
+                    fn new(rules: &'a str) -> Self { Self { value: rules } }
+                }
+                fn run() { let cache = HashMap::<(String, String), bool>::new(); }
+            "#,
+        )
+        .expect("Rust source with a lifetime should parse");
+        let rendered = format!("{program:#?}");
+        assert!(
+            rendered.contains("name: \"run\""),
+            "a Rust lifetime must not swallow the following function: {rendered}"
+        );
+        assert!(
+            rendered.contains("HashMap.new"),
+            "turbofish after a lifetime-bearing declaration must remain static: {rendered}"
+        );
+        let constructor = program.modules[0]
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Function(function) if function.name == "new" => Some(function),
+                _ => None,
+            })
+            .expect("Rust associated constructor");
+        assert!(
+            matches!(constructor.body.stmts.first(), Some(Stmt::Expr { expr: Expr::New { type_name, .. }, .. }) if type_name == "Self"),
+            "Self {{ ... }} must stay inside the constructor body: {constructor:#?}"
+        );
+    }
+
+    #[test]
+    fn rust_borrow_in_closure_keeps_the_member_inside_the_closure() {
+        let program = parse_file(
+            Language::Rust,
+            "borrow.rs",
+            "fn run(values) { let refs = values.iter().map(|value| &value.field); }",
+        )
+        .expect("Rust borrow expression should parse");
+        let rendered = format!("{program:#?}");
+        assert!(
+            !rendered.contains("Unknown"),
+            "Rust borrow must not split the closure body: {rendered}"
+        );
+        assert!(rendered.contains("field"));
+    }
+
+    #[test]
+    fn rust_tuple_type_inside_generic_keeps_initializer_attached() {
+        let program = parse_file(
+            Language::Rust,
+            "tuple_type.rs",
+            "fn run() { let groups: HashMap<usize, (usize, Vec<String>)> = HashMap::new(); }",
+        )
+        .expect("Rust tuple generic should parse");
+        let function = program.modules[0]
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Function(function) if function.name == "run" => Some(function),
+                _ => None,
+            })
+            .expect("run function");
+        assert!(
+            matches!(function.body.stmts.first(), Some(Stmt::Let { init: Some(Expr::Call(call)), .. }) if matches!(&call.target, CallTarget::Named(name) if name == "HashMap.new")),
+            "tuple generic must remain a declaration annotation: {function:#?}"
+        );
+    }
+
+    #[test]
+    fn rust_destructuring_for_and_labeled_break_stay_inside_function() {
+        let program = parse_file(
+            Language::Rust,
+            "loop.rs",
+            "fn run(values) { 'outer: for (position, value) in values { if position { break 'outer; } sink(value); } done(); }",
+        )
+        .expect("Rust destructuring loop should parse");
+        let function = program.modules[0]
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Function(function) if function.name == "run" => Some(function),
+                _ => None,
+            })
+            .expect("run function");
+        assert!(
+            function.body.stmts.iter().any(|stmt| matches!(stmt, Stmt::ForEach { .. })),
+            "Rust for-in loop must not degrade to a while condition: {function:#?}"
+        );
+        assert!(
+            function.body.stmts.iter().any(|stmt| matches!(stmt, Stmt::Expr { expr: Expr::Call(call), .. } if matches!(&call.target, CallTarget::Named(name) if name == "done"))),
+            "the function must continue after the labeled loop: {function:#?}"
         );
     }
 

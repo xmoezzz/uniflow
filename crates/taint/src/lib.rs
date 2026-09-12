@@ -1356,6 +1356,7 @@ mod tests {
     use uniflow_frontend::parse_source;
     use uniflow_hir::Language;
     use uniflow_lowering::lower_program;
+    use uniflow_ir::validate_program;
     use uniflow_models::default_models_for;
     use uniflow_rules::{
         ApiMatcher, CallConditionRule, FlowSpec, FunctionMatcher, FunctionSinkRule,
@@ -1375,6 +1376,21 @@ mod tests {
         }
         assert_eq!(cache.entries.len(), MAX_BACKWARD_DEMAND_CACHE_ENTRIES);
         assert!(cache.entries.iter().all(|(sink, _)| *sink >= 3));
+    }
+
+    #[test]
+    fn rust_frontend_lowers_taint_crate_without_undefined_values() {
+        let hir = parse_source(Language::Rust, "taint.rs", include_str!("lib.rs"))
+            .expect("taint crate Rust source should parse");
+        let ir = lower_program(&hir);
+        if let Err(errors) = validate_program(&ir) {
+            let rendered = errors
+                .iter()
+                .map(|error| format!("{}: {}", error.function, error.message))
+                .collect::<Vec<_>>()
+                .join("\n");
+            panic!("lowered Rust fixture is invalid:\n{rendered}\nIR: {ir:#?}");
+        }
     }
 
     fn analyze_source(language: Language, path: &str, source: &str) -> Vec<TaintFinding> {

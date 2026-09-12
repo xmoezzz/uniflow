@@ -527,7 +527,7 @@ fn update_container_receiver_type(
             let merged = merge_container_type(env.field_types.get(&field).map(|value| value.as_str()), ty);
             env.field_types.insert(field.clone(), merged.clone());
             if let Some(current_class) = env.current_class.clone() {
-                env.class_field_index.entry(current_class).or_default().insert(field.clone(), merged.clone());
+                env.class_field_index.set_field(current_class, field.clone(), merged.clone());
             }
             update_local_object_field_type(env, &base, &field, &merged);
         } else if is_simple_ident(&base) {
@@ -655,5 +655,4 @@ fn apply_container_method_type_effects(
         _ => {}
     }
 }
-
 

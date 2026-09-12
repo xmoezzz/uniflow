@@ -1279,13 +1279,17 @@ fn concatenate_languages(
     Some(result)
 }
 
-const MATCHER_REGEX_CACHE_CAPACITY: usize = 32;
+// Rule matching walks every call site. Thirty-two entries is too small for a
+// production pack: a project with hundreds of distinct API matchers spends
+// most of its time recompiling regex automata after LRU thrashing. Keep the
+// cache bounded, but large enough to retain a normal bundled pack per worker.
+const MATCHER_REGEX_CACHE_CAPACITY: usize = 4_096;
 
 thread_local! {
     // A whole catalog can contain thousands of large legacy regexes. Keeping
     // one compiled automaton inside every matcher trades a CPU problem for an
-    // unbounded per-scan memory problem. A small per-thread LRU keeps the hot
-    // call-site patterns compiled while bounding retained regex memory.
+    // unbounded per-scan memory problem. A bounded per-thread LRU keeps the
+    // hot call-site patterns compiled while capping retained regex memory.
     static MATCHER_REGEX_CACHE: RefCell<VecDeque<(String, Arc<Regex>)>> = const { RefCell::new(VecDeque::new()) };
 }
 

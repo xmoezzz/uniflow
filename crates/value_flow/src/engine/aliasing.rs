@@ -416,12 +416,11 @@ fn stable_hash_value<T: Hash>(value: &T) -> u64 {
 
 fn stable_hash_map_contents<K, V>(map: &HashMap<K, V>) -> u64
 where
-    K: Ord + Clone + Hash,
-    V: Clone + Hash,
+    K: Ord + Hash,
+    V: Hash,
 {
     let mut entries = map
         .iter()
-        .map(|(key, value)| (key.clone(), value.clone()))
         .collect::<Vec<_>>();
     entries.sort_by(|left, right| left.0.cmp(&right.0));
     stable_hash_value(&entries)

@@ -1,8 +1,11 @@
 use anyhow::Result;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use rayon::prelude::*;
+use std::cell::{Cell, RefCell};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
+use std::thread;
 use uniflow_hir::{
     BinaryOp, Block, CallTarget, CatchClause, Class, Expr, ExprId, Field, Item, LValue,
     LambdaCapture, Language, Param, ParamKind, Program, Span, Stmt, SymbolId, SymbolKind, UnaryOp,
@@ -14,6 +17,13 @@ use uniflow_parser_core::{
     split_once_top_level, split_top_level_commas, ModuleBuilder, SourceParser,
 };
 include!("project_index.rs");
+
+// Python projects frequently contain generated, deeply nested type and
+// decorator expressions. Project-index and module-parser workers must match
+// the CLI analysis thread's stack budget; worker threads otherwise silently
+// fall back to the platform default and can abort the entire scan.
+const PYTHON_ANALYSIS_STACK_SIZE: usize = 1 << 30;
+
 include!("entry.rs");
 include!("syntax.rs");
 include!("type_inference.rs");

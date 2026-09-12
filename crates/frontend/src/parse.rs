@@ -13,7 +13,9 @@ use uniflow_lang_frontends::{
     parse_file as parse_descriptor_file, parse_project_sources as parse_descriptor_project_sources,
 };
 use uniflow_lang_java::{parse_project_sources as parse_java_project_sources, JavaParser};
-use uniflow_lang_python::{parse_project_sources as parse_python_project_sources, PythonParser};
+use uniflow_lang_python::{
+    parse_project_sources_with_progress as parse_python_project_sources_with_progress, PythonParser,
+};
 use uniflow_parser_core::SourceParser;
 
 fn load_compile_database(options: &FrontendOptions) -> Result<Option<CompileCommandDatabase>> {
@@ -100,13 +102,14 @@ pub fn parse_project_sources_with_options(
     // but the parser must own them while building Java/Python project indexes.
     // Route through the owned implementation so preprocessing replaces each
     // owned source buffer instead of materializing a second prepared vector.
-    parse_project_owned_sources_with_options(language, entries.to_vec(), options)
+    parse_project_owned_sources_with_options_and_progress(language, entries.to_vec(), options, &|| {})
 }
 
-fn parse_project_owned_sources_with_options(
+fn parse_project_owned_sources_with_options_and_progress(
     language: Language,
     mut entries: Vec<(String, String)>,
     options: &FrontendOptions,
+    on_file_parsed: &(dyn Fn() + Sync),
 ) -> Result<Program> {
     if entries.is_empty() {
         bail!("no supported source files found");
@@ -126,7 +129,7 @@ fn parse_project_owned_sources_with_options(
 
     match language {
         Language::Java => parse_java_project_sources(&entries),
-        Language::Python => parse_python_project_sources(&entries),
+        Language::Python => parse_python_project_sources_with_progress(&entries, on_file_parsed),
         Language::C | Language::Cpp => parse_c_family_project_sources(language, &entries),
         Language::CSharp
         | Language::ObjC
@@ -342,6 +345,18 @@ pub fn parse_project_files_with_options(
     files: &[PathBuf],
     options: &FrontendOptions,
 ) -> Result<Program> {
+    parse_project_files_with_options_and_progress(language, files, options, &|| {})
+}
+
+/// File-backed project parsing with per-file completion notification.  The
+/// callback is intentionally tiny and may be called concurrently by indexed
+/// language frontends, so CLI progress can advance without serializing work.
+pub fn parse_project_files_with_options_and_progress(
+    language: Language,
+    files: &[PathBuf],
+    options: &FrontendOptions,
+    on_file_parsed: &(dyn Fn() + Sync),
+) -> Result<Program> {
     if files.is_empty() {
         bail!("no supported source files found");
     }
@@ -380,6 +395,7 @@ pub fn parse_project_files_with_options(
                 &file.to_string_lossy(),
                 prepared.as_ref(),
             )?);
+            on_file_parsed();
         }
         return Ok(project.finish());
     }
@@ -390,7 +406,7 @@ pub fn parse_project_files_with_options(
             .with_context(|| format!("failed to read source from {}", file.display()))?;
         entries.push((file.to_string_lossy().to_string(), source));
     }
-    parse_project_owned_sources_with_options(language, entries, options)
+    parse_project_owned_sources_with_options_and_progress(language, entries, options, on_file_parsed)
 }
 
 /// Languages whose public project parsing contract is a merge of independent

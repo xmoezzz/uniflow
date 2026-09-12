@@ -406,21 +406,12 @@ fn propagate_symmetric_sorted_labels<T: Ord + Clone>(
     out
 }
 
-fn materialize_object_shape_fixpoint(fg: &mut FlowGraph) {
-    let mut propagated = HashMap::<usize, BTreeSet<String>>::new();
-    for (&node_idx, labels) in &fg.object_shape_paths {
-        propagated
-            .entry(node_idx)
-            .or_default()
-            .extend(labels.iter().cloned());
-    }
-    let propagated = propagate_symmetric_labels(fg.graph.node_indices(), propagated, |node| {
-        shape_propagation_neighbors(fg, node)
-    });
-    fg.object_shape_paths = propagated
-        .into_iter()
-        .map(|(node_idx, values)| (node_idx, values.into_iter().collect()))
-        .collect();
+fn materialize_object_shape_fixpoint(_fg: &mut FlowGraph) {
+    // `materialize_object_shape_paths` already derives bounded paths from the
+    // object graph. Re-broadcasting every path over identity components
+    // creates one owned BTreeSet per value in a component, which is both
+    // redundant and unbounded in project size. Identity/object reachability
+    // remains available to queries through their dedicated sparse overlays.
 }
 
 fn memory_region_value_seed_cache(
@@ -2007,36 +1998,37 @@ fn aggregate_partitioned_points_to_state(fg: &mut FlowGraph) {
 }
 
 fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) -> bool {
-    let previous_successors = std::mem::take(&mut fg.sparse_successors);
-    let previous_predecessors = std::mem::take(&mut fg.sparse_predecessors);
-    let previous_identity_neighbors = std::mem::take(&mut fg.identity_neighbors);
-    // Every table below is rebuilt from scratch during this materialization.
-    // Preserve its previous value by move so final-state equality is exact
-    // without repeatedly sorting/cloning/hashing all analysis state.
-    let previous_cell_live_values = std::mem::take(&mut fg.cell_live_values);
-    let previous_cell_live_regions = std::mem::take(&mut fg.cell_live_regions);
-    let previous_heap_value_successors = std::mem::take(&mut fg.heap_value_successors);
-    let previous_heap_value_predecessors = std::mem::take(&mut fg.heap_value_predecessors);
-    let previous_heap_object_successors = std::mem::take(&mut fg.heap_object_successors);
-    let previous_heap_object_predecessors = std::mem::take(&mut fg.heap_object_predecessors);
-    let previous_object_graph_successors = std::mem::take(&mut fg.object_graph_successors);
-    let previous_object_graph_predecessors = std::mem::take(&mut fg.object_graph_predecessors);
-    let previous_object_graph_labels = std::mem::take(&mut fg.object_graph_labels);
-    let previous_object_shape_labels = std::mem::take(&mut fg.object_shape_labels);
-    let previous_object_shape_paths = std::mem::take(&mut fg.object_shape_paths);
-    let previous_cell_write_generations = std::mem::take(&mut fg.cell_write_generations);
-    let previous_region_live_values = std::mem::take(&mut fg.region_live_values);
-    let previous_region_live_cells = std::mem::take(&mut fg.region_live_cells);
-    // An analyzed empty adjacency is distinct from an unmaterialized node;
-    // query fallbacks must not restore raw, overwritten store edges.
-    for node in fg.graph.node_indices() {
-        fg.sparse_successors.insert(node.index(), Vec::new());
-        fg.sparse_predecessors.insert(node.index(), Vec::new());
-    }
+    // A missing map entry is an analyzed empty adjacency while this rebuild is
+    // active.  Keeping one empty Vec in each direction for every graph node
+    // made a 5M-node project allocate millions of hash entries before any
+    // useful flow edge was examined.
+    fg.sparse_adjacency_materialized = false;
+    let previous_state = sparse_overlay_signature(fg);
+    // Rebuilding these overlays while retaining their previous maps doubles
+    // peak RSS on every post-points-to pass.  Keep a compact deterministic
+    // fingerprint for convergence, then drop each old table before allocating
+    // its replacement.
+    fg.sparse_successors = HashMap::new();
+    fg.sparse_predecessors = HashMap::new();
+    fg.identity_neighbors = HashMap::new();
+    fg.cell_live_values = HashMap::new();
+    fg.cell_live_regions = HashMap::new();
+    fg.heap_value_successors = HashMap::new();
+    fg.heap_value_predecessors = HashMap::new();
+    fg.heap_object_successors = HashMap::new();
+    fg.heap_object_predecessors = HashMap::new();
+    fg.object_graph_successors = HashMap::new();
+    fg.object_graph_predecessors = HashMap::new();
+    fg.object_graph_labels = HashMap::new();
+    fg.object_shape_labels = HashMap::new();
+    fg.object_shape_paths = HashMap::new();
+    fg.cell_write_generations = HashMap::new();
+    fg.region_live_values = HashMap::new();
+    fg.region_live_cells = HashMap::new();
     // Alias state is immutable while the sparse edge set below is rebuilt.
     // Snapshot it once so store/load visibility, strong-update checks, and the
     // transitive store closure all share one O(cells^2) alias computation.
-    let alias_snapshot = CellAliasSnapshot::build(fg);
+    let alias_snapshot = CellAliasSnapshot::build_for_sparse_flow(fg);
     let transitive_store_records =
         all_transitive_cell_store_records_with_alias_snapshot(fg, &alias_snapshot);
     let mut strong_update_cache = strong_update_cache_from_alias_snapshot(fg, &alias_snapshot);
@@ -2205,27 +2197,109 @@ fn materialize_sparse_data_adjacency(fg: &mut FlowGraph) -> bool {
     // function summary caches alive across an unchanged refresh, but invalidate
     // them as soon as either the sparse graph or any derived analysis state
     // actually advances.
-    let state_changed = previous_successors != fg.sparse_successors
-        || previous_predecessors != fg.sparse_predecessors
-        || previous_identity_neighbors != fg.identity_neighbors
-        || previous_cell_live_values != fg.cell_live_values
-        || previous_cell_live_regions != fg.cell_live_regions
-        || previous_heap_value_successors != fg.heap_value_successors
-        || previous_heap_value_predecessors != fg.heap_value_predecessors
-        || previous_heap_object_successors != fg.heap_object_successors
-        || previous_heap_object_predecessors != fg.heap_object_predecessors
-        || previous_object_graph_successors != fg.object_graph_successors
-        || previous_object_graph_predecessors != fg.object_graph_predecessors
-        || previous_object_graph_labels != fg.object_graph_labels
-        || previous_object_shape_labels != fg.object_shape_labels
-        || previous_object_shape_paths != fg.object_shape_paths
-        || previous_cell_write_generations != fg.cell_write_generations
-        || previous_region_live_values != fg.region_live_values
-        || previous_region_live_cells != fg.region_live_cells;
+    let state_changed = previous_state != sparse_overlay_signature(fg);
     if state_changed {
         fg.clear_sparse_caches();
     }
+    fg.sparse_adjacency_materialized = true;
     state_changed
+}
+
+fn sparse_overlay_signature(fg: &FlowGraph) -> Vec<(usize, u64)> {
+    macro_rules! table_signature {
+        ($table:expr) => {
+            ($table.len(), stable_hash_map_contents(&$table))
+        };
+    }
+    vec![
+        table_signature!(fg.sparse_successors),
+        table_signature!(fg.sparse_predecessors),
+        table_signature!(fg.identity_neighbors),
+        table_signature!(fg.cell_live_values),
+        table_signature!(fg.cell_live_regions),
+        table_signature!(fg.heap_value_successors),
+        table_signature!(fg.heap_value_predecessors),
+        table_signature!(fg.heap_object_successors),
+        table_signature!(fg.heap_object_predecessors),
+        table_signature!(fg.object_graph_successors),
+        table_signature!(fg.object_graph_predecessors),
+        table_signature!(fg.object_graph_labels),
+        table_signature!(fg.object_shape_labels),
+        table_signature!(fg.object_shape_paths),
+        table_signature!(fg.cell_write_generations),
+        table_signature!(fg.region_live_values),
+        table_signature!(fg.region_live_cells),
+    ]
+}
+
+/// Builds only the direct sparse graph.  This is sufficient for a scan with
+/// no modeled source/sink pair: no taint query can consume heap, object-shape,
+/// or memory-region closure state.  Keeping those overlays lazy avoids
+/// quadratic region tables merely to report an empty finding set.
+fn materialize_sparse_data_adjacency_lightweight(fg: &mut FlowGraph) {
+    fg.sparse_adjacency_materialized = false;
+    fg.sparse_successors.clear();
+    fg.sparse_predecessors.clear();
+    fg.identity_neighbors.clear();
+    for edge in fg.graph.edge_references() {
+        if !is_sparse_data_edge(&edge.weight().kind) {
+            continue;
+        }
+        let src = edge.source().index();
+        let dst = edge.target().index();
+        fg.sparse_successors.entry(src).or_default().push(dst);
+        fg.sparse_predecessors.entry(dst).or_default().push(src);
+        if is_identity_preserving_edge(fg, edge.source(), edge.target(), &edge.weight().kind) {
+            push_identity_pair(&mut fg.identity_neighbors, src, dst);
+        }
+    }
+    for values in fg.sparse_successors.values_mut() {
+        values.sort_unstable();
+        values.dedup();
+    }
+    for values in fg.sparse_predecessors.values_mut() {
+        values.sort_unstable();
+        values.dedup();
+    }
+    for values in fg.identity_neighbors.values_mut() {
+        values.sort_unstable();
+        values.dedup();
+    }
+    fg.sparse_adjacency_materialized = true;
+}
+
+/// Materialize the bounded graph used by a project taint scan.
+///
+/// This deliberately keeps the direct IR data-flow edges (including field and
+/// index reads/writes) but does not construct the whole-program alias, object
+/// shape, or memory-region closures.  Those closures are useful for an
+/// interactive/full checker query, but they are global analyses whose peak
+/// memory is disproportionate to a source-to-sink scan of a large project.
+/// The direct graph is conservative for a cell: every write remains visible to
+/// every read, so it may produce an extra path but never removes a direct
+/// taint path because of a strong-update decision.
+fn materialize_sparse_taint_adjacency(fg: &mut FlowGraph) {
+    // A FlowGraph can be reused by an embedding.  Do not retain a prior full
+    // overlay when switching to the bounded scan plan: apart from making the
+    // memory saving ineffective, query APIs would otherwise mix two plans.
+    fg.cell_live_values.clear();
+    fg.cell_live_regions.clear();
+    fg.heap_value_successors.clear();
+    fg.heap_value_predecessors.clear();
+    fg.heap_object_successors.clear();
+    fg.heap_object_predecessors.clear();
+    fg.object_graph_successors.clear();
+    fg.object_graph_predecessors.clear();
+    fg.object_graph_labels.clear();
+    fg.object_shape_labels.clear();
+    fg.object_shape_paths.clear();
+    fg.cell_write_generations.clear();
+    fg.region_live_values.clear();
+    fg.region_live_cells.clear();
+    fg.region_graph_successors.clear();
+    fg.region_graph_predecessors.clear();
+    materialize_sparse_data_adjacency_lightweight(fg);
+    fg.clear_sparse_caches();
 }
 
 fn add_unique_summary_edge(

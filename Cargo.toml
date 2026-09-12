@@ -49,3 +49,10 @@ indexmap = { version = "2.7", features = ["serde"] }
 sha2 = "0.10"
 aes = "0.8"
 indicatif = "0.17"
+rayon = "1.10"
+
+# Rule packs deliberately contain a large amount of executable matcher code.
+# Test binaries do not need DWARF data, and emitting it for every incremental
+# one-case run was the dominant source of compiler memory pressure.
+[profile.test]
+debug = 0

@@ -173,13 +173,47 @@ where
     F: FnMut(BuildProgress),
 {
     let capabilities = AnalysisCapabilities::for_rules(program, rules);
-    build_with_capabilities(program, rules, capabilities, &mut on_progress)
+    build_with_capabilities_inner(program, rules, capabilities, false, &mut on_progress)
+}
+
+/// Builds the rule-driven graph used by a source scan.
+///
+/// Unlike the library API above, a scan need not materialize expensive
+/// points-to, heap, and dynamic-call state when its source file contains no
+/// modeled source/sink pair at all.  Such state cannot produce a taint
+/// finding, while eagerly expanding it used to make a no-finding scan consume
+/// unbounded time and memory on ordinary Rust crates.  Callers that expose a
+/// complete graph to an external checker must use `build_with_capabilities`
+/// instead.
+pub fn build_for_scan_with_progress<F>(
+    program: &Program,
+    rules: &RuleSet,
+    mut on_progress: F,
+) -> FlowGraph
+where
+    F: FnMut(BuildProgress),
+{
+    let capabilities = AnalysisCapabilities::for_rules(program, rules);
+    build_with_capabilities_inner(program, rules, capabilities, true, &mut on_progress)
 }
 
 pub fn build_with_capabilities<F>(
     program: &Program,
     rules: &RuleSet,
     capabilities: AnalysisCapabilities,
+    mut on_progress: F,
+) -> FlowGraph
+where
+    F: FnMut(BuildProgress),
+{
+    build_with_capabilities_inner(program, rules, capabilities, false, &mut on_progress)
+}
+
+fn build_with_capabilities_inner<F>(
+    program: &Program,
+    rules: &RuleSet,
+    capabilities: AnalysisCapabilities,
+    skip_unmatched_expensive_work: bool,
     mut on_progress: F,
 ) -> FlowGraph
 where
@@ -193,8 +227,47 @@ where
             program.functions.len()
         ),
     });
+    // A project taint scan does not need to instantiate every SSA value in a
+    // repository.  Find the static call-chain slice before creating graph
+    // nodes: a graph node carries significantly more state than an IR value,
+    // and constructing millions of irrelevant nodes dominated both RSS and
+    // wall time on large Python projects.
+    let scan_function_slice = if skip_unmatched_expensive_work {
+        static_taint_scan_function_slice(program, rules)
+    } else {
+        None
+    };
+    if let Some(active) = &scan_function_slice {
+        on_progress(BuildProgress {
+            stage: "slice-static-taint",
+            detail: format!(
+                "{} of {} functions on modeled static source/sink paths",
+                active.len(),
+                program.functions.len()
+            ),
+        });
+    }
+    let is_active = |function: &Function| {
+        scan_function_slice
+            .as_ref()
+            .is_none_or(|active| active.contains(&function.id))
+    };
+    let active_function_count = scan_function_slice
+        .as_ref()
+        .map_or(program.functions.len(), HashSet::len);
+
     let mut fg = FlowGraph::default();
     fg.language = program.language.clone();
+    // Lambda capture binding is visited for every call argument.  Searching
+    // the complete function list there turned a large Python project into
+    // calls × arguments × functions work before data-flow even started.
+    let lambda_functions = program
+        .functions
+        .iter()
+        .filter(|function| is_active(function))
+        .filter(|function| function.name.contains("__lambda_"))
+        .map(|function| (function.name.as_str(), function))
+        .collect::<HashMap<_, _>>();
     let argument_validation_enabled = rules.native_dataflow_rules.iter().any(|rule| {
         rule.id == ANZU_ARGUMENT_VALIDATION_RULE_ID
             && language_matches(&rule.language, &program.language)
@@ -242,6 +315,9 @@ where
         fg.lifetime_diagnostics = lifetime_diagnostics;
     }
     for function in &program.functions {
+        if !is_active(function) {
+            continue;
+        }
         for (value, semantics) in &function.value_cpp {
             fg.value_cpp
                 .insert((function.id, *value), semantics.clone());
@@ -250,9 +326,12 @@ where
 
     on_progress(BuildProgress {
         stage: "create-function-nodes",
-        detail: format!("{} functions", program.functions.len()),
+        detail: format!("{} functions", active_function_count),
     });
     for func in &program.functions {
+        if !is_active(func) {
+            continue;
+        }
         fg.function_names.insert(func.id, func.name.clone());
         fg.function_spans.insert(func.id, func.span);
         for (value, span) in &func.value_spans {
@@ -295,9 +374,12 @@ where
 
     on_progress(BuildProgress {
         stage: "scan-function-bodies",
-        detail: format!("{} functions", program.functions.len()),
+        detail: format!("{} functions", active_function_count),
     });
     for func in &program.functions {
+        if !is_active(func) {
+            continue;
+        }
         let ret_node = *fg
             .function_returns
             .get(&func.id)
@@ -557,7 +639,12 @@ where
                         let meta = build_call_meta(&fg, func, inst.id, call, inst.span);
                         fg.call_meta.insert((func.id, inst.id), meta.clone());
                         connect_call_value_ports(&mut fg, func.id, inst.id, call);
-                        connect_registered_lambda_captures(&mut fg, program, func.id, call);
+                        connect_registered_lambda_captures(
+                            &mut fg,
+                            &lambda_functions,
+                            func.id,
+                            call,
+                        );
 
                         connect_builtin_python_container_semantics(
                             &mut fg,
@@ -694,11 +781,30 @@ where
         }
     }
 
+    // A normal scan only needs the expensive heap/region overlays when a
+    // modeled source can actually reach a modeled sink.  Determine that after
+    // call models have been attached, but before the first sparse rebuild:
+    // the rebuild itself materializes large region closure tables.
+    let has_taint_query = !fg.synthetic_sources.is_empty() && !fg.synthetic_sinks.is_empty();
+    let materialize_expensive_flow = !skip_unmatched_expensive_work || has_taint_query;
+    // A source scan asks a reachability question, not for a reusable complete
+    // alias/heap graph.  Building the latter for every matching source/sink
+    // pair made otherwise ordinary Python repositories allocate global
+    // object-shape and region closure state proportional to millions of IR
+    // nodes.  Keep static calls and direct heap projection edges, which are
+    // wired above, and use the bounded conservative cell graph below.
+    let bounded_taint_scan = skip_unmatched_expensive_work && has_taint_query;
     on_progress(BuildProgress {
         stage: "sparse-adjacency-1",
         detail: format!("{} graph nodes", fg.graph.node_count()),
     });
-    materialize_sparse_data_adjacency(&mut fg);
+    if bounded_taint_scan {
+        materialize_sparse_taint_adjacency(&mut fg);
+    } else if materialize_expensive_flow {
+        materialize_sparse_data_adjacency(&mut fg);
+    } else {
+        materialize_sparse_data_adjacency_lightweight(&mut fg);
+    }
     on_progress(BuildProgress {
         stage: "sparse-summary",
         detail: format!(
@@ -708,7 +814,23 @@ where
             fg.sparse_successors.values().map(|v| v.len()).sum::<usize>()
         ),
     });
-    if capabilities.points_to {
+    if !materialize_expensive_flow
+        && (capabilities.points_to || capabilities.heap || capabilities.dynamic_calls)
+    {
+        on_progress(BuildProgress {
+            stage: "skip-unmatched-expensive-flow",
+            detail: "no modeled source/sink pair in scan".to_string(),
+        });
+    }
+    if bounded_taint_scan
+        && (capabilities.points_to || capabilities.heap || capabilities.dynamic_calls)
+    {
+        on_progress(BuildProgress {
+            stage: "bounded-taint-flow",
+            detail: "skipping global alias/heap/dynamic overlays for project scan".to_string(),
+        });
+    }
+    if capabilities.points_to && materialize_expensive_flow && !bounded_taint_scan {
         on_progress(BuildProgress {
             stage: "points-to",
             detail: format!("{} graph nodes", fg.graph.node_count()),
@@ -726,7 +848,7 @@ where
             ),
         });
     }
-    if capabilities.heap {
+    if capabilities.heap && materialize_expensive_flow && !bounded_taint_scan {
         on_progress(BuildProgress {
             stage: "bridge-internal-heap-cells",
             detail: format!("{} functions", program.functions.len()),
@@ -736,7 +858,7 @@ where
         bridge_internal_heap_cells(&mut fg, program);
         materialize_sparse_data_adjacency(&mut fg);
     }
-    if capabilities.dynamic_calls {
+    if capabilities.dynamic_calls && materialize_expensive_flow && !bounded_taint_scan {
         on_progress(BuildProgress {
             stage: "resolve-dynamic-calls",
             detail: format!("{} functions", program.functions.len()),
@@ -744,7 +866,7 @@ where
         resolve_dynamic_internal_calls(&mut fg, program, &func_index, rules, &rule_index);
         materialize_sparse_data_adjacency(&mut fg);
     }
-    if capabilities.global_closure {
+    if capabilities.global_closure && !bounded_taint_scan {
         on_progress(BuildProgress {
             stage: "global-closure-1",
             detail: format!("{} functions", program.functions.len()),
@@ -756,7 +878,13 @@ where
         stage: "sparse-adjacency-3",
         detail: format!("{} graph nodes, {} edges", fg.graph.node_count(), fg.graph.edge_count()),
     });
-    materialize_sparse_data_adjacency(&mut fg);
+    if bounded_taint_scan {
+        materialize_sparse_taint_adjacency(&mut fg);
+    } else if materialize_expensive_flow {
+        materialize_sparse_data_adjacency(&mut fg);
+    } else {
+        materialize_sparse_data_adjacency_lightweight(&mut fg);
+    }
     on_progress(BuildProgress {
         stage: "done",
         detail: format!("{} graph nodes", fg.graph.node_count()),
@@ -828,7 +956,7 @@ fn field_owner_candidates(fg: &FlowGraph, func: FunctionId, base: ValueId) -> Ve
 
 fn connect_registered_lambda_captures(
     fg: &mut FlowGraph,
-    program: &Program,
+    lambda_functions: &HashMap<&str, &Function>,
     caller_func: FunctionId,
     call: &CallInst,
 ) {
@@ -836,11 +964,7 @@ fn connect_registered_lambda_captures(
         let Some(function_name) = fg.value_types.get(&(caller_func, *argument)) else {
             continue;
         };
-        let Some(callback) = program
-            .functions
-            .iter()
-            .find(|function| function.name == *function_name && function.name.contains("__lambda_"))
-        else {
+        let Some(callback) = lambda_functions.get(function_name.as_str()).copied() else {
             continue;
         };
         connect_lambda_capture_bindings(fg, caller_func, *argument, callback);
@@ -1194,6 +1318,153 @@ fn cpp_unknown_call_may_write(function: &Function, value: ValueId) -> bool {
         let compact = ty.replace(' ', "");
         (compact.contains('*') || compact.contains('&')) && !compact.starts_with("const")
     })
+}
+
+/// Return the portion of a program which can lie on a *static* modeled
+/// source-to-sink path. `None` means that a rule family needs a whole-program
+/// graph (for example a named-value or field rule); an empty set is a proven
+/// no-finding scan because no modeled call source or sink exists at all.
+///
+/// The slice is deliberately an over-approximation. Every function reachable
+/// from a modeled source and able to reach a modeled sink is retained, so a
+/// static interprocedural path is never removed merely for performance. Dynamic
+/// call resolution remains a separate optional full-graph capability.
+fn static_taint_scan_function_slice(
+    program: &Program,
+    rules: &RuleSet,
+) -> Option<HashSet<FunctionId>> {
+    // These rule forms can attach a source/sink without a call expression.
+    // Do not guess a slice for them: preserving their full semantics matters
+    // more than a memory saving on the uncommon configuration.
+    if rules.named_value_sources.iter().any(|rule| language_matches(&rule.language, &program.language))
+        || rules.field_sources.iter().any(|rule| language_matches(&rule.language, &program.language))
+        || rules.field_sinks.iter().any(|rule| language_matches(&rule.language, &program.language))
+        || rules.index_sinks.iter().any(|rule| language_matches(&rule.language, &program.language))
+        || rules.function_sources.iter().any(|rule| language_matches(&rule.language, &program.language))
+        || rules.function_sinks.iter().any(|rule| language_matches(&rule.language, &program.language))
+    {
+        return None;
+    }
+
+    let source_rules = rules
+        .sources
+        .iter()
+        .filter(|rule| language_matches(&rule.language, &program.language))
+        .collect::<Vec<_>>();
+    let sink_rules = rules
+        .sinks
+        .iter()
+        .filter(|rule| language_matches(&rule.language, &program.language))
+        .collect::<Vec<_>>();
+    if source_rules.is_empty() || sink_rules.is_empty() {
+        return Some(HashSet::new());
+    }
+
+    let index = FunctionIndex::new(program);
+    let mut source_functions = HashSet::new();
+    let mut sink_functions = HashSet::new();
+    let mut callers = HashMap::<FunctionId, Vec<FunctionId>>::new();
+    let mut callees = HashMap::<FunctionId, Vec<FunctionId>>::new();
+
+    for function in &program.functions {
+        for block in &function.blocks {
+            for inst in &block.insts {
+                let InstKind::Call(call) = &inst.kind else {
+                    continue;
+                };
+                let Some(callee_name) = static_callee_name(call) else {
+                    continue;
+                };
+                let mut info = CallInfo::from_callee_name(&callee_name);
+                info.containing_function = Some(function.name.clone());
+                info.arg_count = Some(call.args.len());
+                info.arg_types = call
+                    .args
+                    .iter()
+                    .map(|value| function.value_types.get(value).cloned())
+                    .collect();
+                if let Some(receiver) = call.receiver {
+                    info.receiver_type = function.value_types.get(&receiver).cloned();
+                    info.receiver_type_candidates = info
+                        .receiver_type
+                        .iter()
+                        .cloned()
+                        .collect();
+                    info.receiver_parameter = function.params.iter().position(|value| *value == receiver);
+                }
+
+                if source_rules
+                    .iter()
+                    .any(|rule| rule.matcher.matches_call(&info))
+                {
+                    source_functions.insert(function.id);
+                }
+                if sink_rules
+                    .iter()
+                    .any(|rule| rule.matcher.matches_call(&info))
+                {
+                    sink_functions.insert(function.id);
+                }
+
+                // The same arity/type contract as the normal static resolver
+                // gives the slice its conservative interprocedural boundary.
+                let targets = index.resolve_named_callable(
+                    &callee_name,
+                    call.args.len(),
+                    &info.arg_types,
+                    &info.arg_type_candidates,
+                );
+                for target in targets {
+                    callees.entry(function.id).or_default().push(target.id);
+                    callers.entry(target.id).or_default().push(function.id);
+                }
+            }
+        }
+    }
+    for neighbors in callers.values_mut().chain(callees.values_mut()) {
+        neighbors.sort_unstable();
+        neighbors.dedup();
+    }
+    if source_functions.is_empty() || sink_functions.is_empty() {
+        return Some(HashSet::new());
+    }
+
+    // Taint can cross a call boundary in either direction: an argument enters
+    // a callee, while a tainted return reaches its callers.  Compute the
+    // static interprocedural component rather than treating the syntactic call
+    // graph as a one-way data-flow graph.
+    let mut connected = callees;
+    for (function, parents) in callers {
+        connected.entry(function).or_default().extend(parents);
+    }
+    for neighbors in connected.values_mut() {
+        neighbors.sort_unstable();
+        neighbors.dedup();
+    }
+    let reachable = traverse_function_slice(&source_functions, &connected);
+    let can_reach_sink = traverse_function_slice(&sink_functions, &connected);
+    Some(
+        reachable
+            .intersection(&can_reach_sink)
+            .copied()
+            .collect(),
+    )
+}
+
+fn traverse_function_slice(
+    roots: &HashSet<FunctionId>,
+    neighbors: &HashMap<FunctionId, Vec<FunctionId>>,
+) -> HashSet<FunctionId> {
+    let mut visited = roots.clone();
+    let mut queue = roots.iter().copied().collect::<VecDeque<_>>();
+    while let Some(function) = queue.pop_front() {
+        for next in neighbors.get(&function).into_iter().flatten() {
+            if visited.insert(*next) {
+                queue.push_back(*next);
+            }
+        }
+    }
+    visited
 }
 
 #[derive(Default)]

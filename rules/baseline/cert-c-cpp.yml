@@ -1211,6 +1211,19 @@ rules:
     zh-CN: { title: C++ 中使用了 C 风格强制转换, message: 使用 static_cast、dynamic_cast、const_cast 或 reinterpret_cast 代替 C 风格强制转换。 }
     en: { title: C-style cast used in C++, message: Use static_cast, dynamic_cast, const_cast, or reinterpret_cast instead of a C-style cast. }
     zh-TW: { title: C++ 中使用了 C 風格強制轉換, message: 使用 static_cast、dynamic_cast、const_cast 或 reinterpret_cast 取代 C 風格強制轉換。 }
+- id: ANZU-CPP-CV-QUALIFICATION-CAST-DROP
+  title: Cast removes const or volatile qualification
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: cv_qualified_object_cast_to_unqualified
+  standards: [0101000010110357]
+  message: Do not access a const- or volatile-qualified object through an unqualified cast target.
+  translations:
+    zh-CN: { title: 强制转换移除了 const 或 volatile 限定, message: 不要通过未限定的转换目标访问带有 const 或 volatile 限定的对象。 }
+    en: { title: Cast removes const or volatile qualification, message: Do not access a const- or volatile-qualified object through an unqualified cast target. }
+    zh-TW: { title: 強制轉換移除了 const 或 volatile 限定, message: 不要透過未限定的轉換目標存取具有 const 或 volatile 限定的物件。 }
 - id: ANZU-SIZEOF-ARRAY-PARAMETER
   title: sizeof applied to an array parameter
   languages: [c, cpp]
@@ -1978,6 +1991,97 @@ rules:
     zh-CN: { title: 虚函数声明默认参数, message: 虚函数不应声明默认参数。 }
     en: { title: Default argument in virtual method, message: Virtual functions should not declare default arguments. }
     zh-TW: { title: 虛函式宣告預設參數, message: 虛函式不應宣告預設參數。 }
+- id: ANZU-CPP-VIRTUAL-CONST-MISMATCH
+  title: Non-virtual method differs from virtual method only by const
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: non_virtual_const_mismatch_with_virtual
+  standards: [2401000010120026]
+  message: A member function that differs from a virtual function only by trailing const hides it instead of overriding it.
+  translations:
+    zh-CN: { title: const 修饰不匹配的虚函数重写, message: 仅尾随 const 不同的成员函数会隐藏虚函数，而不是重写它。 }
+    en: { title: Non-virtual method differs from virtual method only by const, message: A member function that differs from a virtual function only by trailing const hides it instead of overriding it. }
+    zh-TW: { title: const 修飾不匹配的虛函式覆寫, message: 僅尾隨 const 不同的成員函式會隱藏虛函式，而不是覆寫它。 }
+- id: ANZU-CPP-HIDING-NONVIRTUAL-BASE-METHOD
+  title: Derived method hides a non-virtual base method
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: hiding_non_virtual_base_method
+  standards: [0101000010110392]
+  message: A derived-class method hides a non-virtual method declared by a direct base class.
+  translations:
+    zh-CN: { title: 派生类方法隐藏非虚基类方法, message: 派生类方法隐藏了直接基类声明的非虚成员函数。 }
+    en: { title: Derived method hides a non-virtual base method, message: A derived-class method hides a non-virtual method declared by a direct base class. }
+    zh-TW: { title: 衍生類別方法隱藏非虛擬基底方法, message: 衍生類別方法隱藏了直接基底類別宣告的非虛擬成員函式。 }
+- id: ANZU-CPP-INCOMPLETE-VIRTUAL-OVERLOAD-SET
+  title: Derived class does not override every virtual overload
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: incomplete_virtual_overload_set
+  standards: [0101000010110393]
+  message: A derived class overrides one virtual overload but leaves another base overload hidden.
+  translations:
+    zh-CN: { title: 未完整重写虚函数重载集, message: 派生类重写了部分虚函数重载，却隐藏了其他基类重载。 }
+    en: { title: Derived class does not override every virtual overload, message: A derived class overrides one virtual overload but leaves another base overload hidden. }
+    zh-TW: { title: 未完整覆寫虛函式重載集, message: 衍生類別覆寫了部分虛函式重載，卻隱藏了其他基底重載。 }
+- id: ANZU-CPP-RAW-POINTER-WITHOUT-COPY-CONTROL
+  title: Raw-pointer class lacks copy control
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: raw_pointer_field_without_copy_control
+  standards: [0101000010110396]
+  message: A class with a raw pointer field should declare a copy constructor or copy assignment operator.
+  translations:
+    zh-CN: { title: 含原始指针的类缺少复制控制, message: 含原始指针字段的类应声明复制构造函数或复制赋值运算符。 }
+    en: { title: Raw-pointer class lacks copy control, message: A class with a raw pointer field should declare a copy constructor or copy assignment operator. }
+    zh-TW: { title: 含原始指標的類別缺少複製控制, message: 含原始指標欄位的類別應宣告複製建構函式或複製賦值運算子。 }
+- id: ANZU-C-SENSITIVE-CHAR-ARRAY-BEFORE-POINTER
+  title: Character array precedes pointer field
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: sensitive_char_array_before_pointer
+  standards: [0101000010110139]
+  message: Do not place a character array before a pointer field in a record containing sensitive data.
+  translations:
+    zh-CN: { title: 字符数组位于指针字段之前, message: 含敏感数据的结构体中不要将字符数组放在指针字段之前。 }
+    en: { title: Character array precedes pointer field, message: Do not place a character array before a pointer field in a record containing sensitive data. }
+    zh-TW: { title: 字元陣列位於指標欄位之前, message: 含敏感資料的結構中不要將字元陣列放在指標欄位之前。 }
+- id: ANZU-C-BITFIELD-RECORD-POINTER-UPDATE
+  title: Update through pointer to edge-bitfield record
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: bit_field_record_pointer_update
+  standards: [0101000010110193, 2401000010110193]
+  message: Do not update a record through a pointer when its first or last field is a bit-field.
+  translations:
+    zh-CN: { title: 通过首尾位域结构体指针更新对象, message: 不要通过首个或末个字段为位域的结构体指针更新对象。 }
+    en: { title: Update through pointer to edge-bitfield record, message: Do not update a record through a pointer when its first or last field is a bit-field. }
+    zh-TW: { title: 透過首尾位元欄位結構指標更新物件, message: 不要透過首個或末個欄位為位元欄位的結構指標更新物件。 }
+- id: ANZU-AVOID-CONTINUE
+  title: Avoid continue statements
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_expression: continue_statement
+  standards: [0601000010140068]
+  message: Avoid using continue statements in loop bodies.
+  translations:
+    zh-CN: { title: 避免使用 continue 语句, message: 避免在循环体中使用 continue 语句。 }
+    en: { title: Avoid continue statements, message: Avoid using continue statements in loop bodies. }
+    zh-TW: { title: 避免使用 continue 陳述式, message: 避免在迴圈主體中使用 continue 陳述式。 }
 - id: ANZU-BUILTIN-LIMIT-MACRO-CONDITION
   title: Built-in limit macro used in a branch condition
   languages: [c, cpp]
@@ -3948,6 +4052,210 @@ rules:
     zh-CN: { title: 未使用的静态函数, message: "静态函数 ‘{}’ 定义但未使用。" }
     en: { title: Unused static function, message: "The static function '{}' is defined but not used." }
     zh-TW: { title: 未使用的靜態函式, message: "靜態函式 ‘{}’ 已定義但未使用。" }
+- id: ANZU-MAIN-FILE-UNUSED-FUNCTION
+  title: Main file unused function
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: main_file_unused_function }
+  standards: ['0601000010140057']
+  message: "The main file function '{}' is defined but not used."
+  translations:
+    zh-CN: { title: 主文件未使用函数, message: "主文件函数 ‘{}’ 定义但未使用。" }
+    en: { title: Main file unused function, message: "The main file function '{}' is defined but not used." }
+    zh-TW: { title: 主檔案未使用函式, message: "主檔案函式 ‘{}’ 已定義但未使用。" }
+- id: ANZU-VARIADIC-VA-START-LAST-PARAMETER
+  title: Invalid va_start final parameter
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: variadic_va_start_last_parameter }
+  standards: ['0101000010110359']
+  message: Do not pass a reference or nontrivially-copyable type to va_start
+  translations:
+    zh-CN: { title: 无效的 va_start 最后参数, message: 请勿将引用或非平凡可复制类型传递给VA_START }
+    en: { title: Invalid va_start final parameter, message: Do not pass a reference or nontrivially-copyable type to va_start }
+    zh-TW: { title: 無效的 va_start 最後參數, message: 請勿將參考或非平凡可複製類型傳遞給VA_START }
+- id: ANZU-SIGNAL-HANDLER-PLAIN-FUNCTION
+  title: Signal handler must be a plain function
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: signal_handler_must_be_plain_function }
+  standards: ['0101000010110379']
+  message: A signal handler must be a Plain Old Function
+  translations:
+    zh-CN: { title: 信号处理函数必须是普通函数, message: 信号句柄必须是plain old函数 }
+    en: { title: Signal handler must be a plain function, message: A signal handler must be a Plain Old Function }
+    zh-TW: { title: 信號處理函式必須是普通函式, message: 信號處理常式必須是普通函式 }
+- id: ANZU-CATCH-HANDLER-ORDER
+  title: Catch handlers must be ordered most-derived first
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: catch_handlers_most_derived_first }
+  standards: ['0101000010110344']
+  message: Catch handlers should order their parameter types from most derived to least derived
+  translations:
+    zh-CN: { title: catch 处理程序顺序, message: catch处理程序应该按照派生程度从高到低对参数类型进行排序 }
+    en: { title: Catch handler order, message: Catch handlers should order their parameter types from most derived to least derived }
+    zh-TW: { title: catch 處理常式順序, message: catch 處理常式應按照衍生程度從高到低對參數類型進行排序 }
+- id: ANZU-UNINITIALIZED-POINTER-OR-REFERENCE-BINDING
+  title: Uninitialized pointer or reference binding
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: uninitialized_pointer_or_reference_binding }
+  standards: ['2401000010120138']
+  message: Passing uninitialized pointer or reference
+  translations:
+    zh-CN: { title: 未初始化指针或引用绑定, message: 传递未初始化的指针或引用 }
+    en: { title: Uninitialized pointer or reference binding, message: Passing uninitialized pointer or reference }
+    zh-TW: { title: 未初始化指標或參考繫結, message: 傳遞未初始化的指標或參考 }
+- id: ANZU-BCRYPT-PARAM-FIXED-LENGTH
+  title: BCrypt fixed key length must match algorithm
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: bcrypt_key_length_fixed_mismatch }
+  standards: ['0201000010120143', '0401000010120143', '1201000010120143', '1301000010120143', '1401000010120143', '1501000010120143', '1601000010120143', '1701000010120143', '1801000010120143', '1901000010120143', '2001000010120143', '2101000010120143', '2501000010120143', '2601000010120143', '2701000010120143']
+  message: "dwLength must is {}."
+  translations:
+    zh-CN: { title: BCrypt 固定密钥长度错误, message: "dwLength 必须是 {}。" }
+    en: { title: BCrypt fixed key length mismatch, message: "dwLength must is {}." }
+    zh-TW: { title: BCrypt 固定金鑰長度錯誤, message: "dwLength 必須是 {}。" }
+- id: ANZU-BCRYPT-PARAM-RANGE-LENGTH
+  title: BCrypt key length must be within algorithm range
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: bcrypt_key_length_range_mismatch }
+  standards: ['0201000010120143', '0401000010120143', '1201000010120143', '1301000010120143', '1401000010120143', '1501000010120143', '1601000010120143', '1701000010120143', '1801000010120143', '1901000010120143', '2001000010120143', '2101000010120143', '2501000010120143', '2601000010120143', '2701000010120143']
+  message: "dwLength must in [{}, {}]."
+  translations:
+    zh-CN: { title: BCrypt 密钥长度范围错误, message: "dwLength 必须在 [{}, {}] 中。" }
+    en: { title: BCrypt key length range mismatch, message: "dwLength must in [{}, {}]." }
+    zh-TW: { title: BCrypt 金鑰長度範圍錯誤, message: "dwLength 必須在 [{}, {}] 中。" }
+- id: ANZU-FORMAT-SPECIFIER-TYPE-MISMATCH
+  title: Format specifier and argument type must match
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: format_specifier_argument_type_mismatch }
+  standards: ['0201000010120039', '2801000010180042']
+  message: Mismatched format specifier and argument type
+  translations:
+    zh-CN: { title: 格式说明符和参数类型不匹配, message: 格式说明符和参数类型不匹配 }
+    en: { title: Format specifier type mismatch, message: Mismatched format specifier and argument type }
+    zh-TW: { title: 格式說明符和參數類型不符, message: 格式說明符和參數類型不符 }
+- id: ANZU-SOCKET-RESOURCE-ALREADY-CLOSED
+  title: Socket resource must not be closed or used twice
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: socket_resource_already_closed }
+  standards: ['0201000010120123', '0301000010120123']
+  message: "the resource '{}' already closed"
+  translations:
+    zh-CN: { title: Socket 资源已关闭, message: "资源 ‘{}’ 已经关闭" }
+    en: { title: Socket resource already closed, message: "the resource '{}' already closed" }
+    zh-TW: { title: Socket 資源已關閉, message: "資源 ‘{}’ 已經關閉" }
+- id: ANZU-SOCKET-RESOURCE-UNINITIALIZED
+  title: Socket resource must be initialized before use
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: socket_resource_uninitialized }
+  standards: ['0201000010120123', '0301000010120123']
+  message: "the resource '{}' uninitialized"
+  translations:
+    zh-CN: { title: Socket 资源未初始化, message: "资源 ‘{}’ 未初始化" }
+    en: { title: Socket resource uninitialized, message: "the resource '{}' uninitialized" }
+    zh-TW: { title: Socket 資源未初始化, message: "資源 ‘{}’ 未初始化" }
+- id: ANZU-OBJECT-SLICING
+  title: Derived objects must not be copied into base values
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: object_slicing_derived_to_base }
+  standards: ['0101000010110402', '2801000010180045']
+  message: "Slicing derived object of type '{}' to base type '{}'."
+  translations:
+    zh-CN: { title: 对象切片, message: "剪切 ‘{}’ 类型的派生对象到基类 ‘{}’。" }
+    en: { title: Object slicing, message: "Slicing derived object of type '{}' to base type '{}'." }
+    zh-TW: { title: 物件切片, message: "將 ‘{}’ 類型的衍生物件切片為基底類型 ‘{}’。" }
+- id: ANZU-COPY-WITHOUT-RESIZE
+  title: Vector destination must be resized before std::copy
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: copy_without_vector_resize }
+  standards: ['0101000010110383']
+  message: Guarantee that library functions do not form invalid iterators
+  translations:
+    zh-CN: { title: copy 前未 resize, message: 保证库函数不会组成无效的迭代器 }
+    en: { title: Copy without resize, message: Guarantee that library functions do not form invalid iterators }
+    zh-TW: { title: copy 前未 resize, message: 確保函式庫函式不會形成無效迭代器 }
+- id: ANZU-INTEGER-OVERFLOW-ASSIGNMENT
+  title: Assigned integer constant must fit target
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: integer_overflow_assigned_constant }
+  standards: ['0701000010130040']
+  message: Assigned value is too large for the variable
+  translations:
+    zh-CN: { title: 整数赋值溢出, message: 对变量赋的值太大 }
+    en: { title: Integer assignment overflow, message: Assigned value is too large for the variable }
+    zh-TW: { title: 整數指定溢位, message: 指定給變數的值太大 }
+- id: ANZU-CONSTANT-ARITHMETIC-OVERFLOW
+  title: Constant arithmetic must not overflow
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: constant_arithmetic_overflow }
+  standards: ['0601000010140047', '0101000010110258', '0901000010110258', '2801000010180028']
+  message: Potential integer overflow detected
+  translations:
+    zh-CN: { title: 常量算术溢出, message: 检测到潜在的整数溢出 }
+    en: { title: Constant arithmetic overflow, message: Potential integer overflow detected }
+    zh-TW: { title: 常數算術溢位, message: 偵測到潛在整數溢位 }
+- id: ANZU-MULTIPLE-RELATED-FUNCTION-CALLS
+  title: Multiple related non-const calls in one expression
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: multiple_related_nonconst_calls }
+  standards: ['0601000010140059']
+  message: Multiple related functions are called in the same expression, which might produce different results depending on the order of execution.
+  translations:
+    zh-CN: { title: 同一表达式中的多个相关函数调用, message: 在同一表达式中调用多个相关函数，这可能会根据执行顺序产生不同的结果。 }
+    en: { title: Multiple related function calls, message: Multiple related functions are called in the same expression, which might produce different results depending on the order of execution. }
+    zh-TW: { title: 同一運算式中的多個相關函式呼叫, message: 在同一運算式中呼叫多個相關函式，可能會依執行順序產生不同結果。 }
+- id: ANZU-DIRECT-USE-BEFORE-INITIALIZATION
+  title: Local variable must be initialized before direct use
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: direct_use_before_initialization }
+  standards: ['0701000010130079', '0601000010140086']
+  message: Variable used before initialization
+  translations:
+    zh-CN: { title: 变量使用前未初始化, message: 变量在初始化之前就已经使用 }
+    en: { title: Variable used before initialization, message: Variable used before initialization }
+    zh-TW: { title: 變數使用前未初始化, message: 變數在初始化之前已經使用 }
+- id: ANZU-ONE-BIT-SIGNED-FIELD-CONDITION
+  title: One-bit signed bit-field must not be used in arithmetic condition
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: one_bit_signed_field_in_condition }
+  standards: ['2401000010120020']
+  message: Disable only 1 signed integer
+  translations:
+    zh-CN: { title: 禁用一位有符号整数, message: 禁用只有1位的有符号整数 }
+    en: { title: One-bit signed integer, message: Disable only 1 signed integer }
+    zh-TW: { title: 停用一位有符號整數, message: 停用只有1位的有符號整數 }
 - id: ANZU-UNUSED-PARAMETER
   title: Unused function parameter
   languages: [c, cpp]
@@ -3960,6 +4268,18 @@ rules:
     zh-CN: { title: 未使用的函数参数, message: 此参数没有在函数体中使用 }
     en: { title: Unused function parameter, message: This parameter is not used in the function body }
     zh-TW: { title: 未使用的函式參數, message: 此參數沒有在函式主體中使用 }
+- id: ANZU-UNUSED-RETURN-VALUE
+  title: Unused non-void return value
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: unused_nonvoid_return_value }
+  standards: ['0701000010130062', '0101000010110350', '0901000010110350', '0101000010110194', '0901000010110194']
+  message: "The return value from the call to '{}' is unused. If this is expected, cast the result to '(void)' to suppress this warning."
+  translations:
+    zh-CN: { title: 未使用的返回值, message: "来自 ‘{}’ 调用的返回值未使用。 如果这在预期内，将结果转换为 ‘(void)’ 来抑制此警告。" }
+    en: { title: Unused return value, message: "The return value from the call to '{}' is unused. If this is expected, cast the result to '(void)' to suppress this warning." }
+    zh-TW: { title: 未使用的傳回值, message: "來自 ‘{}’ 呼叫的傳回值未使用。若這是預期行為，將結果轉換為 ‘(void)’ 以抑制此警告。" }
 - id: ANZU-RETURN-TYPE
   title: Return type mismatch
   languages: [c, cpp]

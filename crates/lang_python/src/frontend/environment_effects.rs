@@ -378,9 +378,7 @@ fn apply_refined_target_type(env: &mut PyEnv, target_text: &str, ty: &str) {
             env.field_types.insert(field.clone(), ty.to_string());
             if let Some(current_class) = env.current_class.clone() {
                 env.class_field_index
-                    .entry(current_class)
-                    .or_default()
-                    .insert(field, ty.to_string());
+                    .set_field(current_class, field, ty.to_string());
             }
             return;
         }
@@ -575,7 +573,7 @@ fn apply_python_env_assignment_effects(
             if let Some(inferred) = infer_simple_python_type(value, imports, env, known_classes) {
                 env.field_types.insert(field.clone(), inferred.clone());
                 if let Some(current_class) = env.current_class.clone() {
-                    env.class_field_index.entry(current_class).or_default().insert(field, inferred);
+                    env.class_field_index.set_field(current_class, field, inferred);
                 }
             } else {
                 env.field_types.remove(&field);
@@ -599,9 +597,7 @@ fn apply_python_env_assignment_effects(
                     .or_else(|| resolve_known_class_name(&base_text, imports, env, known_classes));
                 if let Some(owner_class) = owner_class {
                     env.class_field_index
-                        .entry(owner_class)
-                        .or_default()
-                        .insert(field.clone(), inferred);
+                        .set_field(owner_class, field.clone(), inferred);
                 }
             } else {
                 clear_local_object_field_type(env, &base_text, &field);
@@ -657,9 +653,7 @@ fn clear_python_env_target_effects(target_text: &str, env: &mut PyEnv) {
         if base_text == "self" || env.self_name.as_deref() == Some(base_text.as_str()) {
             env.field_types.remove(&field);
             if let Some(current_class) = env.current_class.clone() {
-                if let Some(fields) = env.class_field_index.get_mut(&current_class) {
-                    fields.remove(&field);
-                }
+                env.class_field_index.remove_field(&current_class, &field);
             }
         } else if is_simple_ident(&base_text) {
             clear_local_object_field_type(env, &base_text, &field);
@@ -829,4 +823,3 @@ fn apply_python_expr_side_effects(
         }
     }
 }
-

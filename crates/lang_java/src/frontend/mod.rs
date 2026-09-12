@@ -2,6 +2,7 @@ use anyhow::Result;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::thread;
 use uniflow_hir::{
     BinaryOp, Block, CallExpr, CallTarget, Class, Expr, Field, Item, LValue, LambdaCapture,
     Language, Param, ParamKind, Program, Stmt, SymbolId, SymbolKind, UnaryOp,

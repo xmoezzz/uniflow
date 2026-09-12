@@ -3,7 +3,7 @@ use uniflow_hir::Language;
 use uniflow_lowering::lower_program;
 use uniflow_rules::{ApiMatcher, Port, RuleSet, SinkRule, SourceRule};
 use uniflow_taint::analyze;
-use uniflow_value_flow::build;
+use uniflow_value_flow::{build, build_for_scan_with_progress};
 
 fn check(language: Language, source: &str) -> usize {
     let rules = RuleSet {
@@ -161,6 +161,53 @@ fn language_frontends_carry_taint_through_the_unified_flow_engine() {
     for (language, source) in cases {
         assert_eq!(check(language.clone(), source), 1, "{language:?}");
     }
+}
+
+#[test]
+fn rust_scan_mode_preserves_a_matched_taint_finding() {
+    let language = Language::Rust;
+    let rules = RuleSet {
+        sources: vec![SourceRule {
+            id: "rust-scan-source".into(),
+            language: Some(language.clone()),
+            matcher: ApiMatcher {
+                method_name: Some("input".into()),
+                ..Default::default()
+            },
+            out: Port::Return,
+            kind: "untrusted".into(),
+        }],
+        sinks: vec![SinkRule {
+            id: "rust-scan-sink".into(),
+            language: Some(language.clone()),
+            matcher: ApiMatcher {
+                method_name: Some("sink".into()),
+                ..Default::default()
+            },
+            inputs: vec![Port::Arg(0)],
+            kind: "untrusted".into(),
+        }],
+        ..Default::default()
+    };
+    let hir = parse_source(
+        language,
+        "rust-scan.fixture",
+        "fn run() { let value = input(); sink(value); }",
+    )
+    .expect("Rust source parses");
+    let ir = lower_program(&hir);
+    let mut stages = Vec::new();
+    let flow = build_for_scan_with_progress(&ir, &rules, |progress| {
+        stages.push(progress.stage);
+    });
+
+    assert_eq!(analyze(&flow, &rules).len(), 1);
+    // A matched direct source/sink pair must remain cheap.  The scan planner
+    // must not promote a scalar Rust testcase into heap/points-to analysis.
+    assert!(!stages.contains(&"points-to"));
+    assert!(!stages.contains(&"bridge-internal-heap-cells"));
+    assert_eq!(flow.stats().object_shape_paths, 0);
+    assert_eq!(flow.stats().live_region_cells, 0);
 }
 
 #[test]

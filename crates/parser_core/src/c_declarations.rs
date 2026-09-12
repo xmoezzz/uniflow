@@ -24,6 +24,9 @@ pub struct CDeclarator {
     pub derived: Vec<DerivedDeclarator>,
     pub initializer: Option<Range<usize>>,
     pub bit_width: Option<Range<usize>>,
+    /// C++ qualifiers written after a function declarator, for example the
+    /// `const` in `void read() const;`.
+    pub trailing_qualifiers: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -51,6 +54,13 @@ pub struct CFunctionDefinition {
     pub returns_void: bool,
     pub is_global: bool,
     pub is_static: bool,
+    /// Whether this C++ member-function definition has a trailing `const`.
+    pub is_const: bool,
+    /// Whether the definition was declared under `extern "C"` linkage.
+    /// Function definitions return from the declaration parser before a
+    /// `CDeclaration` is recorded, so consumers cannot recover this from the
+    /// declaration table after the fact.
+    pub extern_c: bool,
     pub is_noreturn: bool,
     pub context: CFunctionContext,
 }
@@ -783,6 +793,7 @@ impl CDeclarationIndex {
             derived: Vec::new(),
             initializer: None,
             bit_width: None,
+            trailing_qualifiers: Vec::new(),
         };
         if let Some((next, name, name_range)) = self.overloaded_operator_name(at, end) {
             declaration.name = Some(name.clone());
@@ -939,6 +950,24 @@ impl CDeclarationIndex {
             while let Some(next) = self.attribute_end(at) {
                 at = next;
             }
+            while at < end
+                && matches!(
+                    self.tokens[at].text.as_str(),
+                    "const" | "volatile" | "override" | "final" | "&" | "&&"
+                )
+            {
+                declaration
+                    .trailing_qualifiers
+                    .push(self.tokens[at].text.clone());
+                at += 1;
+            }
+            if self.is(at, "noexcept") {
+                declaration.trailing_qualifiers.push("noexcept".to_string());
+                at += 1;
+                if self.is(at, "(") {
+                    at = self.skip_group(at);
+                }
+            }
             if self.is(at, ":") {
                 let width = at + 1;
                 at = width;
@@ -968,6 +997,12 @@ impl CDeclarationIndex {
                         returns_void: ty == "void" && declaration.derived.len() == 1,
                         is_global: scope.function.is_none() && !scope.field_context,
                         is_static: storage.iter().any(|item| item == "static"),
+                        is_const: declaration
+                            .trailing_qualifiers
+                            .iter()
+                            .any(|qualifier| qualifier == "const"),
+                        extern_c: scope.extern_c
+                            || storage.iter().any(|item| item == "extern_c"),
                         is_noreturn: self.tokens[start..at]
                             .iter()
                             .any(|token| matches!(token.text.as_str(), "noreturn" | "_Noreturn")),

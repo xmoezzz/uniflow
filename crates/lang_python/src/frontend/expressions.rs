@@ -345,7 +345,7 @@ fn parse_simple_stmt(
                         if let Some(inferred) = inferred_ty.clone() {
                             env.field_types.insert(field.clone(), inferred.clone());
                             if let Some(current_class) = env.current_class.clone() {
-                                env.class_field_index.entry(current_class).or_default().insert(field.clone(), inferred);
+                                env.class_field_index.set_field(current_class, field.clone(), inferred);
                             }
                         } else {
                             env.field_types.remove(field);
@@ -445,6 +445,7 @@ fn infer_simple_python_type(
     env: &PyEnv,
     known_classes: &HashSet<String>,
 ) -> Option<String> {
+    let _depth_guard = TypeInferenceDepthGuard::enter()?;
     let trimmed = text.trim();
     if looks_like_python_type_annotation(trimmed) {
         if let Some(ty) = normalize_python_annotation_type(

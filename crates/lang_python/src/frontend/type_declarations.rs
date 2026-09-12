@@ -746,12 +746,14 @@ fn seed_declared_global_name(
     }
 }
 
-fn infer_project_known_classes(index: &PyProjectIndex) -> HashSet<String> {
-    let mut out = index.classes_by_simple.keys().cloned().collect::<HashSet<_>>();
-    for names in index.classes_by_module.values() {
-        out.extend(names.iter().cloned());
-    }
-    out
+fn infer_project_known_classes(index: &PyProjectIndex) -> Arc<HashSet<String>> {
+    Arc::clone(&index.known_class_names)
+}
+
+// Every `PyProjectIndex` field is `Arc`-wrapped (see its definition), so a
+// plain `.clone()` here is just a set of refcount bumps, not a deep copy.
+fn shared_project_index_arc(index: &PyProjectIndex) -> Arc<PyProjectIndex> {
+    Arc::new(index.clone())
 }
 
 fn seed_project_inference_env(
@@ -762,7 +764,7 @@ fn seed_project_inference_env(
     current_class: Option<&str>,
     current_class_bases: &[String],
     current_fields: &HashMap<String, String>,
-) -> (PyEnv, HashSet<String>) {
+) -> (PyEnv, Arc<HashSet<String>>) {
     let mut env = PyEnv::default();
     env.current_module = module_name.to_string();
     env.current_class = current_class.map(|value| value.to_string());
@@ -770,16 +772,17 @@ fn seed_project_inference_env(
     env.current_function = current_class
         .map(|owner| format!("{owner}.{}", func.name))
         .unwrap_or_else(|| format!("{module_name}.{}", func.name));
-    env.project_index = Arc::new(index.clone());
+    env.project_index = shared_project_index_arc(index);
     env.executed_modules.insert(module_name.to_string());
     // Make project-wide class and monkey-patched field knowledge available to
     // every function.  Restricting this map to the current class caused calls
     // through locally constructed objects and imported classes to degrade to
     // synthetic `Owner.field.method` paths.
-    env.class_field_index = index.field_types.clone();
+    env.class_field_index = PyClassFieldIndex::from_project(Arc::clone(&index.field_types));
     env.field_types = current_fields.clone();
     if let Some(owner) = current_class {
-        env.class_field_index.insert(owner.to_string(), current_fields.clone());
+        env.class_field_index
+            .set_fields(owner.to_string(), current_fields.clone());
     }
 
     let param_specs = parse_python_param_specs(&func.params);
@@ -924,7 +927,7 @@ fn seed_project_inference_env_with_outer(
     current_class_bases: &[String],
     current_fields: &HashMap<String, String>,
     outer_env: Option<&PyEnv>,
-) -> (PyEnv, HashSet<String>) {
+) -> (PyEnv, Arc<HashSet<String>>) {
     let (mut env, known_classes) = seed_project_inference_env(
         func,
         module_name,

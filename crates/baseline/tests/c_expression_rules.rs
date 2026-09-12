@@ -2473,6 +2473,539 @@ int cpp_shadow(int value) {
 }
 
 #[test]
+fn anzu_main_file_unused_function_requires_main_and_resolves_real_uses() {
+    let source_without_main = r#"
+void public_unused(void) { }
+static void internal_unused(void) { }
+"#;
+    assert!(
+        check(
+            "ANZU-MAIN-FILE-UNUSED-FUNCTION",
+            source_without_main,
+            0,
+        )
+        .is_empty()
+    );
+
+    let source = r#"
+void public_unused(void) { }
+static void internal_unused(void) { }
+void direct_used(void) { }
+void address_used(void) { }
+void takes(void (*callback)(void));
+
+int main(void) {
+    direct_used();
+    void (*callback)(void) = &address_used;
+    takes(callback);
+    const char *prose = "public_unused";
+    (void)prose;
+    return 0;
+}
+"#;
+
+    assert_eq!(
+        check("ANZU-MAIN-FILE-UNUSED-FUNCTION", source, 2),
+        vec![(2, 6), (3, 13)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-MAIN-FILE-UNUSED-FUNCTION");
+    let findings = pack.scan_text(&Language::C, Path::new("main_file.c"), source);
+    assert_eq!(findings.len(), 2);
+    assert_eq!(
+        findings[0].message,
+        "The main file function 'public_unused' is defined but not used."
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "主文件函数 ‘public_unused’ 定义但未使用。"
+    );
+}
+
+#[test]
+fn anzu_variadic_va_start_last_parameter_tracks_reference_and_record_semantics() {
+    let source = r#"
+struct Pod { int value; };
+struct NonTrivial { NonTrivial(); int value; };
+
+void audit(int& reference, Pod pod, NonTrivial non_trivial, int scalar) {
+    va_list args;
+    va_start(args, reference);
+    va_start(args, pod);
+    va_start(args, non_trivial);
+    va_start(args, scalar);
+}
+"#;
+
+    assert_eq!(
+        check_cpp("ANZU-VARIADIC-VA-START-LAST-PARAMETER", source, 2),
+        vec![(7, 20), (8, 20)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-VARIADIC-VA-START-LAST-PARAMETER");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("variadic.cpp"), source);
+    assert_eq!(findings.len(), 2);
+    assert!(pack
+        .scan_text(&Language::C, Path::new("variadic.c"), source)
+        .is_empty());
+    assert_eq!(
+        findings[0].message,
+        "Do not pass a reference or nontrivially-copyable type to va_start"
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "请勿将引用或非平凡可复制类型传递给VA_START"
+    );
+}
+
+#[test]
+fn anzu_signal_handler_checker_requires_extern_c_and_no_exceptions() {
+    let source = r#"
+extern "C" void plain_handler(int signal_number) {
+    (void)signal_number;
+}
+void cpp_handler(int signal_number) {
+    (void)signal_number;
+}
+extern "C" void throwing_handler(int signal_number) {
+    try { throw signal_number; } catch (...) { }
+}
+void (*function_pointer)(int) = cpp_handler;
+
+void install(void) {
+    signal(1, plain_handler);
+    signal(2, cpp_handler);
+    signal(3, throwing_handler);
+    sigaction(4, cpp_handler);
+    signal(5, function_pointer);
+}
+"#;
+
+    assert_eq!(
+        check_cpp("ANZU-SIGNAL-HANDLER-PLAIN-FUNCTION", source, 3),
+        vec![(15, 15), (16, 15), (17, 18)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-SIGNAL-HANDLER-PLAIN-FUNCTION");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("signal.cpp"), source);
+    assert_eq!(findings.len(), 3);
+    assert_eq!(
+        findings[0].message,
+        "A signal handler must be a Plain Old Function"
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "信号句柄必须是plain old函数"
+    );
+}
+
+#[test]
+fn anzu_catch_handler_order_reports_only_adjacent_base_before_derived() {
+    let source = r#"
+struct Base { };
+struct Mid : Base { };
+struct Derived : Mid { };
+
+void audit(void) {
+    try { }
+    catch (Base& base) { (void)base; }
+    catch (Derived& derived) { (void)derived; }
+
+    try { }
+    catch (Derived& derived) { (void)derived; }
+    catch (Base& base) { (void)base; }
+
+    try { }
+    catch (...) { }
+    catch (Derived& derived) { (void)derived; }
+}
+"#;
+
+    assert_eq!(
+        check_cpp("ANZU-CATCH-HANDLER-ORDER", source, 1),
+        vec![(9, 5)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-CATCH-HANDLER-ORDER");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("catch_order.cpp"), source);
+    assert_eq!(findings.len(), 1);
+    assert_eq!(
+        findings[0].message,
+        "Catch handlers should order their parameter types from most derived to least derived"
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "catch处理程序应该按照派生程度从高到低对参数类型进行排序"
+    );
+}
+
+#[test]
+fn anzu_uninitialized_pointer_or_reference_binding_tracks_local_initialization() {
+    let cpp = r#"
+void audit(void) {
+    int undefined_value;
+    int initialized_value = 0;
+    int& invalid_reference = undefined_value;
+    int& valid_reference = initialized_value;
+    int* invalid_pointer = &undefined_value;
+    initialized_value = 1;
+    int* valid_pointer = &initialized_value;
+    (void)invalid_reference;
+    (void)valid_reference;
+    (void)invalid_pointer;
+    (void)valid_pointer;
+}
+"#;
+    assert_eq!(
+        check_cpp("ANZU-UNINITIALIZED-POINTER-OR-REFERENCE-BINDING", cpp, 2),
+        vec![(5, 30), (7, 29)]
+    );
+
+    let c = r#"
+void audit(void) {
+    int undefined_value;
+    int *invalid_pointer = &undefined_value;
+}
+"#;
+    assert_eq!(
+        check("ANZU-UNINITIALIZED-POINTER-OR-REFERENCE-BINDING", c, 1),
+        vec![(4, 29)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules.retain(|candidate| {
+        candidate.id == "ANZU-UNINITIALIZED-POINTER-OR-REFERENCE-BINDING"
+    });
+    let findings = pack.scan_text(&Language::Cpp, Path::new("uninitialized.cpp"), cpp);
+    assert_eq!(findings.len(), 2);
+    assert_eq!(findings[0].message, "Passing uninitialized pointer or reference");
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "传递未初始化的指针或引用"
+    );
+}
+
+#[test]
+fn anzu_bcrypt_parameter_checker_tracks_provider_handle_and_key_length() {
+    let source = r#"
+void audit(void) {
+    void *rsa_handle;
+    void *ecdsa_handle;
+    BCryptOpenAlgorithmProvider(&rsa_handle, "RSA", 0, 0);
+    BCryptOpenAlgorithmProvider(&ecdsa_handle, "ECDSA_P256", 0, 0);
+    BCryptGenerateKeyPair(rsa_handle, 0, 576, 0);
+    BCryptGenerateKeyPair(rsa_handle, 0, 513, 0);
+    BCryptGenerateKeyPair(ecdsa_handle, 0, 384, 0);
+    BCryptGenerateKeyPair(ecdsa_handle, 0, 256, 0);
+}
+
+void unrelated(void) {
+    void *rsa_handle;
+    BCryptGenerateKeyPair(rsa_handle, 0, 513, 0);
+}
+"#;
+    assert_eq!(
+        check("ANZU-BCRYPT-PARAM-RANGE-LENGTH", source, 1),
+        vec![(8, 42)]
+    );
+    assert_eq!(
+        check("ANZU-BCRYPT-PARAM-FIXED-LENGTH", source, 1),
+        vec![(9, 44)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules.retain(|candidate| candidate.id == "ANZU-BCRYPT-PARAM-RANGE-LENGTH");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("bcrypt.cpp"), source);
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].message, "dwLength must in [512, 16384].");
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "dwLength 必须在 [512, 16384] 中。"
+    );
+}
+
+#[test]
+fn anzu_format_specifier_type_mismatch_checks_literal_printf_arguments() {
+    let source = r#"
+void audit(void) {
+    char character = 'x';
+    int signed_value = 3;
+    unsigned int unsigned_value = 3u;
+    double floating_value = 3.0;
+    char *text = "text";
+    printf("%c %f %d %u %s", signed_value, signed_value, unsigned_value, signed_value, signed_value);
+    printf("%c %f %d %u %x %o %s", character, floating_value, signed_value, unsigned_value, text, signed_value, text);
+}
+"#;
+    assert_eq!(
+        check("ANZU-FORMAT-SPECIFIER-TYPE-MISMATCH", source, 5),
+        vec![(8, 30), (8, 44), (8, 58), (8, 74), (8, 88)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules.retain(|candidate| candidate.id == "ANZU-FORMAT-SPECIFIER-TYPE-MISMATCH");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("format.cpp"), source);
+    assert_eq!(findings.len(), 5);
+    assert_eq!(findings[0].message, "Mismatched format specifier and argument type");
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "格式说明符和参数类型不匹配"
+    );
+}
+
+#[test]
+fn anzu_socket_resource_checker_tracks_open_close_and_uninitialized_use() {
+    let source = r#"
+void audit(void) {
+    int active = socket(0, 0, 0);
+    int uninitialized;
+    listen(uninitialized, 1);
+    closesocket(active);
+    send(active, 0, 0, 0);
+    shutdown(active, 0);
+}
+"#;
+    assert_eq!(
+        check("ANZU-SOCKET-RESOURCE-UNINITIALIZED", source, 1),
+        vec![(5, 12)]
+    );
+    assert_eq!(
+        check("ANZU-SOCKET-RESOURCE-ALREADY-CLOSED", source, 2),
+        vec![(7, 10), (8, 14)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules.retain(|candidate| candidate.id == "ANZU-SOCKET-RESOURCE-ALREADY-CLOSED");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("socket.cpp"), source);
+    assert_eq!(findings.len(), 2);
+    assert_eq!(findings[0].message, "the resource 'active' already closed");
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "资源 ‘active’ 已经关闭"
+    );
+}
+
+#[test]
+fn anzu_object_slicing_reports_derived_values_but_not_references_or_pointers() {
+    let source = r#"
+class Base { public: virtual void draw(); };
+class Derived : public Base { };
+
+void audit(void) {
+    Derived source;
+    Base initialized = source;
+    Base assigned;
+    assigned = source;
+    Base& reference = source;
+    Base* pointer = &source;
+}
+
+"#;
+    assert_eq!(
+        check_cpp_only("ANZU-OBJECT-SLICING", source, 2),
+        vec![(7, 24), (9, 16)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules.retain(|candidate| candidate.id == "ANZU-OBJECT-SLICING");
+    let findings = pack.scan_text(&Language::Cpp, Path::new("slicing.cpp"), source);
+    assert_eq!(findings.len(), 2);
+    assert_eq!(
+        findings[0].message,
+        "Slicing derived object of type 'Derived' to base type 'Base'."
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "剪切 ‘Derived’ 类型的派生对象到基类 ‘Base’。"
+    );
+}
+
+#[test]
+fn anzu_copy_without_resize_tracks_vector_destination_state() {
+    let source = "void audit() { std::vector<int> empty; std::vector<int> ready(4); std::copy(a, b, empty.begin()); empty.resize(4); std::copy(a, b, empty.begin()); std::copy(a, b, ready.begin()); }";
+    assert_eq!(check_cpp_only("ANZU-COPY-WITHOUT-RESIZE", source, 1), vec![(1, 83)]);
+}
+
+#[test]
+fn anzu_integer_overflow_assignment_reports_constant_outside_target_range() {
+    let source = "void audit() { unsigned char initialized = 300; unsigned char assigned; assigned = 300; }";
+    assert_eq!(check("ANZU-INTEGER-OVERFLOW-ASSIGNMENT", source, 2), vec![(1, 44), (1, 84)]);
+}
+
+#[test]
+fn anzu_constant_arithmetic_overflow_reports_only_out_of_i32_range_results() {
+    let source = "void audit() { int first = 2147483647 + 1; int second = 50000 * 50000; int safe = 3 + 4; }";
+    assert_eq!(check("ANZU-CONSTANT-ARITHMETIC-OVERFLOW", source, 2), vec![(1, 39), (1, 63)]);
+}
+
+#[test]
+fn anzu_multiple_related_function_calls_requires_two_nonconst_member_calls() {
+    let source = "class Box { public: int mutate() { return 1; } int view() const { return 1; } }; void consume(int, int) {} void audit() { Box box; consume(box.mutate(), box.mutate()); consume(box.view(), box.view()); }";
+    assert_eq!(check_cpp_only("ANZU-MULTIPLE-RELATED-FUNCTION-CALLS", source, 1), vec![(1, 154)]);
+}
+
+#[test]
+fn anzu_direct_use_before_initialization_covers_legacy_expression_entries() {
+    let source = "int audit() { int uninitialized; int initialized = 1; int copy = uninitialized; initialized = uninitialized; return uninitialized + *uninitialized; }";
+    assert_eq!(check("ANZU-DIRECT-USE-BEFORE-INITIALIZATION", source, 4), vec![(1, 66), (1, 95), (1, 117), (1, 134)]);
+}
+
+#[test]
+fn anzu_one_bit_signed_field_condition_requires_member_access_and_binary_condition() {
+    let source = "struct Flags { signed int bit : 1; unsigned int unsigned_bit : 1; }; void audit(struct Flags flags) { if (flags.bit < 1) {} if (flags.unsigned_bit < 1) {} if (flags.bit) {} }";
+    assert_eq!(check("ANZU-ONE-BIT-SIGNED-FIELD-CONDITION", source, 1), vec![(1, 113)]);
+}
+
+#[test]
+fn anzu_cv_qualification_cast_checker_preserves_element_const_and_volatile() {
+    let source = r#"
+struct Item {};
+void access(const Item* read_only, volatile Item& device, Item* ordinary) {
+    Item* dropped_const = (Item*)read_only;
+    Item& dropped_volatile = (Item&)device;
+    Item* via_const_cast = const_cast<Item*>(read_only);
+    const Item* preserved_const = (const Item*)read_only;
+    Item* plain = (Item*)ordinary;
+}
+"#;
+    assert_eq!(
+        check_cpp_only("ANZU-CPP-CV-QUALIFICATION-CAST-DROP", source, 3),
+        vec![(4, 27), (5, 30), (6, 28)]
+    );
+}
+
+#[test]
+fn anzu_bitfield_record_pointer_updates_require_an_edge_bitfield_and_dereference() {
+    let source = r#"
+struct Head { unsigned first : 1; int value; };
+struct Tail { int value; unsigned last : 1; };
+struct Safe { int first; int last; };
+void update(struct Head *head, struct Tail *tail, struct Safe *safe) {
+    ++*head;
+    *tail -= 1;
+    (*head)++;
+    *safe += 1;
+    head++;
+}
+"#;
+    assert_eq!(
+        check_c_only("ANZU-C-BITFIELD-RECORD-POINTER-UPDATE", source, 3),
+        vec![(6, 5), (7, 11), (8, 12)]
+    );
+}
+
+#[test]
+fn anzu_continue_rule_matches_only_continue_statements() {
+    let source = r#"
+void update(int count) {
+    for (int item = 0; item < count; ++item) {
+        if (item == 1) continue;
+        const char *text = "continue;";
+        (void)text;
+    }
+}
+"#;
+    assert_eq!(check("ANZU-AVOID-CONTINUE", source, 1), vec![(4, 24)]);
+}
+
+#[test]
+fn anzu_unused_nonvoid_return_value_preserves_direct_call_and_void_cast_semantics() {
+    let source = r#"
+int compute(void);
+int helper(void);
+void notify(void);
+void consume(int value);
+
+void run(int ready) {
+    compute();
+    notify();
+    (void)compute();
+    int assigned = compute();
+    consume(compute());
+    if (ready) helper();
+    (void)assigned;
+}
+"#;
+
+    assert_eq!(
+        check("ANZU-UNUSED-RETURN-VALUE", source, 2),
+        vec![(8, 5), (13, 16)]
+    );
+
+    let mut pack = builtin_security_pack().expect("built-in baseline pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-UNUSED-RETURN-VALUE");
+    let findings = pack.scan_text(&Language::C, Path::new("unused_return.c"), source);
+    assert_eq!(findings.len(), 2);
+    assert_eq!(
+        findings[0].message,
+        "The return value from the call to 'compute' is unused. If this is expected, cast the result to '(void)' to suppress this warning."
+    );
+    assert_eq!(
+        findings[0]
+            .translations
+            .zh_cn
+            .as_ref()
+            .expect("zh-CN translation")
+            .message,
+        "来自 ‘compute’ 调用的返回值未使用。 如果这在预期内，将结果转换为 ‘(void)’ 来抑制此警告。"
+    );
+}
+
+#[test]
 fn anzu_return_type_checker_preserves_legacy_assignment_semantics() {
     let source = r#"
 int ok_int(void) { return 1; }

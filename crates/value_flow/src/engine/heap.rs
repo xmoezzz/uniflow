@@ -1050,24 +1050,79 @@ struct CellAliasSnapshot {
 
 impl CellAliasSnapshot {
     fn build(fg: &FlowGraph) -> Self {
-        let cells = all_cell_nodes(fg);
-        let mut may_alias_neighbors = cells
-            .iter()
-            .map(|cell| (cell.index(), Vec::new()))
-            .collect::<HashMap<_, _>>();
-        for (offset, left) in cells.iter().copied().enumerate() {
-            for right in cells.iter().copied().skip(offset + 1) {
-                if fg.cell_may_alias(left, right) {
-                    may_alias_neighbors
-                        .entry(left.index())
-                        .or_default()
-                        .push(right);
-                    may_alias_neighbors
-                        .entry(right.index())
-                        .or_default()
-                        .push(left);
+        Self::build_for_cells(fg, all_cell_nodes(fg))
+    }
+
+    /// The sparse store/load solver only queries cells that participate in a
+    /// memory access or an actual/formal heap bridge.  Building alias state for
+    /// every projected cell (including projections never read or written)
+    /// turns large Python projects into a mostly useless quadratic scan.
+    fn build_for_sparse_flow(fg: &FlowGraph) -> Self {
+        let mut cells = HashSet::new();
+        for edge in fg.graph.edge_references() {
+            let (source, target) = (edge.source(), edge.target());
+            match &edge.weight().kind {
+                EdgeKind::StoreField { .. } | EdgeKind::StoreIndex if is_cell_node(fg, target) => {
+                    cells.insert(target);
+                }
+                EdgeKind::LoadField { .. } | EdgeKind::LoadIndex if is_cell_node(fg, source) => {
+                    cells.insert(source);
+                }
+                EdgeKind::ActualToFormal | EdgeKind::FormalToActual
+                    if is_cell_node(fg, source) && is_cell_node(fg, target) =>
+                {
+                    cells.insert(source);
+                    cells.insert(target);
+                }
+                _ => {}
+            }
+        }
+        let mut cells = cells.into_iter().collect::<Vec<_>>();
+        cells.sort_unstable_by_key(|cell| cell.index());
+        Self::build_for_cells(fg, cells)
+    }
+
+    fn build_for_cells(fg: &FlowGraph, cells: Vec<NodeIndex>) -> Self {
+        let mut may_alias_neighbors = HashMap::new();
+
+        // Java/JSP/Python projection slots are disjoint before the general
+        // alias predicate examines points-to facts: fields with different
+        // names cannot alias, nor can a field and an index slot.  Splitting
+        // those groups first preserves `cell_may_alias` exactly while avoiding
+        // a global O(number_of_cells²) comparison for managed-language code.
+        // A wildcard index must still be compared with every index key.
+        if matches!(fg.language, Language::Java | Language::Jsp | Language::Python) {
+            let mut fields = HashMap::<String, Vec<NodeIndex>>::new();
+            let mut indexes = HashMap::<(String, FunctionId), Vec<NodeIndex>>::new();
+            let mut wildcard_indexes = HashMap::<FunctionId, Vec<NodeIndex>>::new();
+            for cell in cells.iter().copied() {
+                match &fg.graph[cell] {
+                    FlowNode::FieldCell { field, .. } => {
+                        fields.entry(field.clone()).or_default().push(cell);
+                    }
+                    FlowNode::IndexCell { func, abstract_key, .. } if abstract_key == "*" => {
+                        wildcard_indexes.entry(*func).or_default().push(cell);
+                    }
+                    FlowNode::IndexCell { func, abstract_key, .. } => {
+                        indexes.entry((abstract_key.clone(), *func)).or_default().push(cell);
+                    }
+                    _ => {}
                 }
             }
+            for group in fields.values() {
+                add_projection_alias_pairs(fg, group, &mut may_alias_neighbors);
+            }
+            for ((_, func), group) in &indexes {
+                add_projection_alias_pairs(fg, group, &mut may_alias_neighbors);
+                if let Some(wildcards) = wildcard_indexes.get(func) {
+                    add_cross_alias_pairs(fg, group, wildcards, &mut may_alias_neighbors);
+                }
+            }
+            for wildcards in wildcard_indexes.values() {
+                add_projection_alias_pairs(fg, wildcards, &mut may_alias_neighbors);
+            }
+        } else {
+            add_projection_alias_pairs(fg, &cells, &mut may_alias_neighbors);
         }
         Self {
             cells,
@@ -1080,6 +1135,94 @@ impl CellAliasSnapshot {
             .get(&cell.index())
             .map(Vec::as_slice)
             .unwrap_or(&[])
+    }
+}
+
+fn is_cell_node(fg: &FlowGraph, node: NodeIndex) -> bool {
+    matches!(fg.graph[node], FlowNode::FieldCell { .. } | FlowNode::IndexCell { .. })
+}
+
+/// Adds all possible alias pairs in a single compatible projection group.
+/// If both cells have a precise memory unit, different units are a proven
+/// non-alias.  Grouping precise units is therefore an exact refinement, not a
+/// heuristic; cells without a unit remain compared with every compatible cell
+/// because the general predicate may still resolve them through other facts.
+fn add_projection_alias_pairs(
+    fg: &FlowGraph,
+    cells: &[NodeIndex],
+    neighbors: &mut HashMap<usize, Vec<NodeIndex>>,
+) {
+    let mut precise_units = HashMap::<String, Vec<NodeIndex>>::new();
+    let mut precise_by_function = HashMap::<FunctionId, Vec<NodeIndex>>::new();
+    let mut imprecise_by_function = HashMap::<FunctionId, Vec<NodeIndex>>::new();
+    for cell in cells.iter().copied() {
+        if let Some(unit) = precise_memory_unit_key_for_cell(fg, cell) {
+            precise_units.entry(unit).or_default().push(cell);
+            if let Some(func) = cell_function(fg, cell) {
+                precise_by_function.entry(func).or_default().push(cell);
+            }
+        } else {
+            // With no identity or points-to evidence, cell_may_alias now
+            // correctly keeps local SSA storage function-scoped. Partitioning
+            // here prevents an unknown `data` field in every module from
+            // becoming one enormous comparison group.
+            if let Some(func) = cell_function(fg, cell) {
+                imprecise_by_function.entry(func).or_default().push(cell);
+            }
+        }
+    }
+    for group in precise_units.values() {
+        add_alias_pairs_with_predicate(fg, group, neighbors);
+    }
+    for (func, imprecise) in imprecise_by_function {
+        add_alias_pairs_with_predicate(fg, &imprecise, neighbors);
+        if let Some(precise) = precise_by_function.get(&func) {
+            add_cross_alias_pairs(fg, &imprecise, precise, neighbors);
+        }
+    }
+}
+
+fn cell_function(fg: &FlowGraph, cell: NodeIndex) -> Option<FunctionId> {
+    match &fg.graph[cell] {
+        FlowNode::FieldCell { func, .. } | FlowNode::IndexCell { func, .. } => Some(*func),
+        _ => None,
+    }
+}
+
+fn add_cross_alias_pairs(
+    fg: &FlowGraph,
+    left: &[NodeIndex],
+    right: &[NodeIndex],
+    neighbors: &mut HashMap<usize, Vec<NodeIndex>>,
+) {
+    for source in left.iter().copied() {
+        for target in right.iter().copied() {
+            add_alias_pair_if_needed(fg, source, target, neighbors);
+        }
+    }
+}
+
+fn add_alias_pairs_with_predicate(
+    fg: &FlowGraph,
+    cells: &[NodeIndex],
+    neighbors: &mut HashMap<usize, Vec<NodeIndex>>,
+) {
+    for (offset, left) in cells.iter().copied().enumerate() {
+        for right in cells.iter().copied().skip(offset + 1) {
+            add_alias_pair_if_needed(fg, left, right, neighbors);
+        }
+    }
+}
+
+fn add_alias_pair_if_needed(
+    fg: &FlowGraph,
+    left: NodeIndex,
+    right: NodeIndex,
+    neighbors: &mut HashMap<usize, Vec<NodeIndex>>,
+) {
+    if fg.cell_may_alias(left, right) {
+        neighbors.entry(left.index()).or_default().push(right);
+        neighbors.entry(right.index()).or_default().push(left);
     }
 }
 

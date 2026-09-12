@@ -32,6 +32,24 @@ pub fn collect_source_files(language: Language, inputs: &[PathBuf]) -> Result<Ve
     Ok(out)
 }
 
+/// Collect source files from a polyglot project and retain the frontend that
+/// owns each path.  A mixed project is intentionally split before parsing:
+/// each frontend produces a language-specific HIR and no file is ever fed to
+/// an unrelated parser.
+pub fn collect_mixed_source_files(inputs: &[PathBuf]) -> Result<Vec<(Language, PathBuf)>> {
+    let mut out = Vec::new();
+    for input in inputs {
+        collect_mixed_one(input, &mut out)?;
+    }
+    out.sort_by(|(left_language, left_path), (right_language, right_path)| {
+        left_path
+            .cmp(right_path)
+            .then_with(|| left_language.as_str().cmp(right_language.as_str()))
+    });
+    out.dedup();
+    Ok(out)
+}
+
 /// Collect non-source project inputs consumed by structured baseline checkers.
 /// They are deliberately kept out of `collect_source_files` so a Java parser
 /// never receives XML, properties, build descriptors, or container recipes.
@@ -115,6 +133,59 @@ fn collect_one(language: Language, input: &Path, out: &mut Vec<PathBuf>) -> Resu
     Ok(())
 }
 
+fn collect_mixed_one(input: &Path, out: &mut Vec<(Language, PathBuf)>) -> Result<()> {
+    if input.is_file() {
+        if let Some(language) = language_for_path(input) {
+            out.push((language, input.to_path_buf()));
+        }
+        return Ok(());
+    }
+
+    if input.is_dir() {
+        for entry in fs::read_dir(input)
+            .with_context(|| format!("failed to read directory {}", input.display()))?
+        {
+            let entry = entry?;
+            let file_type = entry.file_type()?;
+            if file_type.is_symlink() {
+                continue;
+            }
+            if file_type.is_dir() && is_default_ignored_directory(&entry.file_name()) {
+                continue;
+            }
+            collect_mixed_one(&entry.path(), out)?;
+        }
+    }
+    Ok(())
+}
+
+/// Return the unique source frontend for a file in a mixed project.  Ordering
+/// matters for overlapping extensions: JSP must win over HTML-like JavaScript
+/// templates, and Objective-C++ must win over the C/C++ families.
+pub fn language_for_path(path: &Path) -> Option<Language> {
+    [
+        Language::ObjCpp,
+        Language::ObjC,
+        Language::CSharp,
+        Language::Cpp,
+        Language::C,
+        Language::Java,
+        Language::Kotlin,
+        Language::Swift,
+        Language::Python,
+        Language::Go,
+        Language::Jsp,
+        Language::JavaScript,
+        Language::Sql,
+        Language::Php,
+        Language::Ruby,
+        Language::Rust,
+        Language::Shell,
+    ]
+    .into_iter()
+    .find(|language| supports_path(language, path))
+}
+
 fn is_default_ignored_directory(name: &std::ffi::OsStr) -> bool {
     let Some(name) = name.to_str() else {
         return false;
@@ -182,6 +253,35 @@ mod tests {
         }
         assert!(supports_path(&Language::ObjC, Path::new("bridge.h")));
         assert!(supports_path(&Language::ObjCpp, Path::new("bridge.hpp")));
+    }
+
+    #[test]
+    fn mixed_collection_assigns_each_file_to_its_own_frontend() {
+        let root = temp_project("mixed-collection");
+        for (path, source) in [
+            ("Main.java", "class Main {}"),
+            ("app.py", "print('ok')"),
+            ("query.sql", "select 1"),
+            ("web.jsp", "<% out.print(1); %>"),
+            ("web.ts", "console.log(1)"),
+        ] {
+            fs::write(root.join(path), source).unwrap();
+        }
+        fs::create_dir_all(root.join("target")).unwrap();
+        fs::write(root.join("target").join("ignored.rs"), "fn main() {}\n").unwrap();
+
+        let files = collect_mixed_source_files(&[root.clone()]).unwrap();
+        assert_eq!(
+            files,
+            vec![
+                (Language::Java, root.join("Main.java")),
+                (Language::Python, root.join("app.py")),
+                (Language::Sql, root.join("query.sql")),
+                (Language::Jsp, root.join("web.jsp")),
+                (Language::JavaScript, root.join("web.ts")),
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

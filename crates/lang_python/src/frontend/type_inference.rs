@@ -651,6 +651,14 @@ fn infer_project_class_fields(
         fields.entry(field).or_insert(ty);
     }
     for method in extract_functions_at_indent(&class.body, class.indent + 4, class.start_line + 1) {
+        // Keep the class-level inference path on the same recursion guard as
+        // interprocedural summaries. A method can call itself indirectly while
+        // its fields are being inferred; without this, that path bypasses the
+        // callable-summary guard and grows until the worker stack aborts.
+        let method_path = format!("{current_class}.{}", method.name);
+        let Some(_summary_guard) = SummaryPathGuard::enter(&method_path) else {
+            continue;
+        };
         let (mut env, known_classes) = seed_project_inference_env(
             &method,
             module_name,
@@ -1269,7 +1277,7 @@ fn infer_project_module_bindings(
     let mut env = PyEnv::default();
     env.current_module = module_name.to_string();
     env.current_function = format!("{module_name}.<module>");
-    env.project_index = Arc::new(index.clone());
+    env.project_index = shared_project_index_arc(index);
     env.executed_modules.insert(module_name.to_string());
     if let Some(classes) = index.classes_by_module.get(module_name) {
         for class_name in classes {
@@ -1361,7 +1369,7 @@ fn infer_project_module_bindings(
     let mut module_member_values: HashMap<String, HashMap<String, String>> = HashMap::new();
     let mut class_field_patches: HashMap<String, HashMap<String, String>> = env
         .class_field_index
-        .iter()
+        .overrides()
         .map(|(owner, fields)| {
             (
                 canonicalize_project_path(index, owner),

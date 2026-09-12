@@ -779,10 +779,71 @@ fn infer_project_function_text_context_by_callable_path(
     None
 }
 
+thread_local! {
+    static IN_PROGRESS_SUMMARY_PATHS: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+    static PROJECT_SUMMARY_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+// A path guard catches exact cycles. A bounded depth also protects against
+// extremely wide indirect call chains or synthetic paths whose spelling does
+// not canonicalize identically at every hop. The fallback is deliberately
+// conservative: stop replaying effects for that path, rather than letting an
+// untrusted source abort the entire process through stack exhaustion.
+const MAX_PROJECT_SUMMARY_DEPTH: usize = 64;
+
+/// Real Python call graphs are not acyclic: direct and mutual recursion are
+/// common, and nothing upstream of this function tracks which callable paths
+/// are already being summarized. Without this guard a recursive (or
+/// mutually recursive) project function sends this straight back into
+/// itself with no shrinking input, hanging forever instead of terminating.
+struct SummaryPathGuard<'a> {
+    path: &'a str,
+}
+
+impl<'a> SummaryPathGuard<'a> {
+    fn enter(path: &'a str) -> Option<Self> {
+        let inserted = IN_PROGRESS_SUMMARY_PATHS.with(|paths| {
+            paths.borrow_mut().insert(path.to_string())
+        });
+        if !inserted {
+            return None;
+        }
+        let within_budget = PROJECT_SUMMARY_DEPTH.with(|depth| {
+            let current = depth.get();
+            if current >= MAX_PROJECT_SUMMARY_DEPTH {
+                false
+            } else {
+                depth.set(current + 1);
+                true
+            }
+        });
+        if within_budget {
+            Some(Self { path })
+        } else {
+            IN_PROGRESS_SUMMARY_PATHS.with(|paths| {
+                paths.borrow_mut().remove(path);
+            });
+            None
+        }
+    }
+}
+
+impl Drop for SummaryPathGuard<'_> {
+    fn drop(&mut self) {
+        IN_PROGRESS_SUMMARY_PATHS.with(|paths| {
+            paths.borrow_mut().remove(self.path);
+        });
+        PROJECT_SUMMARY_DEPTH.with(|depth| {
+            depth.set(depth.get().saturating_sub(1));
+        });
+    }
+}
+
 fn infer_project_summary_by_callable_path(
     callable_path: &str,
     index: &PyProjectIndex,
 ) -> Option<ProjectFunctionSummary> {
+    let _guard = SummaryPathGuard::enter(callable_path)?;
     if let Some(func) = index.top_level_function_text(callable_path) {
         let (owner_module, _) = callable_path.rsplit_once('.')?;
         let imports = index.module_imports_for(owner_module)?;
@@ -1255,6 +1316,10 @@ fn infer_project_method_returns(
     for method in extract_functions_at_indent(&class.body, class.indent + 4, class.start_line + 1) {
         let receiver_adjusted = !function_has_decorator(&method, "staticmethod");
         let arities = python_callable_arities(&parse_python_param_specs(&method.params), receiver_adjusted);
+        let method_path = format!("{}.{}", current_class, method.name);
+        let Some(_summary_guard) = SummaryPathGuard::enter(&method_path) else {
+            continue;
+        };
         let base_ty = infer_project_function_return_with_locals(
             &method,
             module_name,
@@ -1264,7 +1329,6 @@ fn infer_project_method_returns(
             &current_bases,
             current_fields,
         );
-        let method_path = format!("{}.{}", current_class, method.name);
         let decorated_callable_ty = decorate_project_callable_type(&method, module_name, imports, index, &method_path);
         for arity in &arities {
             if let Some(ty) = project_callable_return_from_type(index, &decorated_callable_ty, *arity)

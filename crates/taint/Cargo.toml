@@ -15,5 +15,6 @@ uniflow-value-flow = { path = "../value_flow" }
 [dev-dependencies]
 uniflow-frontend = { path = "../frontend" }
 uniflow-hir = { path = "../hir" }
+uniflow-ir = { path = "../ir" }
 uniflow-lowering = { path = "../lowering" }
 uniflow-models = { path = "../models" }

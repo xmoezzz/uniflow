@@ -39,6 +39,11 @@ pub struct FlowGraph {
     pub value_cpp: HashMap<(FunctionId, ValueId), uniflow_hir::CppValueSemantics>,
     pub field_cells: HashMap<(FunctionId, ValueId, String), NodeIndex>,
     pub index_cells: HashMap<(FunctionId, ValueId, String), NodeIndex>,
+    /// True once the sparse tables have replaced the raw graph edges.  Empty
+    /// entries are deliberately omitted from the tables; this flag keeps a
+    /// missing entry from being confused with an unmaterialized node.
+    #[serde(default)]
+    pub sparse_adjacency_materialized: bool,
     pub sparse_successors: HashMap<usize, Vec<usize>>,
     pub sparse_predecessors: HashMap<usize, Vec<usize>>,
     /// Symmetric connectivity for transfers that preserve the identity of the
@@ -274,6 +279,7 @@ impl Default for FlowGraph {
             value_cpp: HashMap::new(),
             field_cells: HashMap::new(),
             index_cells: HashMap::new(),
+            sparse_adjacency_materialized: false,
             sparse_successors: HashMap::new(),
             sparse_predecessors: HashMap::new(),
             identity_neighbors: HashMap::new(),

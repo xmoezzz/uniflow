@@ -18,11 +18,11 @@ use uniflow_checker_host::{
     CheckerFailurePolicy, CheckerHostOptions, CheckerIsolation, CheckerManager,
 };
 use uniflow_frontend::{
-    collect_auxiliary_files, collect_source_files, parse_project_files_with_options,
+    collect_auxiliary_files, collect_source_files, parse_project_files_with_options_and_progress,
     parse_project_sources_with_options, parse_source_with_options, FrontendOptions,
 };
 use uniflow_hir::Language;
-use uniflow_ir::{sample_java_sql_program, validate_program};
+use uniflow_ir::{sample_java_sql_program, validate_program, Program as IrProgram};
 use uniflow_lowering::lower_program;
 use uniflow_models::{
     audit_legacy_jvm_rule_tree, compile_legacy_csharp_pack, compile_legacy_go_pack,
@@ -35,10 +35,11 @@ use uniflow_platform::PlatformProfile;
 use uniflow_report::{
     export_dot, export_markdown_report_with_checkers, export_sarif_with_checker_manifests,
 };
-use uniflow_rules::RuleSet;
+use uniflow_rules::{RuleSet, RuleTranslations};
 use uniflow_taint::{analyze, pretty_findings, TaintFinding};
 use uniflow_value_flow::{
-    build_for_rules_with_progress, build_with_capabilities, AnalysisCapabilities, FlowGraph, FlowNode,
+    build_for_rules_with_progress, build_for_scan_with_progress, build_with_capabilities,
+    AnalysisCapabilities, FlowGraph, FlowNode,
 };
 
 #[derive(Debug, Parser)]
@@ -568,7 +569,23 @@ fn format_duration(duration: Duration) -> String {
     }
 }
 
+/// Deeply nested or generated source (huge `else if` chains, long argument
+/// lists, deeply nested expressions) can drive the recursive-descent parser
+/// and HIR walkers past the default OS thread stack. Run the real work on a
+/// worker thread with a much larger stack instead of relying on the main
+/// thread's (often 8MB) stack.
+const WORKER_STACK_SIZE: usize = 1 << 30;
+
 fn main() -> Result<()> {
+    std::thread::Builder::new()
+        .stack_size(WORKER_STACK_SIZE)
+        .spawn(run)
+        .expect("failed to spawn analysis worker thread")
+        .join()
+        .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+}
+
+fn run() -> Result<()> {
     if std::env::args().nth(1).as_deref() == Some("__checker-worker") {
         let path = std::env::args_os()
             .nth(2)
@@ -1134,11 +1151,20 @@ fn main() -> Result<()> {
                         // needed instead of duplicating the source buffer.
                         let _file_bar = multi.add(ProgressBar::new(files.len() as u64));
                         _file_bar.set_style(file_style());
-                        _file_bar.set_message("parsing source files");
-                        parse_project_files_with_options(
+                        _file_bar.set_message(if language == Language::Python {
+                            "indexing Python project before parallel parsing"
+                        } else {
+                            "parsing source files"
+                        });
+                        let completed_file_bar = _file_bar.clone();
+                        parse_project_files_with_options_and_progress(
                             language.clone(),
                             &files,
                             &frontend_options,
+                            &|| {
+                                completed_file_bar.set_message("parsing source files");
+                                completed_file_bar.inc(1);
+                            },
                         )
                     },
                 )?
@@ -1296,16 +1322,7 @@ fn run_and_print_with_progress(
     )?;
 
     let ir = tracker.phase("lower", format!("{} files", hir.files.len()), |_| {
-        let ir = lower_program(&hir);
-        if let Err(errors) = validate_program(&ir) {
-            let details = errors
-                .into_iter()
-                .map(|error| format!("{}: {}", error.function, error.message))
-                .collect::<Vec<_>>()
-                .join("\n");
-            anyhow::bail!("lowered IR failed validation:\n{details}");
-        }
-        Ok(ir)
+        validate_or_quarantine_invalid_ir_functions(lower_program(&hir))
     })?;
     if checker_manager.has_subscriber(event_kind::IR_PROGRAM) {
         checker_findings.extend(checker_manager.broadcast(
@@ -1326,6 +1343,12 @@ fn run_and_print_with_progress(
             Ok(())
         },
     )?;
+
+    // Lowering owns all information required by flow/taint analysis.  Keeping
+    // the parsed HIR alive until report emission duplicates a large project in
+    // memory while the flow graph is being built; on PyTorch that alone was
+    // several gigabytes before the first graph node existed.
+    drop(hir);
 
     // Statistics describe whichever analysis plan was selected and do not
     // require the legacy global closure.  Keep `--dump-stats` on the normal
@@ -1350,12 +1373,17 @@ fn run_and_print_with_progress(
                 "build-flow/init: {} IR functions",
                 ir.functions.len()
             ));
-            Ok(build_with_capabilities(&ir, &rules, capabilities, |progress| {
+            let build = |progress: uniflow_value_flow::BuildProgress| {
                 spinner.set_message(format!(
                     "build-flow/{}: {}",
                     progress.stage, progress.detail
                 ));
-            }))
+            };
+            if force_full_flow {
+                Ok(build_with_capabilities(&ir, &rules, capabilities, build))
+            } else {
+                Ok(build_for_scan_with_progress(&ir, &rules, build))
+            }
         },
     )?;
     let flow_summary_subscribed = checker_manager.has_subscriber(event_kind::FLOW_SUMMARY);
@@ -1539,6 +1567,7 @@ struct ConsoleTaintFinding<'a> {
     rule_title: &'a str,
     cwe: &'a [String],
     standards: &'a [String],
+    translations: &'a RuleTranslations,
     analysis_complete: bool,
     completeness: &'a uniflow_value_flow::QueryCompleteness,
 }
@@ -1564,6 +1593,10 @@ impl<'a> From<&'a TaintFinding> for ConsoleTaintFinding<'a> {
             rule_title: &finding.rule_title,
             cwe: &finding.cwe,
             standards: &finding.standards,
+            // Taint findings compact every localized string before reaching
+            // the CLI, so this preserves actionable bundled rule text without
+            // reintroducing the historical whole-knowledge-base allocation.
+            translations: &finding.translations,
             analysis_complete: finding.analysis_complete,
             completeness: &finding.completeness,
         }
@@ -1640,6 +1673,49 @@ fn source_file_payload(path: &str, language: &Language, source: String) -> serde
     })
 }
 
+/// Keep a project scan available when a source frontend cannot lower a small
+/// subset of unsupported constructs into valid IR. Validation remains strict
+/// for every function that reaches dataflow: invalid functions are removed as
+/// an explicit per-function quarantine, never passed to the solver. A whole
+/// project must not lose its SARIF because one generated test helper used a
+/// construct the frontend cannot model yet.
+fn validate_or_quarantine_invalid_ir_functions(mut ir: IrProgram) -> Result<IrProgram> {
+    let Err(errors) = validate_program(&ir) else {
+        return Ok(ir);
+    };
+    let invalid_functions = errors
+        .iter()
+        .filter_map(|error| (error.function != "<program>").then_some(error.function.as_str()))
+        .collect::<HashSet<_>>();
+    if invalid_functions.is_empty() {
+        let details = errors
+            .iter()
+            .map(|error| format!("{}: {}", error.function, error.message))
+            .collect::<Vec<_>>()
+            .join("\n");
+        anyhow::bail!("lowered IR failed validation:\n{details}");
+    }
+
+    let dropped = invalid_functions.len();
+    ir.functions
+        .retain(|function| !invalid_functions.contains(function.name.as_str()));
+    let retained_ids = ir.functions.iter().map(|function| function.id).collect::<HashSet<_>>();
+    ir.entry_points.retain(|entry| retained_ids.contains(entry));
+    if let Err(remaining) = validate_program(&ir) {
+        let details = remaining
+            .into_iter()
+            .map(|error| format!("{}: {}", error.function, error.message))
+            .collect::<Vec<_>>()
+            .join("\n");
+        anyhow::bail!("lowered IR still failed validation after quarantining {dropped} function(s):\n{details}");
+    }
+    eprintln!(
+        "uniflow: quarantined {dropped} function(s) with invalid lowered IR; continuing with {} valid function(s)",
+        ir.functions.len()
+    );
+    Ok(ir)
+}
+
 fn flow_requires_full_materialization(
     dump_graph: bool,
     dump_call_report: bool,
@@ -1652,6 +1728,18 @@ fn flow_requires_full_materialization(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_lowered_functions_are_quarantined_without_disabling_the_project() {
+        let mut ir = sample_java_sql_program();
+        let duplicate = ir.functions[0].blocks[0].clone();
+        ir.functions[0].blocks.push(duplicate);
+        let valid = validate_or_quarantine_invalid_ir_functions(ir)
+            .expect("the remaining project IR should validate");
+        assert!(valid.functions.is_empty());
+        assert!(valid.entry_points.is_empty());
+        validate_program(&valid).expect("quarantined IR must be safe for dataflow");
+    }
 
     #[test]
     fn cli_exposes_every_supported_language() {

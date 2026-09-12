@@ -498,3 +498,33 @@ fn c_bit_fields_preserve_width_expressions() {
         vec![("one", Some("1")), ("two", Some("(1 + 1)")), ("three", Some("WIDTH"))]
     );
 }
+
+#[test]
+fn cpp_member_functions_preserve_trailing_const_qualifiers() {
+    let source = "struct Reader { void inspect() const; void mutate() noexcept; }; void Reader::inspect() const {}";
+    let index = CDeclarationIndex::parse(source);
+    let members = index
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.in_aggregate)
+        .flat_map(|declaration| declaration.declarators.iter())
+        .collect::<Vec<_>>();
+    let inspect = members
+        .iter()
+        .find(|declarator| declarator.name.as_deref() == Some("inspect"))
+        .expect("const member declaration");
+    let mutate = members
+        .iter()
+        .find(|declarator| declarator.name.as_deref() == Some("mutate"))
+        .expect("noexcept member declaration");
+    assert!(inspect
+        .trailing_qualifiers
+        .iter()
+        .any(|qualifier| qualifier == "const"));
+    assert!(mutate
+        .trailing_qualifiers
+        .iter()
+        .any(|qualifier| qualifier == "noexcept"));
+    assert_eq!(index.functions.len(), 1);
+    assert!(index.functions[0].is_const);
+}

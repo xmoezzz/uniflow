@@ -3,7 +3,10 @@ use crate::{
     BaselineFinding, BaselinePack, BaselineRule, BaselineScanOptions,
 };
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+};
 use std::path::Path;
 use uniflow_hir::{
     BinaryOp, Block, CallExpr, CallTarget, Expr, Function, Item, LValue, Language, LiteralKind,
@@ -62,6 +65,7 @@ impl BaselinePack {
                 }
             }
         }
+        let (generic_call_rules, exact_call_rules) = build_call_rule_index(self, &program.language);
         let mut scanner = HirScanner {
             pack: self,
             language: &program.language,
@@ -105,6 +109,9 @@ impl BaselinePack {
             serializable_types,
             classes_with_equals,
             receiver_calls: HashSet::new(),
+            generic_call_rules,
+            exact_call_rules,
+            callee_regexes: RefCell::new(HashMap::new()),
             findings: Vec::new(),
         };
         for module in &program.modules {
@@ -135,13 +142,15 @@ impl BaselinePack {
                 }
             }
         }
+        let mut source_regexes = HashMap::new();
         for (path, source) in source_by_path {
-            scanner.findings.extend(self.scan_source_rules(
+            scanner.findings.extend(self.scan_source_rules_with_regex_cache(
                 &program.language,
                 Path::new(path),
                 source,
                 true,
                 options,
+                &mut source_regexes,
             ));
         }
         deduplicate_findings(scanner.findings)
@@ -185,7 +194,85 @@ struct HirScanner<'a> {
     serializable_types: HashSet<String>,
     classes_with_equals: HashSet<String>,
     receiver_calls: HashSet<(SymbolId, String)>,
+    /// HIR call rules whose callee cannot be represented by one literal name.
+    /// These are deliberately kept as a fallback so regex semantics remain
+    /// unchanged while common exact-name rules avoid a full pack traversal.
+    generic_call_rules: Vec<usize>,
+    /// Exact identifier callees to their HIR rule positions in `pack.rules`.
+    exact_call_rules: HashMap<String, Vec<usize>>,
+    /// Regex compilation dominates a large scan when it happens once per call.
+    /// This cache is local to one scanner, so it is bounded by the bundled rule
+    /// set and needs neither global synchronization nor process-lifetime memory.
+    callee_regexes: RefCell<HashMap<String, Option<Regex>>>,
     findings: Vec<BaselineFinding>,
+}
+
+fn build_call_rule_index(
+    pack: &BaselinePack,
+    language: &Language,
+) -> (Vec<usize>, HashMap<String, Vec<usize>>) {
+    let mut generic = Vec::new();
+    let mut exact = HashMap::<String, Vec<usize>>::new();
+    for (index, rule) in pack.rules.iter().enumerate() {
+        if !rule.matcher.requires_hir()
+            || (!rule.languages.is_empty() && !rule.languages.contains(language))
+        {
+            continue;
+        }
+        let patterns = if rule.matcher.call_alternatives.is_empty() {
+            vec![effective_callee_pattern(rule)]
+        } else {
+            rule.matcher
+                .call_alternatives
+                .iter()
+                .map(|matcher| {
+                    if matcher.callee.is_empty() {
+                        rule.pattern.as_str()
+                    } else {
+                        matcher.callee.as_str()
+                    }
+                })
+                .collect()
+        };
+        if patterns.iter().all(|pattern| pattern.is_empty()) {
+            continue;
+        }
+        let exact_names = patterns
+            .iter()
+            .map(|pattern| exact_identifier_callee(pattern))
+            .collect::<Option<Vec<_>>>();
+        let Some(exact_names) = exact_names else {
+            generic.push(index);
+            continue;
+        };
+        for name in exact_names {
+            let entries = exact.entry(name.to_string()).or_default();
+            if !entries.contains(&index) {
+                entries.push(index);
+            }
+        }
+    }
+    (generic, exact)
+}
+
+fn effective_callee_pattern(rule: &BaselineRule) -> &str {
+    if rule.matcher.callee.is_empty() {
+        rule.pattern.as_str()
+    } else {
+        rule.matcher.callee.as_str()
+    }
+}
+
+/// Only index patterns whose regex spelling proves they match exactly one HIR
+/// identifier. Every other regex stays in the generic candidate list, which
+/// makes this a semantics-preserving optimization.
+fn exact_identifier_callee(pattern: &str) -> Option<&str> {
+    let name = pattern.strip_prefix('^')?.strip_suffix('$')?;
+    (!name.is_empty()
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_'))
+    .then_some(name)
 }
 
 impl HirScanner<'_> {
@@ -1427,7 +1514,20 @@ impl HirScanner<'_> {
     }
 
     fn match_call(&mut self, callee: &str, call: &CallExpr, usage: ValueUse) {
-        for rule in &self.pack.rules {
+        let generic_len = self.generic_call_rules.len();
+        let exact_len = self
+            .exact_call_rules
+            .get(callee)
+            .map_or(0, Vec::len);
+        for position in 0..generic_len + exact_len {
+            let index = if position < generic_len {
+                self.generic_call_rules[position]
+            } else {
+                self.exact_call_rules
+                    .get(callee)
+                    .expect("exact candidate length was measured from this callee")[position - generic_len]
+            };
+            let rule = &self.pack.rules[index];
             if !rule.matcher.call_alternatives.is_empty() {
                 let matches = rule.matcher.call_alternatives.iter().any(|matcher| {
                     let mut alternative = rule.clone();
@@ -1449,6 +1549,17 @@ impl HirScanner<'_> {
                 callee.rsplit('.').next().unwrap_or(callee).to_string(),
             ));
         }
+    }
+
+    fn callee_pattern_matches(&self, pattern: &str, callee: &str) -> bool {
+        let mut cache = self.callee_regexes.borrow_mut();
+        if let Some(regex) = cache.get(pattern) {
+            return regex.as_ref().is_some_and(|regex| regex.is_match(callee));
+        }
+        let regex = Regex::new(pattern).ok();
+        let matches = regex.as_ref().is_some_and(|regex| regex.is_match(callee));
+        cache.insert(pattern.to_string(), regex);
+        matches
     }
 
     fn match_numeric_cast(
@@ -1501,6 +1612,14 @@ impl HirScanner<'_> {
         call: &CallExpr,
         usage: ValueUse,
     ) -> bool {
+        let pattern = if rule.matcher.callee.is_empty() {
+            rule.pattern.as_str()
+        } else {
+            rule.matcher.callee.as_str()
+        };
+        if pattern.is_empty() || !self.callee_pattern_matches(pattern, callee) {
+            return false;
+        }
         if rule.matcher.inside_catch && self.catch_depth == 0 {
             return false;
         }
@@ -1649,7 +1768,6 @@ impl HirScanner<'_> {
         }
         rule_matches_call(
             rule,
-            callee,
             call,
             usage,
             &self.automatic_symbols,
@@ -2125,21 +2243,12 @@ impl HirScanner<'_> {
 
 fn rule_matches_call(
     rule: &BaselineRule,
-    callee: &str,
     call: &CallExpr,
     usage: ValueUse,
     automatic_symbols: &HashSet<SymbolId>,
     types: &HirTypes,
     names: &HashMap<SymbolId, String>,
 ) -> bool {
-    let expr = if rule.matcher.callee.is_empty() {
-        &rule.pattern
-    } else {
-        &rule.matcher.callee
-    };
-    if expr.is_empty() || Regex::new(expr).map_or(true, |regex| !regex.is_match(callee)) {
-        return false;
-    }
     if rule.matcher.requires_receiver && call.receiver.is_none() {
         return false;
     }
@@ -4586,4 +4695,72 @@ fn expression_has_string_matching(expr: &Expr, pattern: &str) -> bool {
         }
     }
     visit(expr, &regex)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::BaselinePack;
+
+    #[test]
+    fn call_rule_index_keeps_exact_and_regex_callee_rules() {
+        let pack = BaselinePack::from_yaml_str(
+            r#"
+id: call-index-test
+title: Call index test
+rules:
+  - id: EXACT
+    title: Exact callee
+    languages: [java]
+    severity: warning
+    confidence: high
+    matcher:
+      callee: '^indexOf$'
+  - id: QUALIFIED
+    title: Qualified callee
+    languages: [java]
+    severity: warning
+    confidence: high
+    matcher:
+      callee: '(^|\\.)DriverManager\\.getConnection$'
+"#,
+        )
+        .expect("valid local call rules");
+        let (generic, exact) = build_call_rule_index(&pack, &Language::Java);
+        assert_eq!(exact.get("indexOf"), Some(&vec![0]));
+        assert_eq!(generic, vec![1]);
+    }
+
+    #[test]
+    fn source_regex_cache_is_shared_across_project_files() {
+        let pack = BaselinePack::from_yaml_str(
+            r#"
+id: regex-cache-test
+title: Regex cache test
+rules:
+  - id: MATCH
+    title: Match dangerous API
+    languages: [java]
+    severity: warning
+    confidence: high
+    pattern: dangerous
+"#,
+        )
+        .expect("valid local source rule");
+        let mut cache = HashMap::new();
+        let options = BaselineScanOptions::default();
+        for path in ["One.java", "Two.java"] {
+            let findings = pack.scan_source_rules_with_regex_cache(
+                &Language::Java,
+                Path::new(path),
+                "dangerous();",
+                false,
+                &options,
+                &mut cache,
+            );
+            assert_eq!(findings.len(), 1);
+        }
+        assert_eq!(cache.len(), 1);
+        assert!(cache.contains_key("dangerous"));
+    }
 }

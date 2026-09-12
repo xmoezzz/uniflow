@@ -163,6 +163,9 @@ impl FlowGraph {
         if let Some(values) = self.sparse_successors.get(&node.index()) {
             return values.iter().copied().map(NodeIndex::new).collect();
         }
+        if self.sparse_adjacency_materialized {
+            return Vec::new();
+        }
         self.graph
             .edges_directed(node, petgraph::Direction::Outgoing)
             .filter(|edge| is_sparse_data_edge(&edge.weight().kind))
@@ -173,6 +176,9 @@ impl FlowGraph {
     pub fn sparse_predecessors_of(&self, node: NodeIndex) -> Vec<NodeIndex> {
         if let Some(values) = self.sparse_predecessors.get(&node.index()) {
             return values.iter().copied().map(NodeIndex::new).collect();
+        }
+        if self.sparse_adjacency_materialized {
+            return Vec::new();
         }
         self.graph
             .edges_directed(node, petgraph::Direction::Incoming)
@@ -588,6 +594,14 @@ impl FlowGraph {
         let right_classes = self.value_points_to_classes_of(right_func, right_value);
         if !left_classes.is_empty() && !right_classes.is_empty() {
             return points_to_classes_overlap(&left_classes, &right_classes);
+        }
+        // Function-local SSA values do not become aliases merely because both
+        // sides lack type information. Interprocedural values are connected by
+        // actual/formal edges (and later by points-to facts); treating every
+        // otherwise unknown pair as aliases creates a project-wide Cartesian
+        // product of equally named Python fields.
+        if left_func != right_func {
+            return false;
         }
         let left_ty = self.value_types.get(&(left_func, left_value)).map(|s| s.as_str());
         let right_ty = self.value_types.get(&(right_func, right_value)).map(|s| s.as_str());

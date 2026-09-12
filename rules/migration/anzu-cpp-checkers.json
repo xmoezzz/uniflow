@@ -697,12 +697,16 @@
       "standards": ["LEGACY-MSG-0601000010140046"],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.OverflowChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.OverflowChecker",
+    "state": "verified",
+    "source_files": ["checker/Checkers/OverflowChecker.cpp", "checker/LocaleMsg.json", "checker/rules/rulemapping.yaml"],
+    "execution_model": "frontend",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_constant_arithmetic_overflow_reports_only_out_of_i32_range_results",
+    "native_rule_ids": ["ANZU-CONSTANT-ARITHMETIC-OVERFLOW"],
+    "standards": ["0601000010140047", "0101000010110258", "0901000010110258", "2801000010180028"],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.BitwiseOnBoolChecker",
       "state": "verified",
@@ -735,9 +739,17 @@
     },
     {
       "legacy_id": "anzu.MainFileNotUseFuncChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/MainFileNotUseFuncChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_main_file_unused_function_requires_main_and_resolves_real_uses",
+      "native_rule_ids": ["ANZU-MAIN-FILE-UNUSED-FUNCTION"],
+      "standards": ["0601000010140057"],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.UnusedStaticFunctionChecker",
@@ -758,12 +770,16 @@
       ],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.MultipleRelatedFunctionCallsChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.MultipleRelatedFunctionCallsChecker",
+    "state": "verified",
+    "source_files": ["checker/Checkers/MultipleRelatedFunctionCallsChecker.cpp", "checker/LocaleMsg.json", "checker/rules/rulemapping.yaml"],
+    "execution_model": "frontend",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_multiple_related_function_calls_requires_two_nonconst_member_calls",
+    "native_rule_ids": ["ANZU-MULTIPLE-RELATED-FUNCTION-CALLS"],
+    "standards": ["0601000010140059"],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.UnusedParameterChecker",
       "state": "verified",
@@ -873,12 +889,16 @@
       "standards": ["LEGACY-MSG-0601000010140084", "LEGACY-MSG-0701000010130081"],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.UseUninitializedVariableChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.UseUninitializedVariableChecker",
+    "state": "verified",
+    "source_files": ["checker/Checkers/UseUninitializedVariableChecker.cpp", "checker/LocaleMsg.json", "checker/rules/rulemapping.yaml"],
+    "execution_model": "frontend_dataflow",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_direct_use_before_initialization_covers_legacy_expression_entries",
+    "native_rule_ids": ["ANZU-DIRECT-USE-BEFORE-INITIALIZATION"],
+    "standards": ["0701000010130079", "0601000010140086"],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.FloatEqualityComparisonChecker",
       "state": "verified",
@@ -1252,9 +1272,17 @@
     },
     {
       "legacy_id": "anzu.ContinueUseChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/ContinueUseChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_continue_rule_matches_only_continue_statements",
+      "native_rule_ids": ["ANZU-AVOID-CONTINUE"],
+      "standards": ["0601000010140068"],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.ConditionExprUseChecker",
@@ -1624,12 +1652,16 @@
       "standards": ["0701000010130039", "0701000010130073", "0201000010120091"],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.IntegerOverflowChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.IntegerOverflowChecker",
+    "state": "verified",
+    "source_files": ["checker/Checkers/IntegerOverflowChecker.cpp", "checker/LocaleMsg.json", "checker/rules/rulemapping.yaml"],
+    "execution_model": "frontend",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_integer_overflow_assignment_reports_constant_outside_target_range",
+    "native_rule_ids": ["ANZU-INTEGER-OVERFLOW-ASSIGNMENT"],
+    "standards": ["0701000010130040"],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.LogicalBitwiseOperationChecker",
       "state": "verified",
@@ -1694,9 +1726,17 @@
     },
     {
       "legacy_id": "anzu.UnusedReturnValueChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/UnusedReturnValueChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_unused_nonvoid_return_value_preserves_direct_call_and_void_cast_semantics",
+      "native_rule_ids": ["ANZU-UNUSED-RETURN-VALUE"],
+      "standards": ["0701000010130062", "0101000010110350", "0901000010110350", "0101000010110194", "0901000010110194"],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.RedundantVoidCastChecker",
@@ -2119,12 +2159,16 @@
       "standards": ["LEGACY-MSG-0201000010120018", "LEGACY-MSG-2401000010120018"],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.BitTypeWithCondChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.BitTypeWithCondChecker",
+    "state": "verified",
+    "source_files": ["checker/Checkers/BitTypeWithCondChecker.cpp", "checker/LocaleMsg.json", "checker/rules/rulemapping.yaml"],
+    "execution_model": "frontend",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_one_bit_signed_field_condition_requires_member_access_and_binary_condition",
+    "native_rule_ids": ["ANZU-ONE-BIT-SIGNED-FIELD-CONDITION"],
+    "standards": ["2401000010120020"],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.PointerAlignChecker",
       "state": "pending_source",
@@ -2133,9 +2177,21 @@
     },
     {
       "legacy_id": "anzu.VirtualOverrideConstFunction",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/VirtualOverrideConstFunction.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_declaration_rules.rs::anzu_virtual_const_mismatch_reports_hiding_methods_through_base_classes",
+      "native_rule_ids": [
+        "ANZU-CPP-VIRTUAL-CONST-MISMATCH"
+      ],
+      "standards": [
+        "2401000010120026"
+      ],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.BSTRUsageChecker",
@@ -2231,9 +2287,17 @@
     },
     {
       "legacy_id": "anzu.BitFieldPointerUseChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/BitFieldPointerUseChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_bitfield_record_pointer_updates_require_an_edge_bitfield_and_dereference",
+      "native_rule_ids": ["ANZU-C-BITFIELD-RECORD-POINTER-UPDATE"],
+      "standards": ["0101000010110193", "2401000010110193"],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.BuildinLimitMacroUseChecker",
@@ -2247,9 +2311,17 @@
     },
     {
       "legacy_id": "anzu.UninitializedPointerChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/UninitializedPointerChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_uninitialized_pointer_or_reference_binding_tracks_local_initialization",
+      "native_rule_ids": ["ANZU-UNINITIALIZED-POINTER-OR-REFERENCE-BINDING"],
+      "standards": ["2401000010120138"],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.EOFComparisonChecker",
@@ -2275,9 +2347,21 @@
     },
     {
       "legacy_id": "anzu.SensitiveDataPlacementChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/SensitiveDataPlacementChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_declaration_rules.rs::anzu_sensitive_data_placement_reports_character_array_before_pointer_fields",
+      "native_rule_ids": [
+        "ANZU-C-SENSITIVE-CHAR-ARRAY-BEFORE-POINTER"
+      ],
+      "standards": [
+        "0101000010110139"
+      ],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.PointerArithmeticExChecker",
@@ -2823,9 +2907,17 @@
     },
     {
       "legacy_id": "anzu.CatchOrderChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/CatchOrderChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_catch_handler_order_reports_only_adjacent_base_before_derived",
+      "native_rule_ids": ["ANZU-CATCH-HANDLER-ORDER"],
+      "standards": ["0101000010110344"],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.CStyleCastChecker",
@@ -2879,15 +2971,35 @@
     },
     {
       "legacy_id": "anzu.CvQualificationChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/CvQualificationChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_cv_qualification_cast_checker_preserves_element_const_and_volatile",
+      "native_rule_ids": [
+        "ANZU-CPP-CV-QUALIFICATION-CAST-DROP"
+      ],
+      "standards": [
+        "0101000010110357"
+      ],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.VariadicChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/VariadicChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_variadic_va_start_last_parameter_tracks_reference_and_record_semantics",
+      "native_rule_ids": ["ANZU-VARIADIC-VA-START-LAST-PARAMETER"],
+      "standards": ["0101000010110359"],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.DisableCallCStyleStreamChecker",
@@ -2985,9 +3097,17 @@
     },
     {
       "legacy_id": "anzu.SignalHandlerChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/SignalHandlerChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_signal_handler_checker_requires_extern_c_and_no_exceptions",
+      "native_rule_ids": ["ANZU-SIGNAL-HANDLER-PLAIN-FUNCTION"],
+      "standards": ["0101000010110379"],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.NullCharTraitsChecker",
@@ -3003,12 +3123,16 @@
       "standards": ["0101000010110380"],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.CopyWithoutResizeChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.CopyWithoutResizeChecker",
+    "state": "verified",
+    "source_files": ["checker/Checkers/CopyWithoutResizeChecker.cpp", "checker/LocaleMsg.json", "checker/rules/rulemapping.yaml"],
+    "execution_model": "frontend_dataflow",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_copy_without_resize_tracks_vector_destination_state",
+    "native_rule_ids": ["ANZU-COPY-WITHOUT-RESIZE"],
+    "standards": ["0101000010110383"],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.PrivateMemberChecker",
       "state": "verified",
@@ -3035,15 +3159,39 @@
     },
     {
       "legacy_id": "anzu.HidingNonVirtualFuncChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/HidingNonVirtualFuncChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_declaration_rules.rs::anzu_hiding_nonvirtual_method_reports_direct_base_declarations_only",
+      "native_rule_ids": [
+        "ANZU-CPP-HIDING-NONVIRTUAL-BASE-METHOD"
+      ],
+      "standards": [
+        "0101000010110392"
+      ],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.OverloadAllVirtualFuncChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/OverloadAllVirtualFuncChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_declaration_rules.rs::anzu_virtual_overload_set_requires_every_direct_base_overload",
+      "native_rule_ids": [
+        "ANZU-CPP-INCOMPLETE-VIRTUAL-OVERLOAD-SET"
+      ],
+      "standards": [
+        "0101000010110393"
+      ],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.DefaultArgInVirtualFuncChecker",
@@ -3075,9 +3223,21 @@
     },
     {
       "legacy_id": "anzu.RawPointerCopyChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
+      "state": "verified",
+      "source_files": [
+        "checker/Checkers/RawPointerCopyChecker.cpp",
+        "checker/LocaleMsg.json",
+        "checker/rules/rulemapping.yaml"
+      ],
+      "execution_model": "frontend",
+      "testcase": "crates/baseline/tests/c_declaration_rules.rs::anzu_raw_pointer_class_requires_copy_constructor_or_assignment",
+      "native_rule_ids": [
+        "ANZU-CPP-RAW-POINTER-WITHOUT-COPY-CONTROL"
+      ],
+      "standards": [
+        "0101000010110396"
+      ],
+      "translations_complete": true
     },
     {
       "legacy_id": "anzu.MultipleInheritanceChecker",
@@ -3119,12 +3279,25 @@
       "execution_model": "",
       "testcase": null
     },
-    {
-      "legacy_id": "anzu.ObjectSlicingChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.ObjectSlicingChecker",
+    "state": "verified",
+    "source_files": [
+      "checker/Checkers/ObjectSlicingChecker.cpp",
+      "checker/LocaleMsg.json",
+      "checker/rules/rulemapping.yaml"
+    ],
+    "execution_model": "frontend",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_object_slicing_reports_derived_values_but_not_references_or_pointers",
+    "native_rule_ids": [
+      "ANZU-OBJECT-SLICING"
+    ],
+    "standards": [
+      "0101000010110402",
+      "2801000010180045"
+    ],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.VirtualDtorChecker",
       "state": "pending_source",
@@ -3333,12 +3506,25 @@
       "standards": ["LEGACY-MSG-0201000010120038", "LEGACY-MSG-0201000010120045"],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.FormatSpecifierTypeMismatchChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.FormatSpecifierTypeMismatchChecker",
+    "state": "verified",
+    "source_files": [
+      "checker/Checkers/FormatSpecifierTypeMismatchChecker.cpp",
+      "checker/LocaleMsg.json",
+      "checker/rules/rulemapping.yaml"
+    ],
+    "execution_model": "frontend",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_format_specifier_type_mismatch_checks_literal_printf_arguments",
+    "native_rule_ids": [
+      "ANZU-FORMAT-SPECIFIER-TYPE-MISMATCH"
+    ],
+    "standards": [
+      "0201000010120039",
+      "2801000010180042"
+    ],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.FormatStringChecker",
       "state": "verified",
@@ -3420,12 +3606,26 @@
       ],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.ResourceAllocAndReleaseChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.ResourceAllocAndReleaseChecker",
+    "state": "verified",
+    "source_files": [
+      "checker/Checkers/ResourceAllocAndReleaseChecker.cpp",
+      "checker/LocaleMsg.json",
+      "checker/rules/rulemapping.yaml"
+    ],
+    "execution_model": "frontend_dataflow",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_socket_resource_checker_tracks_open_close_and_uninitialized_use",
+    "native_rule_ids": [
+      "ANZU-SOCKET-RESOURCE-ALREADY-CLOSED",
+      "ANZU-SOCKET-RESOURCE-UNINITIALIZED"
+    ],
+    "standards": [
+      "0201000010120123",
+      "0301000010120123"
+    ],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.BooleanArithmeticChecker",
       "state": "verified",
@@ -3436,12 +3636,39 @@
       "standards": ["LEGACY-MSG-0201000010120142"],
       "translations_complete": true
     },
-    {
-      "legacy_id": "anzu.BCryptParamChecker",
-      "state": "pending_source",
-      "execution_model": "",
-      "testcase": null
-    },
+  {
+    "legacy_id": "anzu.BCryptParamChecker",
+    "state": "verified",
+    "source_files": [
+      "checker/Checkers/BCryptParamChecker.cpp",
+      "checker/LocaleMsg.json",
+      "checker/rules/rulemapping.yaml"
+    ],
+    "execution_model": "frontend_dataflow",
+    "testcase": "crates/baseline/tests/c_expression_rules.rs::anzu_bcrypt_parameter_checker_tracks_provider_handle_and_key_length",
+    "native_rule_ids": [
+      "ANZU-BCRYPT-PARAM-FIXED-LENGTH",
+      "ANZU-BCRYPT-PARAM-RANGE-LENGTH"
+    ],
+    "standards": [
+      "0201000010120143",
+      "0401000010120143",
+      "1201000010120143",
+      "1301000010120143",
+      "1401000010120143",
+      "1501000010120143",
+      "1601000010120143",
+      "1701000010120143",
+      "1801000010120143",
+      "1901000010120143",
+      "2001000010120143",
+      "2101000010120143",
+      "2501000010120143",
+      "2601000010120143",
+      "2701000010120143"
+    ],
+    "translations_complete": true
+  },
     {
       "legacy_id": "anzu.TaintLoopVariableChecker",
       "state": "pending_source",

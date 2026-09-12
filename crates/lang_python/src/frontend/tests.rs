@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use uniflow_hir::{CallTarget, Program, TypeId};
     use uniflow_parser_core::SourceParser;
 
@@ -14,6 +15,71 @@ mod tests {
         assert_eq!(Arc::strong_count(&index), 2);
         drop(env);
         assert_eq!(Arc::strong_count(&index), 1);
+    }
+
+    #[test]
+    fn project_parser_reports_each_parallel_module_completion() {
+        let entries = (0..12)
+            .map(|index| {
+                (
+                    format!("module_{index}.py"),
+                    format!("def value_{index}():\n    return {index}\n"),
+                )
+            })
+            .collect::<Vec<_>>();
+        let completed = AtomicUsize::new(0);
+        let program = parse_project_sources_with_progress(&entries, &|| {
+            completed.fetch_add(1, Ordering::Relaxed);
+        })
+        .expect("project parse with progress");
+        assert_eq!(program.files.len(), entries.len());
+        assert_eq!(completed.load(Ordering::Relaxed), entries.len());
+    }
+
+    #[test]
+    #[ignore = "performance regression fixture; run explicitly"]
+    fn project_index_handles_many_independent_classes() {
+        let entries = (0..1_024)
+            .map(|index| {
+                (
+                    format!("package/module_{index}.py"),
+                    format!(
+                        "class Item{index}:\n    def __init__(self, value):\n        self.value = value\n\n    def transform(self):\n        return self.value\n\ndef make_{index}(value):\n    return Item{index}(value)\n"
+                    ),
+                )
+            })
+            .collect::<Vec<_>>();
+        let program = parse_project_sources(&entries).expect("large independent project parse");
+        assert_eq!(program.files.len(), entries.len());
+    }
+
+    #[test]
+    fn project_workers_handle_deeply_nested_python_without_default_stack_limits() {
+        let mut source = String::from("class Deep:\n    def run(self):\n");
+        for depth in 0..512 {
+            source.push_str(&" ".repeat((depth + 2) * 4));
+            source.push_str("if True:\n");
+        }
+        source.push_str(&" ".repeat((512 + 2) * 4));
+        source.push_str("return 1\n");
+        let program = parse_project_sources(&[("deep.py".to_string(), source)])
+            .expect("deep project parse");
+        assert_eq!(program.files.len(), 1);
+    }
+
+    #[test]
+    fn project_index_bounds_mutually_recursive_method_summaries() {
+        let source = r#"
+class Loop:
+    def first(self):
+        return self.second()
+
+    def second(self):
+        return self.first()
+"#;
+        let program = parse_project_sources(&[("loop.py".to_string(), source.to_string())])
+            .expect("recursive method summaries must not overflow the worker stack");
+        assert_eq!(program.files.len(), 1);
     }
 
     fn type_name(program: &Program, ty: TypeId) -> Option<&str> {

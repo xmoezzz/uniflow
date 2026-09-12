@@ -203,7 +203,42 @@ fn parse_while_stmt(
     }
 }
 
+thread_local! {
+    static TYPE_INFERENCE_DEPTH: Cell<u32> = const { Cell::new(0) };
+}
+
+// `infer_iterable_item_type` and `infer_simple_python_type` are mutually
+// recursive over heuristically text-sliced source snippets. On unusual input
+// (seen in practice on large real-world projects) one of those slicing
+// heuristics can hand the *same* text back to the other function instead of
+// a strictly smaller substring, turning the mutual recursion into an
+// infinite loop instead of terminating. Cap the depth so that degrades to
+// "type not inferred" instead of hanging or exhausting the stack.
+const TYPE_INFERENCE_DEPTH_LIMIT: u32 = 200;
+
+struct TypeInferenceDepthGuard;
+
+impl TypeInferenceDepthGuard {
+    fn enter() -> Option<Self> {
+        TYPE_INFERENCE_DEPTH.with(|depth| {
+            if depth.get() >= TYPE_INFERENCE_DEPTH_LIMIT {
+                None
+            } else {
+                depth.set(depth.get() + 1);
+                Some(TypeInferenceDepthGuard)
+            }
+        })
+    }
+}
+
+impl Drop for TypeInferenceDepthGuard {
+    fn drop(&mut self) {
+        TYPE_INFERENCE_DEPTH.with(|depth| depth.set(depth.get() - 1));
+    }
+}
+
 fn infer_iterable_item_type(iterable_text: &str, imports: &PyImports, env: &PyEnv, known_classes: &HashSet<String>) -> Option<String> {
+    let _depth_guard = TypeInferenceDepthGuard::enter()?;
     let trimmed = iterable_text.trim();
     if trimmed.starts_with("range(") {
         return Some("int".to_string());

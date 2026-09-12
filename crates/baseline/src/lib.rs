@@ -26,7 +26,7 @@ pub use migration::{legacy_cpp_inventory, LegacyRuleEntry, LegacyRuleInventory, 
 use anyhow::{Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use uniflow_hir::Language;
 
@@ -1146,6 +1146,26 @@ impl BaselinePack {
         unstructured_only: bool,
         options: &BaselineScanOptions,
     ) -> Vec<BaselineFinding> {
+        let mut regex_cache = HashMap::new();
+        self.scan_source_rules_with_regex_cache(
+            language,
+            path,
+            source,
+            unstructured_only,
+            options,
+            &mut regex_cache,
+        )
+    }
+
+    pub(crate) fn scan_source_rules_with_regex_cache(
+        &self,
+        language: &Language,
+        path: &Path,
+        source: &str,
+        unstructured_only: bool,
+        options: &BaselineScanOptions,
+        regex_cache: &mut HashMap<String, Option<Regex>>,
+    ) -> Vec<BaselineFinding> {
         let sanitized = strip_comments_preserve_layout(language, source);
         let code_only = strip_literals_preserve_layout(&sanitized);
         let java_imports = collect_java_imports(&code_only);
@@ -1340,7 +1360,13 @@ impl BaselinePack {
                 continue;
             }
             if rule.matcher.lexical_kind.is_some() {
-                findings.extend(scan_lexical_rule(rule, path, source, &sanitized));
+                findings.extend(scan_lexical_rule(
+                    rule,
+                    path,
+                    source,
+                    &sanitized,
+                    regex_cache,
+                ));
                 continue;
             }
             if rule.matcher.macro_trailing_semicolon {
@@ -1375,11 +1401,11 @@ impl BaselinePack {
             if pattern.is_empty() {
                 continue;
             }
-            let Ok(regex) = Regex::new(pattern) else {
+            let Some(regex) = cached_regex(regex_cache, pattern) else {
                 continue;
             };
             let matched_text_exclusion = (!rule.matcher.matched_text_not_pattern.is_empty())
-                .then(|| Regex::new(&rule.matcher.matched_text_not_pattern).ok())
+                .then(|| cached_regex(regex_cache, &rule.matcher.matched_text_not_pattern))
                 .flatten();
             for (line_index, line) in searchable.lines().enumerate() {
                 if rule.matcher.exclude_preprocessor && line.trim_start().starts_with('#') {
@@ -1430,11 +1456,12 @@ fn scan_lexical_rule(
     path: &Path,
     source: &str,
     comment_free_source: &str,
+    regex_cache: &mut HashMap<String, Option<Regex>>,
 ) -> Vec<BaselineFinding> {
     let Some(expected_kind) = rule.matcher.lexical_kind else {
         return Vec::new();
     };
-    let Ok(regex) = Regex::new(&rule.matcher.lexical_pattern) else {
+    let Some(regex) = cached_regex(regex_cache, &rule.matcher.lexical_pattern) else {
         return Vec::new();
     };
     lexical_tokens(comment_free_source)
@@ -1442,6 +1469,21 @@ fn scan_lexical_rule(
         .filter(|token| token.kind == expected_kind && regex.is_match(token.text))
         .map(|token| finding_at_offset(rule, path, source, token.offset))
         .collect()
+}
+
+/// The source scanner is invoked once per file, but bundled regexes are
+/// immutable for the whole scan. Keep failed compilations too, matching the
+/// old "skip invalid regex" behavior without retrying it for every file.
+fn cached_regex(
+    cache: &mut HashMap<String, Option<Regex>>,
+    pattern: &str,
+) -> Option<Regex> {
+    if let Some(regex) = cache.get(pattern) {
+        return regex.clone();
+    }
+    let regex = Regex::new(pattern).ok();
+    cache.insert(pattern.to_string(), regex.clone());
+    regex
 }
 
 fn lexical_tokens(source: &str) -> Vec<LexicalToken<'_>> {
@@ -2253,7 +2295,7 @@ mod tests {
     fn builtin_pack_is_valid_and_has_expected_rule_count() {
         let pack = builtin_security_pack().expect("built-in baseline pack");
         assert_eq!(pack.id, "uniflow-security-1.0");
-        assert_eq!(pack.rules.len(), 1761);
+        assert_eq!(pack.rules.len(), 1816);
         let mut ids = HashSet::new();
         assert!(pack.rules.iter().all(|rule| ids.insert(rule.id.as_str())));
     }

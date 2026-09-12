@@ -234,7 +234,7 @@ fn parse_class(
     class: &PyClassText,
     imports: &PyImports,
     known_classes: &HashSet<String>,
-    class_field_index: &HashMap<String, HashMap<String, String>>,
+    class_field_index: &PyClassFieldIndex,
     module_name: &str,
     project_index: Option<&Arc<PyProjectIndex>>,
 ) -> Class {
@@ -444,7 +444,7 @@ fn parse_function(
     class_name: Option<&str>,
     class_bases: &[String],
     class_field_types: &HashMap<String, String>,
-    class_field_index: &HashMap<String, HashMap<String, String>>,
+    class_field_index: &PyClassFieldIndex,
     module_name: &str,
     project_index: Option<&Arc<PyProjectIndex>>,
     qualified_name: Option<&str>,
@@ -607,6 +607,50 @@ fn parse_function(
 }
 
 #[derive(Clone, Default)]
+struct PyClassFieldIndex {
+    /// Immutable project knowledge shared by every function/module parse.
+    /// Local writes live in `overrides`; this prevents each parse from copying
+    /// the full project field map merely to record one assignment.
+    base: Arc<HashMap<String, HashMap<String, String>>>,
+    overrides: HashMap<String, HashMap<String, String>>,
+}
+
+impl PyClassFieldIndex {
+    fn from_project(base: Arc<HashMap<String, HashMap<String, String>>>) -> Self {
+        Self { base, overrides: HashMap::new() }
+    }
+
+    fn get(&self, owner: &str) -> Option<&HashMap<String, String>> {
+        self.overrides.get(owner).or_else(|| self.base.get(owner))
+    }
+
+    fn set_field(&mut self, owner: String, field: String, ty: String) {
+        let inherited = self.base.get(&owner).cloned().unwrap_or_default();
+        self.overrides
+            .entry(owner)
+            .or_insert(inherited)
+            .insert(field, ty);
+    }
+
+    fn set_fields(&mut self, owner: String, fields: HashMap<String, String>) {
+        self.overrides.insert(owner, fields);
+    }
+
+    fn remove_field(&mut self, owner: &str, field: &str) {
+        let inherited = self.base.get(owner).cloned().unwrap_or_default();
+        let fields = self
+            .overrides
+            .entry(owner.to_string())
+            .or_insert(inherited);
+        fields.remove(field);
+    }
+
+    fn overrides(&self) -> impl Iterator<Item = (&String, &HashMap<String, String>)> {
+        self.overrides.iter()
+    }
+}
+
+#[derive(Clone, Default)]
 struct PyEnv {
     vars: HashMap<String, SymbolId>,
     capturable_vars: HashMap<String, SymbolId>,
@@ -622,7 +666,7 @@ struct PyEnv {
     self_name: Option<String>,
     self_symbol: Option<SymbolId>,
     discovered_fields: HashMap<String, Field>,
-    class_field_index: HashMap<String, HashMap<String, String>>,
+    class_field_index: PyClassFieldIndex,
     current_module: String,
     current_function: String,
     synthetic_functions: Vec<uniflow_hir::Function>,
@@ -1682,6 +1726,7 @@ fn parse_nested_function_definition(
     let qualified_name = format!("{}.{}", env.current_function, name);
     let current_module = env.current_module.clone();
     let project_index = env.project_index.clone();
+    let nested_field_index = PyClassFieldIndex::default();
     let parsed = parse_function(
         builder,
         &nested,
@@ -1690,7 +1735,7 @@ fn parse_nested_function_definition(
         None,
         &[],
         &HashMap::new(),
-        &HashMap::new(),
+        &nested_field_index,
         &current_module,
         Some(&project_index),
         Some(&qualified_name),

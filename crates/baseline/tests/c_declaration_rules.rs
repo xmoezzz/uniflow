@@ -34,6 +34,33 @@ fn check(rule: &str, source: &str, expected: usize) -> Vec<(usize, usize)> {
     coordinates
 }
 
+fn check_c_only(rule: &str, source: &str, expected: usize) -> Vec<(usize, usize)> {
+    static PACK: OnceLock<BaselinePack> = OnceLock::new();
+    let mut pack = PACK
+        .get_or_init(|| builtin_security_pack().unwrap())
+        .clone();
+    pack.rules.retain(|candidate| candidate.id == rule);
+    assert_eq!(pack.rules.len(), 1, "missing {rule}");
+    let findings = pack.scan_text(&Language::C, Path::new("Declarations.c"), source);
+    assert_eq!(findings.len(), expected, "{rule} {source}\n{findings:#?}");
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    let hir = parse_c_like_file(Language::C, "Declarations.c", source).unwrap();
+    assert_eq!(
+        pack.scan_hir(&hir, &HashMap::from([("Declarations.c".into(), source.into())]))
+            .iter()
+            .map(|finding| (finding.line, finding.column))
+            .collect::<Vec<_>>(),
+        coordinates
+    );
+    assert!(pack
+        .scan_text(&Language::Cpp, Path::new("Declarations.cpp"), source)
+        .is_empty());
+    coordinates
+}
+
 #[test]
 fn migrated_c_declaration_rules_preserve_source_boundaries() {
     for (rule, source, safe) in [
@@ -1008,6 +1035,192 @@ void free_function(int value = 6);
         .map(|finding| (finding.line, finding.column))
         .collect::<Vec<_>>(),
         coordinates
+    );
+}
+
+#[test]
+fn anzu_virtual_const_mismatch_reports_hiding_methods_through_base_classes() {
+    let source = r#"
+struct Base {
+    virtual void read() const;
+    virtual void write();
+};
+struct Middle : Base {};
+struct Derived : Middle {
+    void read();
+    void write() const;
+    void unrelated() const;
+};
+struct Correct : Base {
+    void read() const;
+    void write();
+};
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-CPP-VIRTUAL-CONST-MISMATCH");
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("virtual_const.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(8, 5), (9, 5)]);
+    assert!(pack
+        .scan_text(&Language::C, Path::new("virtual_const.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "virtual_const.cpp", source).expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(
+            &hir,
+            &HashMap::from([("virtual_const.cpp".into(), source.into())])
+        )
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>(),
+        coordinates
+    );
+}
+
+#[test]
+fn anzu_hiding_nonvirtual_method_reports_direct_base_declarations_only() {
+    let source = r#"
+class Base {
+    void hidden();
+    void overloaded(int value);
+    virtual void virtual_method();
+    void defaulted() = default;
+};
+class Derived : Base {
+    void hidden(int value);
+    void overloaded();
+    void virtual_method(int value);
+    void defaulted(int value);
+};
+struct StructDerived : Base {
+    void hidden();
+};
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-CPP-HIDING-NONVIRTUAL-BASE-METHOD");
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("hiding.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(3, 5), (4, 5)]);
+    assert!(pack
+        .scan_text(&Language::C, Path::new("hiding.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "hiding.cpp", source).expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(&hir, &HashMap::from([("hiding.cpp".into(), source.into())]))
+            .iter()
+            .map(|finding| (finding.line, finding.column))
+            .collect::<Vec<_>>(),
+        coordinates
+    );
+}
+
+#[test]
+fn anzu_virtual_overload_set_requires_every_direct_base_overload() {
+    let source = r#"
+class Base {
+    virtual void process(int value);
+    virtual void process(double value);
+};
+class Partial : Base {
+    void process(int value);
+    void process(char value);
+};
+class Complete : Base {
+    void process(int value);
+    void process(double value);
+};
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-CPP-INCOMPLETE-VIRTUAL-OVERLOAD-SET");
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("virtual_overloads.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(4, 5)]);
+    assert!(pack
+        .scan_text(&Language::C, Path::new("virtual_overloads.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "virtual_overloads.cpp", source)
+        .expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(
+            &hir,
+            &HashMap::from([("virtual_overloads.cpp".into(), source.into())])
+        )
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>(),
+        coordinates
+    );
+}
+
+#[test]
+fn anzu_raw_pointer_class_requires_copy_constructor_or_assignment() {
+    let source = r#"
+class Missing { int* data; };
+class CopyConstructor { int* data; CopyConstructor(const CopyConstructor& other); };
+class CopyAssignment { int* data; CopyAssignment& operator=(const CopyAssignment& other); };
+class OrdinaryOverloads { int* data; OrdinaryOverloads(int value); OrdinaryOverloads& operator=(int value); };
+struct StructMissing { int* data; };
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-CPP-RAW-POINTER-WITHOUT-COPY-CONTROL");
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("raw_pointer_copy.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(2, 1), (5, 1), (6, 1)]);
+    assert!(pack
+        .scan_text(&Language::C, Path::new("raw_pointer_copy.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "raw_pointer_copy.cpp", source)
+        .expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(
+            &hir,
+            &HashMap::from([("raw_pointer_copy.cpp".into(), source.into())])
+        )
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>(),
+        coordinates
+    );
+}
+
+#[test]
+fn anzu_sensitive_data_placement_reports_character_array_before_pointer_fields() {
+    let source = r#"
+struct Layout {
+    char label[16];
+    int value;
+    void *secret;
+    wchar_t display[8];
+    int *key;
+};
+struct Safe {
+    void *key;
+    char label[16];
+};
+"#;
+    assert_eq!(
+        check_c_only("ANZU-C-SENSITIVE-CHAR-ARRAY-BEFORE-POINTER", source, 2),
+        vec![(3, 5), (6, 5)]
     );
 }
 

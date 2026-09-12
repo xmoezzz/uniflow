@@ -746,6 +746,18 @@ impl<'a> Pg<'a> {
     pub fn unary_expression(&mut self) -> anyhow::Result<Expr> {
         let start = self.cur.pos;
         self.cur.skip_newlines();
+        // Borrows do not create an independent value-flow source: taint on
+        // `&value.field` is the taint on `value.field`.  Keeping the operand
+        // also prevents the `&` token from terminating a Rust closure body
+        // early, which otherwise leaves `.field` behind as a new statement.
+        if self.d.language == Language::Rust && self.cur.eat("&") {
+            self.cur.skip_newlines();
+            if self.cur.at_kw("mut") {
+                self.cur.advance();
+                self.cur.skip_newlines();
+            }
+            return self.unary_expression();
+        }
         let token = self.cur.current().clone();
         for (symbol, op) in self.d.ops.prefix.iter() {
             let matched = self.cur.at(symbol)
@@ -852,6 +864,37 @@ impl<'a> Pg<'a> {
             }
             if self.skip_rust_turbofish() {
                 continue;
+            }
+            // Rust struct expressions follow a type-shaped path directly with
+            // `{ fields }` (`Self { value }`, `module::Type { field: value }`).
+            // Without consuming this postfix form the opening brace starts a
+            // second expression statement, and its closing brace is mistaken
+            // for the enclosing function body. Besides dropping field values,
+            // that shifts all following source into the wrong function.
+            if self.d.language == Language::Rust && self.cur.at("{") {
+                let type_name = self.qualified_name(&expr).filter(|name| {
+                    name == "Self"
+                        || name
+                            .rsplit('.')
+                            .next()
+                            .and_then(|part| part.chars().next())
+                            .is_some_and(char::is_uppercase)
+                });
+                if let Some(type_name) = type_name {
+                    self.cur.advance();
+                    self.map_literal_depth += 1;
+                    let args = self.initializer_elements("}")?;
+                    self.map_literal_depth -= 1;
+                    self.cur.expect("}");
+                    let span = self.cur.span_from(start);
+                    expr = Expr::New {
+                        id: self.b.alloc_expr_id(),
+                        type_name,
+                        args,
+                        span,
+                    };
+                    continue;
+                }
             }
             let member_like = self.cur.at(".") || self.d.member_ops.contains(&token.text.as_str());
             if member_like {

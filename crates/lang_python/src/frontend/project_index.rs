@@ -9,50 +9,82 @@ enum StaticNamespaceMethodKind {
     SetDefault,
 }
 
+// Every field is `Arc`-wrapped. `PyProjectIndex` is cloned very frequently
+// while `build` computes summaries (each nested "what does this call return"
+// lookup needs its own owned snapshot of the index-so-far), and with plain
+// fields that clone deep-copies every map in the project index — including,
+// for the biggest fields, the full source text of every function and method
+// in the project. Wrapping each field in `Arc` turns that whole-struct clone
+// into a set of refcount bumps; every mutation site below goes through
+// `Arc::make_mut`, which transparently falls back to a real (but now
+// single-field, not whole-struct) copy-on-write only when the field is
+// actually still shared with an earlier clone. Read-only accessors elsewhere
+// in this crate are unaffected: `Arc<HashMap<..>>` derefs to `&HashMap<..>`.
 #[derive(Clone, Debug, Default)]
 struct PyProjectIndex {
-    modules: HashSet<String>,
-    classes_by_simple: HashMap<String, Vec<String>>,
-    classes_by_module: HashMap<String, HashSet<String>>,
-    class_bases: HashMap<String, Vec<String>>,
-    class_methods: HashMap<String, HashSet<String>>,
-    functions_by_simple: HashMap<String, Vec<String>>,
-    functions_by_module: HashMap<String, HashSet<String>>,
-    modules_by_parent: HashMap<String, HashSet<String>>,
-    module_reexports: HashMap<String, HashMap<String, String>>,
-    module_wildcard_imports: HashMap<String, Vec<String>>,
-    module_value_types: HashMap<String, HashMap<String, String>>,
-    module_symbol_aliases: HashMap<String, HashMap<String, String>>,
-    module_exports_all: HashMap<String, HashSet<String>>,
-    module_import_effect_member_values: HashMap<String, HashMap<String, HashMap<String, String>>>,
-    module_import_effect_class_patches: HashMap<String, HashMap<String, HashMap<String, String>>>,
-    typed_dict_classes: HashSet<String>,
-    named_tuple_classes: HashSet<String>,
-    protocol_classes: HashSet<String>,
-    class_type_params: HashMap<String, Vec<String>>,
-    class_base_type_args: HashMap<String, HashMap<String, Vec<String>>>,
-    field_types: HashMap<String, HashMap<String, String>>,
-    property_setters: HashMap<String, HashSet<String>>,
-    property_deleters: HashMap<String, HashSet<String>>,
-    method_returns: HashMap<String, HashMap<String, String>>,
-    top_level_returns: HashMap<String, String>,
-    top_level_functions: HashMap<String, PyFunctionText>,
-    method_texts: HashMap<String, PyFunctionText>,
-    module_imports: HashMap<String, PyImports>,
+    modules: Arc<HashSet<String>>,
+    classes_by_simple: Arc<HashMap<String, Vec<String>>>,
+    classes_by_module: Arc<HashMap<String, HashSet<String>>>,
+    class_bases: Arc<HashMap<String, Vec<String>>>,
+    class_methods: Arc<HashMap<String, HashSet<String>>>,
+    // Computing this set used to clone every project class name once per
+    // function summary. On PyTorch that means millions of cloned strings and
+    // allocator arenas retained by every worker. It is declaration-only
+    // state, so build it once and share it immutably.
+    known_class_names: Arc<HashSet<String>>,
+    functions_by_simple: Arc<HashMap<String, Vec<String>>>,
+    functions_by_module: Arc<HashMap<String, HashSet<String>>>,
+    modules_by_parent: Arc<HashMap<String, HashSet<String>>>,
+    module_reexports: Arc<HashMap<String, HashMap<String, String>>>,
+    module_wildcard_imports: Arc<HashMap<String, Vec<String>>>,
+    module_value_types: Arc<HashMap<String, HashMap<String, String>>>,
+    module_symbol_aliases: Arc<HashMap<String, HashMap<String, String>>>,
+    module_exports_all: Arc<HashMap<String, HashSet<String>>>,
+    module_import_effect_member_values: Arc<HashMap<String, HashMap<String, HashMap<String, String>>>>,
+    module_import_effect_class_patches: Arc<HashMap<String, HashMap<String, HashMap<String, String>>>>,
+    typed_dict_classes: Arc<HashSet<String>>,
+    named_tuple_classes: Arc<HashSet<String>>,
+    protocol_classes: Arc<HashSet<String>>,
+    class_type_params: Arc<HashMap<String, Vec<String>>>,
+    class_base_type_args: Arc<HashMap<String, HashMap<String, Vec<String>>>>,
+    field_types: Arc<HashMap<String, HashMap<String, String>>>,
+    property_setters: Arc<HashMap<String, HashSet<String>>>,
+    property_deleters: Arc<HashMap<String, HashSet<String>>>,
+    method_returns: Arc<HashMap<String, HashMap<String, String>>>,
+    top_level_returns: Arc<HashMap<String, String>>,
+    top_level_functions: Arc<HashMap<String, PyFunctionText>>,
+    method_texts: Arc<HashMap<String, PyFunctionText>>,
+    module_imports: Arc<HashMap<String, PyImports>>,
 }
 
 impl PyProjectIndex {
     fn build(entries: &[(String, String)]) -> Self {
         let mut index = Self::default();
+        // Collected locally and only moved into `index` (as `Arc`s) once
+        // populated: nothing below this initial pass ever mutates them again,
+        // so there is no need to pay `Arc::make_mut` copy-on-write costs.
+        let mut top_level_functions = HashMap::new();
+        let mut method_texts = HashMap::new();
         let mut class_entries = Vec::new();
         let mut top_level_entries = Vec::new();
         let mut module_entries = Vec::new();
-        for (path, source) in entries {
+        eprintln!(
+            "uniflow: indexing Python project — collecting declarations from {} files",
+            entries.len()
+        );
+        let collection_step = (entries.len() / 20).max(200);
+        for (entry_index, (path, source)) in entries.iter().enumerate() {
+            if (entry_index + 1) % collection_step == 0 || entry_index + 1 == entries.len() {
+                eprintln!(
+                    "uniflow: indexing Python project — collected {}/{} files",
+                    entry_index + 1,
+                    entries.len()
+                );
+            }
             let module_name = python_module_name_from_path(path);
-            index.modules.insert(module_name.clone());
+            Arc::make_mut(&mut index.modules).insert(module_name.clone());
             if let Some((parent, leaf)) = module_name.rsplit_once('.') {
-                index
-                    .modules_by_parent
+                Arc::make_mut(&mut index.modules_by_parent)
                     .entry(parent.to_string())
                     .or_default()
                     .insert(leaf.to_string());
@@ -61,9 +93,9 @@ impl PyProjectIndex {
             let imports = parse_imports_shallow_for_module_kind(source, &module_name, is_package);
             let exports_all = parse_module_exports_all(source);
             if !exports_all.is_empty() {
-                index.module_exports_all.insert(module_name.clone(), exports_all);
+                Arc::make_mut(&mut index.module_exports_all).insert(module_name.clone(), exports_all);
             }
-            index.module_imports.insert(module_name.clone(), imports.clone());
+            Arc::make_mut(&mut index.module_imports).insert(module_name.clone(), imports.clone());
             // Module-level inference only lives for this index-build call.
             // Borrow the project source instead of cloning every module body:
             // large Python repositories previously held the input entries,
@@ -71,28 +103,24 @@ impl PyProjectIndex {
             // the same time.
             module_entries.push((module_name.clone(), imports.clone(), source.as_str()));
             if !imports.aliases.is_empty() {
-                index
-                    .module_reexports
+                Arc::make_mut(&mut index.module_reexports)
                     .entry(module_name.clone())
                     .or_default()
                     .extend(imports.aliases.clone());
             }
             if !imports.wildcard_bases.is_empty() {
-                index
-                    .module_wildcard_imports
+                Arc::make_mut(&mut index.module_wildcard_imports)
                     .entry(module_name.clone())
                     .or_default()
                     .extend(imports.wildcard_bases.clone());
             }
             for class in extract_classes(source) {
                 let qualified = format!("{module_name}.{}", class.name);
-                index
-                    .classes_by_simple
+                Arc::make_mut(&mut index.classes_by_simple)
                     .entry(class.name.clone())
                     .or_default()
                     .push(qualified.clone());
-                index
-                    .classes_by_module
+                Arc::make_mut(&mut index.classes_by_module)
                     .entry(module_name.clone())
                     .or_default()
                     .insert(class.name.clone());
@@ -106,25 +134,25 @@ impl PyProjectIndex {
                 let is_typed_dict = qualified_bases.iter().any(|base| is_typed_dict_base_name(base));
                 let is_named_tuple = qualified_bases.iter().any(|base| is_named_tuple_base_name(base));
                 let is_protocol = qualified_bases.iter().any(|base| is_protocol_base_name(base));
-                index.class_bases.insert(qualified.clone(), qualified_bases);
+                Arc::make_mut(&mut index.class_bases).insert(qualified.clone(), qualified_bases);
                 if !class_type_params.is_empty() {
-                    index.class_type_params.insert(qualified.clone(), class_type_params);
+                    Arc::make_mut(&mut index.class_type_params).insert(qualified.clone(), class_type_params);
                 }
                 if !base_type_args.is_empty() {
-                    index.class_base_type_args.insert(qualified.clone(), base_type_args);
+                    Arc::make_mut(&mut index.class_base_type_args).insert(qualified.clone(), base_type_args);
                 }
                 if is_typed_dict {
-                    index.typed_dict_classes.insert(qualified.clone());
+                    Arc::make_mut(&mut index.typed_dict_classes).insert(qualified.clone());
                 }
                 if is_named_tuple {
-                    index.named_tuple_classes.insert(qualified.clone());
+                    Arc::make_mut(&mut index.named_tuple_classes).insert(qualified.clone());
                 }
                 if is_protocol {
-                    index.protocol_classes.insert(qualified.clone());
+                    Arc::make_mut(&mut index.protocol_classes).insert(qualified.clone());
                 }
                 let methods = extract_functions_at_indent(&class.body, class.indent + 4, class.start_line + 1);
                 for method in &methods {
-                    index.method_texts.insert(format!("{qualified}.{}", method.name), method.clone());
+                    method_texts.insert(format!("{qualified}.{}", method.name), method.clone());
                 }
                 let method_names = methods
                     .iter()
@@ -138,107 +166,232 @@ impl PyProjectIndex {
                     .iter()
                     .filter_map(|method| property_decorator_target(method, "deleter"))
                     .collect::<HashSet<_>>();
-                index.class_methods.insert(qualified.clone(), method_names);
+                Arc::make_mut(&mut index.class_methods).insert(qualified.clone(), method_names);
                 if !property_setters.is_empty() {
-                    index.property_setters.insert(qualified.clone(), property_setters);
+                    Arc::make_mut(&mut index.property_setters).insert(qualified.clone(), property_setters);
                 }
                 if !property_deleters.is_empty() {
-                    index.property_deleters.insert(qualified.clone(), property_deleters);
+                    Arc::make_mut(&mut index.property_deleters).insert(qualified.clone(), property_deleters);
                 }
                 class_entries.push((module_name.clone(), imports.clone(), class, qualified));
             }
             for (name, fields, kind) in extract_functional_type_decls(source, &module_name, &imports, &index) {
                 let qualified = format!("{module_name}.{name}");
-                index
-                    .classes_by_simple
+                Arc::make_mut(&mut index.classes_by_simple)
                     .entry(name.clone())
                     .or_default()
                     .push(qualified.clone());
-                index
-                    .classes_by_module
+                Arc::make_mut(&mut index.classes_by_module)
                     .entry(module_name.clone())
                     .or_default()
                     .insert(name);
-                index.class_bases.entry(qualified.clone()).or_default();
+                Arc::make_mut(&mut index.class_bases).entry(qualified.clone()).or_default();
                 if !fields.is_empty() {
-                    index.field_types.entry(qualified.clone()).or_default().extend(fields);
+                    Arc::make_mut(&mut index.field_types).entry(qualified.clone()).or_default().extend(fields);
                 }
                 match kind.as_str() {
                     "typed_dict" => {
-                        index.typed_dict_classes.insert(qualified);
+                        Arc::make_mut(&mut index.typed_dict_classes).insert(qualified);
                     }
                     "named_tuple" => {
-                        index.named_tuple_classes.insert(qualified);
+                        Arc::make_mut(&mut index.named_tuple_classes).insert(qualified);
                     }
                     _ => {}
                 }
             }
             for func in extract_functions_at_indent(source, 0, 1) {
                 let qualified = format!("{module_name}.{}", func.name);
-                index.top_level_functions.insert(qualified.clone(), func.clone());
-                index
-                    .functions_by_simple
+                top_level_functions.insert(qualified.clone(), func.clone());
+                Arc::make_mut(&mut index.functions_by_simple)
                     .entry(func.name.clone())
                     .or_default()
                     .push(qualified.clone());
-                index
-                    .functions_by_module
+                Arc::make_mut(&mut index.functions_by_module)
                     .entry(module_name.clone())
                     .or_default()
                     .insert(func.name.clone());
                 top_level_entries.push((module_name.clone(), imports.clone(), func, qualified));
             }
         }
+        index.top_level_functions = Arc::new(top_level_functions);
+        index.method_texts = Arc::new(method_texts);
+        index.known_class_names = Arc::new(
+            index
+                .classes_by_simple
+                .keys()
+                .cloned()
+                .chain(index.classes_by_module.values().flat_map(|names| names.iter().cloned()))
+                .collect(),
+        );
 
-        for _ in 0..4 {
+        // The "parsing source files" progress bar in the CLI only advances
+        // once per-file parsing starts, which is *after* this whole
+        // fixed-point pass finishes — on a large project this pass alone can
+        // run for minutes with no external sign of life. Emit lightweight,
+        // infrequent stderr progress so a long run doesn't look hung.
+        let available_workers = thread::available_parallelism()
+            .map(|count| count.get())
+            .unwrap_or(1)
+            .max(1);
+        // The default deliberately consumes all available CPU, but an
+        // explicit override makes field diagnosis and constrained CI runs
+        // reproducible without changing production behavior.
+        let worker_count = std::env::var("UNIFLOW_PY_INDEX_WORKERS")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|count| *count > 0)
+            .unwrap_or(available_workers)
+            .min(available_workers);
+        let inference_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(worker_count)
+            .stack_size(PYTHON_ANALYSIS_STACK_SIZE)
+            .thread_name(|index| format!("uniflow-py-index-{index}"))
+            .build()
+            .expect("failed to build Python project-index worker pool");
+        let active_workers = inference_pool.current_num_threads();
+        for iteration in 0..4 {
             let mut changed = false;
-            for (module_name, imports, class, qualified) in &class_entries {
-                let current_fields = index.field_types.get(qualified).cloned().unwrap_or_default();
-                let inferred = infer_project_class_fields(class, module_name, imports, &index, &current_fields);
-                let slot = index.field_types.entry(qualified.clone()).or_default();
-                for (field, ty) in inferred {
-                    if slot.get(&field) != Some(&ty) {
-                        slot.insert(field, ty);
-                        changed = true;
-                    }
-                }
-
-                let current_fields = index.field_types.get(qualified).cloned().unwrap_or_default();
-                let inferred_returns = infer_project_method_returns(class, module_name, imports, &index, &current_fields);
-                let return_slot = index.method_returns.entry(qualified.clone()).or_default();
-                for (sig, ty) in inferred_returns {
-                    if return_slot.get(&sig) != Some(&ty) {
-                        return_slot.insert(sig, ty);
-                        changed = true;
-                    }
-                }
-            }
-            for (module_name, imports, func, qualified) in &top_level_entries {
-                let base_ty = infer_project_top_level_return(func, module_name, imports, &index);
-                let decorated_callable_ty = decorate_project_callable_type(func, module_name, imports, &index, qualified);
-                for arity in python_callable_arities(&parse_python_param_specs(&func.params), false) {
-                    let ty = project_callable_return_from_type(&index, &decorated_callable_ty, arity)
-                        .or_else(|| base_ty.clone());
-                    if let Some(ty) = ty {
-                        let key = top_level_signature_key(qualified, arity);
-                        if index.top_level_returns.get(&key) != Some(&ty) {
-                            index.top_level_returns.insert(key, ty);
+            eprintln!(
+                "uniflow: indexing python project — iteration {}/4, class summaries ({} Rayon work-stealing workers)",
+                iteration + 1,
+                active_workers
+            );
+            // Retaining all 12k inferred summaries at once can consume tens
+            // of gigabytes on generated projects. Use a bounded producer /
+            // consumer queue: workers retain enough queued work to balance
+            // uneven classes, while the merger immediately frees each result.
+            let queue_bound = active_workers.saturating_mul(2).max(1);
+            let class_progress_step = (class_entries.len() / 100).max(1);
+            let class_snapshot = index.clone();
+            let (class_sender, class_receiver) = std::sync::mpsc::sync_channel(queue_bound);
+            thread::scope(|scope| {
+                scope.spawn(|| {
+                    inference_pool.install(|| class_entries.par_iter().for_each_with(class_sender, |sender, (module_name, imports, class, qualified)| {
+                        if std::env::var_os("UNIFLOW_PY_INDEX_TRACE").is_some() {
+                            let current_thread = thread::current();
+                            let worker = current_thread.name().unwrap_or("uniflow-py-index-unknown");
+                            eprintln!("uniflow: indexing python class [{worker}] {qualified}");
+                        }
+                        let current_fields = class_snapshot.field_types.get(qualified).cloned().unwrap_or_default();
+                        let inferred = infer_project_class_fields(class, module_name, imports, &class_snapshot, &current_fields);
+                        let inferred_returns = infer_project_method_returns(class, module_name, imports, &class_snapshot, &current_fields);
+                        sender.send((qualified.clone(), inferred, inferred_returns))
+                            .expect("Python class-summary receiver dropped");
+                    }));
+                });
+                for completed_classes in 1..=class_entries.len() {
+                    let (qualified, inferred, inferred_returns) = class_receiver
+                        .recv()
+                        .expect("Python class-summary producer stopped early");
+                    let slot = Arc::make_mut(&mut index.field_types).entry(qualified.clone()).or_default();
+                    for (field, ty) in inferred {
+                        if slot.get(&field) != Some(&ty) {
+                            slot.insert(field, ty);
                             changed = true;
                         }
                     }
+
+                    let return_slot = Arc::make_mut(&mut index.method_returns).entry(qualified.clone()).or_default();
+                    for (sig, ty) in inferred_returns {
+                        if return_slot.get(&sig) != Some(&ty) {
+                            return_slot.insert(sig, ty);
+                            changed = true;
+                        }
+                    }
+                    if completed_classes % class_progress_step == 0 || completed_classes == class_entries.len() {
+                        eprintln!("uniflow: indexing python project — iteration {}/4, class summaries {}/{}", iteration + 1, completed_classes, class_entries.len());
+                    }
                 }
-            }
-            for (module_name, imports, source) in &module_entries {
-                let (inferred_values, inferred_aliases, module_member_values, class_field_patches) =
-                    infer_project_module_bindings(source, module_name, imports, &index);
-                let value_slot = index.module_value_types.entry(module_name.clone()).or_default();
+            });
+            eprintln!(
+                "uniflow: indexing python project — iteration {}/4, function summaries ({} Rayon work-stealing workers)",
+                iteration + 1,
+                active_workers
+            );
+            let function_progress_step = (top_level_entries.len() / 100).max(1);
+            let function_snapshot = index.clone();
+            let (function_sender, function_receiver) = std::sync::mpsc::sync_channel(queue_bound);
+            thread::scope(|scope| {
+                scope.spawn(|| {
+                    inference_pool.install(|| top_level_entries.par_iter().for_each_with(function_sender, |sender, (module_name, imports, func, qualified)| {
+                            let base_ty = infer_project_top_level_return(func, module_name, imports, &function_snapshot);
+                            let decorated_callable_ty = decorate_project_callable_type(func, module_name, imports, &function_snapshot, qualified);
+                // For an undecorated function, `decorated_callable_ty` is
+                // just this function's own canonical path, so looking it up
+                // via `project_callable_return_from_type` is a *self*-lookup
+                // of this exact entry's previously cached return type.
+                // Preferring that over `base_ty` (the fresh recomputation
+                // just above) means a wrong first guess — e.g. computed
+                // before a callee this function depends on had its own
+                // return type known yet — confirms and re-caches itself on
+                // every later pass, since "already have a cached answer"
+                // always short-circuits before the fresh one is even
+                // considered. Only prefer the lookup when a decorator
+                // actually changed the callable identity; otherwise the
+                // fresh computation must win so a bad guess can still be
+                // corrected on a later pass. This is a real latent bug
+                // independent of processing order — it was just rarely
+                // triggered by the previous strict-file-order sequential
+                // pass, since a dependency defined earlier in the same file
+                // was usually already cached by the time it was needed.
+                            let is_self_lookup = decorated_callable_ty == canonicalize_project_path(&function_snapshot, qualified);
+                            let updates = python_callable_arities(&parse_python_param_specs(&func.params), false)
+                                .into_iter()
+                                .filter_map(|arity| {
+                                    let ty = if is_self_lookup {
+                                        base_ty.clone().or_else(|| project_callable_return_from_type(&function_snapshot, &decorated_callable_ty, arity))
+                                    } else {
+                                        project_callable_return_from_type(&function_snapshot, &decorated_callable_ty, arity)
+                                            .or_else(|| base_ty.clone())
+                                    };
+                                    ty.map(|ty| (top_level_signature_key(qualified, arity), ty))
+                                }).collect::<Vec<_>>();
+                            sender.send(updates).expect("Python function-summary receiver dropped");
+                    }));
+                });
+                for completed_functions in 1..=top_level_entries.len() {
+                    let return_updates = function_receiver
+                        .recv()
+                        .expect("Python function-summary producer stopped early");
+                    for (key, ty) in return_updates {
+                    if index.top_level_returns.get(&key) != Some(&ty) {
+                        Arc::make_mut(&mut index.top_level_returns).insert(key, ty);
+                        changed = true;
+                    }
+                }
+                    if completed_functions % function_progress_step == 0 || completed_functions == top_level_entries.len() {
+                        eprintln!("uniflow: indexing python project — iteration {}/4, function summaries {}/{}", iteration + 1, completed_functions, top_level_entries.len());
+                    }
+                }
+            });
+            eprintln!(
+                "uniflow: indexing python project — iteration {}/4, module bindings ({} Rayon work-stealing workers)",
+                iteration + 1,
+                active_workers
+            );
+            let module_progress_step = (module_entries.len() / 100).max(1);
+            let module_snapshot = index.clone();
+            let (module_sender, module_receiver) = std::sync::mpsc::sync_channel(queue_bound);
+            thread::scope(|scope| {
+                scope.spawn(|| {
+                    inference_pool.install(|| module_entries.par_iter().for_each_with(module_sender, |sender, (module_name, imports, source)| {
+                        let update = infer_project_module_bindings(source, module_name, imports, &module_snapshot);
+                        sender.send((module_name.clone(), update))
+                            .expect("Python module-binding receiver dropped");
+                    }));
+                });
+                for completed_modules in 1..=module_entries.len() {
+                    let (module_name, (inferred_values, inferred_aliases, module_member_values, class_field_patches)) = module_receiver
+                        .recv()
+                        .expect("Python module-binding producer stopped early");
+                let value_slot = Arc::make_mut(&mut index.module_value_types).entry(module_name.clone()).or_default();
                 for (name, ty) in inferred_values {
                     if value_slot.get(&name) != Some(&ty) {
                         value_slot.insert(name, ty);
                         changed = true;
                     }
                 }
-                let alias_slot = index.module_symbol_aliases.entry(module_name.clone()).or_default();
+                let alias_slot = Arc::make_mut(&mut index.module_symbol_aliases).entry(module_name.clone()).or_default();
                 for (name, path) in inferred_aliases {
                     if alias_slot.get(&name) != Some(&path) {
                         alias_slot.insert(name, path);
@@ -246,8 +399,8 @@ impl PyProjectIndex {
                     }
                 }
                 for (target_module, members) in module_member_values {
-                    if target_module == *module_name {
-                        let member_slot = index.module_value_types.entry(target_module).or_default();
+                    if target_module == module_name {
+                        let member_slot = Arc::make_mut(&mut index.module_value_types).entry(target_module).or_default();
                         for (name, ty) in members {
                             if member_slot.get(&name) != Some(&ty) {
                                 member_slot.insert(name, ty);
@@ -256,8 +409,7 @@ impl PyProjectIndex {
                         }
                         continue;
                     }
-                    let effect_slot = index
-                        .module_import_effect_member_values
+                    let effect_slot = Arc::make_mut(&mut index.module_import_effect_member_values)
                         .entry(module_name.clone())
                         .or_default()
                         .entry(target_module)
@@ -270,8 +422,8 @@ impl PyProjectIndex {
                     }
                 }
                 for (class_name, fields) in class_field_patches {
-                    if class_name == *module_name || class_name.starts_with(&format!("{module_name}.")) {
-                        let field_slot = index.field_types.entry(class_name).or_default();
+                    if class_name == module_name || class_name.starts_with(&format!("{module_name}.")) {
+                        let field_slot = Arc::make_mut(&mut index.field_types).entry(class_name).or_default();
                         for (field, ty) in fields {
                             if field_slot.get(&field) != Some(&ty) {
                                 field_slot.insert(field, ty);
@@ -280,8 +432,7 @@ impl PyProjectIndex {
                         }
                         continue;
                     }
-                    let effect_slot = index
-                        .module_import_effect_class_patches
+                    let effect_slot = Arc::make_mut(&mut index.module_import_effect_class_patches)
                         .entry(module_name.clone())
                         .or_default()
                         .entry(class_name)
@@ -293,7 +444,11 @@ impl PyProjectIndex {
                         }
                     }
                 }
-            }
+                    if completed_modules % module_progress_step == 0 || completed_modules == module_entries.len() {
+                    eprintln!("uniflow: indexing python project — iteration {}/4, module bindings {}/{}", iteration + 1, completed_modules, module_entries.len());
+                }
+                }
+            });
             if !changed {
                 break;
             }
@@ -886,17 +1041,39 @@ impl PyProjectIndex {
         }
         if let Some(member_effects) = self.module_import_effect_member_values.get(module).cloned() {
             for (target_module, members) in member_effects {
-                let slot = self.module_value_types.entry(target_module).or_default();
+                let needs_update = members.iter().any(|(name, ty)| {
+                    self.module_value_types
+                        .get(&target_module)
+                        .and_then(|values| values.get(name))
+                        != Some(ty)
+                });
+                if !needs_update {
+                    continue;
+                }
+                let slot = Arc::make_mut(&mut self.module_value_types).entry(target_module).or_default();
                 for (name, ty) in members {
-                    slot.insert(name, ty);
+                    if slot.get(&name) != Some(&ty) {
+                        slot.insert(name, ty);
+                    }
                 }
             }
         }
         if let Some(class_effects) = self.module_import_effect_class_patches.get(module).cloned() {
             for (class_name, fields) in class_effects {
-                let slot = self.field_types.entry(class_name).or_default();
+                let needs_update = fields.iter().any(|(field, ty)| {
+                    self.field_types
+                        .get(&class_name)
+                        .and_then(|known_fields| known_fields.get(field))
+                        != Some(ty)
+                });
+                if !needs_update {
+                    continue;
+                }
+                let slot = Arc::make_mut(&mut self.field_types).entry(class_name).or_default();
                 for (field, ty) in fields {
-                    slot.insert(field, ty);
+                    if slot.get(&field) != Some(&ty) {
+                        slot.insert(field, ty);
+                    }
                 }
             }
         }

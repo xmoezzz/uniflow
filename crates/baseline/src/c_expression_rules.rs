@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uniflow_parser_core::{
-    c_declarations::{CDeclarationIndex, DerivedDeclarator as D},
+    c_declarations::{CDeclarationIndex, CFunctionContext, DerivedDeclarator as D},
     c_expressions::{CExpressionFact, CExpressionFactKind as K, CExpressionIndex},
     float_literal_value,
     java_syntax::{JavaSyntax, JavaSyntaxKind},
@@ -121,7 +121,28 @@ pub enum CExpressionCheck {
     LogicalSubexpressionWithoutParentheses,
     ConditionalOperandWithoutParentheses,
     UnusedStaticFunction,
+    MainFileUnusedFunction,
+    VariadicVaStartLastParameter,
+    SignalHandlerMustBePlainFunction,
+    CatchHandlersMostDerivedFirst,
+    UninitializedPointerOrReferenceBinding,
+    BcryptKeyLengthFixedMismatch,
+    BcryptKeyLengthRangeMismatch,
+    FormatSpecifierArgumentTypeMismatch,
+    SocketResourceAlreadyClosed,
+    SocketResourceUninitialized,
+    ObjectSlicingDerivedToBase,
+    CopyWithoutVectorResize,
+    IntegerOverflowAssignedConstant,
+    ConstantArithmeticOverflow,
+    MultipleRelatedNonconstCalls,
+    DirectUseBeforeInitialization,
+    OneBitSignedFieldInCondition,
+    CvQualifiedObjectCastToUnqualified,
+    BitFieldRecordPointerUpdate,
+    ContinueStatement,
     UnusedParameter,
+    UnusedNonvoidReturnValue,
     ReturnTypeMismatch,
     PlainCharArithmeticOperand,
     DoubleToFloatNonliteralAssignment,
@@ -167,7 +188,11 @@ impl CExpressionCheck {
         syntax: &JavaSyntax,
     ) -> Vec<String> {
         match self {
-            Self::UnusedStaticFunction if offset < source.len() => {
+            Self::UnusedStaticFunction
+            | Self::MainFileUnusedFunction
+            | Self::UnusedNonvoidReturnValue
+                if offset < source.len() =>
+            {
                 let end = source[offset..]
                     .char_indices()
                     .take_while(|(_, ch)| ch.is_alphanumeric() || *ch == '_')
@@ -194,6 +219,33 @@ impl CExpressionCheck {
                 .into_iter()
                 .find(|mismatch| mismatch.offset == offset)
                 .map(|mismatch| vec![mismatch.expected, mismatch.provided])
+                .unwrap_or_default(),
+            Self::BcryptKeyLengthFixedMismatch => bcrypt_key_length_mismatches(index, declarations, syntax)
+                .into_iter()
+                .find(|mismatch| mismatch.offset == offset && mismatch.minimum == mismatch.maximum)
+                .map(|mismatch| vec![mismatch.minimum.to_string()])
+                .unwrap_or_default(),
+            Self::BcryptKeyLengthRangeMismatch => bcrypt_key_length_mismatches(index, declarations, syntax)
+                .into_iter()
+                .find(|mismatch| mismatch.offset == offset && mismatch.minimum != mismatch.maximum)
+                .map(|mismatch| vec![mismatch.minimum.to_string(), mismatch.maximum.to_string()])
+                .unwrap_or_default(),
+            Self::SocketResourceAlreadyClosed | Self::SocketResourceUninitialized
+                if offset < source.len() =>
+            {
+                let end = source[offset..]
+                    .char_indices()
+                    .take_while(|(_, ch)| ch.is_alphanumeric() || *ch == '_')
+                    .last()
+                    .map_or(offset, |(at, ch)| offset + at + ch.len_utf8());
+                (end > offset)
+                    .then(|| vec![source[offset..end].to_string()])
+                    .unwrap_or_default()
+            }
+            Self::ObjectSlicingDerivedToBase => object_slicing_mismatches(index, declarations)
+                .into_iter()
+                .find(|mismatch| mismatch.offset == offset)
+                .map(|mismatch| vec![mismatch.derived, mismatch.base])
                 .unwrap_or_default(),
             _ => Vec::new(),
         }
@@ -832,8 +884,74 @@ impl CExpressionCheck {
             Self::UnusedStaticFunction => {
                 offsets.extend(unused_static_function_offsets(index, declarations, syntax))
             }
+            Self::MainFileUnusedFunction => {
+                offsets.extend(main_file_unused_function_offsets(index, declarations, syntax))
+            }
+            Self::VariadicVaStartLastParameter => {
+                offsets.extend(variadic_va_start_last_parameter_offsets(index, declarations, syntax))
+            }
+            Self::SignalHandlerMustBePlainFunction => {
+                offsets.extend(signal_handler_plain_function_offsets(index, declarations, syntax))
+            }
+            Self::CatchHandlersMostDerivedFirst => {
+                offsets.extend(catch_handlers_most_derived_first_offsets(index, declarations))
+            }
+            Self::UninitializedPointerOrReferenceBinding => {
+                offsets.extend(uninitialized_pointer_or_reference_binding_offsets(
+                    index,
+                    declarations,
+                ))
+            }
+            Self::BcryptKeyLengthFixedMismatch => offsets.extend(
+                bcrypt_key_length_mismatches(index, declarations, syntax)
+                    .into_iter()
+                    .filter(|mismatch| mismatch.minimum == mismatch.maximum)
+                    .map(|mismatch| mismatch.offset),
+            ),
+            Self::BcryptKeyLengthRangeMismatch => offsets.extend(
+                bcrypt_key_length_mismatches(index, declarations, syntax)
+                    .into_iter()
+                    .filter(|mismatch| mismatch.minimum != mismatch.maximum)
+                    .map(|mismatch| mismatch.offset),
+            ),
+            Self::FormatSpecifierArgumentTypeMismatch => offsets.extend(
+                format_specifier_argument_type_mismatch_offsets(index, declarations, syntax),
+            ),
+            Self::SocketResourceAlreadyClosed => offsets.extend(
+                socket_resource_state_offsets(index, declarations, syntax)
+                    .into_iter()
+                    .filter(|(_, state)| *state == SocketResourceFinding::AlreadyClosed)
+                    .map(|(offset, _)| offset),
+            ),
+            Self::SocketResourceUninitialized => offsets.extend(
+                socket_resource_state_offsets(index, declarations, syntax)
+                    .into_iter()
+                    .filter(|(_, state)| *state == SocketResourceFinding::Uninitialized)
+                    .map(|(offset, _)| offset),
+            ),
+            Self::ObjectSlicingDerivedToBase => offsets.extend(
+                object_slicing_mismatches(index, declarations)
+                    .into_iter()
+                    .map(|mismatch| mismatch.offset),
+            ),
+            Self::CopyWithoutVectorResize => offsets.extend(copy_without_vector_resize_offsets(index)),
+            Self::IntegerOverflowAssignedConstant => offsets.extend(integer_narrowing_range_offsets(index, declarations, false)),
+            Self::ConstantArithmeticOverflow => offsets.extend(constant_arithmetic_overflow_offsets(index)),
+            Self::MultipleRelatedNonconstCalls => offsets.extend(multiple_related_nonconst_call_offsets(index, declarations, syntax)),
+            Self::DirectUseBeforeInitialization => offsets.extend(direct_use_before_initialization_offsets(index, declarations)),
+            Self::OneBitSignedFieldInCondition => offsets.extend(one_bit_signed_field_in_condition_offsets(index, declarations)),
+            Self::CvQualifiedObjectCastToUnqualified => {
+                offsets.extend(cv_qualification_cast_drop_offsets(index, declarations));
+            }
+            Self::BitFieldRecordPointerUpdate => {
+                offsets.extend(bitfield_record_pointer_update_offsets(index, declarations));
+            }
+            Self::ContinueStatement => offsets.extend(continue_statement_offsets(index)),
             Self::UnusedParameter => {
                 offsets.extend(unused_parameter_offsets(index, declarations, syntax))
+            }
+            Self::UnusedNonvoidReturnValue => {
+                offsets.extend(unused_nonvoid_return_value_offsets(index, declarations, syntax))
             }
             Self::ReturnTypeMismatch => {
                 offsets.extend(return_type_mismatch_offsets(index, declarations))
@@ -1362,6 +1480,1395 @@ fn unused_static_function_offsets(
             })
         })
         .map(|function| function.name_range.start)
+        .collect()
+}
+
+/// Mirrors `MainFileNotUseFuncChecker`: a main translation unit reports every
+/// unused function definition in that file, rather than only static functions.
+/// The source checker uses Clang's `FunctionDecl::isUsed`; the shared binding
+/// helper below deliberately excludes unrelated identifiers, comments, macros,
+/// and local variables from counting as a function use.
+fn main_file_unused_function_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    if !declarations.functions.iter().any(|function| function.name == "main") {
+        return Vec::new();
+    }
+
+    declarations
+        .functions
+        .iter()
+        .filter(|function| function.name != "main")
+        .filter(|function| {
+            !index.tokens.iter().enumerate().any(|(token_at, token)| {
+                token.kind == TokKind::Ident
+                    && token.text == function.name
+                    && token.start as usize != function.name_range.start
+                    && identifier_is_function_reference(
+                        index,
+                        declarations,
+                        syntax,
+                        token_at,
+                        function.name.as_str(),
+                    )
+            })
+        })
+        .map(|function| function.name_range.start)
+        .collect()
+}
+
+/// Mirrors `VariadicChecker` for the two source-level forms handled by the
+/// legacy `PreCall` hook: a reference-typed final named argument to
+/// `va_start`, and a trivially-copyable record passed as that argument.
+///
+/// The checker is C++-only at rule registration time.  We retain a
+/// declaration-driven implementation here so a function-like macro spelling
+/// in a comment, prototype, or a shadowing local does not become a finding.
+fn variadic_va_start_last_parameter_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) {
+            continue;
+        }
+        let Some((callee, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        if callee != "va_start" {
+            continue;
+        }
+        let arguments = direct_call_argument_ranges(index, name_at + 1, close);
+        let Some((start, end)) = arguments.get(1).copied() else {
+            continue;
+        };
+        let Some(argument_at) = unwrapped_identifier_argument(index, start, end) else {
+            continue;
+        };
+        let argument = &index.tokens[argument_at];
+        if variadic_last_parameter_is_forbidden(
+            index,
+            declarations,
+            argument.text.as_str(),
+            argument.start as usize,
+        ) {
+            offsets.push(argument.start as usize);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn unwrapped_identifier_argument(
+    index: &CExpressionIndex,
+    mut start: usize,
+    mut end: usize,
+) -> Option<usize> {
+    while end.saturating_sub(start) >= 2
+        && index.tokens.get(start)?.text == "("
+        && index.matching_token_index(start) == Some(end - 1)
+    {
+        start += 1;
+        end -= 1;
+    }
+    (end == start + 1 && index.tokens[start].kind == TokKind::Ident).then_some(start)
+}
+
+fn variadic_last_parameter_is_forbidden(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    name: &str,
+    use_offset: usize,
+) -> bool {
+    let mut declared_types = Vec::new();
+    for parameter in &declarations.parameters {
+        if parameter.name.as_deref() == Some(name) && parameter.range.start <= use_offset {
+            declared_types.push((&parameter.type_name, parameter.derived.as_slice()));
+        }
+    }
+    for declaration in declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.range.start <= use_offset)
+    {
+        for declarator in declaration
+            .declarators
+            .iter()
+            .filter(|declarator| declarator.name.as_deref() == Some(name))
+        {
+            declared_types.push((&declaration.type_name, declarator.derived.as_slice()));
+        }
+    }
+
+    declared_types.into_iter().any(|(type_name, derived)| {
+        derived
+            .iter()
+            .any(|item| matches!(item, D::Reference | D::RvalueReference))
+            || record_is_trivially_copyable_for_variadic(index, declarations, type_name)
+    })
+}
+
+fn record_is_trivially_copyable_for_variadic(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    type_name: &str,
+) -> bool {
+    let compact = canonical_type_text(type_name);
+    let record_name = compact
+        .strip_prefix("struct ")
+        .or_else(|| compact.strip_prefix("class "))
+        .unwrap_or(compact.as_str())
+        .rsplit("::")
+        .next()
+        .unwrap_or_default();
+    if record_name.is_empty()
+        || !declarations.aggregates.iter().any(|aggregate| {
+            matches!(aggregate.kind.as_str(), "struct" | "class")
+                && aggregate.name.as_deref() == Some(record_name)
+        })
+    {
+        return false;
+    }
+
+    // A user-declared constructor or destructor is enough to disqualify the
+    // simple record subset the pure-Rust declaration frontend can prove.
+    let has_user_declared_special_member = declarations.functions.iter().any(|function| {
+        matches!(
+            &function.context,
+            CFunctionContext::Record { qualified_name }
+                if qualified_name.rsplit("::").next() == Some(record_name)
+        ) && (function.name == record_name || function.name == format!("~{record_name}"))
+    }) || declarations.declarations.iter().any(|declaration| {
+        declaration.in_aggregate
+            && declaration.declarators.iter().any(|declarator| {
+                declarator.name.as_deref().is_some_and(|name| {
+                    (name == record_name || name == format!("~{record_name}"))
+                        && matches!(declarator.derived.first(), Some(D::Function { .. }))
+                })
+            })
+    }) || declarations.aggregates.iter().filter_map(|aggregate| {
+        (matches!(aggregate.kind.as_str(), "struct" | "class")
+            && aggregate.name.as_deref() == Some(record_name))
+            .then_some(aggregate.body.as_ref())
+            .flatten()
+    }).any(|body| {
+        index.tokens.iter().enumerate().any(|(at, token)| {
+            body.start <= token.start as usize
+                && (token.end as usize) <= body.end
+                && ((token.kind == TokKind::Ident
+                    && token.text == record_name
+                    && index.tokens.get(at + 1).is_some_and(|next| next.text == "("))
+                    || (token.text == "~"
+                        && index.tokens.get(at + 1).is_some_and(|next| next.text == record_name)))
+        })
+    });
+    !has_user_declared_special_member
+}
+
+/// Pure-Rust frontend equivalent of `SignalHandlerChecker`'s `PreCall`
+/// callback. The original only accepts a direct function reference as the
+/// second argument to `signal`/`sigaction`; function pointers and unresolved
+/// overloads intentionally stay silent because Clang would not give those a
+/// unique `FunctionDecl` either.
+fn signal_handler_plain_function_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) {
+            continue;
+        }
+        let Some((callee, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        if !matches!(callee, "signal" | "sigaction") {
+            continue;
+        }
+        let arguments = direct_call_argument_ranges(index, name_at + 1, close);
+        let Some((start, end)) = arguments.get(1).copied() else {
+            continue;
+        };
+        let Some(handler_at) = unwrapped_identifier_argument(index, start, end) else {
+            continue;
+        };
+        let handler = &index.tokens[handler_at];
+        if signal_handler_is_not_plain_function(index, declarations, &handler.text) {
+            offsets.push(handler.start as usize);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn signal_handler_is_not_plain_function(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    handler_name: &str,
+) -> bool {
+    let definitions = declarations
+        .functions
+        .iter()
+        .filter(|function| function.name == handler_name)
+        .collect::<Vec<_>>();
+    if definitions.len() == 1 {
+        let function = definitions[0];
+        return !function.extern_c || function_body_contains_exception(index, &function.body);
+    }
+    if !definitions.is_empty() {
+        return false;
+    }
+
+    let prototypes = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| {
+            declaration.declarators.iter().any(|declarator| {
+                declarator.name.as_deref() == Some(handler_name)
+                    && matches!(declarator.derived.first(), Some(D::Function { .. }))
+            })
+        })
+        .collect::<Vec<_>>();
+    prototypes.len() == 1 && !prototypes[0].extern_c
+}
+
+fn function_body_contains_exception(index: &CExpressionIndex, body: &std::ops::Range<usize>) -> bool {
+    index.tokens.iter().any(|token| {
+        body.start <= token.start as usize
+            && (token.end as usize) <= body.end
+            && matches!(token.text.as_str(), "try" | "throw")
+    })
+}
+
+/// Frontend implementation of `CatchOrderChecker`.  The legacy visitor only
+/// inspects `CXXTryStmt`s that are direct children of a function body, and
+/// compares each handler only with the immediately preceding handler.  Keep
+/// those two constraints so nested try blocks and non-adjacent handlers do
+/// not gain diagnostics the original checker never produced.
+fn catch_handlers_most_derived_first_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for function in &declarations.functions {
+        let Some((start, end)) = token_range_for_source_range(index, &function.body) else {
+            continue;
+        };
+        let mut brace_depth = 0usize;
+        let mut at = start;
+        while at < end {
+            match index.tokens[at].text.as_str() {
+                "{" => brace_depth += 1,
+                "}" => brace_depth = brace_depth.saturating_sub(1),
+                "try" if brace_depth == 1 => {
+                    let Some(next) = catch_handler_order_offsets_for_try(
+                        index,
+                        declarations,
+                        at,
+                        &mut offsets,
+                    ) else {
+                        at += 1;
+                        continue;
+                    };
+                    at = next;
+                    continue;
+                }
+                _ => {}
+            }
+            at += 1;
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn catch_handler_order_offsets_for_try(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    try_at: usize,
+    offsets: &mut Vec<usize>,
+) -> Option<usize> {
+    let body_open = try_at + 1;
+    if index.tokens.get(body_open)?.text != "{" {
+        return None;
+    }
+    let mut at = index.matching_token_index(body_open)? + 1;
+    let mut previous_type = None::<String>;
+    while index.tokens.get(at).is_some_and(|token| token.text == "catch") {
+        let catch_at = at;
+        let open = at + 1;
+        if index.tokens.get(open).is_none_or(|token| token.text != "(") {
+            return None;
+        }
+        let close = index.matching_token_index(open)?;
+        let current_type = catch_handler_type_name(index, open + 1, close);
+        if let (Some(previous), Some(current)) = (previous_type.as_deref(), current_type.as_deref())
+        {
+            if record_type_is_derived_from(declarations, current, previous) {
+                offsets.push(index.tokens[catch_at].start as usize);
+            }
+        }
+        previous_type = current_type;
+        let handler_body = close + 1;
+        if index.tokens.get(handler_body).is_none_or(|token| token.text != "{") {
+            return None;
+        }
+        at = index.matching_token_index(handler_body)? + 1;
+    }
+    Some(at)
+}
+
+fn catch_handler_type_name(index: &CExpressionIndex, start: usize, end: usize) -> Option<String> {
+    let identifiers = index.tokens.get(start..end)?.iter().filter_map(|token| {
+        (token.kind == TokKind::Ident
+            && !matches!(
+                token.text.as_str(),
+                "const" | "volatile" | "struct" | "class" | "typename"
+            ))
+        .then_some(token.text.as_str())
+    }).collect::<Vec<_>>();
+    // A catch declaration needs both a type and a bound variable. Ellipsis
+    // handlers have no exception declaration in Clang and are skipped.
+    (identifiers.len() >= 2).then(|| identifiers[..identifiers.len() - 1].join("::"))
+}
+
+fn record_type_is_derived_from(
+    declarations: &CDeclarationIndex,
+    derived: &str,
+    base: &str,
+) -> bool {
+    let derived = canonical_catch_record_name(derived);
+    let base = canonical_catch_record_name(base);
+    if derived.is_empty() || base.is_empty() || derived == base {
+        return false;
+    }
+    let mut pending = vec![derived];
+    let mut seen = HashSet::new();
+    while let Some(candidate) = pending.pop() {
+        if !seen.insert(candidate.clone()) {
+            continue;
+        }
+        for aggregate in declarations.aggregates.iter().filter(|aggregate| {
+            aggregate.name.as_deref().is_some_and(|name| {
+                canonical_catch_record_name(name) == candidate
+                    || aggregate.qualified_name == candidate
+            })
+        }) {
+            for parent in &aggregate.bases {
+                let parent = canonical_catch_record_name(parent);
+                if parent == base {
+                    return true;
+                }
+                if !parent.is_empty() {
+                    pending.push(parent);
+                }
+            }
+        }
+    }
+    false
+}
+
+fn canonical_catch_record_name(value: &str) -> String {
+    value
+        .split_whitespace()
+        .filter(|part| !matches!(*part, "const" | "volatile" | "struct" | "class"))
+        .collect::<String>()
+        .trim_end_matches('&')
+        .trim_end_matches('*')
+        .trim()
+        .to_string()
+}
+
+/// Implements the two `UninitializedPointerChecker::checkBind` forms without
+/// widening them into a generic uninitialized-variable warning: reference
+/// binding from a bare undefined local, and pointer initialization by taking
+/// the address of a bare undefined local.
+fn uninitialized_pointer_or_reference_binding_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for (function_id, function) in declarations.functions.iter().enumerate() {
+        for declaration in declarations.declarations.iter().filter(|declaration| {
+            declaration.enclosing_function == Some(function_id)
+                && function.body.start <= declaration.range.start
+                && declaration.range.end <= function.body.end
+                && !declaration.storage.iter().any(|storage| storage == "typedef")
+        }) {
+            for declarator in &declaration.declarators {
+                let Some(initializer) = declarator.initializer.as_ref() else {
+                    continue;
+                };
+                let Some((start, end)) = token_range_for_source_range(index, initializer) else {
+                    continue;
+                };
+                let source_at = if declarator
+                    .derived
+                    .iter()
+                    .any(|derived| matches!(derived, D::Reference | D::RvalueReference))
+                {
+                    unwrapped_identifier_argument(index, start, end)
+                } else if declarator
+                    .derived
+                    .iter()
+                    .any(|derived| matches!(derived, D::Pointer))
+                {
+                    unwrapped_address_of_identifier(index, start, end)
+                } else {
+                    None
+                };
+                let Some(source_at) = source_at else {
+                    continue;
+                };
+                let source = &index.tokens[source_at];
+                if local_is_definitely_uninitialized_before(
+                    index,
+                    declarations,
+                    function_id,
+                    source.text.as_str(),
+                    source.start as usize,
+                ) {
+                    offsets.push(source.start as usize);
+                }
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn unwrapped_address_of_identifier(
+    index: &CExpressionIndex,
+    mut start: usize,
+    mut end: usize,
+) -> Option<usize> {
+    while end.saturating_sub(start) >= 2
+        && index.tokens.get(start)?.text == "("
+        && index.matching_token_index(start) == Some(end - 1)
+    {
+        start += 1;
+        end -= 1;
+    }
+    (end == start + 2
+        && index.tokens[start].text == "&"
+        && index.tokens[start + 1].kind == TokKind::Ident)
+        .then_some(start + 1)
+}
+
+fn local_is_definitely_uninitialized_before(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    function_id: usize,
+    name: &str,
+    use_offset: usize,
+) -> bool {
+    let Some((declaration, declarator)) = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| {
+            declaration.enclosing_function == Some(function_id)
+                && declaration.range.start < use_offset
+        })
+        .flat_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .filter(move |declarator| declarator.name.as_deref() == Some(name))
+                .map(move |declarator| (declaration, declarator))
+        })
+        .max_by_key(|(declaration, _)| declaration.range.start)
+    else {
+        return false;
+    };
+    if declarator.initializer.is_some() {
+        return false;
+    }
+
+    // A preceding plain assignment is enough to make the value non-Undef on
+    // the linear path. Compound writes first read the old value, so they do
+    // not prove initialization. Conditional/path-dependent writes remain
+    // intentionally conservative: not proving initialization means no
+    // frontend report.
+    !index.tokens.windows(2).any(|tokens| {
+        tokens[0].kind == TokKind::Ident
+            && tokens[0].text == name
+            && tokens[0].start as usize >= declaration.range.end
+            && (tokens[0].start as usize) < use_offset
+            && tokens[1].text == "="
+    })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct BCryptKeyLengthMismatch {
+    offset: usize,
+    minimum: u64,
+    maximum: u64,
+}
+
+/// Reproduces `BCryptParamChecker`'s program-state relationship in the
+/// inexpensive intraprocedural frontend: a successful provider-open call
+/// associates an algorithm string with the handle lvalue, and a later
+/// `BCryptGenerateKeyPair` checks a constant `dwLength` through that handle.
+///
+/// The native analyzer state uses symbols and therefore also supports aliases
+/// and interprocedural handoff.  The C-family frontend deliberately reports
+/// only direct local handle references; this keeps the rule sound with respect
+/// to its reduced state model instead of guessing through pointer aliases.
+fn bcrypt_key_length_mismatches(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<BCryptKeyLengthMismatch> {
+    const LIMITS: [(&str, u64, u64); 9] = [
+        ("DH", 512, 4096),
+        ("DSA", 512, 3072),
+        ("ECDH_P256", 256, 256),
+        ("ECDH_P384", 384, 384),
+        ("ECDH_P521", 521, 521),
+        ("ECDSA_P256", 256, 256),
+        ("ECDSA_P384", 384, 384),
+        ("ECDSA_P521", 521, 521),
+        ("RSA", 512, 16384),
+    ];
+
+    let mut modes = HashMap::<(Option<usize>, String), (u64, u64)>::new();
+    let mut findings = Vec::new();
+    for name_at in 0..index.tokens.len() {
+        let name = index.tokens[name_at].text.as_str();
+        if !matches!(name, "BCryptOpenAlgorithmProvider" | "BCryptGenerateKeyPair")
+            || !is_legacy_direct_call(index, declarations, syntax, name_at)
+        {
+            continue;
+        }
+        let Some((_, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        let arguments = direct_call_argument_ranges(index, name_at + 1, close);
+        let function = declarations.functions.iter().position(|function| {
+            function.body.start <= index.tokens[name_at].start as usize
+                && (index.tokens[name_at].start as usize) < function.body.end
+        });
+        if name == "BCryptOpenAlgorithmProvider" {
+            if arguments.len() != 4 {
+                continue;
+            }
+            let Some(handle_at) = arguments
+                .first()
+                .and_then(|(start, end)| unwrapped_address_of_identifier(index, *start, *end))
+            else {
+                continue;
+            };
+            let Some(mode_at) = arguments
+                .get(1)
+                .and_then(|(start, end)| bcrypt_string_literal_argument(index, *start, *end))
+            else {
+                continue;
+            };
+            let Some((_, minimum, maximum)) = LIMITS
+                .iter()
+                .find(|(mode, _, _)| *mode == index.tokens[mode_at].text.trim_matches('"'))
+            else {
+                continue;
+            };
+            modes.insert(
+                (function, index.tokens[handle_at].text.clone()),
+                (*minimum, *maximum),
+            );
+            continue;
+        }
+
+        if arguments.len() != 4 {
+            continue;
+        }
+        let Some(handle_at) = arguments
+            .first()
+            .and_then(|(start, end)| unwrapped_identifier_argument(index, *start, *end))
+        else {
+            continue;
+        };
+        let Some((minimum, maximum)) = modes
+            .get(&(function, index.tokens[handle_at].text.clone()))
+            .copied()
+        else {
+            continue;
+        };
+        let Some((length_start, length_end)) = arguments.get(2).copied() else {
+            continue;
+        };
+        let Some(length) = evaluate_c_constant_integer(&index.tokens[length_start..length_end])
+            .and_then(|value| u64::try_from(value).ok())
+        else {
+            continue;
+        };
+        if (minimum == maximum && length != minimum)
+            || (minimum != maximum
+                && (length < minimum || length > maximum || length % 64 != 0))
+        {
+            findings.push(BCryptKeyLengthMismatch {
+                offset: index.tokens[length_start].start as usize,
+                minimum,
+                maximum,
+            });
+        }
+    }
+    findings
+}
+
+fn bcrypt_string_literal_argument(
+    index: &CExpressionIndex,
+    mut start: usize,
+    mut end: usize,
+) -> Option<usize> {
+    while end.saturating_sub(start) >= 2
+        && index.tokens.get(start)?.text == "("
+        && index.matching_token_index(start) == Some(end - 1)
+    {
+        start += 1;
+        end -= 1;
+    }
+    (end == start + 1 && index.tokens[start].kind == TokKind::StringLit).then_some(start)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FormatArgumentExpectation {
+    Character,
+    Floating,
+    SignedInteger,
+    UnsignedInteger,
+    IntegerOrPointer,
+    Integer,
+    PointerOrArray,
+    FloatingOrInteger,
+}
+
+/// Ports `FormatSpecifierTypeMismatchChecker`'s supported printf-family
+/// conversion classes.  The legacy checker asks Clang for an already-resolved
+/// direct callee and exact argument type; we likewise require a direct call,
+/// a literal format expression and a type the lightweight C frontend can
+/// establish.  Ambiguous expressions are intentionally not diagnosed.
+fn format_specifier_argument_type_mismatch_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for name_at in 0..index.tokens.len() {
+        let format_argument = match index.tokens[name_at].text.as_str() {
+            "printf" => 0,
+            "fprintf" | "sprintf" => 1,
+            "snprintf" => 2,
+            _ => continue,
+        };
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) {
+            continue;
+        }
+        let Some((_, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        let arguments = direct_call_argument_ranges(index, name_at + 1, close);
+        let Some((format_start, format_end)) = arguments.get(format_argument).copied() else {
+            continue;
+        };
+        let Some(format_at) = bcrypt_string_literal_argument(index, format_start, format_end) else {
+            continue;
+        };
+        for (ordinal, expectation) in printf_format_expectations(&index.tokens[format_at].text)
+            .into_iter()
+            .enumerate()
+        {
+            let argument_index = format_argument + ordinal + 1;
+            let Some((start, end)) = arguments.get(argument_index).copied() else {
+                break;
+            };
+            let Some(actual) = format_argument_expression_type(index, declarations, start, end) else {
+                continue;
+            };
+            if !format_argument_matches(expectation, &actual) {
+                offsets.push(index.tokens[start].start as usize);
+            }
+        }
+    }
+    offsets
+}
+
+fn format_argument_expression_type(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    let (start, end) = trim_outer_group(index, start, end);
+    if end == start + 2
+        && index.tokens[start].text == "&"
+        && index.tokens[start + 1].kind == TokKind::Ident
+    {
+        return exact_operand_type(index, declarations, start + 1).map(|ty| format!("{ty}*"));
+    }
+    (end == start + 1)
+        .then(|| exact_operand_type(index, declarations, start))
+        .flatten()
+}
+
+fn format_argument_matches(expectation: FormatArgumentExpectation, actual: &str) -> bool {
+    match expectation {
+        FormatArgumentExpectation::Character => actual == "char",
+        FormatArgumentExpectation::Floating => is_floating_type(actual),
+        FormatArgumentExpectation::SignedInteger => is_signed_integer_type(actual),
+        FormatArgumentExpectation::UnsignedInteger => {
+            is_integer_type(actual) && !is_signed_integer_type(actual)
+        }
+        FormatArgumentExpectation::IntegerOrPointer => {
+            is_integer_type(actual) || is_pointer_type(actual)
+        }
+        FormatArgumentExpectation::Integer => is_integer_type(actual),
+        FormatArgumentExpectation::PointerOrArray => {
+            is_pointer_type(actual) || actual.ends_with("[]")
+        }
+        FormatArgumentExpectation::FloatingOrInteger => {
+            is_floating_type(actual) || is_integer_type(actual)
+        }
+    }
+}
+
+fn printf_format_expectations(literal: &str) -> Vec<FormatArgumentExpectation> {
+    let Some(first_quote) = literal.find('"') else {
+        return Vec::new();
+    };
+    let Some(last_quote) = literal.rfind('"') else {
+        return Vec::new();
+    };
+    if first_quote == last_quote {
+        return Vec::new();
+    }
+    let bytes = literal.as_bytes();
+    let mut at = first_quote + 1;
+    let mut expectations = Vec::new();
+    while at < last_quote {
+        if bytes[at] != b'%' || at + 1 >= last_quote {
+            at += 1;
+            continue;
+        }
+        at += 1;
+        if bytes[at] == b'%' {
+            at += 1;
+            continue;
+        }
+        while at < last_quote && matches!(bytes[at], b'-' | b'+' | b' ' | b'#' | b'0') {
+            at += 1;
+        }
+        while at < last_quote && bytes[at].is_ascii_digit() {
+            at += 1;
+        }
+        if at < last_quote && bytes[at] == b'.' {
+            at += 1;
+            while at < last_quote && bytes[at].is_ascii_digit() {
+                at += 1;
+            }
+        }
+        if at + 1 < last_quote && matches!(&bytes[at..at + 2], b"hh" | b"ll") {
+            at += 2;
+        } else if at < last_quote && matches!(bytes[at], b'h' | b'l' | b'j' | b'z' | b't' | b'L') {
+            at += 1;
+        }
+        if at >= last_quote {
+            break;
+        }
+        let expectation = match bytes[at] {
+            b'c' => Some(FormatArgumentExpectation::Character),
+            b'f' | b'F' | b'e' | b'E' | b'g' | b'G' | b'a' | b'A' => {
+                Some(FormatArgumentExpectation::Floating)
+            }
+            b'd' | b'i' => Some(FormatArgumentExpectation::SignedInteger),
+            b'u' => Some(FormatArgumentExpectation::UnsignedInteger),
+            b'x' | b'X' | b'p' => Some(FormatArgumentExpectation::IntegerOrPointer),
+            b'o' => Some(FormatArgumentExpectation::Integer),
+            b's' => Some(FormatArgumentExpectation::PointerOrArray),
+            // `Utils::parseFormatString` categorizes this as EXP, accepting
+            // either a floating or integral expression.
+            b'k' => Some(FormatArgumentExpectation::FloatingOrInteger),
+            _ => None,
+        };
+        if let Some(expectation) = expectation {
+            expectations.push(expectation);
+        }
+        at += 1;
+    }
+    expectations
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SocketResourceState {
+    Opened,
+    Released,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SocketResourceFinding {
+    AlreadyClosed,
+    Uninitialized,
+}
+
+/// Models the socket-specific state machine from
+/// `ResourceAllocAndReleaseChecker`: a socket/WSASocket return opens a local
+/// handle; closesocket/shutdown release it; the listed WinSock APIs must not
+/// consume an uninitialized or released handle.  It intentionally remains
+/// intraprocedural and name-based until the unified value-flow engine exposes
+/// configurable API resource summaries.
+fn socket_resource_state_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<(usize, SocketResourceFinding)> {
+    const OPEN: [&str; 3] = ["socket", "WSASocketA", "WSASocketW"];
+    const CLOSE: [&str; 2] = ["closesocket", "shutdown"];
+    const USE: [&str; 29] = [
+        "listen", "accept", "connect", "bind", "ioctlsocket", "getpeername", "getsockname",
+        "getsockopt", "setsockopt", "send", "recv", "sendto", "recvfrom", "WSAAsyncSelect",
+        "WSAAccept", "WSAConnect", "WSAConnectByNameA", "WSAConnectByNameW", "WSAConnectByList",
+        "WSADuplicateSocketA", "WSADuplicateSocketW", "WSAEnumNetworkEvents", "WSAEventSelect",
+        "WSAGetOverlappedResult", "WSAGetQOSByName", "WSARecv", "WSARecvFrom", "WSASend",
+        "WSASendMsg",
+    ];
+    let mut states = HashMap::<(Option<usize>, String), SocketResourceState>::new();
+    let mut findings = Vec::new();
+    for name_at in 0..index.tokens.len() {
+        let name = index.tokens[name_at].text.as_str();
+        if !OPEN.contains(&name) && !CLOSE.contains(&name) && !USE.contains(&name) {
+            continue;
+        }
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) {
+            continue;
+        }
+        let Some((_, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        let function = declarations.functions.iter().position(|function| {
+            function.body.start <= index.tokens[name_at].start as usize
+                && (index.tokens[name_at].start as usize) < function.body.end
+        });
+        if OPEN.contains(&name) {
+            if let Some(handle) = socket_open_result_target(index, declarations, name_at) {
+                states.insert((function, handle), SocketResourceState::Opened);
+            }
+            continue;
+        }
+        let arguments = direct_call_argument_ranges(index, name_at + 1, close);
+        let Some(handle_at) = arguments
+            .first()
+            .and_then(|(start, end)| unwrapped_identifier_argument(index, *start, *end))
+        else {
+            continue;
+        };
+        let handle = index.tokens[handle_at].text.clone();
+        let key = (function, handle.clone());
+        if CLOSE.contains(&name) {
+            if states.get(&key) == Some(&SocketResourceState::Released) {
+                findings.push((
+                    index.tokens[handle_at].start as usize,
+                    SocketResourceFinding::AlreadyClosed,
+                ));
+            }
+            // The source checker records a release even when the symbol was
+            // not first observed as an opener, making a later close/use a
+            // stable already-closed diagnostic.
+            states.insert(key, SocketResourceState::Released);
+        } else if states.get(&key) == Some(&SocketResourceState::Released) {
+            findings.push((
+                index.tokens[handle_at].start as usize,
+                SocketResourceFinding::AlreadyClosed,
+            ));
+        } else if let Some(function_id) = function {
+            if local_is_definitely_uninitialized_before(
+                index,
+                declarations,
+                function_id,
+                &handle,
+                index.tokens[handle_at].start as usize,
+            ) {
+                findings.push((
+                    index.tokens[handle_at].start as usize,
+                    SocketResourceFinding::Uninitialized,
+                ));
+            }
+        }
+    }
+    findings
+}
+
+fn socket_open_result_target(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    call_at: usize,
+) -> Option<String> {
+    let call_offset = index.tokens[call_at].start as usize;
+    if let Some(name) = declarations
+        .declarations
+        .iter()
+        .flat_map(|declaration| declaration.declarators.iter())
+        .find(|declarator| {
+            declarator
+                .initializer
+                .as_ref()
+                .is_some_and(|range| range.start <= call_offset && call_offset < range.end)
+        })
+        .and_then(|declarator| declarator.name.clone())
+    {
+        return Some(name);
+    }
+    (call_at >= 2
+        && index.tokens[call_at - 1].text == "="
+        && index.tokens[call_at - 2].kind == TokKind::Ident)
+        .then(|| index.tokens[call_at - 2].text.clone())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ObjectSlicingMismatch {
+    offset: usize,
+    derived: String,
+    base: String,
+}
+
+/// Models the two AST entry points used by `ObjectSlicingChecker`: implicit
+/// derived-to-base construction of a value object and copy assignment into a
+/// base value.  References and pointers do not construct/slice an object and
+/// therefore remain excluded, matching Clang's CXXConstructExpr/operator=
+/// predicates.
+fn object_slicing_mismatches(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<ObjectSlicingMismatch> {
+    let mut findings = Vec::new();
+    for declaration in declarations.declarations.iter().filter(|declaration| {
+        !declaration.storage.iter().any(|storage| storage == "typedef")
+            && !declaration.type_name.contains(['*', '&'])
+            && declarations.aggregates.iter().any(|aggregate| {
+                aggregate.name.as_deref() == Some(declaration.type_name.as_str())
+                    || aggregate.qualified_name == declaration.type_name
+            })
+    }) {
+        let base = canonical_catch_record_name(&declaration.type_name);
+        for declarator in &declaration.declarators {
+            if declarator_is_pointer_or_reference(index, declaration, declarator)
+            {
+                continue;
+            }
+            let Some(initializer) = declarator.initializer.as_ref() else {
+                continue;
+            };
+            let Some((start, end)) = token_range_for_source_range(index, initializer) else {
+                continue;
+            };
+            if initializer_is_pointer_or_reference_binding(index, start) {
+                continue;
+            }
+            let Some(source_at) = unwrapped_identifier_argument(index, start, end) else {
+                continue;
+            };
+            push_object_slicing_mismatch(
+                &mut findings,
+                index,
+                declarations,
+                source_at,
+                &base,
+            );
+        }
+    }
+
+    // The legacy operator-call hook observes `base = derived` separately from
+    // initialization.  Restrict the frontend to direct identifiers so the
+    // declared types are unambiguous without pretending to resolve arbitrary
+    // overloaded conversion operators.
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Assignment) {
+        if declarations.declarations.iter().any(|declaration| {
+            declaration.range.start <= fact.offset
+                && fact.offset < declaration.range.end
+                && declaration
+                    .declarators
+                    .iter()
+                    .any(|declarator| declarator.initializer.is_some())
+        }) {
+            continue;
+        }
+        let Some(equal_at) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if index.tokens.get(equal_at).is_none_or(|token| token.text != "=")
+            || equal_at == 0
+            || index.tokens.get(equal_at + 1).is_none()
+        {
+            continue;
+        }
+        let (left_at, right_at) = (equal_at - 1, equal_at + 1);
+        if index.tokens[left_at].kind != TokKind::Ident || index.tokens[right_at].kind != TokKind::Ident {
+            continue;
+        }
+        if identifier_was_declared_as_pointer_or_reference(index, left_at) {
+            continue;
+        }
+        let Some(base) = exact_operand_type(index, declarations, left_at) else {
+            continue;
+        };
+        if !declarations.aggregates.iter().any(|aggregate| {
+            aggregate.name.as_deref() == Some(base.as_str()) || aggregate.qualified_name == base
+        }) {
+            continue;
+        }
+        push_object_slicing_mismatch(
+            &mut findings,
+            index,
+            declarations,
+            right_at,
+            &canonical_catch_record_name(&base),
+        );
+    }
+    findings.sort_unstable_by_key(|mismatch| mismatch.offset);
+    findings.dedup_by_key(|mismatch| mismatch.offset);
+    findings
+}
+
+fn initializer_is_pointer_or_reference_binding(index: &CExpressionIndex, initializer_start: usize) -> bool {
+    let statement_start = (0..initializer_start)
+        .rev()
+        .find(|at| matches!(index.tokens[*at].text.as_str(), ";" | "{" | "}"))
+        .map_or(0, |at| at + 1);
+    index.tokens[statement_start..initializer_start]
+        .iter()
+        .any(|token| matches!(token.text.as_str(), "*" | "&" | "&&"))
+}
+
+fn identifier_was_declared_as_pointer_or_reference(
+    index: &CExpressionIndex,
+    identifier_at: usize,
+) -> bool {
+    let name = index.tokens[identifier_at].text.as_str();
+    let Some(declaration_at) = (0..identifier_at)
+        .rev()
+        .find(|at| index.tokens[*at].kind == TokKind::Ident && index.tokens[*at].text == name)
+    else {
+        return false;
+    };
+    let statement_start = (0..declaration_at)
+        .rev()
+        .find(|at| matches!(index.tokens[*at].text.as_str(), ";" | "{" | "}"))
+        .map_or(0, |at| at + 1);
+    index.tokens[statement_start..declaration_at]
+        .iter()
+        .any(|token| matches!(token.text.as_str(), "*" | "&" | "&&"))
+}
+
+fn declarator_is_pointer_or_reference(
+    index: &CExpressionIndex,
+    declaration: &uniflow_parser_core::c_declarations::CDeclaration,
+    declarator: &uniflow_parser_core::c_declarations::CDeclarator,
+) -> bool {
+    if declarator
+        .derived
+        .iter()
+        .any(|derived| matches!(derived, D::Pointer | D::Reference | D::RvalueReference))
+    {
+        return true;
+    }
+    let Some(name_range) = declarator.name_range.as_ref() else {
+        return false;
+    };
+    index.tokens.iter().any(|token| {
+        declaration.range.start <= token.start as usize
+            && (token.end as usize) <= name_range.start
+            && matches!(token.text.as_str(), "*" | "&" | "&&")
+    })
+}
+
+fn push_object_slicing_mismatch(
+    findings: &mut Vec<ObjectSlicingMismatch>,
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    source_at: usize,
+    base: &str,
+) {
+    let Some(derived) = exact_operand_type(index, declarations, source_at) else {
+        return;
+    };
+    let derived = canonical_catch_record_name(&derived);
+    if derived != base && record_type_is_derived_from(declarations, &derived, base) {
+        findings.push(ObjectSlicingMismatch {
+            offset: index.tokens[source_at].start as usize,
+            derived,
+            base: base.to_string(),
+        });
+    }
+}
+
+/// Frontend state model for `CopyWithoutResizeChecker`.  Only direct local
+/// vectors are tracked; aliases and non-local receivers are deliberately left
+/// to the unified value-flow layer rather than guessed from spelling.
+fn copy_without_vector_resize_offsets(index: &CExpressionIndex) -> Vec<usize> {
+    let mut sized = HashMap::<String, bool>::new();
+    let mut findings = Vec::new();
+    for at in 0..index.tokens.len() {
+        if index.tokens[at].text == "vector" {
+            if let Some(close_type) = ((at + 1)..index.tokens.len()).find(|next| index.tokens[*next].text == ">") {
+                if let Some(name) = index.tokens.get(close_type + 1).filter(|token| token.kind == TokKind::Ident) {
+                let initialized = index.tokens.get(close_type + 2).is_some_and(|token| matches!(token.text.as_str(), "(" | "{" | "="));
+                sized.entry(name.text.clone()).or_insert(initialized);
+                }
+            }
+        }
+        if index.tokens[at].text == "resize" && at >= 2 && index.tokens[at - 1].text == "." {
+            sized.insert(index.tokens[at - 2].text.clone(), true);
+        }
+        if index.tokens[at].text != "copy" || at < 2 || index.tokens[at - 1].text != "::" || index.tokens[at - 2].text != "std" { continue; }
+        let Some(close) = index.matching_token_index(at + 1) else { continue; };
+        let args = direct_call_argument_ranges(index, at + 1, close);
+        let Some((start, end)) = args.get(2).copied() else { continue; };
+        if end == start + 5 && index.tokens[start + 1].text == "." && index.tokens[start + 2].text == "begin" {
+            let name = &index.tokens[start].text;
+            if sized.get(name) == Some(&false) { findings.push(index.tokens[start].start as usize); }
+        }
+    }
+    findings.sort_unstable(); findings.dedup(); findings
+}
+
+fn constant_arithmetic_overflow_offsets(index: &CExpressionIndex) -> Vec<usize> {
+    index.facts.iter().filter(|fact| fact.kind == K::Binary).filter_map(|fact| {
+        let at = token_at_offset(index, fact.offset)?;
+        matches!(index.tokens[at].text.as_str(), "+" | "-" | "*" | "/" | "%").then(|| fact.offset)
+    }).filter(|offset| {
+        let at = token_at_offset(index, *offset).unwrap();
+        let left = at.checked_sub(1).and_then(|p| token_integer_value(&index.tokens[p]));
+        let right = index.tokens.get(at + 1).and_then(token_integer_value);
+        match (left, right, index.tokens[at].text.as_str()) {
+            (Some(a), Some(b), "+") => a.checked_add(b), (Some(a), Some(b), "-") => a.checked_sub(b),
+            (Some(a), Some(b), "*") => a.checked_mul(b), (Some(a), Some(b), "/") => a.checked_div(b),
+            (Some(a), Some(b), "%") => a.checked_rem(b), _ => None,
+        }.is_some_and(|value| value > i32::MAX as i128 || value < i32::MIN as i128)
+    }).collect()
+}
+
+fn multiple_related_nonconst_call_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else { continue; };
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) { continue; }
+        let Some((_, close)) = direct_call_expression(index, name_at) else { continue; };
+        let mut calls = Vec::new();
+        for (start, end) in direct_call_argument_ranges(index, name_at + 1, close) {
+            if end != start + 5 || index.tokens[start + 1].text != "." || index.tokens[start + 3].text != "(" || index.tokens[start + 4].text != ")" { continue; }
+            let method = &index.tokens[start + 2].text;
+            let known_nonconst = declarations.functions.iter().any(|function| {
+                matches!(function.context, CFunctionContext::Record { .. })
+                    && function.name == *method
+                    && !index.tokens.iter().any(|token| function.parameters.end <= token.start as usize && (token.end as usize) <= function.body.start && token.text == "const")
+            });
+            if known_nonconst { calls.push(index.tokens[start].start as usize); }
+        }
+        if calls.len() > 1 { offsets.push(calls[1]); }
+    }
+    offsets.sort_unstable(); offsets.dedup(); offsets
+}
+
+/// Reproduces the four direct expression entries visited by
+/// `UseUninitializedVariableChecker`: declaration initializers, return values,
+/// assignment right-hand sides, and unary dereference operands.  This remains
+/// deliberately narrower than a general use-def checker so frontend reports
+/// do not exceed the legacy checker's AST surface.
+fn direct_use_before_initialization_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for (function_id, function) in declarations.functions.iter().enumerate() {
+        for (at, token) in index.tokens.iter().enumerate() {
+            if token.kind != TokKind::Ident
+                || !(function.body.start <= token.start as usize && (token.end as usize) <= function.body.end)
+                || !direct_uninitialized_use_context(index, at)
+            {
+                continue;
+            }
+            if local_is_definitely_uninitialized_before(
+                index,
+                declarations,
+                function_id,
+                &token.text,
+                token.start as usize,
+            ) {
+                offsets.push(token.start as usize);
+            }
+        }
+    }
+    offsets.sort_unstable(); offsets.dedup(); offsets
+}
+
+fn direct_uninitialized_use_context(index: &CExpressionIndex, at: usize) -> bool {
+    if at > 0 && matches!(index.tokens[at - 1].text.as_str(), "return" | "*") {
+        return true;
+    }
+    let statement_start = (0..at)
+        .rev()
+        .find(|previous| matches!(index.tokens[*previous].text.as_str(), ";" | "{" | "}"))
+        .map_or(0, |previous| previous + 1);
+    index.tokens[statement_start..at]
+        .iter()
+        .any(|token| token.text == "=")
+}
+
+fn one_bit_signed_field_in_condition_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let one_bit_signed = declarations.declarations.iter().filter(|declaration| declaration.in_aggregate)
+        .filter(|declaration| is_signed_integer_type(&canonical_type_text(&declaration.type_name)))
+        .flat_map(|declaration| declaration.declarators.iter())
+        .filter_map(|declarator| {
+            let width = declarator.bit_width.as_ref()?;
+            let (start, end) = token_range_for_source_range(index, width)?;
+            (evaluate_c_constant_integer(&index.tokens[start..end]) == Some(1))
+                .then(|| declarator.name.clone()).flatten()
+        }).collect::<HashSet<_>>();
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Binary && index.inside_control_condition(fact.offset)) {
+        let Some(operator) = token_at_offset(index, fact.offset) else { continue; };
+        if !matches!(index.tokens[operator].text.as_str(), "+" | "-" | "*" | "/" | "%" | "<" | "<=" | ">" | ">=" | "==" | "!=") { continue; }
+        for operand in [operator.checked_sub(1), operator.checked_add(1)] {
+            let Some(operand) = operand.filter(|at| *at < index.tokens.len()) else { continue; };
+            if index.tokens[operand].kind == TokKind::Ident && one_bit_signed.contains(&index.tokens[operand].text) {
+                let is_member = operand > 0 && matches!(index.tokens[operand - 1].text.as_str(), "." | "->");
+                if is_member { offsets.push(index.tokens[operand].start as usize); }
+            }
+        }
+    }
+    offsets.sort_unstable(); offsets.dedup(); offsets
+}
+
+/// Mirrors the legacy checker’s intentionally narrow AST predicate: updating
+/// through a pointer is relevant only when the pointed-to record starts or
+/// ends with a bit-field.  In particular, a bit-field elsewhere in the record
+/// (or a pointer update without an explicit dereference) is not a finding.
+fn bitfield_record_pointer_update_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let edge_bitfield_records = declarations
+        .aggregates
+        .iter()
+        .filter(|aggregate| aggregate.kind == "struct" && !aggregate.qualified_name.is_empty())
+        .filter_map(|aggregate| {
+            let mut fields = declarations
+                .declarations
+                .iter()
+                .filter(|declaration| {
+                    declaration.in_aggregate
+                        && declaration.qualification.join("::") == aggregate.qualified_name
+                })
+                .flat_map(|declaration| declaration.declarators.iter())
+                .filter_map(|declarator| {
+                    declarator
+                        .name_range
+                        .as_ref()
+                        .map(|range| (range.start, declarator.bit_width.is_some()))
+                })
+                .collect::<Vec<_>>();
+            fields.sort_unstable_by_key(|(start, _)| *start);
+            fields
+                .first()
+                .zip(fields.last())
+                .filter(|(first, last)| first.1 || last.1)
+                .map(|_| aggregate.qualified_name.clone())
+        })
+        .collect::<HashSet<_>>();
+    if edge_bitfield_records.is_empty() {
+        return Vec::new();
+    }
+
+    let points_to_edge_bitfield_record = |identifier_at: usize| {
+        exact_operand_type(index, declarations, identifier_at)
+            .and_then(|ty| ty.strip_suffix('*').map(str::to_owned))
+            .is_some_and(|record| edge_bitfield_records.contains(&record))
+    };
+    let direct_dereference = |start: usize| -> Option<usize> {
+        (index.tokens.get(start)?.text == "*"
+            && index.tokens.get(start + 1)?.kind == TokKind::Ident)
+            .then_some(start + 1)
+    };
+    let parenthesized_dereference = |open: usize| -> Option<(usize, usize)> {
+        (index.tokens.get(open)?.text == "(").then_some(())?;
+        let close = index.matching_token_index(open)?;
+        (close == open + 3
+            && index.tokens.get(open + 1)?.text == "*"
+            && index.tokens.get(open + 2)?.kind == TokKind::Ident)
+            .then_some((open + 2, close))
+    };
+    let mut offsets = Vec::new();
+    for (at, token) in index.tokens.iter().enumerate() {
+        let update = matches!(token.text.as_str(), "++" | "--");
+        let compound = matches!(token.text.as_str(), "+=" | "-=");
+        if !update && !compound {
+            continue;
+        }
+        let operand = if compound {
+            direct_dereference(at.saturating_sub(2)).filter(|identifier| {
+                at >= 2 && at == identifier + 1
+            })
+        } else {
+            None
+        }
+        .or_else(|| {
+            if update {
+                direct_dereference(at + 1)
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
+            if update && at > 0 {
+                parenthesized_dereference(at.saturating_sub(4)).and_then(|(identifier, close)| {
+                    (close + 1 == at).then_some(identifier)
+                })
+            } else if compound && at >= 4 {
+                parenthesized_dereference(at - 4).and_then(|(identifier, close)| {
+                    (close + 1 == at).then_some(identifier)
+                })
+            } else {
+                None
+            }
+        });
+        if operand.is_some_and(points_to_edge_bitfield_record) {
+            offsets.push(token.start as usize);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn continue_statement_offsets(index: &CExpressionIndex) -> Vec<usize> {
+    index
+        .tokens
+        .windows(2)
+        .filter(|tokens| {
+            tokens[0].kind == TokKind::Ident
+                && tokens[0].text == "continue"
+                && tokens[1].text == ";"
+        })
+        .map(|tokens| tokens[0].start as usize)
         .collect()
 }
 
@@ -6695,6 +8202,182 @@ fn source_const_qualification(
     (base_const, pointer_const)
 }
 
+/// Returns the element/object qualifiers of a pointer, reference, or array
+/// declaration. The declaration parser canonicalizes types for matching, so
+/// this deliberately reads the original token spelling to retain CV details.
+fn source_element_cv_qualification(
+    index: &CExpressionIndex,
+    range: &std::ops::Range<usize>,
+    name: &str,
+    derived: &[D],
+) -> Option<(bool, bool)> {
+    if !derived
+        .iter()
+        .any(|item| matches!(item, D::Pointer | D::Reference | D::RvalueReference | D::Array { .. }))
+    {
+        return None;
+    }
+    let tokens = index
+        .tokens
+        .iter()
+        .enumerate()
+        .filter(|(_, token)| {
+            range.start <= token.start as usize && token.end as usize <= range.end
+        })
+        .collect::<Vec<_>>();
+    let name_at = tokens
+        .iter()
+        .rposition(|(_, token)| token.kind == TokKind::Ident && token.text == name)?;
+    let first_indirection = tokens[..name_at]
+        .iter()
+        .position(|(_, token)| matches!(token.text.as_str(), "*" | "**" | "&" | "&&"));
+    let before_indirection = |word: &str| {
+        tokens[..name_at].iter().enumerate().any(|(at, (_, token))| {
+            token.text == word && first_indirection.is_none_or(|indirection| at < indirection)
+        })
+    };
+    Some((before_indirection("const"), before_indirection("volatile")))
+}
+
+fn named_source_element_cv_qualification(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    source_at: usize,
+) -> Option<(bool, bool)> {
+    let token = index.tokens.get(source_at)?;
+    if token.kind != TokKind::Ident {
+        return None;
+    }
+    let name = token.text.as_str();
+    let position = token.start as usize;
+    if let Some(parameter) = declarations
+        .parameters
+        .iter()
+        .filter(|parameter| parameter.name.as_deref() == Some(name) && parameter.range.start <= position)
+        .max_by_key(|parameter| parameter.range.start)
+    {
+        return source_element_cv_qualification(
+            index,
+            &parameter.range,
+            name,
+            &parameter.derived,
+        );
+    }
+    declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.range.start <= position)
+        .filter_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .find(|declarator| declarator.name.as_deref() == Some(name))
+                .map(|declarator| (declaration, declarator))
+        })
+        .max_by_key(|(declaration, _)| declaration.range.start)
+        .and_then(|(declaration, declarator)| {
+            source_element_cv_qualification(
+                index,
+                &declaration.range,
+                name,
+                &declarator.derived,
+            )
+        })
+}
+
+fn cast_destination_element_cv(tokens: &[Token]) -> Option<(bool, bool)> {
+    let indirection = tokens
+        .iter()
+        .position(|token| matches!(token.text.as_str(), "*" | "**" | "&" | "&&"))?;
+    let has_before = |word: &str| tokens[..indirection].iter().any(|token| token.text == word);
+    Some((has_before("const"), has_before("volatile")))
+}
+
+fn cv_qualification_cast_drop_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let known_names = declarations
+        .aggregates
+        .iter()
+        .filter_map(|aggregate| aggregate.name.as_deref())
+        .chain(
+            declarations
+                .declarations
+                .iter()
+                .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+                .flat_map(|declaration| &declaration.declarators)
+                .filter_map(|declarator| declarator.name.as_deref()),
+        )
+        .collect::<HashSet<_>>();
+    let mut offsets = Vec::new();
+    let mut check = |offset: usize, destination_tokens: &[Token], source_at: usize| {
+        if cast_destination_type(destination_tokens, &known_names).is_none() {
+            return;
+        }
+        let (destination_const, destination_volatile) =
+            match cast_destination_element_cv(destination_tokens) {
+                Some(value) => value,
+                None => return,
+            };
+        let Some((source_const, source_volatile)) =
+            named_source_element_cv_qualification(index, declarations, source_at)
+        else {
+            return;
+        };
+        if source_const && !destination_const || source_volatile && !destination_volatile {
+            offsets.push(offset);
+        }
+    };
+    for open in 0..index.tokens.len() {
+        if index.tokens[open].text != "(" {
+            continue;
+        }
+        let Some(close) = index.matching_token_index(open) else {
+            continue;
+        };
+        let Some(source_at) = unwrap_right_operand(index, close + 1) else {
+            continue;
+        };
+        check(
+            index.tokens[open].start as usize,
+            &index.tokens[open + 1..close],
+            source_at,
+        );
+    }
+    for cast_at in 0..index.tokens.len() {
+        if !matches!(
+            index.tokens[cast_at].text.as_str(),
+            "static_cast" | "dynamic_cast" | "reinterpret_cast" | "const_cast"
+        ) || index.tokens.get(cast_at + 1).is_none_or(|token| token.text != "<")
+        {
+            continue;
+        }
+        let Some(type_end) = (cast_at + 2..index.tokens.len())
+            .find(|candidate| index.tokens[*candidate].text == ">")
+        else {
+            continue;
+        };
+        if index.tokens.get(type_end + 1).is_none_or(|token| token.text != "(") {
+            continue;
+        }
+        let Some(argument_end) = index.matching_token_index(type_end + 1) else {
+            continue;
+        };
+        if type_end + 3 != argument_end {
+            continue;
+        }
+        check(
+            index.tokens[cast_at].start as usize,
+            &index.tokens[cast_at + 2..type_end],
+            type_end + 2,
+        );
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
 fn source_range_contains_string_literal(
     index: &CExpressionIndex,
     range: &std::ops::Range<usize>,
@@ -8007,6 +9690,111 @@ fn redundant_void_cast_offsets(
         }
     }
     offsets
+}
+
+/// Mirrors the legacy AST visitor's direct `CallExpr` check. The checker only
+/// reports calls whose resolved declaration has a non-void return type and
+/// whose result is used as a standalone statement. Unknown declarations stay
+/// silent rather than turning an incomplete C declaration index into a false
+/// positive.
+fn unused_nonvoid_return_value_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) {
+            continue;
+        }
+        let Some((name, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        // The legacy visitor records a call only when it is the statement
+        // itself. This excludes assignments, arguments, conditions, and an
+        // explicit `(void)` cast without relying on source-line shape.
+        if index.tokens.get(close + 1).is_none_or(|token| token.text != ";")
+            || explicitly_discarded_with_void_cast(index, name_at)
+            || !call_result_is_standalone_statement(index, name_at)
+        {
+            continue;
+        }
+        let mut saw_candidate = false;
+        let mut saw_void_candidate = false;
+        for function in declarations.functions.iter().filter(|function| function.name == name) {
+            saw_candidate = true;
+            saw_void_candidate |= function.returns_void;
+        }
+        // CDeclarationIndex keeps prototypes separately from function bodies.
+        // A direct FunctionDecl in Clang can originate from either form; do
+        // not mistake a function-pointer variable for a named direct callee.
+        for (declaration, declarator) in declarations.declarations.iter().flat_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .map(move |declarator| (declaration, declarator))
+        }) {
+            if declarator.name.as_deref() != Some(name)
+                || !matches!(declarator.derived.first(), Some(D::Function { .. }))
+            {
+                continue;
+            }
+            saw_candidate = true;
+            saw_void_candidate |= canonical_type_text(&declaration.type_name) == "void";
+        }
+        if !saw_candidate || saw_void_candidate {
+            // Clang has a resolved FunctionDecl. If the pure-Rust declaration
+            // index cannot distinguish conflicting declarations, do not invent
+            // a report.
+            continue;
+        }
+        offsets.push(index.tokens[name_at].start as usize);
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn explicitly_discarded_with_void_cast(index: &CExpressionIndex, name_at: usize) -> bool {
+    name_at >= 3
+        && index.tokens[name_at - 3].text == "("
+        && index.tokens[name_at - 2].text == "void"
+        && index.tokens[name_at - 1].text == ")"
+}
+
+fn call_result_is_standalone_statement(index: &CExpressionIndex, name_at: usize) -> bool {
+    // Search the current statement prefix. A final semicolon alone is not
+    // sufficient: `int result = call();` and `return call();` have the same
+    // suffix but the CallExpr result is consumed.
+    for at in (0..name_at).rev() {
+        let token = &index.tokens[at];
+        if matches!(token.text.as_str(), ";" | "{" | "}") {
+            break;
+        }
+        if matches!(
+            token.text.as_str(),
+            "return"
+                | "co_return"
+                | "throw"
+                | "="
+                | "+="
+                | "-="
+                | "*="
+                | "/="
+                | "%="
+                | "<<="
+                | ">>="
+                | "&="
+                | "|="
+                | "^="
+        ) {
+            return false;
+        }
+    }
+    true
 }
 
 #[derive(Clone, Debug)]

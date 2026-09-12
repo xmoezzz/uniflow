@@ -239,11 +239,65 @@ impl JavaProjectIndex {
 
 pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
     let index = Arc::new(JavaProjectIndex::from_sources(entries));
-    let parser = JavaParser::default();
+    let worker_count = thread::available_parallelism()
+        .map(|count| count.get())
+        .unwrap_or(1)
+        .min(entries.len().max(1));
+
+    // `index` is only ever read (never mutated) once built, so parsing each
+    // file against it is independent; only the final merge must preserve
+    // file order.
+    let parsed = if worker_count <= 1 || entries.len() <= 1 {
+        entries
+            .iter()
+            .map(|(path, source)| {
+                JavaParser::default().parse_file_with_index(path, source, Some(Arc::clone(&index)))
+            })
+            .collect::<Result<Vec<_>>>()?
+    } else {
+        let chunk_size = entries.len().div_ceil(worker_count);
+        thread::scope(|scope| -> Result<Vec<Program>> {
+            let mut handles = Vec::with_capacity(worker_count);
+            for chunk in entries.chunks(chunk_size) {
+                let index = Arc::clone(&index);
+                // Deeply nested or generated source can drive parsing well
+                // past a default stack (this is why `main` itself runs on an
+                // oversized-stack thread — see `crates/cli/src/main.rs`), and
+                // scoped threads do NOT inherit their spawning thread's stack
+                // size, so it must be set explicitly here too.
+                handles.push(
+                    thread::Builder::new()
+                        .stack_size(1 << 28)
+                        .spawn_scoped(scope, move || -> Result<Vec<Program>> {
+                            chunk
+                                .iter()
+                                .map(|(path, source)| {
+                                    JavaParser::default().parse_file_with_index(
+                                        path,
+                                        source,
+                                        Some(Arc::clone(&index)),
+                                    )
+                                })
+                                .collect()
+                        })
+                        .expect("failed to spawn Java parser worker thread"),
+                );
+            }
+            let mut parsed = Vec::with_capacity(entries.len());
+            for handle in handles {
+                parsed.extend(
+                    handle
+                        .join()
+                        .map_err(|_| anyhow::anyhow!("Java parser worker panicked"))??,
+                );
+            }
+            Ok(parsed)
+        })?
+    };
+
     let mut project = uniflow_hir::ProgramMerger::new(Language::Java);
-    for (path, source) in entries {
-        let parsed = parser.parse_file_with_index(path, source, Some(Arc::clone(&index)))?;
-        project.merge(parsed);
+    for program in parsed {
+        project.merge(program);
     }
     Ok(project.finish())
 }

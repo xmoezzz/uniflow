@@ -68,6 +68,11 @@ pub enum CDeclarationCheck {
     LocalVariableShadowsGlobalVariable,
     ClassConversionOperator,
     DefaultArgumentInVirtualMethod,
+    NonVirtualConstMismatchWithVirtual,
+    HidingNonVirtualBaseMethod,
+    IncompleteVirtualOverloadSet,
+    RawPointerFieldWithoutCopyControl,
+    SensitiveCharArrayBeforePointer,
     StandardLibraryFunctionRedefinition,
     AllocationDeallocationScalarPair,
     AllocationDeallocationArrayPair,
@@ -1206,6 +1211,21 @@ impl CDeclarationCheck {
             Self::DefaultArgumentInVirtualMethod => {
                 offsets.extend(default_arguments_in_virtual_methods(index));
             }
+            Self::NonVirtualConstMismatchWithVirtual => {
+                offsets.extend(nonvirtual_const_mismatch_with_virtual_offsets(index));
+            }
+            Self::HidingNonVirtualBaseMethod => {
+                offsets.extend(hiding_nonvirtual_base_method_offsets(index));
+            }
+            Self::IncompleteVirtualOverloadSet => {
+                offsets.extend(incomplete_virtual_overload_set_offsets(index));
+            }
+            Self::RawPointerFieldWithoutCopyControl => {
+                offsets.extend(raw_pointer_field_without_copy_control_offsets(index));
+            }
+            Self::SensitiveCharArrayBeforePointer => {
+                offsets.extend(sensitive_char_array_before_pointer_offsets(index));
+            }
         }
         offsets.sort_unstable();
         offsets.dedup();
@@ -1508,9 +1528,12 @@ fn class_conversion_operator_offsets(index: &CDeclarationIndex) -> Vec<usize> {
 struct CppMethodInfo {
     owner: String,
     name: String,
+    offset: usize,
     parameters: std::ops::Range<usize>,
     signature: Vec<String>,
+    is_const: bool,
     direct_virtual: bool,
+    is_defaulted: bool,
     is_static: bool,
 }
 
@@ -1548,8 +1571,10 @@ fn cpp_method_infos(index: &CDeclarationIndex) -> Vec<CppMethodInfo> {
         methods.push(CppMethodInfo {
             owner: owner.to_string(),
             name: name.to_string(),
+            offset: function.range.start,
             parameters: function.parameters.clone(),
             signature: method_parameter_signature(index, function.parameters.clone()),
+            is_const: function.is_const,
             direct_virtual: range_has_word(
                 index,
                 function.range.start..function.body.start,
@@ -1564,6 +1589,7 @@ fn cpp_method_infos(index: &CDeclarationIndex) -> Vec<CppMethodInfo> {
                 function.range.start..function.body.start,
                 "static",
             ),
+            is_defaulted: false,
         });
     }
     for declaration in index
@@ -1585,11 +1611,17 @@ fn cpp_method_infos(index: &CDeclarationIndex) -> Vec<CppMethodInfo> {
             methods.push(CppMethodInfo {
                 owner: owner.clone(),
                 name: name.clone(),
+                offset: declaration.range.start,
                 parameters: parameters.clone(),
                 signature: method_parameter_signature(index, parameters.clone()),
+                is_const: declarator
+                    .trailing_qualifiers
+                    .iter()
+                    .any(|qualifier| qualifier == "const"),
                 direct_virtual: range_has_word(index, declaration.range.clone(), "virtual")
                     || range_has_word(index, declaration.range.clone(), "override"),
                 is_static: declaration.storage.iter().any(|item| item == "static"),
+                is_defaulted: range_has_word(index, declaration.range.clone(), "default"),
             });
         }
     }
@@ -1652,6 +1684,7 @@ fn method_is_virtual(
             candidate.owner == base_name
                 && candidate.name == method.name
                 && candidate.signature == method.signature
+                && candidate.is_const == method.is_const
         }) {
             if method_is_virtual(base_method, methods, aggregates, visiting) {
                 return true;
@@ -1659,6 +1692,314 @@ fn method_is_virtual(
         }
     }
     false
+}
+
+/// Finds non-virtual methods that differ only by trailing `const` from a
+/// virtual method declared by the same class or one of its bases. Such a
+/// method hides the virtual slot instead of overriding it; this mirrors the
+/// legacy Clang checker, including its bounded base-class traversal.
+fn nonvirtual_const_mismatch_with_virtual_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let methods = cpp_method_infos(index);
+    let aggregates = index
+        .aggregates
+        .iter()
+        .filter(|aggregate| matches!(aggregate.kind.as_str(), "class" | "struct"))
+        .filter(|aggregate| !aggregate.qualified_name.is_empty())
+        .map(|aggregate| (aggregate.qualified_name.as_str(), aggregate))
+        .collect::<HashMap<_, _>>();
+    methods
+        .iter()
+        .filter(|method| !method.direct_virtual)
+        .filter(|method| {
+            !method_is_virtual(method, &methods, &aggregates, &mut HashSet::new())
+                && record_or_base_has_opposite_const_virtual(
+                    &method.owner,
+                    method,
+                    &methods,
+                    &aggregates,
+                    &mut HashSet::new(),
+                    10,
+                )
+        })
+        .map(|method| method.offset)
+        .collect()
+}
+
+/// Matches the legacy record-declaration checker: a non-virtual method in a
+/// class may hide any same-named non-virtual, non-defaulted method in a direct
+/// base class, regardless of overload signature. Findings intentionally point
+/// to the hidden base declaration, as Clang's checker does.
+fn hiding_nonvirtual_base_method_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let methods = cpp_method_infos(index);
+    let aggregates = index
+        .aggregates
+        .iter()
+        .filter(|aggregate| matches!(aggregate.kind.as_str(), "class" | "struct"))
+        .filter(|aggregate| !aggregate.qualified_name.is_empty())
+        .map(|aggregate| (aggregate.qualified_name.as_str(), aggregate))
+        .collect::<HashMap<_, _>>();
+    let mut offsets = Vec::new();
+    for derived in aggregates.values().filter(|aggregate| aggregate.kind == "class") {
+        for base in &derived.bases {
+            let base_name = aggregates
+                .keys()
+                .find(|candidate| **candidate == base || candidate.ends_with(&format!("::{base}")))
+                .copied()
+                .unwrap_or(base.as_str());
+            for method in methods.iter().filter(|method| method.owner == derived.qualified_name) {
+                if method_is_virtual(method, &methods, &aggregates, &mut HashSet::new()) {
+                    continue;
+                }
+                offsets.extend(
+                    methods
+                        .iter()
+                        .filter(|candidate| {
+                            candidate.owner == base_name
+                                && candidate.name == method.name
+                                && !candidate.is_defaulted
+                                && !method_is_virtual(
+                                    candidate,
+                                    &methods,
+                                    &aggregates,
+                                    &mut HashSet::new(),
+                                )
+                        })
+                        .map(|candidate| candidate.offset),
+                );
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+/// When a derived class overrides one overload of a virtual base method, it
+/// should override every overload under that name. The legacy checker scopes
+/// this to direct bases and reports each omitted base declaration.
+fn incomplete_virtual_overload_set_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let methods = cpp_method_infos(index);
+    let aggregates = index
+        .aggregates
+        .iter()
+        .filter(|aggregate| matches!(aggregate.kind.as_str(), "class" | "struct"))
+        .filter(|aggregate| !aggregate.qualified_name.is_empty())
+        .map(|aggregate| (aggregate.qualified_name.as_str(), aggregate))
+        .collect::<HashMap<_, _>>();
+    let mut offsets = Vec::new();
+    for derived in aggregates.values().filter(|aggregate| aggregate.kind == "class") {
+        let derived_methods = methods
+            .iter()
+            .filter(|method| method.owner == derived.qualified_name)
+            .collect::<Vec<_>>();
+        for base in &derived.bases {
+            let base_name = aggregates
+                .keys()
+                .find(|candidate| **candidate == base || candidate.ends_with(&format!("::{base}")))
+                .copied()
+                .unwrap_or(base.as_str());
+            for name in derived_methods
+                .iter()
+                .filter(|method| method_is_virtual(method, &methods, &aggregates, &mut HashSet::new()))
+                .map(|method| method.name.as_str())
+                .collect::<HashSet<_>>()
+            {
+                let implemented = derived_methods
+                    .iter()
+                    .filter(|method| method.name == name)
+                    .filter(|method| method_is_virtual(method, &methods, &aggregates, &mut HashSet::new()))
+                    .map(|method| (method.signature.clone(), method.is_const))
+                    .collect::<HashSet<_>>();
+                offsets.extend(
+                    methods
+                        .iter()
+                        .filter(|method| method.owner == base_name && method.name == name)
+                        .filter(|method| !implemented.contains(&(method.signature.clone(), method.is_const)))
+                        .map(|method| method.offset),
+                );
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+/// A class with a direct raw-pointer field needs user-declared copy control.
+/// Constructors are not ordinary C declarators, so recognize only the narrow
+/// copy-control spellings in the record body rather than guessing from calls.
+fn raw_pointer_field_without_copy_control_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for record in index
+        .aggregates
+        .iter()
+        .filter(|aggregate| matches!(aggregate.kind.as_str(), "class" | "struct"))
+        .filter(|aggregate| !aggregate.qualified_name.is_empty())
+    {
+        let has_raw_pointer_field = index.declarations.iter().any(|declaration| {
+            declaration.in_aggregate
+                && declaration.qualification.join("::") == record.qualified_name
+                && declaration.declarators.iter().any(|declarator| {
+                    declarator.derived.iter().any(|item| matches!(item, D::Pointer))
+                        && !declarator
+                            .derived
+                            .iter()
+                            .any(|item| matches!(item, D::Function { .. }))
+                })
+        });
+        if !has_raw_pointer_field {
+            continue;
+        }
+        let Some(class_name) = record.name.as_deref() else {
+            continue;
+        };
+        let tokens = record
+            .body
+            .as_ref()
+            .map(|body| index.tokens_in(body.clone()).collect::<Vec<_>>())
+            .unwrap_or_default();
+        let mut has_copy_constructor = false;
+        let mut has_copy_assignment = false;
+        for at in 0..tokens.len().saturating_sub(1) {
+            if tokens[at].text == class_name && tokens[at + 1].text == "(" {
+                if let Some(close) = matching_parenthesis_in_tokens(&tokens, at + 1) {
+                    has_copy_constructor |= copy_control_parameter(&tokens[at + 2..close], class_name);
+                }
+            }
+            if tokens[at].text == "operator"
+                && tokens.get(at + 1).is_some_and(|token| token.text == "=")
+                && tokens.get(at + 2).is_some_and(|token| token.text == "(")
+            {
+                if let Some(close) = matching_parenthesis_in_tokens(&tokens, at + 2) {
+                    has_copy_assignment |= copy_control_parameter(&tokens[at + 3..close], class_name);
+                }
+            }
+        }
+        if !has_copy_constructor && !has_copy_assignment {
+            offsets.push(record.range.start);
+        }
+    }
+    offsets
+}
+
+/// Mirrors the legacy record-field order check: once a character array has
+/// appeared in a record, a subsequent pointer may place sensitive pointer data
+/// after a string buffer in memory. The finding is attached to that buffer.
+fn sensitive_char_array_before_pointer_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for record in index.aggregates.iter().filter(|aggregate| aggregate.body.is_some()) {
+        let mut latest_char_array = None;
+        let mut fields = index
+            .declarations
+            .iter()
+            .filter(|declaration| {
+                declaration.in_aggregate
+                    && declaration.qualification.join("::") == record.qualified_name
+            })
+            .flat_map(|declaration| {
+                declaration
+                    .declarators
+                    .iter()
+                    .map(move |declarator| (declaration, declarator))
+            })
+            .collect::<Vec<_>>();
+        fields.sort_by_key(|(declaration, declarator)| {
+            declarator.name_range.as_ref().map_or(declaration.range.start, |range| range.start)
+        });
+        for (declaration, declarator) in fields {
+            let is_array = declarator
+                .derived
+                .iter()
+                .any(|item| matches!(item, D::Array { .. }));
+            if is_array && character_array_type(&declaration.type_name) {
+                latest_char_array = Some(declaration.range.start);
+            }
+            if declarator
+                .derived
+                .iter()
+                .any(|item| matches!(item, D::Pointer))
+            {
+                if let Some(offset) = latest_char_array {
+                    offsets.push(offset);
+                }
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn character_array_type(type_name: &str) -> bool {
+    matches!(
+        type_name.split_whitespace().collect::<String>().as_str(),
+        "char" | "signedchar" | "unsignedchar" | "wchar_t" | "char8_t" | "char16_t" | "char32_t"
+    )
+}
+
+fn matching_parenthesis_in_tokens(tokens: &[&uniflow_parser_core::Token], open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for (at, token) in tokens.iter().enumerate().skip(open) {
+        match token.text.as_str() {
+            "(" => depth += 1,
+            ")" => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(at);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn copy_control_parameter(tokens: &[&uniflow_parser_core::Token], class_name: &str) -> bool {
+    tokens.windows(2).any(|pair| {
+        pair[0].kind == TokKind::Ident
+            && pair[0].text == class_name
+            && pair[1].text == "&"
+    })
+}
+
+fn record_or_base_has_opposite_const_virtual(
+    owner: &str,
+    method: &CppMethodInfo,
+    methods: &[CppMethodInfo],
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+    visiting: &mut HashSet<String>,
+    remaining: usize,
+) -> bool {
+    if remaining == 0 || !visiting.insert(owner.to_string()) {
+        return false;
+    }
+    if methods.iter().any(|candidate| {
+        candidate.owner == owner
+            && candidate.name == method.name
+            && candidate.signature == method.signature
+            && candidate.is_const != method.is_const
+            && method_is_virtual(candidate, methods, aggregates, &mut HashSet::new())
+    }) {
+        return true;
+    }
+    let Some(record) = aggregates.get(owner) else {
+        return false;
+    };
+    record.bases.iter().any(|base| {
+        let base_name = aggregates
+            .keys()
+            .find(|candidate| **candidate == base || candidate.ends_with(&format!("::{base}")))
+            .copied()
+            .unwrap_or(base.as_str());
+        record_or_base_has_opposite_const_virtual(
+            base_name,
+            method,
+            methods,
+            aggregates,
+            visiting,
+            remaining - 1,
+        )
+    })
 }
 
 fn default_argument_offset(
