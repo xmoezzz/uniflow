@@ -57,6 +57,44 @@ struct PyProjectIndex {
     module_imports: Arc<HashMap<String, PyImports>>,
 }
 
+/// Independent syntax-only facts for one Python module.  The project index
+/// still merges these in source order because qualification and import effects
+/// are order-sensitive, but obtaining the facts does not consult any shared
+/// project state and is therefore safe to fan out across every CPU.
+struct CollectedPythonModule<'a> {
+    source: &'a str,
+    module_name: String,
+    imports: PyImports,
+    exports_all: HashSet<String>,
+    classes: Vec<(PyClassText, Vec<PyFunctionText>)>,
+    top_functions: Vec<PyFunctionText>,
+}
+
+fn collect_python_module_declarations<'a>(path: &'a str, source: &'a str) -> CollectedPythonModule<'a> {
+    let module_name = python_module_name_from_path(path);
+    let is_package = path.ends_with("/__init__.py") || path == "__init__.py";
+    let imports = parse_imports_shallow_for_module_kind(source, &module_name, is_package);
+    let classes = extract_classes(source)
+        .into_iter()
+        .map(|class| {
+            let methods = extract_functions_at_indent(
+                &class.body,
+                class.indent + 4,
+                class.start_line + 1,
+            );
+            (class, methods)
+        })
+        .collect();
+    CollectedPythonModule {
+        source,
+        module_name,
+        imports,
+        exports_all: parse_module_exports_all(source),
+        classes,
+        top_functions: extract_functions_at_indent(source, 0, 1),
+    }
+}
+
 impl PyProjectIndex {
     fn build(entries: &[(String, String)]) -> Self {
         let mut index = Self::default();
@@ -73,15 +111,52 @@ impl PyProjectIndex {
             entries.len()
         );
         let collection_step = (entries.len() / 20).max(200);
-        for (entry_index, (path, source)) in entries.iter().enumerate() {
-            if (entry_index + 1) % collection_step == 0 || entry_index + 1 == entries.len() {
+        let available_collection_workers = thread::available_parallelism()
+            .map(|count| count.get())
+            .unwrap_or(1)
+            .max(1);
+        let collection_workers = std::env::var("UNIFLOW_PY_INDEX_WORKERS")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|count| *count > 0)
+            .unwrap_or(available_collection_workers)
+            .min(available_collection_workers)
+            .min(entries.len().max(1));
+        // Bound the temporary declaration material. A whole-project
+        // `par_iter().collect()` would recover CPU parallelism but retain every
+        // class body twice before the ordered index merger consumes it.
+        let collection_batch = collection_workers.saturating_mul(2).max(1);
+        let mut collected_count = 0usize;
+        let collection_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(collection_workers)
+            .stack_size(PYTHON_ANALYSIS_STACK_SIZE)
+            .thread_name(|index| format!("uniflow-py-collect-{index}"))
+            .build()
+            .expect("failed to build Python declaration collection worker pool");
+        for batch in entries.chunks(collection_batch) {
+            let modules = collection_pool.install(|| {
+                batch
+                    .par_iter()
+                    .map(|(path, source)| collect_python_module_declarations(path, source))
+                    .collect::<Vec<_>>()
+            });
+            for module in modules {
+            collected_count += 1;
+            if collected_count % collection_step == 0 || collected_count == entries.len() {
                 eprintln!(
                     "uniflow: indexing Python project — collected {}/{} files",
-                    entry_index + 1,
+                    collected_count,
                     entries.len()
                 );
             }
-            let module_name = python_module_name_from_path(path);
+            let CollectedPythonModule {
+                source,
+                module_name,
+                imports,
+                exports_all,
+                classes,
+                top_functions,
+            } = module;
             Arc::make_mut(&mut index.modules).insert(module_name.clone());
             if let Some((parent, leaf)) = module_name.rsplit_once('.') {
                 Arc::make_mut(&mut index.modules_by_parent)
@@ -89,9 +164,6 @@ impl PyProjectIndex {
                     .or_default()
                     .insert(leaf.to_string());
             }
-            let is_package = path.ends_with("/__init__.py") || path == "__init__.py";
-            let imports = parse_imports_shallow_for_module_kind(source, &module_name, is_package);
-            let exports_all = parse_module_exports_all(source);
             if !exports_all.is_empty() {
                 Arc::make_mut(&mut index.module_exports_all).insert(module_name.clone(), exports_all);
             }
@@ -101,7 +173,7 @@ impl PyProjectIndex {
             // large Python repositories previously held the input entries,
             // their preprocessing buffers, and this third full-source copy at
             // the same time.
-            module_entries.push((module_name.clone(), imports.clone(), source.as_str()));
+            module_entries.push((module_name.clone(), imports.clone(), source));
             if !imports.aliases.is_empty() {
                 Arc::make_mut(&mut index.module_reexports)
                     .entry(module_name.clone())
@@ -114,7 +186,7 @@ impl PyProjectIndex {
                     .or_default()
                     .extend(imports.wildcard_bases.clone());
             }
-            for class in extract_classes(source) {
+            for (class, methods) in classes {
                 let qualified = format!("{module_name}.{}", class.name);
                 Arc::make_mut(&mut index.classes_by_simple)
                     .entry(class.name.clone())
@@ -150,7 +222,6 @@ impl PyProjectIndex {
                 if is_protocol {
                     Arc::make_mut(&mut index.protocol_classes).insert(qualified.clone());
                 }
-                let methods = extract_functions_at_indent(&class.body, class.indent + 4, class.start_line + 1);
                 for method in &methods {
                     method_texts.insert(format!("{qualified}.{}", method.name), method.clone());
                 }
@@ -199,7 +270,7 @@ impl PyProjectIndex {
                     _ => {}
                 }
             }
-            for func in extract_functions_at_indent(source, 0, 1) {
+            for func in top_functions {
                 let qualified = format!("{module_name}.{}", func.name);
                 top_level_functions.insert(qualified.clone(), func.clone());
                 Arc::make_mut(&mut index.functions_by_simple)
@@ -213,6 +284,11 @@ impl PyProjectIndex {
                 top_level_entries.push((module_name.clone(), imports.clone(), func, qualified));
             }
         }
+        }
+        // The inference pool below has the same large worker-stack budget.
+        // Release the collection workers before creating it so a large scan
+        // never reserves two full pools at once.
+        drop(collection_pool);
         index.top_level_functions = Arc::new(top_level_functions);
         index.method_texts = Arc::new(method_texts);
         index.known_class_names = Arc::new(

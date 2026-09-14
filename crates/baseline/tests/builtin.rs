@@ -1,4 +1,5 @@
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::path::Path;
 use uniflow_baseline::{
     builtin_security_pack, bundled_c_ast_rules, bundled_csharp_ast_rules, bundled_java_ast_rules,
@@ -6,6 +7,7 @@ use uniflow_baseline::{
     bundled_semgrep_rules, bundled_sql_rules,
 };
 use uniflow_hir::Language;
+use uniflow_lang_frontends::parse_file;
 
 #[derive(serde::Deserialize)]
 struct Manifest {
@@ -47,6 +49,52 @@ fn detects_c_gets() {
 }
 
 #[test]
+fn migrated_swift_semgrep_rules_execute_with_positive_and_negative_cases() {
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let cases = [
+        (
+            "insecure-random",
+            "let value = arc4random()\n",
+            "let value = SecRandomCopyBytes(kSecRandomDefault, 8, &buffer)\n",
+        ),
+        (
+            "swift-user-defaults",
+            "UserDefaults.standard.set(secretToken, forKey: \"theme\")\n",
+            "UserDefaults.standard.set(theme, forKey: \"appearance\")\n",
+        ),
+        (
+            "swift-potential-sqlite-injection",
+            "let query = \"select * from users where name='\" + user + \"'\"\nsqlite3_exec(db, query, nil, nil, nil)\n",
+            "sqlite3_exec(db, \"select * from users\", nil, nil, nil)\n",
+        ),
+        (
+            "swift-webview-config-allows-js-open-windows",
+            "prefs.javaScriptCanOpenWindowsAutomatically = true\n",
+            "prefs.javaScriptCanOpenWindowsAutomatically = false\n",
+        ),
+    ];
+
+    for (rule_id, positive, negative) in cases {
+        let findings_for = |source: &str| {
+            let program = parse_file(Language::Swift, "sample.swift", source)
+                .expect("Swift fixture must parse");
+            let sources = HashMap::from([("sample.swift".to_string(), source.to_string())]);
+            pack.scan_hir(&program, &sources)
+        };
+        let positive_findings = findings_for(positive);
+        assert!(
+            positive_findings.iter().any(|finding| finding.rule_id == rule_id),
+            "{rule_id} missed positive fixture: {positive_findings:#?}"
+        );
+        let negative_findings = findings_for(negative);
+        assert!(
+            !negative_findings.iter().any(|finding| finding.rule_id == rule_id),
+            "{rule_id} reported negative fixture: {negative_findings:#?}"
+        );
+    }
+}
+
+#[test]
 fn native_dataflow_rule_metadata_is_bundled_without_frontend_execution() {
     let pack = builtin_security_pack().expect("built-in pack must load");
     let rule = pack
@@ -76,6 +124,55 @@ fn native_dataflow_rule_metadata_is_bundled_without_frontend_execution() {
             .iter()
             .all(|finding| finding.rule_id != "ANZU-POINTER-MUST-BE-NULL-AFTER-FREE"),
         "native dataflow rules must not be duplicated by the baseline frontend"
+    );
+}
+
+#[test]
+fn malloc_free_dataflow_rule_metadata_is_bundled_without_frontend_execution() {
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let rule = pack
+        .rules
+        .iter()
+        .find(|rule| rule.id == "ANZU-MALLOC-FREE")
+        .expect("malloc/free metadata must be bundled");
+    assert!(rule.matcher.native_dataflow);
+    assert_eq!(rule.standards, ["0701000010130053"]);
+    assert_eq!(rule.localized_message("en"), "Pointer must be allocated by malloc or calloc");
+    assert_eq!(
+        rule.localized_message("zh-CN"),
+        "指针必须由malloc或calloc分配"
+    );
+
+    let findings = pack.scan_text(
+        &Language::C,
+        Path::new("malloc_free.c"),
+        "void run(int *p) { free(p); }\n",
+    );
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.rule_id != "ANZU-MALLOC-FREE"),
+        "the bundled frontend must leave the path-sensitive rule to value flow"
+    );
+}
+
+#[test]
+fn dynamic_alloc_pointer_use_metadata_is_bundled_without_frontend_execution() {
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let rule = pack
+        .rules
+        .iter()
+        .find(|rule| rule.id == "ANZU-DYNAMIC-ALLOC-POINTER-USE")
+        .expect("dynamic-allocation metadata must be bundled");
+    assert!(rule.matcher.native_dataflow);
+    assert_eq!(rule.standards, ["0701000010130027", "0101000010110338"]);
+    assert_eq!(
+        rule.localized_message("en"),
+        "Dynamically allocated pointer must be checked for NULL before use."
+    );
+    assert_eq!(
+        rule.localized_message("zh-CN"),
+        "动态指针在使用前必须检查是否为NULL。"
     );
 }
 

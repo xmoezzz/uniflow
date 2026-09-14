@@ -10,17 +10,33 @@ pub fn parse_project_sources_with_progress(
     entries: &[(String, String)],
     on_module_parsed: &(dyn Fn() + Sync),
 ) -> Result<Program> {
-    let index = Arc::new(PyProjectIndex::build(entries));
+    // The public borrowed API cannot consume its caller's source buffers.
+    // Preserve that contract, while file-backed callers use the owned API
+    // below to release every module's text as soon as it has been parsed.
+    parse_project_owned_sources_with_progress(entries.to_vec(), on_module_parsed)
+}
+
+/// Owned counterpart to [`parse_project_sources_with_progress`].  The index
+/// needs to inspect all modules first, but after that each source buffer is
+/// moved out of the queue by exactly one parser worker and dropped immediately
+/// after its HIR has been produced.  This avoids retaining an entire large
+/// repository's text alongside the growing merged HIR.
+pub fn parse_project_owned_sources_with_progress(
+    entries: Vec<(String, String)>,
+    on_module_parsed: &(dyn Fn() + Sync),
+) -> Result<Program> {
+    let index = Arc::new(PyProjectIndex::build(&entries));
+    let entry_count = entries.len();
     let worker_count = thread::available_parallelism()
         .map(|count| count.get())
         .unwrap_or(1)
-        .min(entries.len().max(1));
+        .min(entry_count.max(1));
 
     // Each module only reads the shared base `index` (never a prior module's
     // mutated copy), so per-module parsing is independent and safe to run
     // concurrently; only the final merge below must preserve file order.
     let mut project = uniflow_hir::ProgramMerger::new(Language::Python);
-    if worker_count <= 1 || entries.len() <= 1 {
+    if worker_count <= 1 || entry_count <= 1 {
         // A one-file project still needs the same enlarged stack as parallel
         // workers. Running it directly on the caller thread made a deep file
         // abort despite the index pool itself being configured correctly.
@@ -31,9 +47,11 @@ pub fn parse_project_sources_with_progress(
                 .stack_size(PYTHON_ANALYSIS_STACK_SIZE)
                 .spawn_scoped(scope, move || {
                     for (path, source) in entries {
-                            let parsed = parse_python_module(&index, path, source)?;
-                            on_module_parsed();
-                            project.merge(parsed);
+                        let parsed = parse_python_module(&index, &path, &source)?;
+                        // `source` is released before the next module is
+                        // parsed; the merger owns only HIR, not raw text.
+                        on_module_parsed();
+                        project.merge(parsed);
                     }
                     Ok(())
                 })
@@ -45,18 +63,24 @@ pub fn parse_project_sources_with_progress(
     } else {
         let next_entry = std::sync::atomic::AtomicUsize::new(0);
         let completed_entries = std::sync::atomic::AtomicUsize::new(0);
-        let progress_step = (entries.len() / 100).max(1);
+        let progress_step = (entry_count / 100).max(1);
         // Keep only a small, bounded set of module HIRs live. The previous
         // design retained one full Program per source file, then merged all
         // of them at the end. Large Python projects therefore held both the
         // complete per-file HIR collection and the eventual project HIR at
         // once. Merge in source order as worker results arrive instead.
+        let entries = Mutex::new(entries.into_iter().map(Some).collect::<Vec<_>>());
         thread::scope(|scope| -> Result<()> {
+            // Taking a module out under this short lock moves its source text
+            // to one worker. Parsing itself never holds the lock, so all CPU
+            // workers remain independent while completed source buffers are
+            // reclaimed instead of staying in the project-wide Vec.
             let queue_bound = worker_count.saturating_mul(2).max(1);
             let (sender, receiver) = std::sync::mpsc::sync_channel(queue_bound);
             let mut handles = Vec::with_capacity(worker_count);
             for _ in 0..worker_count {
                 let index = Arc::clone(&index);
+                let entries = &entries;
                 let next_entry = &next_entry;
                 let completed_entries = &completed_entries;
                 let sender = sender.clone();
@@ -71,14 +95,22 @@ pub fn parse_project_sources_with_progress(
                         .spawn_scoped(scope, move || -> Result<()> {
                             loop {
                                 let entry = next_entry.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                                let Some((path, source)) = entries.get(entry) else { break; };
-                                let parsed = parse_python_module(&index, path, source)?;
+                                if entry >= entry_count {
+                                    break;
+                                }
+                                let (path, source) = entries
+                                    .lock()
+                                    .expect("Python source queue lock poisoned")
+                                    .get_mut(entry)
+                                    .and_then(Option::take)
+                                    .expect("each Python source entry is claimed exactly once");
+                                let parsed = parse_python_module(&index, &path, &source)?;
                                 sender.send((entry, parsed))
                                     .map_err(|_| anyhow::anyhow!("Python project parser receiver stopped early"))?;
                                 on_module_parsed();
                                 let completed = completed_entries.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-                                if completed % progress_step == 0 || completed == entries.len() {
-                                    eprintln!("uniflow: parsing Python modules {}/{}", completed, entries.len());
+                                if completed % progress_step == 0 || completed == entry_count {
+                                    eprintln!("uniflow: parsing Python modules {}/{}", completed, entry_count);
                                 }
                             }
                             Ok(())
@@ -86,9 +118,14 @@ pub fn parse_project_sources_with_progress(
                         .expect("failed to spawn Python parser worker thread"),
                 );
             }
+            // The parent must not keep a sender alive. If a worker reports a
+            // parse error and every worker exits, `recv` needs to observe the
+            // closed channel immediately instead of waiting forever for a
+            // result that can no longer be produced.
+            drop(sender);
             let mut next_to_merge = 0usize;
             let mut pending = BTreeMap::new();
-            for _ in 0..entries.len() {
+            for _ in 0..entry_count {
                 let (entry, parsed) = receiver
                     .recv()
                     .map_err(|_| anyhow::anyhow!("Python project parser stopped before producing every module"))?;
@@ -109,16 +146,14 @@ pub fn parse_project_sources_with_progress(
     Ok(project.finish())
 }
 
-// Python executes imported modules before the importing module's function
-// bodies become callable.  Use a per-module index snapshot so recursive
-// import side effects are visible while preserving the source-order
-// snapshots stored for other modules.
+// `PyProjectIndex::build` has already materialized recursive import effects
+// before this independent module phase starts.  Sharing that immutable index
+// is essential on large projects: cloning it here for every module can force
+// copy-on-write duplication of the full module/class binding tables whenever
+// an import effect is revisited.  The final index is the same semantic view
+// every parser worker needs, and no parser mutates it.
 fn parse_python_module(index: &Arc<PyProjectIndex>, path: &str, source: &str) -> Result<Program> {
-    let module_name = python_module_name_from_path(path);
-    let mut effective_index = (**index).clone();
-    effective_index.apply_imported_module_effects(&module_name, &mut HashSet::new());
-    let effective_index = Arc::new(effective_index);
-    parse_python_file(path, source, Some(&effective_index))
+    parse_python_file(path, source, Some(index))
 }
 
 impl SourceParser for PythonParser {

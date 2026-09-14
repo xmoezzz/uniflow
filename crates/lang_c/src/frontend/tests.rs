@@ -134,6 +134,37 @@ int run(void) {
     }
 
     #[test]
+    fn preserves_malloc_and_calloc_callee_identity_for_dataflow_models() {
+        let src = r#"
+int run(void) {
+  void *first = malloc(64);
+  void *second = calloc(2, 32);
+  free(first);
+  free(second);
+  return 0;
+}
+"#;
+        let program = CParser.parse_file("allocators.c", src).expect("parse allocators");
+        let run = function_named(&program, "run");
+        let names = run
+            .body
+            .stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Let {
+                    init: Some(Expr::Call(call)),
+                    ..
+                } => match &call.target {
+                    uniflow_hir::CallTarget::Named(name) => Some(name.as_str()),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["malloc", "calloc"]);
+    }
+
+    #[test]
     fn propagates_pointer_alias_assignment_starter() {
         let src = r#"
 int main(void) {

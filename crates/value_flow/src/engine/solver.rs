@@ -2298,7 +2298,22 @@ fn materialize_sparse_taint_adjacency(fg: &mut FlowGraph) {
     fg.region_live_cells.clear();
     fg.region_graph_successors.clear();
     fg.region_graph_predecessors.clear();
-    materialize_sparse_data_adjacency_lightweight(fg);
+    // Do not copy the direct graph into the sparse successor/predecessor
+    // tables for a bounded taint scan.  A project graph already owns every
+    // direct edge in `DiGraph`; duplicating it into two HashMap<Vec<_>>
+    // indexes is both serial and roughly triples the edge storage.  On a
+    // multi-million-node repository that temporary overlay alone can exceed
+    // the memory budget before the first source-to-sink query runs.
+    //
+    // Leaving `sparse_adjacency_materialized` false deliberately selects the
+    // existing on-demand raw-graph path in `sparse_{successors,predecessors}`.
+    // The bounded scan uses the Sparse demand engine (see
+    // `recommended_demand_engine`), so it visits only the query slice and
+    // never asks the fixpoint engine to create a whole-graph SCC index.
+    fg.sparse_adjacency_materialized = false;
+    fg.sparse_successors.clear();
+    fg.sparse_predecessors.clear();
+    fg.identity_neighbors.clear();
     fg.clear_sparse_caches();
 }
 

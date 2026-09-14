@@ -18,6 +18,7 @@ use uniflow_hir::{Language, Program, ProgramMerger};
 // It also includes ScriptEngine/XPath/DocumentBuilder and NIO Path signatures.
 // v5 added Java prefix/postfix updates, including expression-position writes.
 const CACHE_VERSION: u32 = 8;
+const MIXED_CACHE_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CachedUnit {
@@ -38,6 +39,32 @@ pub struct ProjectCache {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_program: Option<Program>,
     pub units: Vec<CachedUnit>,
+}
+
+/// Persistent cache envelope for a polyglot project.  A HIR program is
+/// language-specific, so a mixed checkout cannot safely share one
+/// [`ProjectCache`]: each language gets the exact same cache contract as an
+/// explicit `--language` scan while one file remains convenient to manage.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct MixedProjectCache {
+    pub version: u32,
+    #[serde(default)]
+    pub groups: BTreeMap<String, ProjectCache>,
+}
+
+impl MixedProjectCache {
+    pub fn new(groups: BTreeMap<String, ProjectCache>) -> Self {
+        Self {
+            version: MIXED_CACHE_VERSION,
+            groups,
+        }
+    }
+
+    pub fn compatible_group(&self, language: &Language) -> Option<&ProjectCache> {
+        (self.version == MIXED_CACHE_VERSION)
+            .then(|| self.groups.get(language.as_str()))
+            .flatten()
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -84,6 +111,26 @@ pub fn save_project_cache(path: &Path, cache: &ProjectCache) -> Result<()> {
     }
     let text = serde_json::to_string_pretty(cache).context("failed to encode project cache")?;
     fs::write(path, text).with_context(|| format!("failed to write cache to {}", path.display()))
+}
+
+pub fn load_mixed_project_cache(path: &Path) -> Result<MixedProjectCache> {
+    let text = fs::read_to_string(path)
+        .with_context(|| format!("failed to read mixed-project cache from {}", path.display()))?;
+    serde_json::from_str::<MixedProjectCache>(&text)
+        .with_context(|| format!("failed to decode mixed-project cache from {}", path.display()))
+}
+
+pub fn save_mixed_project_cache(path: &Path, cache: &MixedProjectCache) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!("failed to create cache directory {}", parent.display())
+            })?;
+        }
+    }
+    let text = serde_json::to_string_pretty(cache).context("failed to encode mixed-project cache")?;
+    fs::write(path, text)
+        .with_context(|| format!("failed to write mixed-project cache to {}", path.display()))
 }
 
 pub fn build_project_with_cache(
@@ -487,5 +534,23 @@ mod tests {
         assert_eq!(second.cache.platform, linux.platform);
 
         fs::remove_dir_all(root).expect("temporary project directory should be removed");
+    }
+
+    #[test]
+    fn mixed_cache_roundtrips_and_keeps_groups_language_scoped() {
+        let root = temp_project("mixed-envelope");
+        let source = root.join("app.py");
+        fs::write(&source, "def run():\n    return input()\n").unwrap();
+        let python = build_project_with_cache(Language::Python, &[source], None).unwrap();
+        let cache = MixedProjectCache::new(BTreeMap::from([(
+            "python".to_string(),
+            python.cache,
+        )]));
+        let path = root.join("mix-cache.json");
+        save_mixed_project_cache(&path, &cache).unwrap();
+        let restored = load_mixed_project_cache(&path).unwrap();
+        assert!(restored.compatible_group(&Language::Python).is_some());
+        assert!(restored.compatible_group(&Language::Java).is_none());
+        fs::remove_dir_all(root).unwrap();
     }
 }

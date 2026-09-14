@@ -1,0 +1,13 @@
+[package]
+name = "uniflow-lang-python-bytecode"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+indexmap.workspace = true
+py-marshal.workspace = true
+uniflow-hir = { path = "../hir" }
+uniflow-ir = { path = "../ir" }

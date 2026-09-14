@@ -147,7 +147,7 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
     let source_seeds = collect_source_seeds(flow);
     let sink_seeds = collect_sink_seeds(flow);
     if source_seeds.is_empty() || sink_seeds.is_empty() {
-        let mut findings = lifetime_findings(flow);
+        let mut findings = lifetime_findings(flow, rules);
         findings.extend(native_dataflow_findings(flow, rules));
         return findings;
     }
@@ -301,7 +301,7 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
         findings.push(taint_result_limit_finding());
     }
 
-    findings.extend(lifetime_findings(flow));
+    findings.extend(lifetime_findings(flow, rules));
     findings.extend(native_dataflow_findings(flow, rules));
     findings
 }
@@ -776,7 +776,7 @@ fn build_finding(
     }
 }
 
-fn lifetime_findings(flow: &FlowGraph) -> Vec<TaintFinding> {
+fn lifetime_findings(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
     flow.lifetime_diagnostics
         .iter()
         .map(|diagnostic| {
@@ -787,6 +787,11 @@ fn lifetime_findings(flow: &FlowGraph) -> Vec<TaintFinding> {
             let path = node.map(|node| vec![node.index()]).unwrap_or_default();
             let label = diagnostic.message.clone();
             let location = flow.span_text(&diagnostic.span);
+            let metadata = rules.metadata_for(&diagnostic.rule_id);
+            let message = metadata
+                .map(|item| item.message.clone())
+                .filter(|message| !message.trim().is_empty())
+                .unwrap_or_else(|| diagnostic.message.clone());
             TaintFinding {
                 source_rule_id: diagnostic.rule_id.clone(),
                 sink_rule_id: diagnostic.rule_id.clone(),
@@ -802,11 +807,18 @@ fn lifetime_findings(flow: &FlowGraph) -> Vec<TaintFinding> {
                 steps: Vec::new(),
                 finding_kind: "lifetime".to_string(),
                 severity: diagnostic.severity.clone(),
-                message: truncate_finding_translation(&diagnostic.message),
-                rule_title: diagnostic.message.clone(),
-                cwe: Vec::new(),
-                standards: Vec::new(),
-                translations: RuleTranslations::default(),
+                message: truncate_finding_translation(&message),
+                rule_title: metadata
+                    .map(|item| item.title.clone())
+                    .filter(|title| !title.trim().is_empty())
+                    .unwrap_or_else(|| diagnostic.message.clone()),
+                cwe: metadata.map(|item| item.cwe.clone()).unwrap_or_default(),
+                standards: metadata
+                    .map(|item| item.standards.clone())
+                    .unwrap_or_default(),
+                translations: metadata
+                    .map(|item| compact_finding_translations(item.translations.clone()))
+                    .unwrap_or_default(),
                 analysis_complete: true,
                 completeness: QueryCompleteness::Complete,
             }
@@ -1429,6 +1441,21 @@ mod tests {
         let ir = lower_program(&hir);
         let flow = build(&ir, &rules);
         analyze(&flow, &rules)
+    }
+
+    #[test]
+    fn c_tainted_loop_control_is_reported_only_for_a_nonconstant_comparison_peer() {
+        let findings = analyze_source(
+            Language::C,
+            "loop.c",
+            "char *getenv(const char *);\nvoid f(int limit) { char *value = getenv(\"X\"); while (value < limit) { break; } while (value < 10) { break; } }\n",
+        );
+        let loop_findings = findings
+            .iter()
+            .filter(|finding| finding.sink_rule_id == "ANZU-TAINTED-LOOP-VARIABLE")
+            .collect::<Vec<_>>();
+        assert_eq!(loop_findings.len(), 1, "{findings:#?}");
+        assert_eq!(loop_findings[0].source_rule_id, "c-getenv");
     }
 
     #[test]
@@ -2161,7 +2188,7 @@ def hello(name):
             ),
             (
                 Language::Go,
-                "func run() { x := taint_source()\n sink(x)\n }",
+                "package main\n\nfunc run() { x := taint_source()\n sink(x)\n }",
                 "a.go",
             ),
             (
@@ -2502,7 +2529,7 @@ id run() {
             ),
             (
                 Language::Go,
-                "func run() { x := Getenv(\"X\")\n Command(x)\n }",
+                "package main\n\nfunc run() { x := Getenv(\"X\")\n Command(x)\n }",
                 "a.go",
             ),
             (
@@ -2527,7 +2554,7 @@ id run() {
             ),
             (
                 Language::Rust,
-                "fn run(dummy) { let x = var(\"X\"); sqlx_query!(x); }",
+                "fn run(dummy: i32) { let x = var(\"X\"); sqlx_query!(x); }",
                 "a.rs",
             ),
             (
@@ -2589,6 +2616,49 @@ int main(void) {
         assert!(findings.iter().any(|finding| {
             finding.source_rule_id == "c-fgets-buffer" && finding.sink_rule_id == "c-system"
         }));
+    }
+
+    #[test]
+    fn reports_malloc_free_lifetime_rule_with_bundled_metadata() {
+        let findings = analyze_source(
+            Language::C,
+            "malloc_free.c",
+            "void run(int *borrowed) { free(borrowed); }",
+        );
+        let finding = findings
+            .iter()
+            .find(|finding| finding.sink_rule_id == "ANZU-MALLOC-FREE")
+            .expect("invalid free finding");
+        assert_eq!(finding.finding_kind, "lifetime");
+        assert_eq!(finding.standards, ["0701000010130053"]);
+        assert_eq!(finding.message, "Pointer must be allocated by malloc or calloc");
+        assert_eq!(
+            finding.translations.zh_cn.as_ref().map(|text| text.message.as_str()),
+            Some("指针必须由malloc或calloc分配")
+        );
+        assert_eq!(
+            finding.translations.zh_tw.as_ref().map(|text| text.message.as_str()),
+            Some("指標必須由malloc或calloc配置")
+        );
+    }
+
+    #[test]
+    fn reports_dynamic_allocation_use_with_the_default_c_models() {
+        let findings = analyze_source(
+            Language::C,
+            "dynamic_alloc.c",
+            "int run(void) { int *value = malloc(sizeof(int)); return *value; }",
+        );
+        let finding = findings
+            .iter()
+            .find(|finding| finding.sink_rule_id == "ANZU-DYNAMIC-ALLOC-POINTER-USE")
+            .expect("unchecked allocation use must be reported by the bundled C models");
+        assert_eq!(finding.finding_kind, "lifetime");
+        assert_eq!(
+            finding.message,
+            "Dynamically allocated pointer must be checked for NULL before use."
+        );
+        assert_eq!(finding.standards, ["0701000010130027", "0101000010110338"]);
     }
 
     #[test]

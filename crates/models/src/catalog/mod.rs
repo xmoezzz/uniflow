@@ -1,7 +1,7 @@
 use anyhow::Result;
 use uniflow_hir::Language;
 use uniflow_rules::{
-    language_matches, ApiMatcher, FlowSpec, LocalizedRuleText, NativeDataflowRule, Port,
+    language_matches, ApiMatcher, FlowSpec, LocalizedRuleText, LoopSinkRule, NativeDataflowRule, Port,
     PropagatorRule, RuleMetadata, RuleSet, RuleTranslations, SanitizerRule, SinkRule, SourceRule,
     SummaryRule,
 };

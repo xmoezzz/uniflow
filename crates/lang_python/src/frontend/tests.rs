@@ -2,7 +2,7 @@
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use uniflow_hir::{CallTarget, Program, TypeId};
+    use uniflow_hir::{CallTarget, Expr, Program, Stmt, TypeId};
     use uniflow_parser_core::SourceParser;
 
     #[test]
@@ -15,6 +15,121 @@ mod tests {
         assert_eq!(Arc::strong_count(&index), 2);
         drop(env);
         assert_eq!(Arc::strong_count(&index), 1);
+    }
+
+    #[test]
+    fn project_function_text_clones_share_immutable_body_storage() {
+        let function = PyFunctionText {
+            name: "work".to_string(),
+            params: String::new(),
+            return_annotation: None,
+            body: Arc::from("return expensive_project_expression()"),
+            body_start_line: 1,
+            start_line: 1,
+            end_line: 1,
+            decorators: Vec::new(),
+        };
+        let cloned = function.clone();
+        assert!(
+            Arc::ptr_eq(&function.body, &cloned.body),
+            "project index and summary replay must not duplicate function bodies"
+        );
+    }
+
+    #[test]
+    fn parses_inline_function_suites_and_preserves_their_call_expression() {
+        let program = PythonParser
+            .parse_file(
+                "inline.py",
+                "import hashlib\ndef digest(value): return hashlib.new(\"md5\", value).digest()\n",
+            )
+            .expect("parse inline Python suite");
+        let function = program
+            .modules
+            .iter()
+            .flat_map(|module| &module.items)
+            .find_map(|item| match item {
+                uniflow_hir::Item::Function(function) if function.name == "digest" => Some(function),
+                _ => None,
+            })
+            .expect("inline function is retained");
+        assert!(matches!(
+            function.body.stmts.as_slice(),
+            [Stmt::Return { value: Some(Expr::Call(call)), .. }]
+                if matches!(
+                    call.receiver.as_deref(),
+                    Some(Expr::Call(inner))
+                        if matches!(&inner.target, CallTarget::Named(name) if name == "hashlib.new")
+                )
+        ));
+    }
+
+    #[test]
+    fn retains_literal_ctypes_binding_and_symbol_call_as_function_metadata() {
+        let program = PythonParser
+            .parse_file(
+                "client.py",
+                "import ctypes\ndef invoke(value):\n    native = ctypes.CDLL(\"libnative.so\")\n    native.consume(value)\n",
+            )
+            .expect("parse ctypes caller");
+        let function = program
+            .modules
+            .iter()
+            .flat_map(|module| &module.items)
+            .find_map(|item| match item {
+                uniflow_hir::Item::Function(function) if function.name == "invoke" => Some(function),
+                _ => None,
+            })
+            .expect("invoke function");
+        let symbol = function.symbol.expect("function symbol");
+        assert_eq!(
+            program.symbols[symbol.0 as usize].attributes.get("python.ffi.calls").map(String::as_str),
+            Some("native\u{1e}consume\u{1e}libnative.so"),
+        );
+        assert!(matches!(
+            function.body.stmts.last(),
+            Some(Stmt::Expr { expr: Expr::Call(call), .. })
+                if matches!(&call.target, CallTarget::Named(name) if name == "ctypes.CDLL.consume")
+        ), "{:?}", function.body.stmts);
+    }
+
+    #[test]
+    fn attaches_only_explicit_sqlalchemy_and_django_model_table_bindings_to_methods() {
+        let program = PythonParser
+            .parse_file(
+                "models.py",
+                r#"
+class Order:
+    __tablename__ = "purchase_orders"
+    def save(self, value):
+        return value
+
+class Audit:
+    class Meta:
+        db_table = "audit_entries"
+    def load(self):
+        return 1
+
+class ConventionOnly:
+    def run(self):
+        return 1
+"#,
+            )
+            .expect("parse model declarations");
+        let mut tables = std::collections::HashMap::new();
+        for function in program.modules.iter().flat_map(|module| &module.items).filter_map(|item| match item {
+            uniflow_hir::Item::Class(class) => Some(&class.methods),
+            _ => None,
+        }).flatten() {
+            let symbol = function.symbol.expect("method symbol");
+            tables.insert(
+                function.name.clone(),
+                program.symbols[symbol.0 as usize].attributes.get("python.orm.table").cloned(),
+            );
+        }
+        assert_eq!(tables.get("Order.save").and_then(Option::as_deref), Some("purchase_orders"));
+        assert_eq!(tables.get("Audit.load").and_then(Option::as_deref), Some("audit_entries"));
+        assert_eq!(tables.get("ConventionOnly.run").and_then(Option::as_deref), None);
     }
 
     #[test]
@@ -37,7 +152,29 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "performance regression fixture; run explicitly"]
+    fn owned_project_parser_preserves_all_modules_while_consuming_source_queue() {
+        let entries = (0..12)
+            .map(|index| {
+                (
+                    format!("owned_module_{index}.py"),
+                    format!("def value_{index}():\n    return {index}\n"),
+                )
+            })
+            .collect::<Vec<_>>();
+        let completed = AtomicUsize::new(0);
+        let program = parse_project_owned_sources_with_progress(entries, &|| {
+            completed.fetch_add(1, Ordering::Relaxed);
+        })
+        .expect("owned project parser");
+        assert_eq!(program.files.len(), 12);
+        assert_eq!(completed.load(Ordering::Relaxed), 12);
+        assert!(program
+            .files
+            .iter()
+            .all(|file| file.path.contains("owned_module_")));
+    }
+
+    #[test]
     fn project_index_handles_many_independent_classes() {
         let entries = (0..1_024)
             .map(|index| {

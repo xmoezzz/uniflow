@@ -39,6 +39,16 @@ enum AlignedAllocationState {
     MaybeAligned,
 }
 
+/// Whether a raw pointer is known to originate from an allocator accepted by
+/// the legacy MallocFreeChecker.  `MaybeAllocated` is retained at CFG joins:
+/// an invalid predecessor must still be reported rather than being hidden by
+/// a sibling predecessor that allocated the pointer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MallocAllocationState {
+    Allocated,
+    MaybeAllocated,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct LifetimeDataflowState {
     handles: HashMap<ValueId, LifetimeState>,
@@ -70,6 +80,14 @@ struct LifetimeDataflowState {
     /// provenance. A maybe state is retained across CFG joins so a realloc is
     /// still diagnosed when at least one feasible predecessor is aligned.
     aligned_allocations: HashMap<ValueId, AlignedAllocationState>,
+    /// Allocation provenance for the legacy MallocFreeChecker.  This is
+    /// deliberately distinct from `raw_freed`: that checker diagnoses use
+    /// after release, while this one constrains the origin of a `free` value.
+    malloc_allocations: HashMap<ValueId, MallocAllocationState>,
+    /// Allocation provenance for DynamicAllocPointerUseChecker.  The legacy
+    /// checker only applies its null-before-use requirement to values returned
+    /// by the C/C++ allocation APIs, not to arbitrary pointer parameters.
+    dynamic_allocations: HashSet<ValueId>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -96,7 +114,10 @@ struct FunctionLifetimeResult {
     diagnostics: Vec<LifetimeDiagnostic>,
 }
 
-fn analyze_program_lifetimes(program: &Program) -> (
+fn analyze_program_lifetimes(
+    program: &Program,
+    nullness_before_insts: &HashMap<(FunctionId, InstId, ValueId), NullnessState>,
+) -> (
     HashMap<(FunctionId, ValueId), LifetimeState>,
     HashMap<(FunctionId, BlockId, ValueId), LifetimeState>,
     Vec<LifetimeDiagnostic>,
@@ -111,7 +132,12 @@ fn analyze_program_lifetimes(program: &Program) -> (
     let mut block_states = HashMap::new();
     let mut diagnostics = Vec::new();
     for function in &program.functions {
-        let result = analyze_function_lifetimes(function, &internal_names, &lifetime_contracts);
+        let result = analyze_function_lifetimes(
+            function,
+            &internal_names,
+            &lifetime_contracts,
+            nullness_before_insts,
+        );
         for (value, state) in result.summary {
             summary.insert((function.id, value), state);
         }
@@ -127,6 +153,7 @@ fn analyze_function_lifetimes(
     function: &Function,
     internal_names: &HashSet<&str>,
     lifetime_contracts: &HashMap<String, FunctionLifetimeContract>,
+    nullness_before_insts: &HashMap<(FunctionId, InstId, ValueId), NullnessState>,
 ) -> FunctionLifetimeResult {
     let Some(entry) = function.blocks.first().map(|block| block.id) else {
         return FunctionLifetimeResult::default();
@@ -168,6 +195,7 @@ fn analyze_function_lifetimes(
                 &roots,
                 internal_names,
                 lifetime_contracts,
+                nullness_before_insts,
                 &mut state,
                 &mut diagnostics,
                 &mut diagnostic_keys,
@@ -568,26 +596,51 @@ fn transfer_lifetime_instruction(
     roots: &HashMap<ValueId, ValueId>,
     internal_names: &HashSet<&str>,
     lifetime_contracts: &HashMap<String, FunctionLifetimeContract>,
+    nullness_before_insts: &HashMap<(FunctionId, InstId, ValueId), NullnessState>,
     state: &mut LifetimeDataflowState,
     diagnostics: &mut Vec<LifetimeDiagnostic>,
     diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
 ) {
     match &instruction.kind {
-        InstKind::Deref { src, .. } => diagnose_raw_free_use(
-            function,
-            instruction,
-            *src,
-            roots,
-            state,
-            diagnostics,
-            diagnostic_keys,
-        ),
+        InstKind::Deref { src, .. } => {
+            diagnose_legacy_undefined_pointer_use(function, instruction, *src, state, diagnostics, diagnostic_keys);
+            diagnose_raw_free_use(
+                function,
+                instruction,
+                *src,
+                roots,
+                state,
+                diagnostics,
+                diagnostic_keys,
+            );
+            diagnose_dynamic_allocation_null_use(
+                function,
+                instruction,
+                *src,
+                roots,
+                nullness_before_insts,
+                state,
+                diagnostics,
+                diagnostic_keys,
+            );
+        }
         InstKind::LoadField { base, .. } | InstKind::LoadIndex { base, .. } => {
+            diagnose_legacy_undefined_pointer_use(function, instruction, *base, state, diagnostics, diagnostic_keys);
             diagnose_raw_free_use(
                 function,
                 instruction,
                 *base,
                 roots,
+                state,
+                diagnostics,
+                diagnostic_keys,
+            );
+            diagnose_dynamic_allocation_null_use(
+                function,
+                instruction,
+                *base,
+                roots,
+                nullness_before_insts,
                 state,
                 diagnostics,
                 diagnostic_keys,
@@ -692,6 +745,7 @@ fn transfer_lifetime_instruction(
             merge_dynamic_roots(roots, state, *dst, inputs);
             merge_cpp_phi_borrow(*dst, inputs, state);
             merge_aligned_allocation_phi(roots, state, *dst, inputs);
+            merge_malloc_allocation_phi(roots, state, *dst, inputs);
         }
         InstKind::LoadField { dst, base, field } => {
             state.handles.insert(*dst, LifetimeState::Alive);
@@ -734,6 +788,16 @@ fn transfer_lifetime_instruction(
                 diagnostics,
                 diagnostic_keys,
             );
+            transfer_malloc_free_call(
+                function,
+                instruction,
+                call,
+                roots,
+                state,
+                diagnostics,
+                diagnostic_keys,
+            );
+            transfer_dynamic_allocation_call(call, roots, state);
             transfer_smart_pointer_call(function, call, roots, state);
             let applied_contract = resolve_lifetime_contract(call, lifetime_contracts)
                 .map(|contract| {
@@ -800,6 +864,40 @@ fn merge_aligned_allocation_phi(
     }
 }
 
+fn merge_malloc_allocation_phi(
+    roots: &HashMap<ValueId, ValueId>,
+    state: &mut LifetimeDataflowState,
+    dst: ValueId,
+    inputs: &[ValueId],
+) {
+    let dst_root = effective_lifetime_root(roots, state, dst);
+    let mut saw_allocated = false;
+    let mut all_allocated = !inputs.is_empty();
+    for input in inputs {
+        let input_root = effective_lifetime_root(roots, state, *input);
+        match state.malloc_allocations.get(&input_root).copied() {
+            Some(MallocAllocationState::Allocated) => saw_allocated = true,
+            Some(MallocAllocationState::MaybeAllocated) => {
+                saw_allocated = true;
+                all_allocated = false;
+            }
+            None => all_allocated = false,
+        }
+    }
+    if saw_allocated {
+        state.malloc_allocations.insert(
+            dst_root,
+            if all_allocated {
+                MallocAllocationState::Allocated
+            } else {
+                MallocAllocationState::MaybeAllocated
+            },
+        );
+    } else {
+        state.malloc_allocations.remove(&dst_root);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn transfer_aligned_allocation_call(
     function: &Function,
@@ -856,6 +954,116 @@ fn transfer_aligned_allocation_call(
         }
         _ => {}
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn transfer_malloc_free_call(
+    function: &Function,
+    instruction: &Instruction,
+    call: &CallInst,
+    roots: &HashMap<ValueId, ValueId>,
+    state: &mut LifetimeDataflowState,
+    diagnostics: &mut Vec<LifetimeDiagnostic>,
+    diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
+) {
+    let Callee::Static(name) = &call.callee else { return };
+    let simple = name
+        .rsplit(|ch| ch == '.' || ch == ':')
+        .next()
+        .unwrap_or(name.as_str());
+    match simple {
+        // These are the exact allocation APIs tracked by the legacy checker.
+        "malloc" | "calloc" | "realloc" => {
+            if let Some(dst) = call.dst {
+                let root = effective_lifetime_root(roots, state, dst);
+                state
+                    .malloc_allocations
+                    .insert(root, MallocAllocationState::Allocated);
+            }
+        }
+        "free" => {
+            let Some(value) = call.args.first().copied() else { return };
+            let root = effective_lifetime_root(roots, state, value);
+            let allocation = state.malloc_allocations.get(&root).copied();
+            if !matches!(allocation, Some(MallocAllocationState::Allocated)) {
+                push_lifetime_diagnostic(
+                    function,
+                    Some(instruction),
+                    value,
+                    LifetimeState::Unknown,
+                    "ANZU-MALLOC-FREE",
+                    "warning",
+                    "pointer passed to free was not allocated by malloc, calloc, or realloc",
+                    allocation == Some(MallocAllocationState::MaybeAllocated),
+                    diagnostics,
+                    diagnostic_keys,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+fn transfer_dynamic_allocation_call(
+    call: &CallInst,
+    roots: &HashMap<ValueId, ValueId>,
+    state: &mut LifetimeDataflowState,
+) {
+    let Callee::Static(name) = &call.callee else { return };
+    let simple = name
+        .rsplit(|ch| ch == '.' || ch == ':')
+        .next()
+        .unwrap_or(name.as_str());
+    if matches!(simple, "malloc" | "calloc" | "new" | "new[]" | "operator new" | "operator new[]") {
+        if let Some(dst) = call.dst {
+            state
+                .dynamic_allocations
+                .insert(effective_lifetime_root(roots, state, dst));
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn diagnose_dynamic_allocation_null_use(
+    function: &Function,
+    instruction: &Instruction,
+    value: ValueId,
+    roots: &HashMap<ValueId, ValueId>,
+    nullness_before_insts: &HashMap<(FunctionId, InstId, ValueId), NullnessState>,
+    state: &LifetimeDataflowState,
+    diagnostics: &mut Vec<LifetimeDiagnostic>,
+    diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
+) {
+    let root = effective_lifetime_root(roots, state, value);
+    if !state.dynamic_allocations.contains(&root) {
+        return;
+    }
+    // The Clang checker forks the symbolic state.  Therefore an unknown
+    // allocation result is a potential finding; only an explicit successful
+    // null check proves this path safe.
+    let nullness = nullness_before_insts
+        .get(&(function.id, instruction.id, value))
+        .copied()
+        .unwrap_or(NullnessState::Unknown);
+    if nullness == NullnessState::DefinitelyNonNull {
+        return;
+    }
+    push_lifetime_diagnostic(
+        function,
+        Some(instruction),
+        value,
+        if nullness == NullnessState::DefinitelyNull {
+            LifetimeState::Alive
+        } else {
+            LifetimeState::MaybeAlive
+        },
+        "ANZU-DYNAMIC-ALLOC-POINTER-USE",
+        "warning",
+        "dynamically allocated pointer must be checked for NULL before use",
+        nullness != NullnessState::DefinitelyNull,
+        diagnostics,
+        diagnostic_keys,
+    );
 }
 
 fn transfer_aggregate_ownership_store(
@@ -936,6 +1144,14 @@ fn transfer_explicit_lifetime_event(
             }
         }
         LifetimeEvent::Free => {
+            diagnose_legacy_undefined_pointer_release(
+                function,
+                instruction,
+                value,
+                state,
+                diagnostics,
+                diagnostic_keys,
+            );
             match state.raw_freed.get(&root).copied() {
                 Some(RawFreeState::Freed) => push_lifetime_diagnostic(
                     function,
@@ -962,6 +1178,18 @@ fn transfer_explicit_lifetime_event(
                     diagnostic_keys,
                 ),
                 None => {}
+            }
+            if matches!(state.raw_freed.get(&root), Some(RawFreeState::Freed)) {
+                diagnose_legacy_released_pointer(
+                    function,
+                    Some(instruction),
+                    value,
+                    LifetimeState::Released,
+                    "double free pointer",
+                    false,
+                    diagnostics,
+                    diagnostic_keys,
+                );
             }
             state.raw_freed.insert(root, RawFreeState::Freed);
         }
@@ -1332,6 +1560,16 @@ fn diagnose_raw_free_use(
         return;
     };
     let potential = free_state == RawFreeState::MaybeFreed;
+    diagnose_legacy_released_pointer(
+        function,
+        Some(instruction),
+        value,
+        if potential { LifetimeState::MaybeReleased } else { LifetimeState::Released },
+        "use dangling pointer",
+        potential,
+        diagnostics,
+        diagnostic_keys,
+    );
     push_lifetime_diagnostic(
         function,
         Some(instruction),
@@ -1348,6 +1586,59 @@ fn diagnose_raw_free_use(
         diagnostics,
         diagnostic_keys,
     );
+}
+
+fn diagnose_legacy_undefined_pointer_release(
+    function: &Function,
+    instruction: &Instruction,
+    value: ValueId,
+    state: &LifetimeDataflowState,
+    diagnostics: &mut Vec<LifetimeDiagnostic>,
+    diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
+) {
+    if !is_uninitialized_local_raw_pointer(function, value, state) {
+        return;
+    }
+    push_lifetime_diagnostic(function, Some(instruction), value, LifetimeState::Uninitialized,
+        "ANZU-REF-UNDEF-OR-ALREADY-FREE-POINTER", "warning", "release undefined pointer", false,
+        diagnostics, diagnostic_keys);
+}
+
+fn diagnose_legacy_undefined_pointer_use(
+    function: &Function, instruction: &Instruction, value: ValueId, state: &LifetimeDataflowState,
+    diagnostics: &mut Vec<LifetimeDiagnostic>, diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
+) {
+    if is_uninitialized_local_raw_pointer(function, value, state) {
+        push_lifetime_diagnostic(function, Some(instruction), value, LifetimeState::Uninitialized,
+            "ANZU-REF-UNDEF-OR-ALREADY-FREE-POINTER", "warning", "use undefined pointer", false,
+            diagnostics, diagnostic_keys);
+    }
+}
+
+fn diagnose_legacy_released_pointer(
+    function: &Function,
+    instruction: Option<&Instruction>,
+    value: ValueId,
+    state: LifetimeState,
+    message: &str,
+    potential: bool,
+    diagnostics: &mut Vec<LifetimeDiagnostic>,
+    diagnostic_keys: &mut HashSet<(String, u32, u32, u32)>,
+) {
+    for rule_id in ["ANZU-REF-UNDEF-OR-ALREADY-FREE-POINTER", "ANZU-REF-ALREADY-FREE-POINTER"] {
+        push_lifetime_diagnostic(function, instruction, value, state, rule_id, "warning", message,
+            potential, diagnostics, diagnostic_keys);
+    }
+}
+
+fn is_uninitialized_local_raw_pointer(
+    function: &Function,
+    value: ValueId,
+    state: &LifetimeDataflowState,
+) -> bool {
+    function.locals.contains(&value)
+        && lifetime_handle_state(state, value) == LifetimeState::Uninitialized
+        && function.value_types.get(&value).is_some_and(|ty| ty.contains('*'))
 }
 
 fn weak_owner_operation_is_safe(instruction: Option<&Instruction>, value: ValueId) -> bool {
@@ -1994,6 +2285,18 @@ fn join_lifetime_dataflow_states(
             &left.aligned_allocations,
             &right.aligned_allocations,
         ),
+        malloc_allocations: join_malloc_allocation_maps(
+            &left.malloc_allocations,
+            &right.malloc_allocations,
+        ),
+        // The rule must keep a path where a value originated at an allocator;
+        // a non-allocation sibling makes subsequent diagnostics potential but
+        // does not erase that path's obligation to check for NULL.
+        dynamic_allocations: left
+            .dynamic_allocations
+            .union(&right.dynamic_allocations)
+            .copied()
+            .collect(),
     }
 }
 
@@ -2012,6 +2315,25 @@ fn join_aligned_allocation_maps(
                 Some((key, AlignedAllocationState::Aligned))
             }
             _ => Some((key, AlignedAllocationState::MaybeAligned)),
+        })
+        .collect()
+}
+
+fn join_malloc_allocation_maps(
+    left: &HashMap<ValueId, MallocAllocationState>,
+    right: &HashMap<ValueId, MallocAllocationState>,
+) -> HashMap<ValueId, MallocAllocationState> {
+    let mut keys = left.keys().copied().collect::<Vec<_>>();
+    keys.extend(right.keys().copied());
+    keys.sort_unstable();
+    keys.dedup();
+    keys.into_iter()
+        .filter_map(|key| match (left.get(&key).copied(), right.get(&key).copied()) {
+            (None, None) => None,
+            (Some(MallocAllocationState::Allocated), Some(MallocAllocationState::Allocated)) => {
+                Some((key, MallocAllocationState::Allocated))
+            }
+            _ => Some((key, MallocAllocationState::MaybeAllocated)),
         })
         .collect()
 }

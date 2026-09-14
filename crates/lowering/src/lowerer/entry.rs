@@ -794,6 +794,7 @@ impl Lowerer {
         let source_break_blocks = std::mem::take(&mut ctx.source_break_blocks);
         let source_return_blocks = std::mem::take(&mut ctx.source_return_blocks);
         let source_switch_blocks = std::mem::take(&mut ctx.source_switch_blocks);
+        let source_loop_control_blocks = std::mem::take(&mut ctx.source_loop_control_blocks);
         drop(ctx);
         propagate_value_array_extents(&blocks, &mut value_array_extents);
         for (symbol_id, value) in &value_map {
@@ -809,7 +810,7 @@ impl Lowerer {
         if let Some(symbol_id) = func.symbol {
             if let Some(symbol) = self.program_symbols.get(&symbol_id) {
                 for (key, value) in &symbol.attributes {
-                    if key.starts_with("cpp.") || key.starts_with("python.") {
+                    if key.starts_with("cpp.") || key.starts_with("python.") || key.starts_with("java.") || key.starts_with("go.") || key.starts_with("csharp.") || key.starts_with("rust.") || key.starts_with("ruby.") || key.starts_with("js.") || key.starts_with("php.") {
                         attrs.insert(key.clone(), value.clone());
                     }
                 }
@@ -919,6 +920,12 @@ impl Lowerer {
         for block in source_switch_blocks {
             attrs.insert(
                 format!("uniflow.source-cfg.switch.{}", block.0),
+                "1".to_string(),
+            );
+        }
+        for block in source_loop_control_blocks {
+            attrs.insert(
+                format!("uniflow.source-cfg.loop.{}", block.0),
                 "1".to_string(),
             );
         }

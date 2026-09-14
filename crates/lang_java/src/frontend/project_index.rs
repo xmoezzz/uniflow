@@ -238,6 +238,16 @@ impl JavaProjectIndex {
 }
 
 pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
+    parse_project_sources_with_progress(entries, &|| {})
+}
+
+/// Project parser with a completion callback for every module whose HIR has
+/// been produced. The callback can run on parser workers and must therefore
+/// be thread-safe; CLI progress consumers should keep it lightweight.
+pub fn parse_project_sources_with_progress(
+    entries: &[(String, String)],
+    on_module_parsed: &(dyn Fn() + Sync),
+) -> Result<Program> {
     let index = Arc::new(JavaProjectIndex::from_sources(entries));
     let worker_count = thread::available_parallelism()
         .map(|count| count.get())
@@ -247,58 +257,76 @@ pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
     // `index` is only ever read (never mutated) once built, so parsing each
     // file against it is independent; only the final merge must preserve
     // file order.
-    let parsed = if worker_count <= 1 || entries.len() <= 1 {
-        entries
-            .iter()
-            .map(|(path, source)| {
-                JavaParser::default().parse_file_with_index(path, source, Some(Arc::clone(&index)))
-            })
-            .collect::<Result<Vec<_>>>()?
-    } else {
-        let chunk_size = entries.len().div_ceil(worker_count);
-        thread::scope(|scope| -> Result<Vec<Program>> {
-            let mut handles = Vec::with_capacity(worker_count);
-            for chunk in entries.chunks(chunk_size) {
-                let index = Arc::clone(&index);
-                // Deeply nested or generated source can drive parsing well
-                // past a default stack (this is why `main` itself runs on an
-                // oversized-stack thread — see `crates/cli/src/main.rs`), and
-                // scoped threads do NOT inherit their spawning thread's stack
-                // size, so it must be set explicitly here too.
-                handles.push(
-                    thread::Builder::new()
-                        .stack_size(1 << 28)
-                        .spawn_scoped(scope, move || -> Result<Vec<Program>> {
-                            chunk
-                                .iter()
-                                .map(|(path, source)| {
-                                    JavaParser::default().parse_file_with_index(
-                                        path,
-                                        source,
-                                        Some(Arc::clone(&index)),
-                                    )
-                                })
-                                .collect()
-                        })
-                        .expect("failed to spawn Java parser worker thread"),
-                );
-            }
-            let mut parsed = Vec::with_capacity(entries.len());
-            for handle in handles {
-                parsed.extend(
-                    handle
-                        .join()
-                        .map_err(|_| anyhow::anyhow!("Java parser worker panicked"))??,
-                );
-            }
-            Ok(parsed)
-        })?
-    };
-
     let mut project = uniflow_hir::ProgramMerger::new(Language::Java);
-    for program in parsed {
-        project.merge(program);
+    if worker_count <= 1 || entries.len() <= 1 {
+        for (path, source) in entries {
+            project.merge(
+                JavaParser::default()
+                    .parse_file_with_index(path, source, Some(Arc::clone(&index)))?,
+            );
+            on_module_parsed();
+        }
+        return Ok(project.finish());
     }
+
+    // Each parser worker owns only one module HIR at a time. Results enter a
+    // bounded queue and are merged as soon as all earlier inputs are ready;
+    // retaining one complete Program per Java source file doubles peak RSS on
+    // large dependency trees.
+    let next_entry = AtomicUsize::new(0);
+    let queue_bound = worker_count.saturating_mul(2).max(1);
+    thread::scope(|scope| -> Result<()> {
+        let (sender, receiver) = std::sync::mpsc::sync_channel(queue_bound);
+        let mut handles = Vec::with_capacity(worker_count);
+        for _ in 0..worker_count {
+            let index = Arc::clone(&index);
+            let sender = sender.clone();
+            let next_entry = &next_entry;
+            handles.push(
+                thread::Builder::new()
+                    .stack_size(1 << 28)
+                    .spawn_scoped(scope, move || -> Result<()> {
+                        loop {
+                            let entry = next_entry.fetch_add(1, Ordering::Relaxed);
+                            let Some((path, source)) = entries.get(entry) else {
+                                break;
+                            };
+                            let parsed = JavaParser::default().parse_file_with_index(
+                                path,
+                                source,
+                                Some(Arc::clone(&index)),
+                            )?;
+                            sender
+                                .send((entry, parsed))
+                                .map_err(|_| anyhow::anyhow!("Java project parser receiver stopped early"))?;
+                            on_module_parsed();
+                        }
+                        Ok(())
+                    })
+                    .expect("failed to spawn Java parser worker thread"),
+            );
+        }
+        drop(sender);
+
+        let mut next_to_merge = 0usize;
+        let mut pending = BTreeMap::new();
+        for _ in 0..entries.len() {
+            let (entry, parsed) = receiver
+                .recv()
+                .map_err(|_| anyhow::anyhow!("Java project parser stopped before producing every module"))?;
+            pending.insert(entry, parsed);
+            while let Some(parsed) = pending.remove(&next_to_merge) {
+                project.merge(parsed);
+                next_to_merge += 1;
+            }
+        }
+        for handle in handles {
+            handle
+                .join()
+                .map_err(|_| anyhow::anyhow!("Java parser worker panicked"))??;
+        }
+        Ok(())
+    })?;
     Ok(project.finish())
 }
 
@@ -317,6 +345,20 @@ impl JavaParser {
             .map(|decl| decl.simple_name.clone())
             .unwrap_or_else(|| module_name_from_path(path));
         let class_name = qualify_local_class_name(package_name.as_deref(), &simple_class_name);
+        let explicit_jpa_table = class_decl
+            .as_ref()
+            .and_then(|decl| explicit_jpa_table_name(&source, decl));
+        // Method-level HIR symbols are the unit carried into lowering. Keep
+        // class annotations on each method too, so boundary adapters can
+        // combine a class-level framework prefix with the method's own
+        // declaration without re-reading source text or guessing by name.
+        // There cannot be a member annotation before the first top-level
+        // class declaration this frontend parses, so this is deliberately
+        // limited to annotations syntactically preceding that declaration.
+        let class_annotations = class_decl.as_ref().map(|decl| {
+            let prefix = &source[..usize::try_from(decl.span.start_byte).unwrap_or(0)];
+            extract_java_annotations_raw(prefix).join("\u{1f}")
+        });
 
         let mut builder = ModuleBuilder::new(Language::Java, path, &class_name);
         let resolver = parse_imports(
@@ -358,6 +400,19 @@ impl JavaParser {
                 &resolver,
                 &parsed_fields,
             ) {
+                if let (Some(table), Some(symbol)) = (explicit_jpa_table.as_deref(), method.symbol) {
+                    // An `@Table(name = "...")` declaration is the only
+                    // JPA table spelling carried into system analysis. JPA's
+                    // default entity-name strategy is provider/configuration
+                    // dependent, so it must not be guessed at a storage
+                    // boundary.
+                    builder.set_symbol_attribute(symbol, "java.orm.table", table.to_string());
+                }
+                if let (Some(annotations), Some(symbol)) = (class_annotations.as_deref(), method.symbol) {
+                    if !annotations.is_empty() {
+                        builder.set_symbol_attribute(symbol, "java.class.annotations.raw", annotations.to_string());
+                    }
+                }
                 methods.push(method);
             }
         }
@@ -386,4 +441,27 @@ impl JavaParser {
 
         Ok(builder.finish())
     }
+}
+
+/// Extracts an explicit JPA table name attached to the parsed class.  The
+/// class declaration is the first class this source frontend parses, so the
+/// last `@...Table(...)` annotation before it is the class annotation rather
+/// than an annotation on a member. Only a literal `name = "..."` is valid.
+fn explicit_jpa_table_name(source: &str, class_decl: &JavaClassDecl) -> Option<String> {
+    let prefix = &source[..usize::try_from(class_decl.span.start_byte).ok()?];
+    let annotation = extract_java_annotations_raw(prefix)
+        .into_iter()
+        .rev()
+        .find(|annotation| {
+            annotation
+                .trim_start_matches('@')
+                .split_once('(')
+                .map(|(name, _)| name.rsplit('.').next() == Some("Table"))
+                .unwrap_or(false)
+        })?;
+    let name_re = Regex::new(r#"(?i)\bname\s*=\s*"([A-Za-z0-9_.$]+)""#).expect("valid JPA table-name regex");
+    name_re
+        .captures(&annotation)
+        .and_then(|caps| caps.get(1))
+        .map(|name| name.as_str().to_ascii_lowercase())
 }

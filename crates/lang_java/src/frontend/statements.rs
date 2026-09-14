@@ -88,6 +88,24 @@ fn parse_method(
         .as_ref()
         .map(|ty| builder.ensure_type(&resolver.qualify_type_name(ty)));
 
+    let method_symbol = builder.add_symbol(
+        if sig.is_constructor {
+            "<init>"
+        } else {
+            &sig.method_name
+        },
+        SymbolKind::Method,
+    );
+    // Keep the literal annotation spellings (e.g. `@GetMapping("/profile")`)
+    // so a system-boundary adapter can recover concrete route/verb values —
+    // mirrors Python's `python.decorators.raw` capture. `method_text.signature`
+    // is the frontend's own unmasked copy; `parse_method_signature` above
+    // only blanks a *local* copy of it for signature parsing.
+    let annotations = extract_java_annotations_raw(&method_text.signature);
+    if !annotations.is_empty() {
+        builder.set_symbol_attribute(method_symbol, "java.annotations.raw", annotations.join("\u{1f}"));
+    }
+
     Some(uniflow_hir::Function {
         id: builder.alloc_function_id(),
         name: if sig.is_constructor {
@@ -95,14 +113,7 @@ fn parse_method(
         } else {
             format!("{class_name}.{}", sig.method_name)
         },
-        symbol: Some(builder.add_symbol(
-            if sig.is_constructor {
-                "<init>"
-            } else {
-                &sig.method_name
-            },
-            SymbolKind::Method,
-        )),
+        symbol: Some(method_symbol),
         params,
         captures: Vec::new(),
         return_type,

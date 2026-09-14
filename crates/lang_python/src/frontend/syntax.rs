@@ -3,7 +3,17 @@ struct PyFunctionText {
     name: String,
     params: String,
     return_annotation: Option<String>,
-    body: String,
+    // Function summaries are stored in the project index and are cloned by
+    // call-effect replay.  Keeping a plain `String` here made every clone
+    // duplicate the full function body; on large Python repositories that
+    // compounded with the input source and class-body copies. `Arc<str>`
+    // preserves immutable `&str` use at parser call sites while making those
+    // index/summarization clones constant-size.
+    body: Arc<str>,
+    /// First source line represented by `body`.  Ordinary suites start on
+    /// the line after `def`; a legal inline suite (`def f(): return x`) starts
+    /// on the header line itself.
+    body_start_line: u32,
     start_line: u32,
     end_line: u32,
     decorators: Vec<String>,
@@ -1070,4 +1080,3 @@ fn direct_env_field_access_type(env: &PyEnv, field: &str) -> Option<String> {
     let raw = env.field_types.get(field).cloned()?;
     descriptor_access_type(&env.project_index, &raw).or(Some(raw))
 }
-

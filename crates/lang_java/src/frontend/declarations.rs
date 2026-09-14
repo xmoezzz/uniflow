@@ -174,6 +174,76 @@ fn extract_methods(body: &str) -> Vec<JavaMethodText> {
     }).collect()
 }
 
+/// Walks a declaration's `owner` chain (innermost first) to its enclosing
+/// top-level class, joining nested-class names with `$` — the JVM binary-name
+/// separator also used by bytecode-derived `NativeMethodDecl.class` values
+/// (`internal_name_to_dotted` only rewrites the package `/` separator, never
+/// a nested class's `$`) — so a source- and a bytecode-derived declaration
+/// for the same nested class agree on one `class` spelling.
+fn owning_class_name(
+    syntax: &uniflow_parser_core::java_syntax::JavaSyntax,
+    owner: Option<usize>,
+    package_name: Option<&str>,
+) -> Option<String> {
+    let mut names = Vec::new();
+    let mut current = owner;
+    while let Some(index) = current {
+        let decl = syntax.declarations.get(index)?;
+        names.push(decl.name.clone());
+        current = decl.owner;
+    }
+    if names.is_empty() {
+        return None;
+    }
+    names.reverse();
+    Some(qualify_local_class_name(package_name, &names.join("$")))
+}
+
+/// `native` methods have no body, so [`extract_methods`] (which only visits
+/// nodes that own a `{...}` block) never sees them. This walks the fuller
+/// declaration index instead — the same one `uniflow_baseline`'s coding-style
+/// checks already use to flag `native` methods via their `modifiers` list —
+/// which does record a bodyless member terminated by `;` (as long as it has
+/// an owning type, which is why this parses the whole file rather than an
+/// already-unwrapped class body: `JavaDeclaration`s with no owner are never
+/// recorded as methods, only as top-level types).
+///
+/// Used to bridge a Java-side native call to a same-named C/C++ JNI
+/// implementation in a mixed-language project scan.
+pub fn java_native_method_decls(source: &str) -> Vec<NativeMethodDecl> {
+    let stripped = strip_c_like_comments(source);
+    let package_name = parse_package(&stripped);
+    let syntax = uniflow_parser_core::java_syntax::JavaSyntax::parse(&stripped);
+    syntax
+        .declarations
+        .iter()
+        .filter(|decl| {
+            decl.kind == uniflow_parser_core::java_syntax::JavaDeclarationKind::Method
+                && decl.modifiers.iter().any(|modifier| modifier == "native")
+        })
+        .filter_map(|decl| {
+            let class = owning_class_name(&syntax, decl.owner, package_name.as_deref())?;
+            let param_count = decl
+                .parameters
+                .as_ref()
+                .map(|range| {
+                    split_top_level_commas(&stripped[range.clone()])
+                        .into_iter()
+                        .filter(|part| !part.trim().is_empty())
+                        .count()
+                })
+                .unwrap_or(0);
+            Some(NativeMethodDecl {
+                class,
+                method: decl.name.clone(),
+                param_count,
+                descriptor: None,
+                is_static: decl.modifiers.iter().any(|modifier| modifier == "static"),
+            })
+        })
+        .collect()
+}
+
 fn extract_fields(
     builder: &mut ModuleBuilder,
     body: &str,
@@ -349,7 +419,13 @@ fn parse_method_signature(
     })
 }
 
-fn mask_java_annotations(text: &str) -> String {
+/// Byte ranges of every `@Name`/`@Name(...)`/`@qualified.Name(...)`
+/// annotation occurrence in `text`, in source order. Shared by
+/// [`mask_java_annotations`] (which blanks them for signature parsing) and
+/// [`extract_java_annotations_raw`] (which keeps their literal spelling for
+/// boundary adapters, e.g. Spring's `@GetMapping("/profile")`) so the two
+/// never disagree about what counts as an annotation.
+fn find_annotation_ranges(text: &str) -> Vec<std::ops::Range<usize>> {
     use uniflow_parser_core::{Lexer, LexerSpec, TokKind};
     let tokens = Lexer::new(text, &LexerSpec::default()).tokenize();
     let mut ranges = Vec::new();
@@ -373,8 +449,22 @@ fn mask_java_annotations(text: &str) -> String {
         }
         ranges.push(start..end);
     }
+    ranges
+}
+
+/// The literal source text of every annotation preceding a member (e.g.
+/// `@GetMapping("/profile")`, `@RequestMapping(value = "/x", method = RequestMethod.POST)`),
+/// in source order — mirrors Python's `python.decorators.raw` capture.
+/// `text` must be the member's *unmasked* signature text (annotations are
+/// still present in `JavaMethodText.signature`; only `parse_method_signature`'s
+/// own local copy gets blanked).
+pub(crate) fn extract_java_annotations_raw(text: &str) -> Vec<String> {
+    find_annotation_ranges(text).into_iter().map(|range| text[range].trim().to_string()).collect()
+}
+
+fn mask_java_annotations(text: &str) -> String {
     let mut result = text.to_owned();
-    for range in ranges.into_iter().rev() {
+    for range in find_annotation_ranges(text).into_iter().rev() {
         let blank = text[range.clone()].bytes().map(|b| if b == b'\n' { '\n' } else { ' ' }).collect::<String>();
         result.replace_range(range, &blank);
     }

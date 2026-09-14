@@ -2120,6 +2120,15 @@ impl FlowGraph {
     }
 
     pub fn recommended_demand_engine(&self, query: &DemandQuery) -> DemandEngine {
+        // Scan-mode taint graphs intentionally retain only the raw DiGraph:
+        // materializing bidirectional sparse tables for every direct edge
+        // would duplicate a multi-million-node project graph in memory.  The
+        // sparse walker already filters raw edges on demand, whereas the
+        // fixpoint engine requires a whole-graph SCC index.  Prefer the former
+        // until an embedding explicitly materializes the reusable overlay.
+        if !self.sparse_adjacency_materialized {
+            return DemandEngine::Sparse;
+        }
         let has_call_seed = query.seeds.iter().any(|seed| matches!(seed, DemandSeed::Call { .. } | DemandSeed::CallPort { .. }));
         let has_node_seed = query.seeds.iter().any(|seed| matches!(seed, DemandSeed::Node(_)));
         if query.include_heap || has_call_seed {
@@ -3510,11 +3519,23 @@ impl FlowGraph {
             .node_indices()
             .filter(|idx| matches!(self.graph[*idx], FlowNode::Value { .. } | FlowNode::Param { .. } | FlowNode::Return { .. }))
             .count();
-        let sparse_data_edges = self
-            .sparse_successors
-            .values()
-            .map(|nodes| nodes.len())
-            .sum();
+        // Scan-mode taint analysis intentionally leaves the sparse maps
+        // empty and traverses direct graph edges on demand.  Report those
+        // edges rather than misleading `--dump-stats` users into believing a
+        // non-empty scan graph has no data-flow connectivity.  Do not build a
+        // dedup HashSet here: a stats request must not recreate the large
+        // allocation the on-demand plan was designed to avoid.
+        let sparse_data_edges = if self.sparse_adjacency_materialized {
+            self.sparse_successors
+                .values()
+                .map(|nodes| nodes.len())
+                .sum()
+        } else {
+            self.graph
+                .edge_references()
+                .filter(|edge| is_sparse_data_edge(&edge.weight().kind))
+                .count()
+        };
         let heap_value_edges = self
             .heap_value_successors
             .values()

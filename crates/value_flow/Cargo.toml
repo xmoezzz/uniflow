@@ -25,4 +25,5 @@ uniflow-lang-cpp = { path = "../lang_cpp" }
 uniflow-lang-java = { path = "../lang_java" }
 uniflow-parser-core = { path = "../parser_core" }
 uniflow-lang-python = { path = "../lang_python" }
+uniflow-lang-ruby = { path = "../lang_ruby" }
 uniflow-lowering = { path = "../lowering" }

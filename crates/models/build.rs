@@ -52,7 +52,10 @@ fn compile_pack(
     inputs: &[&str],
     java_policy: bool,
 ) {
-    const FORMAT_VERSION: &str = "uniflow-rule-table-v3";
+    // Bincode serializes structs positionally. Bump this whenever RuleSet's
+    // serialized field layout changes so cached bundled tables cannot be
+    // accepted with a stale schema.
+    const FORMAT_VERSION: &str = "uniflow-rule-table-v4";
     let output = out_dir.join(format!("legacy-{name}.bin"));
     let metadata_output = out_dir.join(format!("legacy-{name}.metadata.bin"));
     let stamp = out_dir.join(format!("legacy-{name}.stamp"));

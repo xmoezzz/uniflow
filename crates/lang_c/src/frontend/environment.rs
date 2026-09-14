@@ -326,29 +326,11 @@ fn resolve_access_type(text: &str, env: &CLikeEnv) -> Option<String> {
     None
 }
 
-fn infer_alloc_type_from_sizeof_expr(trimmed: &str, env: &CLikeEnv) -> Option<String> {
-    let sizeof_ptr = Regex::new(r"sizeof\s*\(\s*\*\s*([^)]+?)\s*\)").expect("valid regex");
-    if let Some(caps) = sizeof_ptr.captures(trimmed) {
-        let expr = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
-        if let Some(ty) = resolve_access_type(expr, env) {
-            return Some(ty);
-        }
-    }
-    let sizeof_name = Regex::new(r"sizeof\s*\(?\s*([A-Za-z_][A-Za-z0-9_\.\->\[\]\(\)]+)\s*\)?").expect("valid regex");
-    if let Some(caps) = sizeof_name.captures(trimmed) {
-        let name = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
-        if let Some(ty) = resolve_access_type(name, env) {
-            return Some(ty);
-        }
-    }
-    None
-}
-
 fn parse_alloc_expr(
     builder: &mut ModuleBuilder,
     text: &str,
     env: &mut CLikeEnv,
-    declared_type: Option<&str>,
+    _declared_type: Option<&str>,
 ) -> Option<Expr> {
     let trimmed = text.trim();
     // Match the allocator identifier itself, not an arbitrary substring. In
@@ -359,17 +341,6 @@ fn parse_alloc_expr(
     let alloc_caps = allocator_re.captures(trimmed)?;
     let alloc_name = alloc_caps.name("name")?.as_str();
 
-    let type_name = declared_type
-        .map(strip_pointer_qualifiers)
-        .filter(|ty| !ty.is_empty())
-        .or_else(|| {
-            let sizeof_re = Regex::new(r"sizeof\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)").expect("valid regex");
-            sizeof_re
-                .captures(trimmed)
-                .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
-        })
-        .or_else(|| infer_alloc_type_from_sizeof_expr(trimmed, env))?;
-
     let call_start = trimmed.find(alloc_name)?;
     let call_text = &trimmed[call_start..];
     let (_, arg_text) = parse_call_parts(call_text)?;
@@ -378,12 +349,12 @@ fn parse_alloc_expr(
         .map(|arg| parse_expr(builder, &arg, env))
         .collect::<Vec<_>>();
 
-    Some(Expr::New {
-        id: builder.alloc_expr_id(),
-        type_name,
-        args,
-        span: default_span(),
-    })
+    // `malloc`/`calloc` must stay calls in HIR.  Lowering them to `Expr::New`
+    // discarded the callee identity, which made both user-defined allocation
+    // models and native provenance checkers unable to distinguish them from a
+    // C++ constructor call.  C++ `new` has its own syntax and reaches
+    // `Expr::New` independently.
+    Some(new_call(builder, alloc_name, None, args))
 }
 
 

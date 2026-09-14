@@ -115,12 +115,19 @@ fn migrated_c_declaration_rules_preserve_source_boundaries() {
             "extern int x;",
         ),
     ] {
-        check(rule, source, 1);
-        check(rule, safe, 0);
-        check(rule, &format!("// {source}\n"), 0);
-        check(rule, &format!("/* {source} */"), 0);
-        check(rule, &format!("#define NOT_CODE {source}\n"), 0);
-        check(rule, &format!("const char *text = \"{source}\";"), 0);
+        let check_rule: fn(&str, &str, usize) -> Vec<(usize, usize)> = if rule
+            == "LEGACY-C-AST-func-decl-empty"
+        {
+            check_c_only
+        } else {
+            check
+        };
+        check_rule(rule, source, 1);
+        check_rule(rule, safe, 0);
+        check_rule(rule, &format!("// {source}\n"), 0);
+        check_rule(rule, &format!("/* {source} */"), 0);
+        check_rule(rule, &format!("#define NOT_CODE {source}\n"), 0);
+        check_rule(rule, &format!("const char *text = \"{source}\";"), 0);
     }
 }
 
@@ -175,8 +182,8 @@ fn migrated_c_parameter_rules_handle_function_pointer_descendants() {
     check(unnamed, "void f(void (*)(int));", 1);
     check(unnamed, "void f(int) {}", 0);
     let empty = "LEGACY-C-AST-func-decl-empty";
-    check(empty, "int prototype(); int (*callback)();", 0);
-    check(empty, "void f(/* no parameters */) {} void g(void) {}", 1);
+    check_c_only(empty, "int prototype(); int (*callback)();", 0);
+    check_c_only(empty, "void f(/* no parameters */) {} void g(void) {}", 1);
 }
 
 #[test]
@@ -623,6 +630,238 @@ struct PlainStruct { int public_by_default; };
         .collect::<Vec<_>>();
     assert_eq!(non_private, vec![6, 10], "{findings:#?}");
     assert_eq!(private_static, vec![4], "{findings:#?}");
+}
+
+#[test]
+fn anzu_no_private_data_return_only_exposes_restricted_members_from_public_pointer_methods() {
+    let source = r#"
+class Vault {
+    int *secret;
+protected:
+    int *inherited;
+public:
+    int *expose_secret() { return secret; }
+    int *expose_inherited() { return this->inherited; }
+    int *local_value() { int *secret = nullptr; return secret; }
+    int *parameter_value(int *inherited) { return inherited; }
+    int *derived_value() { return &secret; }
+private:
+    int *private_method() { return secret; }
+};
+class ExternalVault {
+    int *secret;
+public:
+    int *expose();
+};
+int *ExternalVault::expose() { return secret; }
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-NO-PRIVATE-DATA-RETURN");
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("private_return.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(7, 35), (8, 44), (20, 39)], "{findings:#?}");
+    assert!(pack
+        .scan_text(&Language::C, Path::new("private_return.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "private_return.cpp", source).expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(
+            &hir,
+            &HashMap::from([("private_return.cpp".into(), source.into())])
+        )
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>(),
+        coordinates
+    );
+}
+
+#[test]
+fn anzu_virtual_calls_from_constructors_and_destructors_require_the_this_object() {
+    let source = r#"
+struct Base {
+    virtual void virtual_call();
+    void ordinary();
+};
+struct Derived : Base {
+    Derived() { virtual_call(); }
+    ~Derived() { this->virtual_call(); }
+    void normal() { virtual_call(); }
+    void safe_other(Base &other) { other.virtual_call(); }
+};
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules.retain(|candidate| {
+        candidate.id == "ANZU-VIRTUAL-CALL-FROM-CONSTRUCTOR-OR-DESTRUCTOR"
+    });
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("virtual_calls.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(7, 17), (8, 18)], "{findings:#?}");
+    assert!(pack
+        .scan_text(&Language::C, Path::new("virtual_calls.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "virtual_calls.cpp", source).expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(
+            &hir,
+            &HashMap::from([("virtual_calls.cpp".into(), source.into())])
+        )
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>(),
+        coordinates
+    );
+}
+
+#[test]
+fn anzu_constructor_destructor_function_try_catches_only_report_visible_members() {
+    let source = r#"
+struct Base {
+protected:
+    int inherited;
+    void base_method();
+};
+struct Item : Base {
+    int own;
+    void own_method();
+    Item() try : own(0) { } catch (...) { own = 1; }
+    ~Item() try { } catch (...) { this->base_method(); }
+    Item(int) try { } catch (...) { int own = 0; own++; }
+    void ordinary() try { } catch (...) { own = 2; }
+};
+struct External {
+    int member;
+    External();
+};
+External::External() try { } catch (...) { member = 1; }
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules.retain(|candidate| {
+        candidate.id == "ANZU-CONSTRUCTOR-DESTRUCTOR-TRY-CATCH-MEMBER-ACCESS"
+    });
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("function_try.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(10, 43), (11, 41), (19, 44)], "{findings:#?}");
+    assert!(pack
+        .scan_text(&Language::C, Path::new("function_try.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "function_try.cpp", source).expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(
+            &hir,
+            &HashMap::from([("function_try.cpp".into(), source.into())])
+        )
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>(),
+        coordinates
+    );
+}
+
+#[test]
+fn anzu_virtual_destructor_delete_mismatch_tracks_new_origins_and_aliases() {
+    let source = r#"
+struct Base { ~Base() {} };
+struct Derived : Base { ~Derived() {} };
+struct VirtualBase { virtual ~VirtualBase() {} };
+struct VirtualDerived : VirtualBase { ~VirtualDerived() {} };
+
+void run() {
+    Base *bad = new Derived;
+    delete bad;
+    Base *alias = bad;
+    delete alias;
+    Derived *same = new Derived;
+    delete same;
+    VirtualBase *safe = new VirtualDerived;
+    delete safe;
+    Base *assigned;
+    assigned = new Derived;
+    delete assigned;
+}
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-VIRTUAL-DESTRUCTOR-DELETE-MISMATCH");
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("virtual_dtor.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(9, 5), (11, 5), (18, 5)], "{findings:#?}");
+    assert!(pack
+        .scan_text(&Language::C, Path::new("virtual_dtor.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "virtual_dtor.cpp", source).expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(
+            &hir,
+            &HashMap::from([("virtual_dtor.cpp".into(), source.into())])
+        )
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>(),
+        coordinates
+    );
+}
+
+#[test]
+fn anzu_member_initializer_list_reports_reads_before_declaration_order_initialization() {
+    let source = r#"
+struct Bad {
+    int first;
+    int second;
+    Bad() : first(second), second(1) { }
+};
+struct Good {
+    int first;
+    int second;
+    Good() : second(first), first(1) { }
+};
+struct AddressOnly {
+    int first;
+    int *second;
+    AddressOnly() : first(1), second(&first) { }
+};
+"#;
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules
+        .retain(|candidate| candidate.id == "ANZU-MEMBER-INITIALIZER-UNINITIALIZED-USE");
+    assert_eq!(pack.rules.len(), 1);
+    let findings = pack.scan_text(&Language::Cpp, Path::new("member_init.cpp"), source);
+    let coordinates = findings
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>();
+    assert_eq!(coordinates, vec![(5, 19)], "{findings:#?}");
+    assert!(pack
+        .scan_text(&Language::C, Path::new("member_init.c"), source)
+        .is_empty());
+    let hir = parse_c_like_file(Language::Cpp, "member_init.cpp", source).expect("C++ HIR");
+    assert_eq!(
+        pack.scan_hir(
+            &hir,
+            &HashMap::from([("member_init.cpp".into(), source.into())])
+        )
+        .iter()
+        .map(|finding| (finding.line, finding.column))
+        .collect::<Vec<_>>(),
+        coordinates
+    );
 }
 
 #[test]
@@ -1314,6 +1553,57 @@ void operator delete[](void* ptr) { }
     assert!(c_pack
         .scan_text(&Language::C, Path::new("allocation.c"), source)
         .is_empty());
+}
+
+#[test]
+fn anzu_file_pointer_leak_requires_fopen_and_honors_fclose() {
+    let findings = |source: &str, language: Language| {
+        let mut pack = builtin_security_pack().expect("pack");
+        pack.rules
+            .retain(|rule| rule.id == "ANZU-FILE-POINTER-LEAK");
+        let program = parse_c_like_file(language, "file_resource.c", source)
+            .expect("file resource fixture must parse");
+        pack.scan_hir(
+            &program,
+            &HashMap::from([("file_resource.c".to_string(), source.to_string())]),
+        )
+    };
+    let leaked = r#"
+typedef struct FILE FILE;
+FILE *fopen(const char *path, const char *mode);
+int fclose(FILE *stream);
+void leaked(void) {
+    FILE *stream = fopen("audit.log", "r");
+}
+"#;
+    for language in [Language::C, Language::Cpp] {
+        assert_eq!(findings(leaked, language).len(), 1);
+    }
+
+    let closed = r#"
+typedef struct FILE FILE;
+FILE *fopen(const char *path, const char *mode);
+int fclose(FILE *stream);
+void closed(void) {
+    FILE *stream = fopen("audit.log", "r");
+    fclose(stream);
+}
+"#;
+    for language in [Language::C, Language::Cpp] {
+        assert!(findings(closed, language).is_empty());
+    }
+
+    let unrelated_factory = r#"
+typedef struct FILE FILE;
+FILE *borrowed_file(void);
+void borrowed(void) {
+    FILE *stream = borrowed_file();
+}
+"#;
+    assert!(
+        findings(unrelated_factory, Language::C).is_empty(),
+        "only fopen is a tracked legacy acquisition"
+    );
 }
 
 #[test]

@@ -51,6 +51,11 @@ pub enum CDeclarationCheck {
     UnusedLabel,
     NoReturnDirectReturn,
     PointerThrow,
+    NoPrivateDataReturn,
+    VirtualCallFromConstructorOrDestructor,
+    ConstructorDestructorTryCatchMemberAccess,
+    VirtualDestructorDeleteMismatch,
+    MemberInitializerUninitializedUse,
     NonPrivateClassField,
     PrivateStaticDataMember,
     NonExplicitSingleParameterConstructor,
@@ -772,6 +777,21 @@ impl CDeclarationCheck {
                         );
                     }
                 }
+            }
+            Self::NoPrivateDataReturn => {
+                offsets.extend(no_private_data_return_offsets(index));
+            }
+            Self::VirtualCallFromConstructorOrDestructor => {
+                offsets.extend(virtual_call_from_constructor_or_destructor_offsets(index));
+            }
+            Self::ConstructorDestructorTryCatchMemberAccess => {
+                offsets.extend(constructor_destructor_try_catch_member_access_offsets(index));
+            }
+            Self::VirtualDestructorDeleteMismatch => {
+                offsets.extend(virtual_destructor_delete_mismatch_offsets(index));
+            }
+            Self::MemberInitializerUninitializedUse => {
+                offsets.extend(member_initializer_uninitialized_use_offsets(index));
             }
             Self::NonExplicitSingleParameterConstructor => {
                 offsets.extend(non_explicit_single_parameter_constructors(index))
@@ -1694,6 +1714,870 @@ fn method_is_virtual(
     false
 }
 
+/// Reports the first direct call to a virtual member function from each
+/// constructor or destructor.  Calls through another object are intentionally
+/// excluded: the legacy checker only accepts an implicit `this` object or an
+/// explicit `this->method()` receiver.
+fn virtual_call_from_constructor_or_destructor_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let methods = cpp_method_infos(index);
+    let aggregates = index
+        .aggregates
+        .iter()
+        .filter(|aggregate| matches!(aggregate.kind.as_str(), "class" | "struct"))
+        .filter(|aggregate| !aggregate.qualified_name.is_empty())
+        .map(|aggregate| (aggregate.qualified_name.as_str(), aggregate))
+        .collect::<HashMap<_, _>>();
+    let mut offsets = Vec::new();
+
+    let tokens = index.tokens();
+    for aggregate in aggregates.values() {
+        let Some(body) = aggregate.body.clone() else {
+            continue;
+        };
+        let Some(open) = tokens.iter().position(|token| token.start as usize == body.start) else {
+            continue;
+        };
+        let Some(close) = index.matching_token_index(open) else {
+            continue;
+        };
+        let class_name = aggregate.name.as_deref().unwrap_or_default();
+        let mut depth = 1usize;
+        let mut at = open + 1;
+        while at < close {
+            match tokens[at].text.as_str() {
+                "{" => {
+                    depth += 1;
+                    at += 1;
+                    continue;
+                }
+                "}" => {
+                    depth = depth.saturating_sub(1);
+                    at += 1;
+                    continue;
+                }
+                _ => {}
+            }
+            if depth != 1 {
+                at += 1;
+                continue;
+            }
+            let constructor = tokens[at].text == class_name
+                && tokens.get(at + 1).is_some_and(|token| token.text == "(");
+            let destructor = tokens[at].text == "~"
+                && tokens.get(at + 1).is_some_and(|token| token.text == class_name)
+                && tokens.get(at + 2).is_some_and(|token| token.text == "(");
+            if !constructor && !destructor {
+                at += 1;
+                continue;
+            }
+            let parameters_open = at + if destructor { 2 } else { 1 };
+            let Some(parameters_close) = index.matching_token_index(parameters_open) else {
+                at += 1;
+                continue;
+            };
+            let Some(body_open) = ((parameters_close + 1)..close)
+                .find(|candidate| tokens[*candidate].text == "{")
+            else {
+                at = parameters_close + 1;
+                continue;
+            };
+            let Some(body_close) = index.matching_token_index(body_open) else {
+                at = body_open + 1;
+                continue;
+            };
+            if let Some(offset) = virtual_call_in_body(
+                tokens,
+                body_open + 1,
+                body_close,
+                &aggregate.qualified_name,
+                &methods,
+                &aggregates,
+            ) {
+                offsets.push(offset);
+            }
+            at = body_close + 1;
+        }
+    }
+    offsets
+}
+
+/// Implements `ConstructorDestructorTryCatchChecker` over the shared C++
+/// declaration index.  The legacy implementation deliberately only inspects a
+/// *function-try-block* whose function is a constructor or destructor; an
+/// ordinary `try` nested in its body is not in scope.  Keeping the recognition
+/// at the declaration-token level lets this work for both inline and
+/// out-of-class definitions without treating arbitrary function `try` blocks
+/// as constructors.
+fn constructor_destructor_try_catch_member_access_offsets(
+    index: &CDeclarationIndex,
+) -> Vec<usize> {
+    let aggregates = index
+        .aggregates
+        .iter()
+        .filter(|aggregate| matches!(aggregate.kind.as_str(), "class" | "struct"))
+        .filter(|aggregate| !aggregate.qualified_name.is_empty())
+        .map(|aggregate| (aggregate.qualified_name.as_str(), aggregate))
+        .collect::<HashMap<_, _>>();
+    let methods = cpp_method_infos(index);
+    let tokens = index.tokens();
+    let mut offsets = Vec::new();
+
+    for at in 0..tokens.len() {
+        let Some((owner, parameters_open)) = function_try_constructor_or_destructor_owner(
+            index,
+            at,
+            &aggregates,
+        ) else {
+            continue;
+        };
+        let Some(parameters_close) = index.matching_token_index(parameters_open) else {
+            continue;
+        };
+        if !tokens
+            .get(parameters_close + 1)
+            .is_some_and(|token| token.text == "try")
+        {
+            continue;
+        }
+        // Search forward from `try`, allowing a constructor
+        // member-initializer before the compound statement.
+        let Some(body_open) = ((parameters_close + 2)..tokens.len())
+            .find(|candidate| tokens[*candidate].text == "{")
+        else {
+            continue;
+        };
+        let Some(body_close) = index.matching_token_index(body_open) else {
+            continue;
+        };
+        let mut cursor = body_close + 1;
+        while cursor < tokens.len() && tokens[cursor].text == "catch" {
+            if !tokens.get(cursor + 1).is_some_and(|token| token.text == "(") {
+                break;
+            }
+            let parameters_end = match index.matching_token_index(cursor + 1) {
+                Some(end) => end,
+                None => break,
+            };
+            if !tokens
+                .get(parameters_end + 1)
+                .is_some_and(|token| token.text == "{")
+            {
+                break;
+            }
+            let catch_open = parameters_end + 1;
+            let Some(catch_close) = index.matching_token_index(catch_open) else {
+                break;
+            };
+            if let Some(offset) = function_try_catch_member_access(
+                index,
+                catch_open + 1,
+                catch_close,
+                &owner,
+                &aggregates,
+                &methods,
+            ) {
+                offsets.push(offset);
+            }
+            cursor = catch_close + 1;
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+/// Returns the containing record and opening parenthesis for a constructor or
+/// destructor spelling at `at`.  A following `try` is checked by the caller,
+/// which prevents class-name expressions from becoming false positives.
+fn function_try_constructor_or_destructor_owner(
+    index: &CDeclarationIndex,
+    at: usize,
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+) -> Option<(String, usize)> {
+    let tokens = index.tokens();
+    let (name_at, parameters_open, qualification_end) = if tokens.get(at)?.text == "~" {
+        (at + 1, at + 2, at)
+    } else {
+        (at, at + 1, at)
+    };
+    let name = tokens.get(name_at)?;
+    if name.kind != TokKind::Ident || tokens.get(parameters_open)?.text != "(" {
+        return None;
+    }
+
+    let explicit_owner = if qualification_end >= 2 && tokens[qualification_end - 1].text == "::" {
+        let mut components = Vec::new();
+        let mut cursor = qualification_end - 2;
+        loop {
+            if tokens[cursor].kind != TokKind::Ident {
+                return None;
+            }
+            components.push(tokens[cursor].text.as_str());
+            if cursor < 2 || tokens[cursor - 1].text != "::" {
+                break;
+            }
+            cursor -= 2;
+        }
+        components.reverse();
+        Some(components.join("::"))
+    } else {
+        None
+    };
+
+    let owner = if let Some(owner) = explicit_owner {
+        canonical_aggregate_name(&owner, aggregates)?
+    } else {
+        // An inline definition has no qualification, so locate its innermost
+        // enclosing class/struct.  The constructor spelling must match that
+        // record's unqualified name.
+        aggregates
+            .values()
+            .filter(|aggregate| {
+                aggregate.body.as_ref().is_some_and(|body| {
+                    body.start <= name.start as usize && (name.end as usize) <= body.end
+                })
+            })
+            .min_by_key(|aggregate| {
+                aggregate
+                    .body
+                    .as_ref()
+                    .map_or(usize::MAX, |body| body.end.saturating_sub(body.start))
+            })
+            .map(|aggregate| aggregate.qualified_name.clone())?
+    };
+    let owner_record = aggregates.get(owner.as_str())?;
+    (owner_record.name.as_deref() == Some(name.text.as_str())).then_some((owner, parameters_open))
+}
+
+fn canonical_aggregate_name(
+    candidate: &str,
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+) -> Option<String> {
+    if aggregates.contains_key(candidate) {
+        return Some(candidate.to_string());
+    }
+    let matches = aggregates
+        .keys()
+        .filter(|known| known.ends_with(&format!("::{candidate}")))
+        .copied()
+        .collect::<Vec<_>>();
+    (matches.len() == 1).then(|| matches[0].to_string())
+}
+
+fn function_try_catch_member_access(
+    index: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+    owner: &str,
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+    methods: &[CppMethodInfo],
+) -> Option<usize> {
+    let tokens = index.tokens();
+    let fields = function_try_visible_field_names(index, owner, aggregates);
+    let method_names = methods
+        .iter()
+        .filter(|method| owner_is_same_or_base(owner, &method.owner, aggregates, &mut HashSet::new()))
+        .map(|method| method.name.as_str())
+        .collect::<HashSet<_>>();
+    let catch_start = tokens[start].start as usize;
+    let catch_end = tokens[end].end as usize;
+    let local_names = index
+        .declarations
+        .iter()
+        .filter(|declaration| {
+            catch_start <= declaration.range.start && declaration.range.end <= catch_end
+        })
+        .flat_map(|declaration| declaration.declarators.iter())
+        .filter_map(|declarator| declarator.name.as_deref())
+        .collect::<HashSet<_>>();
+
+    for at in start..end {
+        let token = &tokens[at];
+        if token.kind != TokKind::Ident {
+            continue;
+        }
+        let name = token.text.as_str();
+        let previous = at.checked_sub(1).and_then(|previous| tokens.get(previous));
+        let next = tokens.get(at + 1);
+        let explicit_this = previous.is_some_and(|previous| matches!(previous.text.as_str(), "." | "->"))
+            && at >= 2
+            && tokens[at - 2].text == "this";
+        let implicit_method = method_names.contains(name)
+            && next.is_some_and(|next| next.text == "(")
+            && !previous.is_some_and(|previous| matches!(previous.text.as_str(), "." | "->" | "::"));
+        let implicit_field = fields.contains(name)
+            && !local_names.contains(name)
+            && !previous.is_some_and(|previous| matches!(previous.text.as_str(), "." | "->" | "::"));
+        if explicit_this && (fields.contains(name) || method_names.contains(name))
+            || implicit_method
+            || implicit_field
+        {
+            return Some(token.start as usize);
+        }
+    }
+    None
+}
+
+fn function_try_visible_field_names(
+    index: &CDeclarationIndex,
+    owner: &str,
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+) -> HashSet<String> {
+    index
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.in_aggregate)
+        .filter(|declaration| {
+            owner_is_same_or_base(
+                owner,
+                declaration.qualification.join("::").as_str(),
+                aggregates,
+                &mut HashSet::new(),
+            )
+        })
+        .flat_map(|declaration| declaration.declarators.iter())
+        .filter(|declarator| !declarator.derived.iter().any(|derived| matches!(derived, D::Function { .. })))
+        .filter_map(|declarator| declarator.name.clone())
+        .collect()
+}
+
+/// Tracks the dynamic record allocated by `new` through simple assignments
+/// and reports a `delete` through a different static record type when that
+/// dynamic record has no virtual destructor.  This is the source-level
+/// counterpart of the legacy path-sensitive `VirtualDtorChecker`: its state is
+/// keyed by the pointer value, rather than by the spelling of the `new` site,
+/// so `Base *alias = pointer; delete alias;` remains covered.
+fn virtual_destructor_delete_mismatch_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let aggregates = index
+        .aggregates
+        .iter()
+        .filter(|aggregate| matches!(aggregate.kind.as_str(), "class" | "struct"))
+        .filter(|aggregate| !aggregate.qualified_name.is_empty())
+        .map(|aggregate| (aggregate.qualified_name.as_str(), aggregate))
+        .collect::<HashMap<_, _>>();
+    let tokens = index.tokens();
+    let mut virtual_destructor_cache = HashMap::new();
+    let mut offsets = Vec::new();
+
+    for (function_id, function) in index.functions.iter().enumerate() {
+        let mut static_types = HashMap::new();
+        for declaration in index
+            .declarations
+            .iter()
+            .filter(|declaration| declaration.enclosing_function == Some(function_id))
+        {
+            let Some(record) = canonical_record_type(&declaration.type_name, &aggregates) else {
+                continue;
+            };
+            for declarator in &declaration.declarators {
+                if declarator
+                    .derived
+                    .iter()
+                    .any(|derived| matches!(derived, D::Pointer))
+                {
+                    if let Some(name) = &declarator.name {
+                        static_types.insert(name.clone(), record.clone());
+                    }
+                }
+            }
+        }
+
+        let body_tokens = tokens
+            .iter()
+            .enumerate()
+            .filter(|(_, token)| {
+                function.body.start <= token.start as usize && (token.end as usize) <= function.body.end
+            })
+            .map(|(at, _)| at)
+            .collect::<Vec<_>>();
+        let Some(&body_start) = body_tokens.first() else {
+            continue;
+        };
+        let body_end = body_tokens.last().copied().unwrap_or(body_start) + 1;
+        let mut origins = HashMap::<String, String>::new();
+        let mut at = body_start;
+        while at < body_end {
+            match tokens[at].text.as_str() {
+                "new" => {
+                    let Some((allocated, next)) = new_record_type_at(tokens, at, &aggregates) else {
+                        at += 1;
+                        continue;
+                    };
+                    if !record_has_virtual_destructor(
+                        &allocated,
+                        &aggregates,
+                        tokens,
+                        &mut virtual_destructor_cache,
+                        &mut HashSet::new(),
+                    ) {
+                        if let Some(lhs) = assignment_lhs_name(tokens, body_start, at) {
+                            if static_types.contains_key(lhs) {
+                                origins.insert(lhs.to_string(), allocated);
+                            }
+                        }
+                    }
+                    at = next;
+                }
+                "=" => {
+                    if let (Some(lhs), Some(rhs)) = (
+                        lhs_name_before_equals(tokens, body_start, at),
+                        tokens.get(at + 1).filter(|token| token.kind == TokKind::Ident),
+                    ) {
+                        if static_types.contains_key(lhs) {
+                            if let Some(origin) = origins.get(rhs.text.as_str()).cloned() {
+                                origins.insert(lhs.to_string(), origin);
+                            } else {
+                                origins.remove(lhs);
+                            }
+                        }
+                    }
+                    at += 1;
+                }
+                "delete" => {
+                    if let Some((static_type, value, next)) = delete_record_operand(tokens, at, &static_types) {
+                        if origins
+                            .get(value)
+                            .is_some_and(|origin| origin != &static_type)
+                        {
+                            offsets.push(tokens[at].start as usize);
+                        }
+                        at = next;
+                    } else {
+                        at += 1;
+                    }
+                }
+                _ => at += 1,
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+/// Detects a constructor member-initializer reading a data member that has not
+/// been initialized yet.  Construction follows declaration order, not the
+/// textual order of the initializer list, so the analysis first maps every
+/// initializer to its field and then evaluates those expressions in field
+/// declaration order.  This preserves the central behaviour of Clang's
+/// `MemberInitializedListChecker` without confusing an ordinary constructor
+/// body with a member-initializer.
+fn member_initializer_uninitialized_use_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let tokens = index.tokens();
+    let mut offsets = Vec::new();
+    for aggregate in index.aggregates.iter().filter(|aggregate| {
+        matches!(aggregate.kind.as_str(), "class" | "struct")
+            && aggregate.name.is_some()
+            && aggregate.body.is_some()
+    }) {
+        let Some(body) = aggregate.body.as_ref() else {
+            continue;
+        };
+        let fields = aggregate_member_fields(index, aggregate);
+        if fields.is_empty() {
+            continue;
+        }
+        let Some(open) = tokens.iter().position(|token| token.start as usize == body.start) else {
+            continue;
+        };
+        let Some(close) = index.matching_token_index(open) else {
+            continue;
+        };
+        let class_name = aggregate.name.as_deref().unwrap_or_default();
+        let mut depth = 1usize;
+        let mut at = open + 1;
+        while at < close {
+            match tokens[at].text.as_str() {
+                "{" => {
+                    depth += 1;
+                    at += 1;
+                    continue;
+                }
+                "}" => {
+                    depth = depth.saturating_sub(1);
+                    at += 1;
+                    continue;
+                }
+                _ => {}
+            }
+            if depth != 1 || tokens[at].text != class_name || tokens.get(at + 1).is_none_or(|token| token.text != "(") {
+                at += 1;
+                continue;
+            }
+            let Some(parameters_end) = index.matching_token_index(at + 1) else {
+                at += 1;
+                continue;
+            };
+            let Some(body_open) = (parameters_end + 1..close)
+                .find(|candidate| tokens[*candidate].text == "{")
+            else {
+                at = parameters_end + 1;
+                continue;
+            };
+            if tokens.get(parameters_end + 1).is_none_or(|token| token.text != ":") {
+                at = body_open + 1;
+                continue;
+            }
+            let initializers = constructor_member_initializers(
+                index,
+                parameters_end + 2,
+                body_open,
+                &fields,
+            );
+            offsets.extend(uninitialized_member_initializer_uses(
+                index,
+                &fields,
+                &initializers,
+            ));
+            at = index.matching_token_index(body_open).map_or(body_open + 1, |end| end + 1);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn aggregate_member_fields(
+    index: &CDeclarationIndex,
+    aggregate: &uniflow_parser_core::c_declarations::CAggregate,
+) -> Vec<(String, bool)> {
+    let Some(body) = aggregate.body.as_ref() else {
+        return Vec::new();
+    };
+    let mut fields = index
+        .declarations
+        .iter()
+        .filter(|declaration| {
+            declaration.in_aggregate
+                && body.start <= declaration.range.start
+                && declaration.range.end <= body.end
+                && declaration.qualification.join("::") == aggregate.qualified_name
+        })
+        .flat_map(|declaration| {
+            declaration.declarators.iter().filter_map(|declarator| {
+                (!declarator
+                    .derived
+                    .iter()
+                    .any(|derived| matches!(derived, D::Function { .. })))
+                .then_some(())?;
+                Some((declarator.name.clone()?, declarator.initializer.is_some()))
+            })
+        })
+        .collect::<Vec<_>>();
+    fields.sort_by_key(|(name, _)| {
+        index
+            .declarations
+            .iter()
+            .flat_map(|declaration| declaration.declarators.iter())
+            .find(|declarator| declarator.name.as_deref() == Some(name.as_str()))
+            .map_or(usize::MAX, |declarator| declarator.range.start)
+    });
+    fields
+}
+
+fn constructor_member_initializers(
+    index: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+    fields: &[(String, bool)],
+) -> HashMap<String, (usize, usize)> {
+    let field_names = fields.iter().map(|(name, _)| name.as_str()).collect::<HashSet<_>>();
+    let tokens = index.tokens();
+    let mut result = HashMap::new();
+    let mut at = start;
+    while at < end {
+        if tokens[at].kind != TokKind::Ident || !field_names.contains(tokens[at].text.as_str()) {
+            at += 1;
+            continue;
+        }
+        let name = tokens[at].text.clone();
+        let Some(open) = tokens.get(at + 1).filter(|token| matches!(token.text.as_str(), "(" | "{"))
+        else {
+            at += 1;
+            continue;
+        };
+        let open_at = tokens
+            .iter()
+            .position(|token| std::ptr::eq(token, open))
+            .expect("initializer delimiter is indexed");
+        let Some(close) = index.matching_token_index(open_at) else {
+            break;
+        };
+        result.insert(name, (open_at + 1, close));
+        at = close + 1;
+    }
+    result
+}
+
+fn uninitialized_member_initializer_uses(
+    index: &CDeclarationIndex,
+    fields: &[(String, bool)],
+    initializers: &HashMap<String, (usize, usize)>,
+) -> Vec<usize> {
+    let tokens = index.tokens();
+    let mut uninitialized = fields
+        .iter()
+        .filter(|(_, default_initialized)| !*default_initialized)
+        .map(|(name, _)| name.as_str())
+        .collect::<HashSet<_>>();
+    let mut offsets = Vec::new();
+    for (field, _) in fields {
+        if let Some((start, end)) = initializers.get(field) {
+            for at in *start..*end {
+                let token = &tokens[at];
+                if token.kind != TokKind::Ident || !uninitialized.contains(token.text.as_str()) {
+                    continue;
+                }
+                // Taking the address of a scalar/POD member is not an
+                // lvalue-to-rvalue use in Clang's visitor and must stay safe.
+                if at > *start && tokens[at - 1].text == "&" {
+                    continue;
+                }
+                offsets.push(token.start as usize);
+            }
+        }
+        uninitialized.remove(field.as_str());
+    }
+    offsets
+}
+
+fn canonical_record_type(
+    type_name: &str,
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+) -> Option<String> {
+    let compact = type_name
+        .split_whitespace()
+        .filter(|part| !matches!(*part, "const" | "volatile" | "struct" | "class"))
+        .collect::<String>();
+    let candidate = compact.trim_matches(|character: char| {
+        matches!(character, '*' | '&' | '(' | ')' | '[' | ']')
+    });
+    canonical_aggregate_name(candidate, aggregates)
+}
+
+fn new_record_type_at(
+    tokens: &[uniflow_parser_core::Token],
+    new_at: usize,
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+) -> Option<(String, usize)> {
+    let mut at = new_at + 1;
+    while tokens
+        .get(at)
+        .is_some_and(|token| matches!(token.text.as_str(), "(" | "const" | "volatile" | "struct" | "class"))
+    {
+        at += 1;
+    }
+    let first = tokens.get(at)?;
+    if first.kind != TokKind::Ident {
+        return None;
+    }
+    let mut parts = vec![first.text.as_str()];
+    at += 1;
+    while tokens.get(at).is_some_and(|token| token.text == "::")
+        && tokens.get(at + 1).is_some_and(|token| token.kind == TokKind::Ident)
+    {
+        parts.push(tokens[at + 1].text.as_str());
+        at += 2;
+    }
+    Some((canonical_aggregate_name(&parts.join("::"), aggregates)?, at))
+}
+
+fn assignment_lhs_name<'a>(
+    tokens: &'a [uniflow_parser_core::Token],
+    body_start: usize,
+    before: usize,
+) -> Option<&'a str> {
+    let equals = (body_start..before)
+        .rev()
+        .take_while(|at| !matches!(tokens[*at].text.as_str(), ";" | "{" | "}"))
+        .find(|at| tokens[*at].text == "=")?;
+    lhs_name_before_equals(tokens, body_start, equals)
+}
+
+fn lhs_name_before_equals<'a>(
+    tokens: &'a [uniflow_parser_core::Token],
+    body_start: usize,
+    equals: usize,
+) -> Option<&'a str> {
+    (body_start..equals)
+        .rev()
+        .take_while(|at| !matches!(tokens[*at].text.as_str(), ";" | "{" | "}"))
+        .find(|at| tokens[*at].kind == TokKind::Ident)
+        .map(|at| tokens[at].text.as_str())
+}
+
+fn delete_record_operand<'a>(
+    tokens: &'a [uniflow_parser_core::Token],
+    delete_at: usize,
+    static_types: &HashMap<String, String>,
+) -> Option<(String, &'a str, usize)> {
+    let mut at = delete_at + 1;
+    if tokens.get(at).is_some_and(|token| token.text == "[")
+        && tokens.get(at + 1).is_some_and(|token| token.text == "]")
+    {
+        at += 2;
+    }
+    while tokens.get(at).is_some_and(|token| token.text == "(") {
+        at += 1;
+    }
+    let value = tokens.get(at)?;
+    (value.kind == TokKind::Ident)
+        .then(|| static_types.get(value.text.as_str()).cloned())
+        .flatten()
+        .map(|static_type| (static_type, value.text.as_str(), at + 1))
+}
+
+fn record_has_virtual_destructor(
+    record: &str,
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+    tokens: &[uniflow_parser_core::Token],
+    cache: &mut HashMap<String, bool>,
+    visiting: &mut HashSet<String>,
+) -> bool {
+    if let Some(result) = cache.get(record) {
+        return *result;
+    }
+    if !visiting.insert(record.to_string()) {
+        return false;
+    }
+    let Some(aggregate) = aggregates.get(record) else {
+        return false;
+    };
+    let direct = aggregate.body.as_ref().is_some_and(|body| {
+        tokens
+            .iter()
+            .enumerate()
+            .filter(|(_, token)| body.start <= token.start as usize && (token.end as usize) <= body.end)
+            .any(|(at, token)| {
+                token.text == "virtual"
+                    && tokens[at + 1..]
+                        .iter()
+                        .take_while(|candidate| {
+                            candidate.start as usize <= body.end
+                                && !matches!(candidate.text.as_str(), ";" | "{" | "}")
+                        })
+                        .enumerate()
+                        .any(|(relative, candidate)| {
+                            candidate.text == "~"
+                                && tokens
+                                    .get(at + relative + 2)
+                                    .is_some_and(|name| {
+                                        name.text == aggregate.name.as_deref().unwrap_or_default()
+                                    })
+                        })
+            })
+    });
+    let inherited = aggregate.bases.iter().any(|base| {
+        canonical_aggregate_name(base, aggregates).is_some_and(|base| {
+            record_has_virtual_destructor(&base, aggregates, tokens, cache, visiting)
+        })
+    });
+    visiting.remove(record);
+    let result = direct || inherited;
+    cache.insert(record.to_string(), result);
+    result
+}
+
+fn virtual_call_in_body(
+    tokens: &[uniflow_parser_core::Token],
+    start: usize,
+    end: usize,
+    owner: &str,
+    methods: &[CppMethodInfo],
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+) -> Option<usize> {
+    for at in start..end.saturating_sub(1) {
+        let (name, call_open, offset) = if tokens[at].text == "this"
+            && tokens.get(at + 3).is_some_and(|token| token.text == "(")
+            && tokens
+                .get(at + 1)
+                .is_some_and(|token| matches!(token.text.as_str(), "." | "->"))
+            && tokens.get(at + 2).is_some_and(|token| token.kind == TokKind::Ident)
+        {
+            (tokens[at + 2].text.as_str(), at + 3, tokens[at].start as usize)
+        } else if tokens[at].kind == TokKind::Ident
+            && tokens.get(at + 1).is_some_and(|token| token.text == "(")
+            && !tokens.get(at.wrapping_sub(1)).is_some_and(|token| {
+                matches!(token.text.as_str(), "." | "->" | "::")
+            })
+        {
+            (tokens[at].text.as_str(), at + 1, tokens[at].start as usize)
+        } else {
+            continue;
+        };
+        let mut depth = 0usize;
+        let mut close = None;
+        for cursor in call_open..end {
+            match tokens[cursor].text.as_str() {
+                "(" => depth += 1,
+                ")" => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        close = Some(cursor);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(close) = close else {
+            continue;
+        };
+        let arity = call_argument_arity(&tokens[call_open + 1..close]);
+        if methods.iter().any(|method| {
+            method.name == name
+                && method.signature.len() == arity
+                && owner_is_same_or_base(owner, &method.owner, aggregates, &mut HashSet::new())
+                && method_is_virtual(method, methods, aggregates, &mut HashSet::new())
+        }) {
+            return Some(offset);
+        }
+    }
+    None
+}
+
+fn owner_is_same_or_base(
+    owner: &str,
+    candidate: &str,
+    aggregates: &HashMap<&str, &uniflow_parser_core::c_declarations::CAggregate>,
+    visiting: &mut HashSet<String>,
+) -> bool {
+    if owner == candidate {
+        return true;
+    }
+    if !visiting.insert(owner.to_string()) {
+        return false;
+    }
+    let Some(record) = aggregates.get(owner) else {
+        return false;
+    };
+    record.bases.iter().any(|base| {
+        let base_name = aggregates
+            .keys()
+            .find(|known| **known == base || known.ends_with(&format!("::{base}")))
+            .copied()
+            .unwrap_or(base.as_str());
+        owner_is_same_or_base(base_name, candidate, aggregates, visiting)
+    })
+}
+
+fn call_argument_arity(tokens: &[uniflow_parser_core::Token]) -> usize {
+    if tokens.is_empty() {
+        return 0;
+    }
+    let mut depth = 0usize;
+    let mut count = 1usize;
+    for token in tokens {
+        match token.text.as_str() {
+            "(" | "[" | "{" => depth += 1,
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            "," if depth == 0 => count += 1,
+            _ => {}
+        }
+    }
+    count
+}
+
 /// Finds non-virtual methods that differ only by trailing `const` from a
 /// virtual method declared by the same class or one of its bases. Such a
 /// method hides the virtual slot instead of overriding it; this mirrors the
@@ -2598,6 +3482,149 @@ fn class_access_at(
         }
     }
     access
+}
+
+/// Mirrors `NoPrivateDataReturnChecker`: a public C++ method returning a
+/// pointer or reference must not directly expose one of its private or
+/// protected data members.  This deliberately accepts only the direct member
+/// expressions handled by the legacy AST checker; derived expressions such as
+/// `&member` are outside that checker's scope.
+fn no_private_data_return_offsets(index: &CDeclarationIndex) -> Vec<usize> {
+    let mut restricted_members = HashMap::<String, HashSet<String>>::new();
+    let mut declared_method_access = HashMap::<(String, String), &'static str>::new();
+
+    for aggregate in index
+        .aggregates
+        .iter()
+        .filter(|aggregate| matches!(aggregate.kind.as_str(), "class" | "struct"))
+    {
+        let Some(body) = aggregate.body.clone() else {
+            continue;
+        };
+        let owner = aggregate.qualified_name.clone();
+        for declaration in index.declarations.iter().filter(|declaration| {
+            declaration.in_aggregate
+                && declaration.qualification.join("::") == owner
+                && body.start <= declaration.range.start
+                && declaration.range.end <= body.end
+        }) {
+            let access = class_access_at(index, body.clone(), declaration.range.start);
+            for declarator in &declaration.declarators {
+                let Some(name) = declarator.name.as_ref() else {
+                    continue;
+                };
+                if declarator
+                    .derived
+                    .iter()
+                    .any(|derived| matches!(derived, D::Function { .. }))
+                {
+                    declared_method_access.insert((owner.clone(), name.clone()), access);
+                } else if matches!(access, "private" | "protected") {
+                    restricted_members
+                        .entry(owner.clone())
+                        .or_default()
+                        .insert(name.clone());
+                }
+            }
+        }
+    }
+
+    let mut offsets = Vec::new();
+    for (function_id, function) in index.functions.iter().enumerate() {
+        let CFunctionContext::Record { qualified_name } = &function.context else {
+            continue;
+        };
+        if !function
+            .return_derived
+            .iter()
+            .any(|derived| matches!(derived, D::Pointer | D::Reference | D::RvalueReference))
+        {
+            continue;
+        }
+        let access = declared_method_access
+            .get(&(qualified_name.clone(), function.name.clone()))
+            .copied()
+            .or_else(|| {
+                index
+                    .aggregates
+                    .iter()
+                    .find(|aggregate| aggregate.qualified_name == *qualified_name)
+                    .and_then(|aggregate| {
+                        aggregate.body.clone().and_then(|body| {
+                            (body.start <= function.range.start && function.range.end <= body.end)
+                                .then(|| class_access_at(index, body, function.range.start))
+                        })
+                    })
+            });
+        if access != Some("public") {
+            continue;
+        }
+        let Some(restricted) = restricted_members.get(qualified_name) else {
+            continue;
+        };
+
+        for statement in index.returns.iter().filter(|statement| statement.function == function_id) {
+            let Some(value) = statement.value.clone() else {
+                continue;
+            };
+            let Some((name, offset)) = direct_returned_member(index, value) else {
+                continue;
+            };
+            if !restricted.contains(name) || member_name_is_shadowed(index, function_id, function, name) {
+                continue;
+            }
+            offsets.push(offset);
+        }
+    }
+    offsets
+}
+
+fn direct_returned_member<'a>(
+    index: &'a CDeclarationIndex,
+    value: std::ops::Range<usize>,
+) -> Option<(&'a str, usize)> {
+    let tokens = index.tokens_in(value).collect::<Vec<_>>();
+    let mut start = 0usize;
+    let mut end = tokens.len();
+    while start + 1 < end && tokens[start].text == "(" && tokens[end - 1].text == ")" {
+        start += 1;
+        end -= 1;
+    }
+    let token = |at: usize| tokens.get(start + at);
+    match end.saturating_sub(start) {
+        1 if token(0).is_some_and(|item| item.kind == TokKind::Ident) => {
+            let item = token(0)?;
+            Some((item.text.as_str(), item.start as usize))
+        }
+        3
+            if token(0).is_some_and(|item| item.text == "this")
+                && token(1).is_some_and(|item| matches!(item.text.as_str(), "." | "->"))
+                && token(2).is_some_and(|item| item.kind == TokKind::Ident) =>
+        {
+            let item = token(2)?;
+            Some((item.text.as_str(), item.start as usize))
+        }
+        _ => None,
+    }
+}
+
+fn member_name_is_shadowed(
+    index: &CDeclarationIndex,
+    function_id: usize,
+    function: &uniflow_parser_core::c_declarations::CFunctionDefinition,
+    name: &str,
+) -> bool {
+    index.declarations.iter().any(|declaration| {
+        declaration.enclosing_function == Some(function_id)
+            && declaration
+                .declarators
+                .iter()
+                .any(|declarator| declarator.name.as_deref() == Some(name))
+    }) || index.parameters.iter().any(|parameter| {
+        function.parameters.start <= parameter.range.start
+            && parameter.range.end <= function.parameters.end
+            && parameter.name.as_deref() == Some(name)
+    })
 }
 
 fn non_explicit_single_parameter_constructors(index: &CDeclarationIndex) -> Vec<usize> {

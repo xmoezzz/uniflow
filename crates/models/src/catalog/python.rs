@@ -1,8 +1,11 @@
 fn python_models() -> RuleSet {
     RuleSet {
+        loop_sinks: Vec::new(),
         metadata: Vec::new(),
         sink_reports: Vec::new(),
         index_sinks: Vec::new(),
+        call_site_sources: Vec::new(),
+        call_site_sinks: Vec::new(),
         sources: vec![
             SourceRule {
                 id: "python-flask-request-args-get".to_string(),

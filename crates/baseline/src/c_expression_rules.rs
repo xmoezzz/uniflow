@@ -20,6 +20,8 @@ pub enum CExpressionCheck {
     FalseStaticAssert,
     DeleteThis,
     VforkCall,
+    BstrUsage,
+    IncompatiblePointerStoreType,
     LogicalNotConstant,
     NonAsciiNarrowString,
     ConstantTrueAssert,
@@ -55,6 +57,16 @@ pub enum CExpressionCheck {
     BooleanRelationalComparison,
     PointerRelationalComparison,
     PointerArithmetic,
+    PointerArithmeticOutOfBounds,
+    PointerCastStricterAlignment,
+    PointerOffsetMisalignment,
+    SignedIntegerOverflow,
+    UnsignedIntegerOverflow,
+    DeleteArrayWrongType,
+    ReinterpretCastMultipleInheritance,
+    StrongTypedefArgumentMismatch,
+    StrongTypedefReturnMismatch,
+    StrongTypedefBinaryMismatch,
     MixedTypeOperation,
     IncompleteEnumSwitchWithoutDefault,
     UpdateUsedAsBinaryOrCallOperand,
@@ -334,6 +346,10 @@ impl CExpressionCheck {
             Self::FalseStaticAssert => offsets.extend(false_static_assert_offsets(index)),
             Self::DeleteThis => offsets.extend(delete_this_offsets(index)),
             Self::VforkCall => offsets.extend(vfork_call_offsets(index, declarations)),
+            Self::BstrUsage => offsets.extend(bstr_usage_offsets(index, declarations)),
+            Self::IncompatiblePointerStoreType => {
+                offsets.extend(incompatible_pointer_store_type_offsets(index, declarations))
+            }
             Self::LogicalNotConstant => {
                 offsets.extend(logical_not_constant_offsets(index, declarations))
             }
@@ -634,6 +650,63 @@ impl CExpressionCheck {
             ),
             Self::PointerArithmetic => {
                 offsets.extend(pointer_arithmetic_offsets(source, index, declarations))
+            }
+            Self::PointerArithmeticOutOfBounds => {
+                offsets.extend(pointer_arithmetic_out_of_bounds_offsets(index, declarations))
+            }
+            Self::PointerCastStricterAlignment => {
+                offsets.extend(pointer_cast_stricter_alignment_offsets(index, declarations))
+            }
+            Self::PointerOffsetMisalignment => {
+                offsets.extend(pointer_offset_misalignment_offsets(index, declarations))
+            }
+            Self::SignedIntegerOverflow => {
+                offsets.extend(legacy_integer_overflow_offsets(index, declarations, false))
+            }
+            Self::UnsignedIntegerOverflow => {
+                offsets.extend(legacy_integer_overflow_offsets(index, declarations, true))
+            }
+            Self::DeleteArrayWrongType => offsets.extend(
+                explicit_cast_facts(index, declarations)
+                    .into_iter()
+                    .filter(|cast| {
+                        is_pointer_type(&cast.destination)
+                            && is_pointer_type(&cast.source)
+                            && distinct_record_pointer_types(
+                                declarations,
+                                &cast.destination,
+                                &cast.source,
+                            )
+                            && delete_array_precedes_cast(index, cast.offset)
+                    })
+                    .map(|cast| cast.offset),
+            ),
+            Self::ReinterpretCastMultipleInheritance => offsets.extend(
+                explicit_cast_facts(index, declarations)
+                    .into_iter()
+                    .filter(|cast| cast.kind == ExplicitCastKind::Reinterpret)
+                    .filter(|cast| {
+                        let Some(source) = record_type_from_cast_type(declarations, &cast.source)
+                        else {
+                            return false;
+                        };
+                        let Some(destination) =
+                            record_type_from_cast_type(declarations, &cast.destination)
+                        else {
+                            return false;
+                        };
+                        !std::ptr::eq(source, destination) && source.bases.len() > 1
+                    })
+                    .map(|cast| cast.offset),
+            ),
+            Self::StrongTypedefArgumentMismatch => offsets.extend(
+                strong_typedef_argument_mismatch_offsets(index, declarations, syntax),
+            ),
+            Self::StrongTypedefReturnMismatch => {
+                offsets.extend(strong_typedef_return_mismatch_offsets(index, declarations))
+            }
+            Self::StrongTypedefBinaryMismatch => {
+                offsets.extend(strong_typedef_binary_mismatch_offsets(index, declarations))
             }
             Self::MixedTypeOperation => {
                 offsets.extend(mixed_type_operation_offsets(source, index, declarations))
@@ -4224,11 +4297,29 @@ fn inconsistent_numeric_assignment_offsets(
         if !is_numeric_assignment_type(&target) {
             continue;
         }
-        for initializer in declaration
-            .declarators
-            .iter()
-            .filter_map(|declarator| declarator.initializer.as_ref())
-        {
+        for declarator in &declaration.declarators {
+            // The declaration's base spelling intentionally omits derived
+            // operators (`const char` for `const char *text`), so treating
+            // every initializer as a scalar numeric assignment misclassified
+            // string/pointer and array initializers. Those are bindings, not
+            // numeric conversions; only a direct scalar declarator belongs to
+            // this checker.
+            if declarator.derived.iter().any(|derived| {
+                matches!(
+                    derived,
+                    D::Pointer
+                        | D::Reference
+                        | D::RvalueReference
+                        | D::MemberPointer
+                        | D::Array { .. }
+                        | D::Function { .. }
+                )
+            }) {
+                continue;
+            }
+            let Some(initializer) = declarator.initializer.as_ref() else {
+                continue;
+            };
             let Some((start, end)) = token_range_for_source_range(index, initializer) else {
                 continue;
             };
@@ -9106,6 +9197,535 @@ fn pointer_arithmetic_offsets(
         .collect()
 }
 
+/// Exact source-level shape handled by the legacy `PointerArithmeticExChecker`:
+/// an additive operation on an array's decayed first-element pointer with a
+/// concrete offset outside that array.  Unknown pointer provenance and
+/// non-constant offsets deliberately stay silent, just as the original
+/// checker does when its symbolic value is not an `ElementRegion` plus a
+/// `ConcreteInt`.
+fn pointer_arithmetic_out_of_bounds_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Binary) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        let operator_text = index.tokens[operator].text.as_str();
+        if !matches!(operator_text, "+" | "-")
+            || !declarations.functions.iter().any(|function| {
+                function.body.start <= fact.offset && fact.offset < function.body.end
+            })
+        {
+            continue;
+        }
+        let precedence = binary_precedence(operator_text).map_or(0, |(value, _)| value);
+        let (lower, upper) = index
+            .smallest_group(fact.offset)
+            .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+        let left = left_operand_start(index, operator, lower, precedence);
+        let right = right_operand_end(index, operator, upper, precedence);
+
+        if let Some(length) = direct_array_operand_length(index, declarations, left, operator) {
+            if let Some(offset) = direct_concrete_offset(index, operator + 1, right) {
+                if offset >= length {
+                    offsets.push(index.tokens[operator + 1].start as usize);
+                }
+            }
+        }
+        // Only addition permits the pointer to be the right operand.
+        if operator_text == "+" {
+            if let Some(length) = direct_array_operand_length(index, declarations, operator + 1, right) {
+                if let Some(offset) = direct_concrete_offset(index, left, operator) {
+                    if offset >= length {
+                        offsets.push(index.tokens[left].start as usize);
+                    }
+                }
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+/// First half of `PointerAlignChecker`: a cast from one non-void pointer type
+/// to a pointer whose pointee has stricter alignment.  As with the other
+/// target-independent layout checks, report only if every supported ABI agrees
+/// on the stricter relationship.
+fn pointer_cast_stricter_alignment_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    explicit_cast_facts(index, declarations)
+        .into_iter()
+        .filter(|cast| {
+            is_pointer_type(&cast.destination)
+                && is_pointer_type(&cast.source)
+                && !is_void_pointer_type(&cast.destination)
+                && !is_void_pointer_type(&cast.source)
+        })
+        .filter(|cast| {
+            COMMON_C_ABIS.into_iter().all(|abi| {
+                let Some(destination) = pointer_pointee_layout(declarations, &cast.destination, abi)
+                else {
+                    return false;
+                };
+                let Some(source) = pointer_pointee_layout(declarations, &cast.source, abi) else {
+                    return false;
+                };
+                destination.align_bits > source.align_bits
+            })
+        })
+        .map(|cast| cast.offset)
+        .collect()
+}
+
+fn is_void_pointer_type(type_name: &str) -> bool {
+    canonical_type_text(type_name)
+        .trim_end_matches('*')
+        .trim()
+        == "void"
+}
+
+/// Second half of `PointerAlignChecker`: after a pointer has been explicitly
+/// reinterpreted from an array element type to another pointer type, an offset
+/// must land on an original element boundary.  The legacy RegionStore model
+/// only knows this for a concrete integer offset and an array-backed region;
+/// preserve those restrictions here.
+fn pointer_offset_misalignment_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let mut pointer_origins = HashMap::<String, (String, String)>::new();
+    for cast in explicit_cast_facts(index, declarations) {
+        if !is_pointer_type(&cast.destination) {
+            continue;
+        }
+        let Some(source_at) = token_at_offset(index, cast.source_offset) else {
+            continue;
+        };
+        let source_name = index.tokens[source_at].text.as_str();
+        let Some(array_element_type) = array_element_type_for_name(index, declarations, source_name) else {
+            continue;
+        };
+        let Some(target_name) = pointer_cast_assignment_target(index, cast.offset) else {
+            continue;
+        };
+        pointer_origins.insert(target_name, (array_element_type, cast.destination));
+    }
+
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Binary) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !matches!(index.tokens[operator].text.as_str(), "+" | "-") {
+            continue;
+        }
+        let precedence = binary_precedence(index.tokens[operator].text.as_str()).map_or(0, |(value, _)| value);
+        let (lower, upper) = index
+            .smallest_group(fact.offset)
+            .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+        let left = left_operand_start(index, operator, lower, precedence);
+        let right = right_operand_end(index, operator, upper, precedence);
+        for (pointer_start, pointer_end, offset_start, offset_end) in [
+            (left, operator, operator + 1, right),
+            (operator + 1, right, left, operator),
+        ] {
+            if index.tokens[operator].text == "-" && pointer_start != left {
+                continue;
+            }
+            let (pointer_start, pointer_end) = trim_outer_group(index, pointer_start, pointer_end);
+            if pointer_end != pointer_start + 1
+                || index.tokens[pointer_start].kind != TokKind::Ident
+            {
+                continue;
+            }
+            let Some((origin_type, current_type)) = pointer_origins.get(index.tokens[pointer_start].text.as_str()) else {
+                continue;
+            };
+            let Some(offset) = direct_concrete_offset(index, offset_start, offset_end) else {
+                continue;
+            };
+            let misaligned = COMMON_C_ABIS.into_iter().all(|abi| {
+                let Some(origin) = c_declared_type_layout(
+                    declarations,
+                    origin_type,
+                    &[],
+                    abi,
+                    &mut HashSet::new(),
+                ) else {
+                    return false;
+                };
+                let Some(current) = pointer_pointee_layout(declarations, current_type, abi) else {
+                    return false;
+                };
+                origin.size_bits != 0
+                    && (offset.saturating_mul(current.size_bits as u64) % origin.size_bits as u64 != 0)
+            });
+            if misaligned {
+                offsets.push(fact.offset);
+            }
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+/// Shared source implementation for the legacy signed/unsigned overflow
+/// checkers.  Their visitor deliberately considers only a direct additive
+/// expression assigned or initialized into an integral target, and only when
+/// the additive expression's left side is signed (or an enum).  The original
+/// analyzer proves the result exceeds the target's signed maximum; here a
+/// constant expression provides the same proof without inventing findings for
+/// unknown symbolic values.
+fn legacy_integer_overflow_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    unsigned_target: bool,
+) -> Vec<usize> {
+    let mut candidates = Vec::<(String, usize, usize)>::new();
+    for declaration in &declarations.declarations {
+        let Some(target) = integer_assignment_type(&declaration.type_name) else {
+            continue;
+        };
+        if target.starts_with("unsigned") != unsigned_target {
+            continue;
+        }
+        for initializer in declaration
+            .declarators
+            .iter()
+            .filter_map(|declarator| declarator.initializer.as_ref())
+        {
+            if let Some((start, end)) = token_range_for_source_range(index, initializer) {
+                candidates.push((target.clone(), start, end));
+            }
+        }
+    }
+    let initializer_assignments = initializer_separators(index, declarations);
+    for fact in index
+        .facts
+        .iter()
+        .filter(|fact| fact.kind == K::Assignment && !initializer_assignments.contains(&fact.offset))
+    {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if index.tokens[operator].text != "=" {
+            continue;
+        }
+        let Some(left) = operator.checked_sub(1).and_then(|at| unwrap_left_operand(index, at)) else {
+            continue;
+        };
+        let Some(target) = exact_operand_type(index, declarations, left)
+            .and_then(|ty| integer_assignment_type(&ty))
+        else {
+            continue;
+        };
+        if target.starts_with("unsigned") != unsigned_target {
+            continue;
+        }
+        candidates.push((
+            target,
+            operator + 1,
+            direct_assignment_value_end(index, operator + 1, usize::MAX),
+        ));
+    }
+
+    let mut offsets = Vec::new();
+    for (target, start, end) in candidates {
+        let (start, end) = trim_outer_group(index, start, end);
+        let Some(operator) = root_operator(index, start, end, &["+", "-"]) else {
+            continue;
+        };
+        let Some(left) = unwrap_left_operand(index, operator.checked_sub(1).unwrap_or(0)) else {
+            continue;
+        };
+        if !matches!(token_operand_type(index, declarations, left), OperandType::SignedInt | OperandType::Enum(_)) {
+            continue;
+        }
+        let Some(value) = evaluate_c_constant_integer(&index.tokens[start..end]) else {
+            continue;
+        };
+        let Some(width) = integer_storage_width(&target) else {
+            continue;
+        };
+        let max = (1i128 << (width - 1)) - 1;
+        if value > max {
+            offsets.push(index.tokens[operator].start as usize);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn array_element_type_for_name(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    name: &str,
+) -> Option<String> {
+    let name_offset = index
+        .tokens
+        .iter()
+        .filter(|token| token.text == name)
+        .map(|token| token.start as usize)
+        .max()?;
+    let (declaration, declarator) = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.range.start <= name_offset)
+        .filter_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .find(|declarator| declarator.name.as_deref() == Some(name))
+                .map(|declarator| (declaration, declarator))
+        })
+        .max_by_key(|(declaration, _)| declaration.range.start)?;
+    declarator
+        .derived
+        .iter()
+        .any(|derived| matches!(derived, D::Array { .. }))
+        .then(|| declaration.type_name.clone())
+}
+
+fn pointer_cast_assignment_target(index: &CExpressionIndex, cast_offset: usize) -> Option<String> {
+    let cast_open = token_at_offset(index, cast_offset)?;
+    let equals = (0..cast_open)
+        .rev()
+        .take_while(|at| !matches!(index.tokens[*at].text.as_str(), ";" | "{" | "}"))
+        .find(|at| index.tokens[*at].text == "=")?;
+    (0..equals)
+        .rev()
+        .take_while(|at| !matches!(index.tokens[*at].text.as_str(), ";" | "{" | "}"))
+        .find(|at| index.tokens[*at].kind == TokKind::Ident)
+        .map(|at| index.tokens[at].text.clone())
+}
+
+fn direct_array_operand_length(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    start: usize,
+    end: usize,
+) -> Option<u64> {
+    let (start, end) = trim_outer_group(index, start, end);
+    (end == start + 1 && index.tokens[start].kind == TokKind::Ident).then_some(())?;
+    let name = index.tokens[start].text.as_str();
+    // Clang filters its synthetic range-for variable before looking at its
+    // SVal, so retain that compatibility guard even though it is C-only.
+    if name == "__range1" {
+        return None;
+    }
+    let token_offset = index.tokens[start].start as usize;
+    let (declaration, declarator) = declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.range.start <= token_offset)
+        .filter_map(|declaration| {
+            declaration
+                .declarators
+                .iter()
+                .find(|declarator| declarator.name.as_deref() == Some(name))
+                .map(|declarator| (declaration, declarator))
+        })
+        .max_by_key(|(declaration, _)| declaration.range.start)?;
+    let _ = declaration;
+    let array = declarator
+        .derived
+        .iter()
+        .find_map(|derived| match derived {
+            D::Array { size } => Some(size),
+            _ => None,
+        })?;
+    let tokens = declarations.tokens_in(array.clone()).cloned().collect::<Vec<_>>();
+    evaluate_c_constant_integer(&tokens).and_then(|length| u64::try_from(length).ok())
+}
+
+fn direct_concrete_offset(index: &CExpressionIndex, start: usize, end: usize) -> Option<u64> {
+    let (start, end) = trim_outer_group(index, start, end);
+    (end == start + 1).then_some(())?;
+    token_integer_value(&index.tokens[start]).and_then(|value| u64::try_from(value).ok())
+}
+
+/// `DeleteArrayChecker` deliberately checks the static type of the value at a
+/// `delete[]` expression against the symbol's original pointer type.  A plain
+/// identifier has the same type in both places, so the only source form that
+/// can differ without full C++ template instantiation is an explicit cast.
+/// Keep this lexical guard narrow: an unrelated cast in the same statement
+/// must not become a delete-array diagnostic.
+fn delete_array_precedes_cast(index: &CExpressionIndex, cast_offset: usize) -> bool {
+    let Some(cast) = token_at_offset(index, cast_offset) else {
+        return false;
+    };
+    cast >= 3
+        && index.tokens[cast - 1].text == "]"
+        && index.tokens[cast - 2].text == "["
+        && index.tokens[cast - 3].text == "delete"
+}
+
+fn record_type_from_cast_type<'a>(
+    declarations: &'a CDeclarationIndex,
+    ty: &str,
+) -> Option<&'a uniflow_parser_core::c_declarations::CAggregate> {
+    let canonical = canonical_type_text(ty);
+    let base = canonical.trim_end_matches('*');
+    find_record_aggregate(declarations, base)
+}
+
+fn strong_typedef_aliases(declarations: &CDeclarationIndex) -> HashSet<String> {
+    declarations
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.storage.iter().any(|storage| storage == "typedef"))
+        .flat_map(|declaration| &declaration.declarators)
+        .filter_map(|declarator| declarator.name.clone())
+        .collect()
+}
+
+fn strong_typedef_expression_alias(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    aliases: &HashSet<String>,
+    casts: &[ExplicitCastFact],
+    start: usize,
+    end: usize,
+) -> Option<String> {
+    let (start, end) = trim_outer_group(index, start, end);
+    if start >= end {
+        return None;
+    }
+    if end == start + 1 {
+        let ty = exact_operand_type(index, declarations, start)?;
+        return aliases.contains(&ty).then_some(ty);
+    }
+    let offset = index.tokens[start].start as usize;
+    casts
+        .iter()
+        .find(|cast| cast.offset == offset && cast.offset < index.tokens[end - 1].end as usize)
+        .and_then(|cast| {
+            aliases
+                .contains(&cast.destination)
+                .then(|| cast.destination.clone())
+        })
+}
+
+fn strong_typedef_argument_mismatch_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+    syntax: &JavaSyntax,
+) -> Vec<usize> {
+    let aliases = strong_typedef_aliases(declarations);
+    if aliases.is_empty() {
+        return Vec::new();
+    }
+    let casts = explicit_cast_facts(index, declarations);
+    let signatures = callable_type_signatures(declarations);
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        if !is_legacy_direct_call(index, declarations, syntax, name_at) {
+            continue;
+        }
+        let Some((name, close)) = direct_call_expression(index, name_at) else {
+            continue;
+        };
+        let Some(candidates) = signatures.get(name) else {
+            continue;
+        };
+        for (argument_index, (start, end)) in
+            direct_call_argument_ranges(index, name_at + 1, close).into_iter().enumerate()
+        {
+            let mut expected_types = candidates
+                .iter()
+                .filter_map(|candidate| candidate.parameters.get(argument_index));
+            let Some(expected) = expected_types.next() else {
+                continue;
+            };
+            if candidates
+                .iter()
+                .any(|candidate| candidate.parameters.get(argument_index).is_none())
+                || expected_types.any(|candidate| candidate != expected)
+                || !aliases.contains(expected)
+            {
+                continue;
+            }
+            let Some(provided) =
+                strong_typedef_expression_alias(index, declarations, &aliases, &casts, start, end)
+            else {
+                continue;
+            };
+            if provided != *expected {
+                offsets.push(index.tokens[start].start as usize);
+            }
+        }
+    }
+    offsets
+}
+
+fn strong_typedef_return_mismatch_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let aliases = strong_typedef_aliases(declarations);
+    let casts = explicit_cast_facts(index, declarations);
+    declarations
+        .returns
+        .iter()
+        .filter_map(|returned| {
+            let value = returned.value.as_ref()?;
+            let function = declarations.functions.get(returned.function)?;
+            let expected = canonical_type_text(&function.return_type);
+            aliases.contains(&expected).then_some((value, expected))
+        })
+        .filter_map(|(value, expected)| {
+            let (start, end) = token_range_for_source_range(index, value)?;
+            let actual = strong_typedef_expression_alias(index, declarations, &aliases, &casts, start, end)?;
+            (actual != expected).then_some(index.tokens[start].start as usize)
+        })
+        .collect()
+}
+
+fn strong_typedef_binary_mismatch_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let aliases = strong_typedef_aliases(declarations);
+    let casts = explicit_cast_facts(index, declarations);
+    let mut offsets = Vec::new();
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Binary) {
+        let Some(operator) = token_at_offset(index, fact.offset) else {
+            continue;
+        };
+        let Some((precedence, _)) = binary_precedence(&index.tokens[operator].text) else {
+            continue;
+        };
+        let (lower, upper) = index
+            .smallest_group(fact.offset)
+            .map_or((0, index.tokens.len()), |(open, close)| (open + 1, close));
+        let left = left_operand_start(index, operator, lower, precedence);
+        let right = right_operand_end(index, operator, upper, precedence);
+        let Some(left) = strong_typedef_expression_alias(index, declarations, &aliases, &casts, left, operator)
+        else {
+            continue;
+        };
+        let Some(right) =
+            strong_typedef_expression_alias(index, declarations, &aliases, &casts, operator + 1, right)
+        else {
+            continue;
+        };
+        if left != right {
+            offsets.push(fact.offset);
+        }
+    }
+    offsets
+}
+
 /// Mirrors `MixedTypeOperationChecker`: additive and multiplicative operations
 /// whose two non-constant operands have different source-level types.  The
 /// checker intentionally looks through parentheses but does not invent the
@@ -9807,6 +10427,207 @@ struct ExplicitCastFact {
     source_is_zero: bool,
     source_is_constant: bool,
     source_is_integral_or_enum: bool,
+}
+
+/// Pure-Rust counterpart of the legacy BSTRUsageChecker.  BSTR is a typedef
+/// for a wide-character pointer with allocation metadata, so pointer
+/// arithmetic and raw wchar_t* casts are invalid even though their ABI types
+/// look compatible.
+fn bstr_usage_offsets(index: &CExpressionIndex, declarations: &CDeclarationIndex) -> Vec<usize> {
+    let mut offsets = Vec::new();
+    for cast in explicit_cast_facts(index, declarations) {
+        let destination = canonical_type_text(&cast.destination);
+        let source = canonical_type_text(&cast.source);
+        if destination == "BSTR" && matches!(source.as_str(), "wchar_t" | "wchar_t *" | "const wchar_t *") {
+            offsets.push(cast.offset);
+        }
+    }
+    for at in 0..index.tokens.len().saturating_sub(3) {
+        if index.tokens[at].text == "(" && index.tokens[at + 1].text == "BSTR"
+            && index.tokens[at + 2].text == ")" && index.tokens[at + 3].kind == TokKind::Ident
+            && bstr_wchar_pointer_name(declarations, &index.tokens[at + 3].text) {
+            offsets.push(index.tokens[at].start as usize);
+        }
+    }
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Call) {
+        let Some(name_at) = token_at_offset(index, fact.offset) else { continue };
+        let Some((name, close)) = direct_call_expression(index, name_at) else { continue };
+        let Some((start, end)) = direct_call_argument_ranges(index, name_at + 1, close).into_iter().next() else { continue };
+        let ty = (start + 1 == end).then(|| exact_operand_type(index, declarations, start)).flatten().map(|ty| canonical_type_text(&ty));
+        match name {
+            "SysAllocString" if ty.as_deref() == Some("BSTR") => offsets.push(index.tokens[start].start as usize),
+            "SysFreeString" | "SysStringLen" | "SysReAllocString" if ty.as_deref() != Some("BSTR") => offsets.push(index.tokens[start].start as usize),
+            _ => {}
+        }
+    }
+    for fact in index.facts.iter().filter(|fact| fact.kind == K::Binary) {
+        let Some(at) = token_at_offset(index, fact.offset) else { continue };
+        if index.tokens[at].text != "+" { continue; }
+        let (Some(left), Some(right)) = (at.checked_sub(1).and_then(|at| unwrap_left_operand(index, at)), unwrap_right_operand(index, at + 1)) else { continue };
+        if [left, right].into_iter().any(|operand| exact_operand_type(index, declarations, operand).is_some_and(|ty| canonical_type_text(&ty) == "BSTR")) {
+            offsets.push(fact.offset);
+        }
+    }
+    offsets
+}
+
+fn bstr_wchar_pointer_name(declarations: &CDeclarationIndex, name: &str) -> bool {
+    declarations.parameters.iter().any(|parameter| parameter.name.as_deref() == Some(name)
+        && parameter.type_name == "wchar_t" && parameter.derived.iter().any(|derived| matches!(derived, D::Pointer)))
+        || declarations.declarations.iter().any(|declaration| declaration.type_name == "wchar_t"
+            && declaration.declarators.iter().any(|declarator| declarator.name.as_deref() == Some(name)
+                && declarator.derived.iter().any(|derived| matches!(derived, D::Pointer))))
+}
+
+/// C-only counterpart of `NotMatchTypePointerAccessChecker`.  The legacy
+/// location callback ignores loads and reports only stores whose access type
+/// is wider than the object (or pointee) originally named by the cast source.
+/// We require the size relation to hold on every supported C ABI, so a target
+/// configuration difference cannot turn this frontend fallback into a false
+/// positive.
+fn incompatible_pointer_store_type_offsets(
+    index: &CExpressionIndex,
+    declarations: &CDeclarationIndex,
+) -> Vec<usize> {
+    let mut offsets = explicit_cast_facts(index, declarations)
+        .into_iter()
+        .filter(|cast| is_pointer_type(&cast.destination))
+        .filter(|cast| cast_is_dereferenced_store(index, cast.offset, cast.source_offset))
+        .filter(|cast| incompatible_pointer_store_sizes(declarations, &cast.destination, &cast.source))
+        .map(|cast| cast.offset)
+        .collect::<Vec<_>>();
+
+    // `explicit_cast_facts` intentionally models a cast's immediate operand.
+    // An address-of expression is not a leaf operand there, while Clang's
+    // location checker does see `*((T *)&object) = value`.  Cover this common
+    // lvalue spelling directly and retain the same layout proof as above.
+    let known_names = declarations
+        .aggregates
+        .iter()
+        .filter_map(|aggregate| aggregate.name.as_deref())
+        .chain(
+            declarations
+                .declarations
+                .iter()
+                .filter(|declaration| declaration.storage.iter().any(|item| item == "typedef"))
+                .flat_map(|declaration| &declaration.declarators)
+                .filter_map(|declarator| declarator.name.as_deref()),
+        )
+        .collect::<HashSet<_>>();
+    for cast_open in 0..index.tokens.len() {
+        if index.tokens[cast_open].text != "(" {
+            continue;
+        }
+        let Some(cast_close) = index.matching_token_index(cast_open) else {
+            continue;
+        };
+        let Some(destination) = cast_destination_type(
+            &index.tokens[cast_open + 1..cast_close],
+            &known_names,
+        ) else {
+            continue;
+        };
+        if !is_pointer_type(&destination)
+            || index.tokens.get(cast_close + 1).is_none_or(|token| token.text != "&")
+            || index
+                .tokens
+                .get(cast_close + 2)
+                .is_none_or(|token| token.kind != TokKind::Ident)
+        {
+            continue;
+        }
+        let source_at = cast_close + 2;
+        let Some(source) = exact_operand_type(index, declarations, source_at) else {
+            continue;
+        };
+        if cast_is_dereferenced_store(
+            index,
+            index.tokens[cast_open].start as usize,
+            index.tokens[source_at].start as usize,
+        ) && incompatible_pointer_store_sizes(declarations, &destination, &source)
+        {
+            offsets.push(index.tokens[cast_open].start as usize);
+        }
+    }
+    offsets.sort_unstable();
+    offsets.dedup();
+    offsets
+}
+
+fn incompatible_pointer_store_sizes(
+    declarations: &CDeclarationIndex,
+    destination: &str,
+    source: &str,
+) -> bool {
+    COMMON_C_ABIS.into_iter().all(|abi| {
+        let Some(access) = pointer_pointee_layout(declarations, destination, abi) else {
+            return false;
+        };
+        let Some(origin) = original_pointer_access_layout(declarations, source, abi) else {
+            return false;
+        };
+        access.size_bits > origin.size_bits
+    })
+}
+
+fn pointer_pointee_layout(
+    declarations: &CDeclarationIndex,
+    type_name: &str,
+    abi: CAbiLayout,
+) -> Option<CTypeLayout> {
+    let canonical = canonical_type_text(type_name);
+    let pointee = canonical.trim_end_matches('*').trim();
+    (!pointee.is_empty() && pointee != canonical).then_some(())?;
+    c_declared_type_layout(declarations, pointee, &[], abi, &mut HashSet::new())
+}
+
+fn original_pointer_access_layout(
+    declarations: &CDeclarationIndex,
+    type_name: &str,
+    abi: CAbiLayout,
+) -> Option<CTypeLayout> {
+    let canonical = canonical_type_text(type_name);
+    if canonical.ends_with('*') {
+        pointer_pointee_layout(declarations, &canonical, abi)
+    } else {
+        c_declared_type_layout(declarations, &canonical, &[], abi, &mut HashSet::new())
+    }
+}
+
+fn cast_is_dereferenced_store(
+    index: &CExpressionIndex,
+    cast_offset: usize,
+    source_offset: usize,
+) -> bool {
+    let Some(cast_open) = token_at_offset(index, cast_offset) else {
+        return false;
+    };
+    let Some(cast_close) = index.matching_token_index(cast_open) else {
+        return false;
+    };
+    let Some(source_at) = token_at_offset(index, source_offset) else {
+        return false;
+    };
+    // Cast facts deliberately cover only a direct source operand.  Close any
+    // surrounding parentheses around that operand and require an assignment
+    // operator immediately afterwards, which establishes that the cast is a
+    // write location rather than a read expression.
+    let mut after = source_at + 1;
+    while index.tokens.get(after).is_some_and(|token| token.text == ")") {
+        after += 1;
+    }
+    if !index.tokens.get(after).is_some_and(|token| {
+        matches!(token.text.as_str(), "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "<<=" | ">>=" | "&=" | "^=" | "|=")
+    }) {
+        return false;
+    }
+    // `*(T *)object` and `*((T *)object)` are the two canonical spellings.
+    cast_open > 0 && index.tokens[cast_open - 1].text == "*"
+        || cast_open > 1
+            && index.tokens[cast_open - 1].text == "("
+            && index.tokens[cast_open - 2].text == "*"
+        || (cast_open..source_at).any(|at| index.tokens[at].text == "*")
+        || cast_close > 0 && index.tokens[cast_close - 1].text == "*"
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

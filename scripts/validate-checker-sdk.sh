@@ -6,6 +6,8 @@ RESULT_DIR="$ROOT/target/checker-sdk-validation"
 BUILD_DIR="$RESULT_DIR/plugins"
 PLUGIN_MANIFEST="$ROOT/examples/checkers/banned_function_checker/Cargo.toml"
 PLUGIN_TARGET="$ROOT/examples/checkers/banned_function_checker/target/debug"
+STYLE_PLUGIN_MANIFEST="$ROOT/examples/checkers/style_checker/Cargo.toml"
+STYLE_PLUGIN_TARGET="$ROOT/examples/checkers/style_checker/target/debug"
 mkdir -p "$BUILD_DIR"
 rm -f "$RESULT_DIR"/*.out "$RESULT_DIR"/*.err "$RESULT_DIR"/*.sarif 2>/dev/null || true
 cd "$ROOT"
@@ -86,11 +88,15 @@ compile_fixture() {
 
 cargo build --locked -p uniflow-cli --bin uniflow
 cargo build --manifest-path "$PLUGIN_MANIFEST"
+cargo build --manifest-path "$STYLE_PLUGIN_MANIFEST"
 
 C_PLUGIN="$(shared_path c_banned_checker)"
 CPP_PLUGIN="$(shared_path cpp_banned_checker)"
 C_V1_PLUGIN="$(shared_path c_v1_checker)"
 MISSING_SYMBOL_PLUGIN="$(shared_path missing_symbol)"
+STYLE_PLUGIN="$STYLE_PLUGIN_TARGET/libuniflow_example_style_checker.$EXT"
+STYLE_FIXTURE="$RESULT_DIR/style_fixture.c"
+printf 'int clean(void) { return 0; }\nint needs_cleanup(void) { return 1; }  \n' > "$STYLE_FIXTURE"
 compile_c "$C_PLUGIN" "$ROOT/examples/checkers/c_banned_function_checker/checker.c"
 compile_cpp "$CPP_PLUGIN" "$ROOT/examples/checkers/cpp_banned_function_checker/checker.cpp"
 compile_c "$C_V1_PLUGIN" -DCHECKER_V1_ONLY "$ROOT/examples/checkers/c_banned_function_checker/checker.c"
@@ -130,6 +136,15 @@ run_checker cpp --checker "$CPP_PLUGIN"
 run_checker c-v1 --checker "$C_V1_PLUGIN"
 run_checker combined --checker "$RUST_PLUGIN" --checker "$C_PLUGIN" --checker "$CPP_PLUGIN"
 
+"$BIN" analyze-source \
+  --language c \
+  --input "$STYLE_FIXTURE" \
+  --checker "$STYLE_PLUGIN" \
+  --checker-timeout-ms 750 \
+  --checker-isolation process \
+  --sarif-out "$RESULT_DIR/style.sarif" \
+  >"$RESULT_DIR/style.out" 2>"$RESULT_DIR/style.err"
+
 python3 - "$RESULT_DIR" <<'PY'
 import json
 import pathlib
@@ -146,6 +161,7 @@ expected = {
         "example.c-banned-function.dangerous-call": 1,
         "example.cpp-banned-function.dangerous-call": 1,
     },
+    "style": {"example.source-style.trailing-whitespace": 1},
 }
 for name, rules in expected.items():
     data = json.loads((root / f"{name}.sarif").read_text(encoding="utf-8"))

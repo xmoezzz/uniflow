@@ -60,6 +60,54 @@ fn extract_classes(source: &str) -> Vec<PyClassText> {
     out
 }
 
+fn python_function_suffix(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    let rest = trimmed
+        .strip_prefix("async def ")
+        .or_else(|| trimmed.strip_prefix("def "))?;
+
+    let open = rest.find('(')?;
+    let name = rest[..open].trim();
+    if name.is_empty()
+        || !name.chars().enumerate().all(|(idx, ch)| {
+            ch == '_' || ch.is_ascii_alphanumeric() && (idx > 0 || !ch.is_ascii_digit())
+        })
+    {
+        return None;
+    }
+
+    let mut depth = 0usize;
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    let mut close = None;
+    for (offset, ch) in rest[open..].char_indices() {
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' => quote = Some(ch),
+            '(' => depth += 1,
+            ')' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    close = Some(open + offset);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let close = close?;
+    Some(rest[close + 1..].trim())
+}
+
 fn parse_python_function_header(line: &str) -> Option<(String, String)> {
     let trimmed = line.trim_start();
     let rest = trimmed
@@ -105,11 +153,8 @@ fn parse_python_function_header(line: &str) -> Option<(String, String)> {
         }
     }
     let close = close?;
-    let suffix = rest[close + 1..].trim();
-    if !suffix.ends_with(':') {
-        return None;
-    }
-    let before_colon = suffix[..suffix.len() - 1].trim();
+    let suffix = python_function_suffix(line)?;
+    let before_colon = suffix.split_once(':')?.0.trim();
     if !before_colon.is_empty() && !before_colon.starts_with("->") {
         return None;
     }
@@ -118,47 +163,17 @@ fn parse_python_function_header(line: &str) -> Option<(String, String)> {
 }
 
 fn parse_python_function_return_annotation(line: &str) -> Option<String> {
-    let trimmed = line.trim_start();
-    let rest = trimmed
-        .strip_prefix("async def ")
-        .or_else(|| trimmed.strip_prefix("def "))?;
-    let open = rest.find('(')?;
-    let mut depth = 0usize;
-    let mut quote: Option<char> = None;
-    let mut escaped = false;
-    let mut close = None;
-    for (offset, ch) in rest[open..].char_indices() {
-        if let Some(active_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if ch == '\\' {
-                escaped = true;
-            } else if ch == active_quote {
-                quote = None;
-            }
-            continue;
-        }
-        match ch {
-            '\'' | '"' => quote = Some(ch),
-            '(' => depth += 1,
-            ')' => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
-                    close = Some(open + offset);
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-    let close = close?;
-    let suffix = rest[close + 1..].trim();
-    let before_colon = suffix.strip_suffix(':')?.trim();
+    let before_colon = python_function_suffix(line)?.split_once(':')?.0.trim();
     before_colon
         .strip_prefix("->")
         .map(str::trim)
         .filter(|annotation| !annotation.is_empty())
         .map(str::to_string)
+}
+
+fn inline_python_function_suite(line: &str) -> Option<String> {
+    let suite = python_function_suffix(line)?.split_once(':')?.1.trim();
+    (!suite.is_empty()).then(|| suite.to_string())
 }
 
 fn extract_functions_at_indent(
@@ -194,8 +209,9 @@ fn extract_functions_at_indent(
         let start_line = base_line + idx as u32;
         let decorators = std::mem::take(&mut pending_decorators);
 
+        let inline_suite = inline_python_function_suite(line);
         idx += 1;
-        let mut body_lines = Vec::new();
+        let mut body_lines = inline_suite.iter().cloned().collect::<Vec<_>>();
         let mut end_line = start_line;
         while idx < lines.len() {
             let next = lines[idx];
@@ -219,7 +235,12 @@ fn extract_functions_at_indent(
             name,
             params,
             return_annotation,
-            body: body_lines.join("\n"),
+            body: Arc::from(body_lines.join("\n")),
+            body_start_line: if inline_suite.is_some() {
+                start_line
+            } else {
+                start_line + 1
+            },
             start_line,
             end_line,
             decorators,
@@ -248,6 +269,7 @@ fn parse_class(
     } else {
         class.name.clone()
     };
+    let explicit_orm_table = explicit_python_orm_table(class);
 
     for (idx, raw_line) in class.body.lines().enumerate() {
         let indent = raw_line.chars().take_while(|c| c.is_whitespace()).count();
@@ -370,6 +392,12 @@ fn parse_class(
             discovered_fields,
             synthetic_functions,
         } = parsed;
+        if let (Some(table), Some(symbol)) = (explicit_orm_table.as_deref(), function.symbol) {
+            // Persist only a literal table declaration attached directly to
+            // this model class. The system graph uses it to join ORM calls;
+            // it never pluralizes/invents a table name from the class name.
+            builder.set_symbol_attribute(symbol, "python.orm.table", table.to_string());
+        }
         for field in discovered_fields {
             field_map.entry(field.name.clone()).or_insert(field);
         }
@@ -434,6 +462,52 @@ fn parse_class(
         methods,
         span: span_from_line_range(builder.file_id(), class.start_line, class.end_line),
     }
+}
+
+/// Returns a table name only when the class body explicitly fixes one.  The
+/// two supported spellings are SQLAlchemy's `__tablename__ = "..."` and
+/// Django's nested `class Meta: db_table = "..."`.  Naming conventions are
+/// intentionally excluded: a guessed pluralization would be unsound at a
+/// cross-service storage boundary.
+fn explicit_python_orm_table(class: &PyClassText) -> Option<String> {
+    fn literal_assignment(line: &str, expected: &str) -> Option<String> {
+        let (name, value) = split_once_top_level(line.trim(), '=')?;
+        if name.trim() != expected {
+            return None;
+        }
+        let value = value.trim();
+        let quote = value.chars().next()?;
+        if !matches!(quote, '\'' | '"') || !value.ends_with(quote) || value.len() < 2 {
+            return None;
+        }
+        let text = &value[1..value.len() - 1];
+        (!text.is_empty() && text.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b'$')))
+            .then(|| text.to_ascii_lowercase())
+    }
+
+    let direct_indent = class.indent + 4;
+    let meta_indent = class.indent + 8;
+    let mut inside_meta = false;
+    for raw_line in class.body.lines() {
+        let indent = raw_line.chars().take_while(|ch| ch.is_whitespace()).count();
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if indent == direct_indent {
+            inside_meta = line == "class Meta:" || line.starts_with("class Meta(");
+            if let Some(table) = literal_assignment(line, "__tablename__") {
+                return Some(table);
+            }
+        } else if inside_meta && indent == meta_indent {
+            if let Some(table) = literal_assignment(line, "db_table") {
+                return Some(table);
+            }
+        } else if indent <= direct_indent {
+            inside_meta = false;
+        }
+    }
+    None
 }
 
 fn parse_function(
@@ -528,7 +602,7 @@ fn parse_function(
         imports,
         known_classes,
         &mut env,
-        func.start_line + 1,
+        func.body_start_line,
     );
     let receiver_adjusted = class_name.is_some() && !is_staticmethod;
     let return_key = method_signature_key(
@@ -566,6 +640,7 @@ fn parse_function(
     );
 
     let function_symbol = builder.add_symbol(&func.name, symbol_kind);
+    let ffi_calls = python_ffi_calls(&func.body);
     if !func.decorators.is_empty() {
         builder.set_symbol_attribute(
             function_symbol,
@@ -573,6 +648,31 @@ fn parse_function(
             func.decorators
                 .iter()
                 .map(|decorator| normalize_py_decorator_name(decorator))
+                .collect::<Vec<_>>()
+                .join("\u{1f}"),
+        );
+        // Keep the original decorator spellings as well as their normalized
+        // names.  The normalized form is used by the Python frontend's type
+        // machinery; system-boundary adapters need the literal arguments
+        // (for example `@kafka_listener("orders")`) to recover an actual
+        // topic rather than merely knowing that a decorator existed.
+        builder.set_symbol_attribute(
+            function_symbol,
+            "python.decorators.raw",
+            func.decorators.join("\u{1f}"),
+        );
+    }
+    if !ffi_calls.is_empty() {
+        // Persist only statically recoverable foreign calls. The system-wide
+        // adapter later requires both this exact alias+symbol and one unique
+        // native definition, so dynamic `getattr`, dynamic libraries, and
+        // ambiguous symbols never become cross-language flow edges.
+        builder.set_symbol_attribute(
+            function_symbol,
+            "python.ffi.calls",
+            ffi_calls
+                .iter()
+                .map(|(alias, symbol, library)| format!("{alias}\u{1e}{symbol}\u{1e}{library}"))
                 .collect::<Vec<_>>()
                 .join("\u{1f}"),
         );
@@ -604,6 +704,67 @@ fn parse_function(
         discovered_fields: env.discovered_fields.into_values().collect(),
         synthetic_functions,
     }
+}
+
+/// Extracts the proof carried by the common Python native bindings:
+/// `lib = ctypes.CDLL("..."); lib.symbol(value)` and
+/// `lib = ffi.dlopen("..."); lib.symbol(value)`. This intentionally is not
+/// a Python evaluator: aliases, library paths, and symbols must all be
+/// literal syntax in the same function body.
+fn python_ffi_calls(body: &str) -> Vec<(String, String, String)> {
+    let mut libraries = HashMap::new();
+    for raw_line in body.lines() {
+        let line = raw_line.split('#').next().unwrap_or_default().trim();
+        let Some((alias, value)) = line.split_once('=') else { continue };
+        let alias = alias.trim();
+        if !is_python_identifier(alias) {
+            continue;
+        }
+        let Some((loader, args)) = parse_call_parts(value.trim()) else { continue };
+        let is_ctypes_loader = matches!(loader.rsplit('.').next(), Some("CDLL" | "PyDLL" | "WinDLL" | "OleDLL"));
+        let is_cffi_loader = loader.rsplit('.').next() == Some("dlopen");
+        if !(is_ctypes_loader || is_cffi_loader) {
+            continue;
+        }
+        let loader_args = split_top_level_commas(&args);
+        let Some(first) = loader_args.first() else { continue };
+        let Some(library) = quoted_python_literal(first.trim()) else { continue };
+        libraries.insert(alias.to_string(), library);
+    }
+
+    let mut out = Vec::new();
+    for raw_line in body.lines() {
+        let line = raw_line.split('#').next().unwrap_or_default();
+        for (alias, library) in &libraries {
+            let marker = format!("{alias}.");
+            let Some(start) = line.find(&marker).map(|offset| offset + marker.len()) else { continue };
+            let rest = &line[start..];
+            let symbol = rest.split_once('(').map(|(name, _)| name.trim()).unwrap_or_default();
+            if is_python_identifier(symbol) {
+                let fact = (alias.clone(), symbol.to_string(), library.clone());
+                if !out.contains(&fact) {
+                    out.push(fact);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn is_python_identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .chars()
+            .enumerate()
+            .all(|(index, ch)| ch == '_' || ch.is_ascii_alphabetic() || (index > 0 && ch.is_ascii_digit()))
+}
+
+fn quoted_python_literal(value: &str) -> Option<String> {
+    let quote = value.chars().next()?;
+    if !matches!(quote, '\'' | '"') || !value.ends_with(quote) || value.len() < 2 {
+        return None;
+    }
+    Some(value[1..value.len() - 1].to_string())
 }
 
 #[derive(Clone, Default)]
@@ -1701,6 +1862,7 @@ fn parse_nested_function_definition(
         return;
     };
     let start = *idx;
+    let inline_suite = inline_python_function_suite(&line.text);
     let mut end = start + 1;
     while end < lines.len() {
         let trimmed = lines[end].text.trim();
@@ -1709,16 +1871,23 @@ fn parse_nested_function_definition(
         }
         end += 1;
     }
-    let body = lines[start + 1..end]
-        .iter()
-        .map(|entry| entry.text.clone())
-        .collect::<Vec<_>>()
-        .join("\n");
+    let body = inline_suite.clone().unwrap_or_else(|| {
+        lines[start + 1..end]
+            .iter()
+            .map(|entry| entry.text.clone())
+            .collect::<Vec<_>>()
+            .join("\n")
+    });
     let nested = PyFunctionText {
         name: name.clone(),
         params,
         return_annotation: parse_python_function_return_annotation(&line.text),
-        body,
+        body: Arc::from(body),
+        body_start_line: if inline_suite.is_some() {
+            line.line_no
+        } else {
+            line.line_no + 1
+        },
         start_line: line.line_no,
         end_line: lines[end.saturating_sub(1)].line_no.max(line.line_no),
         decorators: Vec::new(),

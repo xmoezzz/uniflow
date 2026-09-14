@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use uniflow_hir::{
     BinaryOp, Block, CallTarget, CatchClause, Class, Expr, ExprId, Field, Item, LValue,

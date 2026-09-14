@@ -44,12 +44,25 @@ pub struct RuleSet {
     pub field_sinks: Vec<FieldSinkRule>,
     #[serde(default)]
     pub index_sinks: Vec<IndexSinkRule>,
+    /// Taint sinks attached to the data operand of a loop-control comparison.
+    /// These are intentionally separate from API sinks: a loop terminator has
+    /// no call port, but is still a security-relevant control-flow boundary.
+    #[serde(default)]
+    pub loop_sinks: Vec<LoopSinkRule>,
     #[serde(default)]
     pub field_sanitizers: Vec<FieldSanitizerRule>,
     #[serde(default)]
     pub function_sources: Vec<FunctionSourceRule>,
     #[serde(default)]
     pub function_sinks: Vec<FunctionSinkRule>,
+    /// Exact instruction-anchored models. Unlike an API matcher, these are
+    /// scoped to one lowered call site inside one callable and therefore let
+    /// semantic-boundary adapters (database, RPC, FFI, ...) model two calls
+    /// to the same library API without conflating their values.
+    #[serde(default)]
+    pub call_site_sources: Vec<CallSiteSourceRule>,
+    #[serde(default)]
+    pub call_site_sinks: Vec<CallSiteSinkRule>,
     /// Native path-sensitive/value-flow checkers implemented by the unified
     /// Rust analysis engine. These are reportable rules in their own right,
     /// even when they do not need a taint source/sink model.
@@ -84,9 +97,12 @@ impl RuleSet {
         self.named_value_sources.extend(other.named_value_sources);
         self.field_sinks.extend(other.field_sinks);
         self.index_sinks.extend(other.index_sinks);
+        self.loop_sinks.extend(other.loop_sinks);
         self.field_sanitizers.extend(other.field_sanitizers);
         self.function_sources.extend(other.function_sources);
         self.function_sinks.extend(other.function_sinks);
+        self.call_site_sources.extend(other.call_site_sources);
+        self.call_site_sinks.extend(other.call_site_sinks);
         self.native_dataflow_rules.extend(other.native_dataflow_rules);
         self.model_dependencies.extend(other.model_dependencies);
         dedup_by_id(&mut self.sources, |rule| &rule.id);
@@ -104,9 +120,12 @@ impl RuleSet {
         dedup_by_id(&mut self.named_value_sources, |rule| &rule.id);
         dedup_by_id(&mut self.field_sinks, |rule| &rule.id);
         dedup_by_id(&mut self.index_sinks, |rule| &rule.id);
+        dedup_by_id(&mut self.loop_sinks, |rule| &rule.id);
         dedup_by_id(&mut self.field_sanitizers, |rule| &rule.id);
         dedup_by_id(&mut self.function_sources, |rule| &rule.id);
         dedup_by_id(&mut self.function_sinks, |rule| &rule.id);
+        dedup_by_id(&mut self.call_site_sources, |rule| &rule.id);
+        dedup_by_id(&mut self.call_site_sinks, |rule| &rule.id);
         dedup_by_id(&mut self.native_dataflow_rules, |rule| &rule.id);
         dedup_by_id(&mut self.model_dependencies, |dependency| {
             &dependency.rule_id
@@ -134,9 +153,12 @@ impl RuleSet {
             .chain(self.named_value_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.field_sinks.iter().map(|rule| rule.id.as_str()))
             .chain(self.index_sinks.iter().map(|rule| rule.id.as_str()))
+            .chain(self.loop_sinks.iter().map(|rule| rule.id.as_str()))
             .chain(self.field_sanitizers.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
+            .chain(self.call_site_sources.iter().map(|rule| rule.id.as_str()))
+            .chain(self.call_site_sinks.iter().map(|rule| rule.id.as_str()))
             .chain(
                 self.native_dataflow_rules
                     .iter()
@@ -192,7 +214,10 @@ impl RuleSet {
             .retain(|alias| retained_sink_ids.contains(alias.sink_rule_id.as_str()));
         self.field_sinks.retain(|rule| requested.contains(&rule.id));
         self.index_sinks.retain(|rule| requested.contains(&rule.id));
+        self.loop_sinks.retain(|rule| requested.contains(&rule.id));
         self.function_sinks
+            .retain(|rule| requested.contains(&rule.id));
+        self.call_site_sinks
             .retain(|rule| requested.contains(&rule.id));
         self.native_dataflow_rules
             .retain(|rule| requested.contains(&rule.id));
@@ -216,7 +241,17 @@ impl RuleSet {
                     .map(|rule| normalize_rule_kind(&rule.kind).to_string()),
             )
             .chain(
+                self.loop_sinks
+                    .iter()
+                    .map(|rule| normalize_rule_kind(&rule.kind).to_string()),
+            )
+            .chain(
                 self.function_sinks
+                    .iter()
+                    .map(|rule| normalize_rule_kind(&rule.kind).to_string()),
+            )
+            .chain(
+                self.call_site_sinks
                     .iter()
                     .map(|rule| normalize_rule_kind(&rule.kind).to_string()),
             )
@@ -241,6 +276,12 @@ impl RuleSet {
                 || keeps_kind(&rule.kind)
         });
         self.function_sources.retain(|rule| {
+            !has_complete_dependency_closure
+                || requested.contains(&rule.id)
+                || dependency_ids.contains(&rule.id)
+                || keeps_kind(&rule.kind)
+        });
+        self.call_site_sources.retain(|rule| {
             !has_complete_dependency_closure
                 || requested.contains(&rule.id)
                 || dependency_ids.contains(&rule.id)
@@ -294,6 +335,7 @@ impl RuleSet {
             .chain(self.named_value_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.field_sinks.iter().map(|rule| rule.id.as_str()))
             .chain(self.index_sinks.iter().map(|rule| rule.id.as_str()))
+            .chain(self.loop_sinks.iter().map(|rule| rule.id.as_str()))
             .chain(self.field_sanitizers.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
@@ -331,6 +373,7 @@ impl RuleSet {
             .chain(self.named_value_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.field_sinks.iter().map(|rule| rule.id.as_str()))
             .chain(self.index_sinks.iter().map(|rule| rule.id.as_str()))
+            .chain(self.loop_sinks.iter().map(|rule| rule.id.as_str()))
             .chain(self.field_sanitizers.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sources.iter().map(|rule| rule.id.as_str()))
             .chain(self.function_sinks.iter().map(|rule| rule.id.as_str()))
@@ -501,6 +544,14 @@ impl RuleSet {
                 bail!("index sink rule '{}' must match a load or store", rule.id);
             }
         }
+        for rule in &self.loop_sinks {
+            if rule.id.trim().is_empty() {
+                bail!("loop sink rule id must not be empty");
+            }
+            if rule.kind.trim().is_empty() {
+                bail!("loop sink rule '{}' must define a kind", rule.id);
+            }
+        }
         for rule in &self.field_sanitizers {
             rule.matcher.validate()?;
         }
@@ -511,6 +562,16 @@ impl RuleSet {
             rule.matcher.validate()?;
             if rule.inputs.is_empty() {
                 bail!("function sink rule '{}' must define an input", rule.id);
+            }
+        }
+        for rule in &self.call_site_sources {
+            if rule.id.trim().is_empty() || rule.function.trim().is_empty() {
+                bail!("call-site source rules need non-empty id and function");
+            }
+        }
+        for rule in &self.call_site_sinks {
+            if rule.id.trim().is_empty() || rule.function.trim().is_empty() || rule.inputs.is_empty() {
+                bail!("call-site sink rules need non-empty id, function, and input");
             }
         }
         for rule in &self.native_dataflow_rules {
@@ -674,6 +735,18 @@ impl IndexSinkRule {
     }
 }
 
+/// A synthetic sink placed on the non-constant operand of a relational loop
+/// condition.  The flow builder recognizes natural loops from the CFG, so the
+/// rule is independent of source-language spellings (`for`, `while`, `do`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoopSinkRule {
+    pub id: String,
+    #[serde(default)]
+    pub language: Option<Language>,
+    #[serde(default = "default_kind")]
+    pub kind: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FieldSanitizerRule {
     pub id: String,
@@ -774,6 +847,31 @@ pub struct FunctionSinkRule {
     #[serde(default)]
     pub language: Option<Language>,
     pub matcher: FunctionMatcher,
+    #[serde(default)]
+    pub inputs: Vec<Port>,
+    #[serde(default = "default_kind")]
+    pub kind: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CallSiteSourceRule {
+    pub id: String,
+    #[serde(default)]
+    pub language: Option<Language>,
+    pub function: String,
+    pub inst_id: u32,
+    pub out: Port,
+    #[serde(default = "default_kind")]
+    pub kind: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CallSiteSinkRule {
+    pub id: String,
+    #[serde(default)]
+    pub language: Option<Language>,
+    pub function: String,
+    pub inst_id: u32,
     #[serde(default)]
     pub inputs: Vec<Port>,
     #[serde(default = "default_kind")]

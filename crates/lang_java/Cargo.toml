@@ -9,4 +9,5 @@ authors.workspace = true
 anyhow.workspace = true
 regex.workspace = true
 uniflow-hir = { path = "../hir" }
+uniflow-jni-bridge = { path = "../jni_bridge" }
 uniflow-parser-core = { path = "../parser_core" }

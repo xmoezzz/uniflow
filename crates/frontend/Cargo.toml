@@ -13,6 +13,10 @@ uniflow-hir = { path = "../hir" }
 uniflow-lang-c = { path = "../lang_c" }
 uniflow-lang-cpp = { path = "../lang_cpp" }
 uniflow-lang-java = { path = "../lang_java" }
+uniflow-lang-javascript = { path = "../lang_javascript" }
+uniflow-lang-go = { path = "../lang_go" }
+uniflow-lang-rust = { path = "../lang_rust" }
+uniflow-lang-ruby = { path = "../lang_ruby" }
 uniflow-lang-python = { path = "../lang_python" }
 uniflow-lang-frontends = { path = "../lang_frontends" }
 uniflow-parser-core = { path = "../parser_core" }

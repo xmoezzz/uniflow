@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use uniflow_parser_core::SourceParser;
 
     #[test]
@@ -15,6 +16,79 @@ mod tests {
         assert_eq!(Arc::strong_count(&index), 2);
         drop(resolver);
         assert_eq!(Arc::strong_count(&index), 1);
+    }
+
+    #[test]
+    fn native_methods_are_reported_without_a_function_body() {
+        let src = r#"
+            package com.example;
+
+            public class Foo {
+                private native String nativeSink(String tainted, int flags);
+
+                public static native int nativeCompute();
+
+                public String run(String value) {
+                    return nativeSink(value, 0);
+                }
+            }
+        "#;
+
+        let program = JavaParser::default()
+            .parse_file("Foo.java", src)
+            .expect("parse ok");
+        let class = match &program.modules[0].items[0] {
+            Item::Class(class) => class,
+            _ => panic!("expected class"),
+        };
+        let names: Vec<&str> = class.methods.iter().map(|m| m.name.as_str()).collect();
+        assert!(!names.contains(&"com.example.Foo.nativeSink"), "{names:?}");
+        assert!(!names.contains(&"com.example.Foo.nativeCompute"), "{names:?}");
+        assert!(names.contains(&"com.example.Foo.run"), "{names:?}");
+
+        let natives = java_native_method_decls(src);
+        let sink = natives
+            .iter()
+            .find(|decl| decl.method == "nativeSink")
+            .expect("nativeSink declaration");
+        assert_eq!(sink.class, "com.example.Foo");
+        assert!(!sink.is_static);
+        assert_eq!(sink.param_count, 2);
+        assert_eq!(sink.qualified_name(), "com.example.Foo.nativeSink");
+        assert_eq!(
+            sink.mangled_short_name(),
+            "Java_com_example_Foo_nativeSink"
+        );
+
+        let compute = natives
+            .iter()
+            .find(|decl| decl.method == "nativeCompute")
+            .expect("nativeCompute declaration");
+        assert!(compute.is_static);
+        assert_eq!(compute.param_count, 0);
+    }
+
+    #[test]
+    fn preserves_only_explicit_jpa_table_names_on_entity_methods() {
+        let source = r#"
+            package app;
+            @jakarta.persistence.Entity
+            @jakarta.persistence.Table(name = "purchase_orders")
+            class Order {
+                String marker() { return "ok"; }
+            }
+        "#;
+        let program = JavaParser::default().parse_file("Order.java", source).expect("parse entity");
+        let class = match &program.modules[0].items[0] {
+            Item::Class(class) => class,
+            _ => panic!("expected class"),
+        };
+        let method = class.methods.iter().find(|method| method.name.ends_with(".marker")).expect("marker method");
+        let symbol = method.symbol.expect("method symbol");
+        assert_eq!(
+            program.symbols[symbol.0 as usize].attributes.get("java.orm.table").map(String::as_str),
+            Some("purchase_orders"),
+        );
     }
 
     #[test]
@@ -87,6 +161,50 @@ mod tests {
         let rendered = format!("{:?}", program.modules);
         assert!(rendered.contains("demo.app.UserService"));
         assert!(rendered.contains("demo.web.Controller.handle"));
+    }
+
+    #[test]
+    fn parallel_project_parser_merges_large_module_sets_in_input_order() {
+        let entries = (0..48)
+            .map(|index| {
+                (
+                    format!("src/demo/Unit{index:03}.java"),
+                    format!(
+                        "package demo; public class Unit{index:03} {{ public int value() {{ return {index}; }} }}"
+                    ),
+                )
+            })
+            .collect::<Vec<_>>();
+        let program = parse_project_sources(&entries).expect("parallel Java project parse");
+        let actual = program
+            .files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>();
+        let expected = entries
+            .iter()
+            .map(|(path, _)| path.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn project_parser_reports_each_parallel_module_completion() {
+        let entries = (0..24)
+            .map(|index| {
+                (
+                    format!("src/demo/Progress{index:03}.java"),
+                    format!("package demo; class Progress{index:03} {{}}"),
+                )
+            })
+            .collect::<Vec<_>>();
+        let completed = AtomicUsize::new(0);
+        let program = parse_project_sources_with_progress(&entries, &|| {
+            completed.fetch_add(1, Ordering::Relaxed);
+        })
+        .expect("parallel Java project parse with progress");
+        assert_eq!(program.files.len(), entries.len());
+        assert_eq!(completed.load(Ordering::Relaxed), entries.len());
     }
 
     #[test]

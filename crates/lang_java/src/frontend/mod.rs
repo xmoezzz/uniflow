@@ -1,12 +1,14 @@
 use anyhow::Result;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use uniflow_hir::{
     BinaryOp, Block, CallExpr, CallTarget, Class, Expr, Field, Item, LValue, LambdaCapture,
     Language, Param, ParamKind, Program, Stmt, SymbolId, SymbolKind, UnaryOp,
 };
+use uniflow_jni_bridge::NativeMethodDecl;
 use uniflow_parser_core::{
     default_span, ensure_known_symbol, find_matching_brace, find_substring_span, is_int_literal,
     is_probable_type_name, is_string_literal, matching_delimiter, module_name_from_path, new_call,

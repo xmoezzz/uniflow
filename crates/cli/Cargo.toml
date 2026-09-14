@@ -20,6 +20,15 @@ uniflow-cache = { path = "../cache" }
 uniflow-frontend = { path = "../frontend" }
 uniflow-hir = { path = "../hir" }
 uniflow-ir = { path = "../ir" }
+tempfile = "3.27"
+uniflow-archive-extract = { path = "../archive_extract" }
+uniflow-jni-bridge = { path = "../jni_bridge" }
+uniflow-system-graph = { path = "../system_graph" }
+uniflow-lang-java = { path = "../lang_java" }
+uniflow-lang-java-bytecode = { path = "../lang_java_bytecode" }
+uniflow-lang-dotnet-bytecode = { path = "../lang_dotnet_bytecode" }
+uniflow-lang-python-bytecode = { path = "../lang_python_bytecode" }
+uniflow-lang-wasm-bytecode = { path = "../lang_wasm_bytecode" }
 uniflow-lowering = { path = "../lowering" }
 uniflow-models = { path = "../models" }
 uniflow-rules = { path = "../rules" }
@@ -31,6 +40,9 @@ serde_yaml.workspace = true
 uniflow-baseline = { path = "../baseline" }
 uniflow-checker-api = { path = "../checker_api" }
 uniflow-checker-host = { path = "../checker_host" }
+uniflow-reasoning-oracle = { path = "../reasoning_oracle" }
 
 [dev-dependencies]
 regex-syntax.workspace = true
+tar = "0.4"
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }

@@ -1,0 +1,31 @@
+[package]
+name = "uniflow-system-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+petgraph.workspace = true
+regex.workspace = true
+uniflow-hir = { path = "../hir" }
+uniflow-ir = { path = "../ir" }
+uniflow-rules = { path = "../rules" }
+uniflow-taint = { path = "../taint" }
+
+[dev-dependencies]
+tempfile = "3.27"
+uniflow-frontend = { path = "../frontend" }
+uniflow-lang-c = { path = "../lang_c" }
+uniflow-lang-frontends = { path = "../lang_frontends" }
+uniflow-lang-go = { path = "../lang_go" }
+uniflow-lang-java = { path = "../lang_java" }
+uniflow-lang-javascript = { path = "../lang_javascript" }
+uniflow-lang-python = { path = "../lang_python" }
+uniflow-lang-ruby = { path = "../lang_ruby" }
+uniflow-lowering = { path = "../lowering" }
+uniflow-parser-core = { path = "../parser_core" }

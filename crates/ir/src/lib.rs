@@ -1,3 +1,4 @@
+use anyhow::{bail, Result as AnyResult};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use uniflow_hir::{
@@ -63,6 +64,100 @@ impl Program {
             .find(|f| f.id == file_id)
             .map(|f| f.path.as_str())
     }
+}
+
+/// Combines IR built by different frontends for the *same* language (for
+/// example, a Java source frontend's IR and a `.jar`-derived bytecode
+/// frontend's IR) into a single `Program`, so cross-references between them
+/// (a source class calling into a vendored jar class, or vice versa)
+/// resolve within one flow graph. Every input's `FunctionId`s and
+/// `SourceFile` ids are renumbered to avoid collisions (`BlockId`/`InstId`/
+/// `ValueId` are only ever compared within a single function, so those are
+/// left untouched). `type_hierarchy` entries are unioned per class name.
+pub fn merge_programs(programs: Vec<Program>) -> AnyResult<Program> {
+    let mut programs = programs.into_iter();
+    let Some(mut merged) = programs.next() else {
+        bail!("merge_programs requires at least one program");
+    };
+    let mut next_function_id = merged
+        .functions
+        .iter()
+        .map(|function| function.id.0)
+        .max()
+        .map_or(0, |max| max + 1);
+    let mut next_source_file_id = merged
+        .source_files
+        .iter()
+        .map(|file| file.id)
+        .max()
+        .map_or(0, |max| max + 1);
+
+    for mut program in programs {
+        if program.language != merged.language {
+            bail!(
+                "cannot merge programs for different languages: {} vs {}",
+                merged.language.as_str(),
+                program.language.as_str()
+            );
+        }
+        let function_offset = next_function_id;
+        let source_file_offset = next_source_file_id;
+        remap_program_ids(&mut program, function_offset, source_file_offset);
+        next_function_id = program
+            .functions
+            .iter()
+            .map(|function| function.id.0)
+            .max()
+            .map_or(next_function_id, |max| max + 1);
+        next_source_file_id = program
+            .source_files
+            .iter()
+            .map(|file| file.id)
+            .max()
+            .map_or(next_source_file_id, |max| max + 1);
+
+        merged.source_files.append(&mut program.source_files);
+        merged.functions.append(&mut program.functions);
+        merged.entry_points.append(&mut program.entry_points);
+        for (class, bases) in program.type_hierarchy {
+            let entry = merged.type_hierarchy.entry(class).or_default();
+            for base in bases {
+                if !entry.contains(&base) {
+                    entry.push(base);
+                }
+            }
+        }
+    }
+
+    Ok(merged)
+}
+
+fn remap_program_ids(program: &mut Program, function_offset: u32, source_file_offset: u32) {
+    for file in &mut program.source_files {
+        file.id += source_file_offset;
+    }
+    for function in &mut program.functions {
+        function.id.0 += function_offset;
+        function.span.file += source_file_offset;
+        for span in program_function_spans_mut(function) {
+            span.file += source_file_offset;
+        }
+    }
+    for entry in &mut program.entry_points {
+        entry.0 += function_offset;
+    }
+}
+
+fn program_function_spans_mut(function: &mut Function) -> impl Iterator<Item = &mut Span> {
+    function
+        .value_spans
+        .values_mut()
+        .chain(function.blocks.iter_mut().flat_map(|block| {
+            block
+                .insts
+                .iter_mut()
+                .map(|instruction| &mut instruction.span)
+        }))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

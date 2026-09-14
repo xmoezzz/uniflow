@@ -157,8 +157,27 @@ mod tests {
 
         super::materialize_sparse_taint_adjacency(&mut graph);
 
-        assert!(graph.sparse_successors[&stored.index()].contains(&cell.index()));
-        assert!(graph.sparse_successors[&cell.index()].contains(&loaded.index()));
+        // Bounded taint scans walk direct graph edges on demand.  Keeping the
+        // sparse maps empty avoids a second full edge copy for large projects.
+        assert!(!graph.sparse_adjacency_materialized);
+        assert!(graph.sparse_successors.is_empty());
+        assert!(graph
+            .sparse_successors_of(stored)
+            .contains(&cell));
+        assert!(graph
+            .sparse_successors_of(cell)
+            .contains(&loaded));
+        assert!(
+            graph.stats().sparse_data_edges >= 2,
+            "on-demand graph statistics must include direct store/load edges"
+        );
+        let query = super::DemandQuery {
+            seeds: vec![super::DemandSeed::Node(stored.index())],
+            direction: super::SparseDirection::Forward,
+            engine: super::DemandEngine::Fixpoint,
+            include_heap: true,
+        };
+        assert_eq!(graph.recommended_demand_engine(&query), super::DemandEngine::Sparse);
         assert!(graph.heap_value_successors.is_empty());
         assert!(graph.region_graph_successors.is_empty());
     }
@@ -1912,17 +1931,18 @@ mod tests {
         ContextSensitivity, DemandEngine, DemandQuery, DemandSeed, EdgeKind, FlowEdge, FlowGraph,
         FlowNode, LifetimeDiagnostic, QueryBudgetProfile, QueryCompleteness, SparseDirection,
     };
-    use petgraph::visit::EdgeRef;
+    use petgraph::{algo::has_path_connecting, visit::EdgeRef};
     use petgraph::Direction;
     use uniflow_hir::Language;
     use uniflow_ir::{Callee, Function, FunctionId, InstKind, Program as IrProgram, ValueId};
     use uniflow_lang_c::CParser;
     use uniflow_lang_cpp::CppParser;
     use uniflow_lang_python::{parse_project_sources, PythonParser};
+    use uniflow_lang_ruby::RubyParser;
     use uniflow_lowering::lower_program;
     use uniflow_parser_core::SourceParser;
     use uniflow_rules::{
-        ApiMatcher, FieldMatcher, FieldSinkRule, FieldSourceRule, FunctionMatcher,
+        ApiMatcher, CallSiteSinkRule, CallSiteSourceRule, FieldMatcher, FieldSinkRule, FieldSourceRule, FunctionMatcher,
         FunctionSinkRule, FunctionSourceRule, NamedValueSourceRule, NativeDataflowRule, Port,
         RuleSet, SinkRule, SourceRule,
     };
@@ -1937,6 +1957,156 @@ mod tests {
             }],
             ..RuleSet::default()
         }
+    }
+
+    #[test]
+    fn call_site_source_models_only_the_selected_instruction() {
+        let hir = PythonParser
+            .parse_file(
+                "app.py",
+                "def run():\n    first = external()\n    second = external()\n    return second\n",
+            )
+            .expect("parse source");
+        let ir = lower_program(&hir);
+        let function = ir.functions.iter().find(|function| function.name == "run").expect("run function");
+        let calls = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .filter_map(|inst| matches!(inst.kind, InstKind::Call(_)).then_some(inst.id.0))
+            .collect::<Vec<_>>();
+        assert_eq!(calls.len(), 2, "{calls:?}");
+        let rules = RuleSet {
+            call_site_sources: vec![CallSiteSourceRule {
+                id: "selected-call".to_string(),
+                language: Some(Language::Python),
+                function: "run".to_string(),
+                inst_id: calls[0],
+                out: Port::Return,
+                kind: "untrusted".to_string(),
+            }],
+            ..RuleSet::default()
+        };
+        let flow = build(&ir, &rules);
+        let sources = flow
+            .synthetic_sources
+            .iter()
+            .filter_map(|node| match &flow.graph[*node] {
+                FlowNode::SyntheticSource { rule_id, inst, .. } => Some((rule_id.as_str(), inst.0)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(sources, vec![("selected-call", calls[0])]);
+    }
+
+    #[test]
+    fn exact_call_site_sink_preserves_a_function_parameter_flow() {
+        let hir = PythonParser
+            .parse_file("app.py", "def run(input):\n    external(input)\n")
+            .expect("parse source");
+        let ir = lower_program(&hir);
+        let function = ir.functions.iter().find(|function| function.name == "run").expect("run function");
+        let call = function
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insts)
+            .find(|inst| matches!(inst.kind, InstKind::Call(_)))
+            .expect("call");
+        let rules = RuleSet {
+            function_sources: vec![FunctionSourceRule {
+                id: "caller-input".to_string(),
+                language: Some(Language::Python),
+                matcher: FunctionMatcher { exact: Some("run".to_string()), ..Default::default() },
+                out: Port::Arg(0),
+                kind: "untrusted".to_string(),
+            }],
+            call_site_sinks: vec![CallSiteSinkRule {
+                id: "exact-boundary".to_string(),
+                language: Some(Language::Python),
+                function: "run".to_string(),
+                inst_id: call.id.0,
+                inputs: vec![Port::Arg(0)],
+                kind: "untrusted".to_string(),
+            }],
+            ..RuleSet::default()
+        };
+        let flow = build(&ir, &rules);
+        let source = flow.synthetic_sources.iter().copied().find(|node| {
+            matches!(&flow.graph[*node], FlowNode::SyntheticSource { rule_id, .. } if rule_id == "caller-input")
+        }).expect("function source");
+        let sink = flow.synthetic_sinks.iter().copied().find(|node| {
+            matches!(&flow.graph[*node], FlowNode::SyntheticSink { rule_id, .. } if rule_id == "exact-boundary")
+        }).expect("call-site sink");
+        assert!(has_path_connecting(&flow.graph, source, sink, None));
+    }
+
+    #[test]
+    fn c_function_parameter_source_reaches_a_function_parameter_sink() {
+        let hir = CParser
+            .parse_file("native.c", "void consume(char *value) { }\n")
+            .expect("parse source");
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            function_sources: vec![FunctionSourceRule {
+                id: "boundary-input".to_string(),
+                language: Some(Language::C),
+                matcher: FunctionMatcher { exact: Some("consume".to_string()), ..Default::default() },
+                out: Port::Arg(0),
+                kind: "untrusted".to_string(),
+            }],
+            function_sinks: vec![FunctionSinkRule {
+                id: "native-sink".to_string(),
+                language: Some(Language::C),
+                matcher: FunctionMatcher { exact: Some("consume".to_string()), ..Default::default() },
+                inputs: vec![Port::Arg(0)],
+                kind: "untrusted".to_string(),
+            }],
+            ..RuleSet::default()
+        };
+        let flow = build(&ir, &rules);
+        let source = flow.synthetic_sources.iter().copied().find(|node| {
+            matches!(&flow.graph[*node], FlowNode::SyntheticSource { rule_id, .. } if rule_id == "boundary-input")
+        }).expect("function source");
+        let sink = flow.synthetic_sinks.iter().copied().find(|node| {
+            matches!(&flow.graph[*node], FlowNode::SyntheticSink { rule_id, .. } if rule_id == "native-sink")
+        }).expect("function sink");
+        assert!(has_path_connecting(&flow.graph, source, sink, None));
+    }
+
+    #[test]
+    fn ruby_class_method_call_propagates_a_caller_parameter_to_the_method_parameter() {
+        let hir = RubyParser::default()
+            .parse_file(
+                "native.rb",
+                "class Native\n  def self.consume(value)\n    value\n  end\nend\ndef invoke(untrusted)\n  Native.consume(untrusted)\nend\n",
+            )
+            .expect("parse source");
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            function_sources: vec![FunctionSourceRule {
+                id: "caller-source".to_string(),
+                language: Some(Language::Ruby),
+                matcher: FunctionMatcher { exact: Some("native.invoke".to_string()), ..Default::default() },
+                out: Port::Arg(0),
+                kind: "untrusted".to_string(),
+            }],
+            function_sinks: vec![FunctionSinkRule {
+                id: "method-sink".to_string(),
+                language: Some(Language::Ruby),
+                matcher: FunctionMatcher { exact: Some("native.Native.consume".to_string()), ..Default::default() },
+                inputs: vec![Port::Arg(0)],
+                kind: "untrusted".to_string(),
+            }],
+            ..RuleSet::default()
+        };
+        let flow = build(&ir, &rules);
+        let source = flow.synthetic_sources.iter().copied().find(|node| {
+            matches!(&flow.graph[*node], FlowNode::SyntheticSource { rule_id, .. } if rule_id == "caller-source")
+        }).expect("caller source");
+        let sink = flow.synthetic_sinks.iter().copied().find(|node| {
+            matches!(&flow.graph[*node], FlowNode::SyntheticSink { rule_id, .. } if rule_id == "method-sink")
+        }).expect("method sink");
+        assert!(has_path_connecting(&flow.graph, source, sink, None));
     }
 
     #[test]
@@ -1995,6 +2165,50 @@ mod tests {
         assert!(!stages.contains(&"resolve-dynamic-calls"));
         assert_eq!(_graph.stats().object_shape_paths, 0);
         assert_eq!(_graph.stats().live_region_cells, 0);
+    }
+
+    #[test]
+    fn scan_build_returns_an_empty_graph_when_static_taint_roots_do_not_exist() {
+        let hir = PythonParser
+            .parse_file(
+                "irrelevant.py",
+                "def handle(value):\n    return value.upper()\n",
+            )
+            .expect("parse irrelevant flow");
+        let ir = lower_program(&hir);
+        let rules = RuleSet {
+            sources: vec![SourceRule {
+                id: "test.source".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    exact: Some("never_source".to_string()),
+                    ..ApiMatcher::default()
+                },
+                out: Port::Return,
+                kind: "test".to_string(),
+            }],
+            sinks: vec![SinkRule {
+                id: "test.sink".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    exact: Some("never_sink".to_string()),
+                    ..ApiMatcher::default()
+                },
+                inputs: vec![Port::Arg(0)],
+                kind: "test".to_string(),
+            }],
+            ..RuleSet::default()
+        };
+        let mut stages = Vec::new();
+        let graph = super::build_for_scan_with_progress(&ir, &rules, |progress| {
+            stages.push(progress.stage);
+        });
+
+        assert_eq!(graph.graph.node_count(), 0);
+        assert_eq!(graph.file_paths.len(), 1);
+        assert!(stages.contains(&"slice-static-taint"));
+        assert!(!stages.contains(&"index-functions"));
+        assert!(stages.contains(&"done"));
     }
 
     #[test]
@@ -2071,6 +2285,76 @@ mod tests {
         assert!(names.iter().any(|name| name.ends_with("entry")));
         assert!(!graph.synthetic_sources.is_empty());
         assert!(!graph.synthetic_sinks.is_empty());
+    }
+
+    #[test]
+    fn static_taint_scan_slice_supports_named_value_sources_without_building_unrelated_functions() {
+        let hir = PythonParser
+            .parse_file(
+                "named-source.py",
+                "def handle(input):\n    sink(input)\n\ndef unrelated(object):\n    object.large_state = object\n    return object.large_state\n",
+            )
+            .expect("parse named-source slice");
+        let ir = lower_program(&hir);
+        let mut rules = lightweight_rules();
+        rules.sinks.push(SinkRule {
+            id: "test.sink".to_string(),
+            language: Some(Language::Python),
+            matcher: ApiMatcher {
+                exact: Some("sink".to_string()),
+                ..ApiMatcher::default()
+            },
+            inputs: vec![Port::Arg(0)],
+            kind: "UserControlled".to_string(),
+        });
+
+        let graph = super::build_for_scan_with_progress(&ir, &rules, |_| {});
+        let names = graph.function_names.values().collect::<Vec<_>>();
+        assert!(names.iter().any(|name| name.ends_with("handle")), "{names:?}");
+        assert!(
+            !names.iter().any(|name| name.ends_with("unrelated")),
+            "the unrelated function must be removed before graph allocation: {names:?}"
+        );
+        assert!(!graph.synthetic_sources.is_empty());
+        assert!(!graph.synthetic_sinks.is_empty());
+    }
+
+    #[test]
+    fn static_taint_scan_slice_bounds_graph_size_for_many_unrelated_heap_functions() {
+        let mut source = String::from("def handle(input):\n    sink(input)\n\n");
+        // These functions deliberately have heap operations.  A full graph
+        // would allocate field cells and SSA nodes for every one of them;
+        // the scan graph must retain only the modeled source-to-sink region.
+        for index in 0..256 {
+            source.push_str(&format!(
+                "def unrelated_{index}(object):\n    object.field_{index} = object\n    return object.field_{index}\n\n"
+            ));
+        }
+        let hir = PythonParser
+            .parse_file("large-unrelated.py", &source)
+            .expect("parse project with unrelated heap functions");
+        let ir = lower_program(&hir);
+        let mut rules = lightweight_rules();
+        rules.sinks.push(SinkRule {
+            id: "test.sink".to_string(),
+            language: Some(Language::Python),
+            matcher: ApiMatcher {
+                exact: Some("sink".to_string()),
+                ..ApiMatcher::default()
+            },
+            inputs: vec![Port::Arg(0)],
+            kind: "UserControlled".to_string(),
+        });
+
+        let graph = super::build_for_scan_with_progress(&ir, &rules, |_| {});
+        let names = graph.function_names.values().collect::<Vec<_>>();
+        assert_eq!(names.len(), 1, "only handle belongs to the taint slice: {names:?}");
+        assert!(names[0].ends_with("handle"), "{names:?}");
+        assert!(
+            graph.graph.node_count() < 32,
+            "unrelated heap functions must not allocate flow nodes: {}",
+            graph.graph.node_count()
+        );
     }
 
     #[test]
@@ -7725,6 +8009,45 @@ void run(int condition, Widget *widget) {
             .collect()
     }
 
+    fn anzu_malloc_free_findings(src: &str) -> Vec<LifetimeDiagnostic> {
+        let hir = CppParser
+            .parse_file("anzu_malloc_free.cpp", src)
+            .expect("parse C++ malloc/free fixture");
+        let ir = lower_program(&hir);
+        let flow = build(&ir, &RuleSet::default());
+        flow.lifetime_diagnostics
+            .iter()
+            .filter(|finding| finding.rule_id == "ANZU-MALLOC-FREE")
+            .cloned()
+            .collect()
+    }
+
+    fn anzu_dynamic_alloc_pointer_use_findings(src: &str) -> Vec<LifetimeDiagnostic> {
+        anzu_dynamic_alloc_pointer_use_findings_for(Language::Cpp, src)
+    }
+
+    fn anzu_dynamic_alloc_pointer_use_findings_for(
+        language: Language,
+        src: &str,
+    ) -> Vec<LifetimeDiagnostic> {
+        let hir = match language {
+            Language::C => CParser
+                .parse_file("anzu_dynamic_alloc_pointer_use.c", src)
+                .expect("parse C dynamic-allocation fixture"),
+            Language::Cpp => CppParser
+                .parse_file("anzu_dynamic_alloc_pointer_use.cpp", src)
+                .expect("parse C++ dynamic-allocation fixture"),
+            other => panic!("unsupported dynamic-allocation fixture language: {other:?}"),
+        };
+        let ir = lower_program(&hir);
+        let flow = build(&ir, &RuleSet::default());
+        flow.lifetime_diagnostics
+            .iter()
+            .filter(|finding| finding.rule_id == "ANZU-DYNAMIC-ALLOC-POINTER-USE")
+            .cloned()
+            .collect()
+    }
+
     fn anzu_argument_validation_findings(src: &str) -> Vec<super::NativeDataflowDiagnostic> {
         let hir = CppParser
             .parse_file("anzu_argument_validation.cpp", src)
@@ -7904,6 +8227,16 @@ void run(int condition, Widget *widget) {
             assert_eq!(findings.len(), 1, "negative index must be feasible for: {source}");
             assert_eq!(findings[0].message, "Array index is less than zero");
         }
+
+        assert_eq!(
+            anzu_dynamic_alloc_pointer_use_findings_for(
+                Language::C,
+                "int run(void) { int *p = malloc(sizeof(int)); return *p; }",
+            )
+            .len(),
+            1,
+            "C allocation uses must share the same unified dataflow rule"
+        );
     }
 
     #[test]
@@ -8213,6 +8546,98 @@ int run(Item *left, Item *right) {
             "void run(int *p) { free(p); free(p); }",
         );
         assert_eq!(count, 1, "only the second free should report");
+    }
+
+    #[test]
+    fn anzu_ref_already_free_rules_share_the_raw_pointer_lifetime_state() {
+        let findings = |language: Language, source: &str| {
+            let hir = match language {
+                Language::C => CParser.parse_file("ref_free.c", source).expect("parse C"),
+                Language::Cpp => CppParser.parse_file("ref_free.cpp", source).expect("parse C++"),
+                _ => unreachable!(),
+            };
+            let ir = lower_program(&hir);
+            build(&ir, &RuleSet::default())
+                .lifetime_diagnostics
+                .into_iter()
+                .filter(|finding| {
+                    matches!(
+                        finding.rule_id.as_str(),
+                        "ANZU-REF-UNDEF-OR-ALREADY-FREE-POINTER"
+                            | "ANZU-REF-ALREADY-FREE-POINTER"
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        for language in [Language::C, Language::Cpp] {
+            for source in [
+                "void run(int *p) { free(p); free(p); }",
+                "int run(int *p) { free(p); return *p; }",
+            ] {
+                let findings = findings(language.clone(), source);
+                assert_eq!(findings.len(), 2, "both legacy rules must report: {source}");
+                assert!(findings.iter().all(|finding| !finding.potential));
+            }
+        }
+        let undefined = findings(Language::Cpp, "int run() { int *p; return *p; }");
+        assert_eq!(undefined.len(), 1);
+        assert_eq!(undefined[0].rule_id, "ANZU-REF-UNDEF-OR-ALREADY-FREE-POINTER");
+    }
+
+    #[test]
+    fn anzu_malloc_free_requires_legacy_allocator_provenance() {
+        for source in [
+            "void run(int *p) { free(p); }",
+            "void run() { int local = 0; free(&local); }",
+        ] {
+            let findings = anzu_malloc_free_findings(source);
+            assert_eq!(findings.len(), 1, "expected invalid free for: {source}");
+            assert!(!findings[0].potential);
+        }
+
+        for source in [
+            "void run() { int *p = malloc(sizeof(int)); free(p); }",
+            "void run() { int *p = calloc(1, sizeof(int)); int *q = p; free(q); }",
+            "void run(int *old) { int *p = realloc(old, sizeof(int)); free(p); }",
+        ] {
+            assert!(
+                anzu_malloc_free_findings(source).is_empty(),
+                "allocator-origin pointer must be accepted: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn anzu_malloc_free_keeps_invalid_cfg_predecessors_as_potential_findings() {
+        let findings = anzu_malloc_free_findings(
+            "void run(int flag, int *borrowed) { int *p; if (flag) p = malloc(sizeof(int)); else p = borrowed; free(p); }",
+        );
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].potential);
+    }
+
+    #[test]
+    fn anzu_dynamic_alloc_pointer_use_requires_a_proven_nonnull_path() {
+        for source in [
+            "int run() { int *p = malloc(sizeof(int)); return *p; }",
+            "struct Item { int field; }; int run() { Item *p = calloc(1, sizeof(Item)); return p->field; }",
+            "int run() { int *p = malloc(sizeof(int)); return p[0]; }",
+        ] {
+            let findings = anzu_dynamic_alloc_pointer_use_findings(source);
+            assert_eq!(findings.len(), 1, "allocation use must require a NULL check: {source}");
+            assert!(findings[0].potential, "unknown allocation result is path-sensitive");
+        }
+
+        for source in [
+            "int run() { int *p = malloc(sizeof(int)); if (p == nullptr) return 0; return *p; }",
+            "int run() { int *p = calloc(1, sizeof(int)); if (p != nullptr) return p[0]; return 0; }",
+            "int run(int *p) { return *p; }",
+        ] {
+            assert!(
+                anzu_dynamic_alloc_pointer_use_findings(source).is_empty(),
+                "non-null refinement and non-allocator pointers must be clean: {source}"
+            );
+        }
     }
 
     #[test]

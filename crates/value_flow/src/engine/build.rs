@@ -99,9 +99,27 @@ fn rules_require_flow(rules: &RuleSet) -> bool {
         || !rules.named_value_sources.is_empty()
         || !rules.field_sinks.is_empty()
         || !rules.index_sinks.is_empty()
+        || !rules.loop_sinks.is_empty()
         || !rules.field_sanitizers.is_empty()
         || !rules.function_sources.is_empty()
         || !rules.function_sinks.is_empty()
+        || !rules.call_site_sources.is_empty()
+        || !rules.call_site_sinks.is_empty()
+}
+
+/// A project frontend may retain an absolute module prefix while the normal
+/// analysis pass uses the stable relative module name.  Exact call-site
+/// models still carry language and an instruction id, so accepting only a
+/// dotted qualified-name suffix keeps this compatibility path precise while
+/// avoiding a second, path-dependent identity namespace for boundaries.
+fn call_site_function_matches(modeled: &str, actual: &str) -> bool {
+    modeled == actual
+        || modeled
+            .strip_suffix(actual)
+            .is_some_and(|prefix| prefix.ends_with('.'))
+        || actual
+            .strip_suffix(modeled)
+            .is_some_and(|prefix| prefix.ends_with('.'))
 }
 
 fn port_requires_heap(port: &Port) -> bool {
@@ -258,6 +276,53 @@ where
 
     let mut fg = FlowGraph::default();
     fg.language = program.language.clone();
+
+    // If static slicing found no modeled source-to-sink component, there is
+    // no taint query to answer.  In particular, do not build `FunctionIndex`
+    // here: its multiple name/arity maps duplicate every function name and
+    // were still a material allocation on large, irrelevant projects.
+    //
+    // C-family programs deliberately stay on the regular path.  Their
+    // unified native and lifetime checkers can emit diagnostics independently
+    // of a taint source/sink pair, so they cannot use this taint-only exit.
+    let empty_taint_slice = scan_function_slice
+        .as_ref()
+        .is_some_and(HashSet::is_empty)
+        && !matches!(
+            program.language,
+            Language::C | Language::Cpp | Language::ObjC | Language::ObjCpp
+        );
+    if empty_taint_slice {
+        for file in &program.source_files {
+            fg.file_paths.insert(file.id, file.path.clone());
+        }
+        for (ty, parents) in &program.type_hierarchy {
+            fg.type_hierarchy.insert(ty.clone(), parents.clone());
+        }
+        on_progress(BuildProgress {
+            stage: "sparse-adjacency-1",
+            detail: "0 graph nodes (no modeled static taint path)".to_string(),
+        });
+        on_progress(BuildProgress {
+            stage: "sparse-summary",
+            detail: "0 nodes, 0 direct edges (empty taint slice)".to_string(),
+        });
+        if capabilities.points_to || capabilities.heap || capabilities.dynamic_calls {
+            on_progress(BuildProgress {
+                stage: "skip-unmatched-expensive-flow",
+                detail: "no modeled source/sink pair in scan".to_string(),
+            });
+        }
+        on_progress(BuildProgress {
+            stage: "sparse-adjacency-3",
+            detail: "0 graph nodes, 0 edges".to_string(),
+        });
+        on_progress(BuildProgress {
+            stage: "done",
+            detail: "0 graph nodes".to_string(),
+        });
+        return fg;
+    }
     // Lambda capture binding is visited for every call argument.  Searching
     // the complete function list there turned a large Python project into
     // calls × arguments × functions work before data-flow even started.
@@ -281,7 +346,10 @@ where
     let case_break_enabled = rules.native_dataflow_rules.iter().any(|rule| {
         rule.id == ANZU_CASE_BREAK_RULE_ID && language_matches(&rule.language, &program.language)
     });
-    if argument_validation_enabled && matches!(program.language, Language::Cpp) {
+    // Lifetime-backed allocation rules also consume these path facts.  Compute
+    // them once per C/C++ program, instead of coupling their correctness to
+    // whether the unrelated argument-validation rule happens to be enabled.
+    if matches!(program.language, Language::C | Language::Cpp) {
         fg.nullness_before_insts = analyze_program_nullness(program);
     }
     if (array_index_enabled || array_bound_enabled)
@@ -309,7 +377,7 @@ where
         Language::C | Language::Cpp | Language::ObjC | Language::ObjCpp
     ) {
         let (lifetime_states, lifetime_block_states, lifetime_diagnostics) =
-            analyze_program_lifetimes(program);
+            analyze_program_lifetimes(program, &fg.nullness_before_insts);
         fg.lifetime_states = lifetime_states;
         fg.lifetime_block_states = lifetime_block_states;
         fg.lifetime_diagnostics = lifetime_diagnostics;
@@ -779,6 +847,7 @@ where
                 },
             );
         }
+        attach_loop_taint_sinks(&mut fg, rules, func);
     }
 
     // A normal scan only needs the expensive heap/region overlays when a
@@ -807,12 +876,20 @@ where
     }
     on_progress(BuildProgress {
         stage: "sparse-summary",
-        detail: format!(
-            "{} nodes, {} edges, {} sparse edges",
-            fg.graph.node_count(),
-            fg.graph.edge_count(),
-            fg.sparse_successors.values().map(|v| v.len()).sum::<usize>()
-        ),
+        detail: if bounded_taint_scan {
+            format!(
+                "{} nodes, {} direct edges (on-demand taint traversal)",
+                fg.graph.node_count(),
+                fg.graph.edge_count(),
+            )
+        } else {
+            format!(
+                "{} nodes, {} edges, {} sparse edges",
+                fg.graph.node_count(),
+                fg.graph.edge_count(),
+                fg.sparse_successors.values().map(|v| v.len()).sum::<usize>()
+            )
+        },
     });
     if !materialize_expensive_flow
         && (capabilities.points_to || capabilities.heap || capabilities.dynamic_calls)
@@ -1091,6 +1168,156 @@ fn attach_index_sinks(
     }
 }
 
+/// Materialize taint sinks for relational conditions that control a natural
+/// loop.  Clang's legacy checker only considered a direct binary condition and
+/// ignored the operand when the other side was a compile-time constant; the
+/// IR `Compare` instruction gives us the same shape without depending on a
+/// particular front-end spelling of `for`, `while`, or `do`.
+fn attach_loop_taint_sinks(fg: &mut FlowGraph, rules: &RuleSet, func: &Function) {
+    let matching_rules = rules
+        .loop_sinks
+        .iter()
+        .filter(|rule| language_matches(&rule.language, &fg.language))
+        .collect::<Vec<_>>();
+    if matching_rules.is_empty() {
+        return;
+    }
+
+    let blocks = func
+        .blocks
+        .iter()
+        .map(|block| (block.id, block))
+        .collect::<HashMap<_, _>>();
+    let definitions = func
+        .blocks
+        .iter()
+        .flat_map(|block| block.insts.iter())
+        .filter_map(|inst| instruction_result_value(&inst.kind).map(|value| (value, &inst.kind)))
+        .collect::<HashMap<_, _>>();
+
+    for block in &func.blocks {
+        let Terminator::Branch {
+            cond,
+            then_bb,
+            else_bb,
+        } = &block.term
+        else {
+            continue;
+        };
+        let source_loop = func
+            .attrs
+            .contains_key(&format!("uniflow.source-cfg.loop.{}", block.id.0));
+        if !source_loop
+            && !loop_successor_reaches_header(&blocks, *then_bb, block.id)
+            && !loop_successor_reaches_header(&blocks, *else_bb, block.id)
+        {
+            continue;
+        }
+        let Some((inst, lhs, rhs)) = block.insts.iter().rev().find_map(|inst| match &inst.kind {
+            InstKind::Compare { dst, lhs, rhs, .. } if dst == cond => Some((inst, *lhs, *rhs)),
+            _ => None,
+        }) else {
+            continue;
+        };
+
+        for (taint_candidate, opposite) in [(lhs, rhs), (rhs, lhs)] {
+            if value_is_compile_time_constant(&definitions, opposite) {
+                continue;
+            }
+            for rule in &matching_rules {
+                let sink = fg.graph.add_node(FlowNode::SyntheticSink {
+                    func: func.id,
+                    inst: inst.id,
+                    rule_id: rule.id.clone(),
+                    kind: rule.kind.clone(),
+                    input: Port::Member("<loop-condition>".to_string()),
+                });
+                fg.synthetic_sinks.push(sink);
+                fg.graph.add_edge(
+                    value_node(fg, func.id, taint_candidate),
+                    sink,
+                    FlowEdge {
+                        kind: EdgeKind::Sink {
+                            rule_id: rule.id.clone(),
+                        },
+                    },
+                );
+            }
+        }
+    }
+}
+
+fn instruction_result_value(kind: &InstKind) -> Option<ValueId> {
+    match kind {
+        InstKind::ConstInt { dst, .. }
+        | InstKind::ConstString { dst, .. }
+        | InstKind::Copy { dst, .. }
+        | InstKind::NumericStep { dst, .. }
+        | InstKind::NumericNeg { dst, .. }
+        | InstKind::Cast { dst, .. }
+        | InstKind::Deref { dst, .. }
+        | InstKind::Compare { dst, .. }
+        | InstKind::Phi { dst, .. }
+        | InstKind::LoadField { dst, .. }
+        | InstKind::LoadIndex { dst, .. } => Some(*dst),
+        InstKind::Call(call) => call.dst,
+        InstKind::Move { dst, .. } => Some(*dst),
+        InstKind::Lifetime { .. } | InstKind::StoreField { .. } | InstKind::StoreIndex { .. } => {
+            None
+        }
+    }
+}
+
+fn value_is_compile_time_constant(
+    definitions: &HashMap<ValueId, &InstKind>,
+    value: ValueId,
+) -> bool {
+    let mut pending = VecDeque::from([value]);
+    let mut seen = HashSet::new();
+    while let Some(value) = pending.pop_front() {
+        if !seen.insert(value) {
+            continue;
+        }
+        match definitions.get(&value).copied() {
+            Some(InstKind::ConstInt { .. } | InstKind::ConstString { .. }) => return true,
+            Some(InstKind::Copy { src, .. } | InstKind::Cast { src, .. }) => pending.push_back(*src),
+            _ => return false,
+        }
+    }
+    false
+}
+
+fn loop_successor_reaches_header(
+    blocks: &HashMap<BlockId, &uniflow_ir::BasicBlock>,
+    start: BlockId,
+    header: BlockId,
+) -> bool {
+    let mut pending = VecDeque::from([start]);
+    let mut visited = HashSet::new();
+    while let Some(block_id) = pending.pop_front() {
+        if block_id == header {
+            return true;
+        }
+        if !visited.insert(block_id) {
+            continue;
+        }
+        let Some(block) = blocks.get(&block_id) else {
+            continue;
+        };
+        match &block.term {
+            Terminator::Goto(next) => pending.push_back(*next),
+            Terminator::Branch {
+                then_bb, else_bb, ..
+            } => {
+                pending.push_back(*then_bb);
+                pending.push_back(*else_bb);
+            }
+            Terminator::Return(_) | Terminator::Throw(_) | Terminator::Unreachable => {}
+        }
+    }
+    false
+}
+
 fn attach_function_sources_and_sinks(fg: &mut FlowGraph, rules: &RuleSet, func: &Function) {
     let owners = func
         .attrs
@@ -1321,31 +1548,88 @@ fn cpp_unknown_call_may_write(function: &Function, value: ValueId) -> bool {
 }
 
 /// Return the portion of a program which can lie on a *static* modeled
-/// source-to-sink path. `None` means that a rule family needs a whole-program
-/// graph (for example a named-value or field rule); an empty set is a proven
-/// no-finding scan because no modeled call source or sink exists at all.
+/// source-to-sink path. `None` is reserved for a rule family whose source or
+/// sink cannot be bounded before constructing a graph; an empty set is a
+/// proven no-finding scan because no modeled source or sink exists at all.
 ///
 /// The slice is deliberately an over-approximation. Every function reachable
 /// from a modeled source and able to reach a modeled sink is retained, so a
 /// static interprocedural path is never removed merely for performance. Dynamic
 /// call resolution remains a separate optional full-graph capability.
+///
+/// Parse the same `value_names` function attribute the real graph build
+/// reads (see the loop populating `fg.value_names` above and
+/// `function_has_named_source` below) into a plain per-function map. This
+/// pre-graph slice needs it only to detect a receiver's synthesized
+/// `$`-prefixed external-symbol name (see `qualify_callee_name_for_slice`);
+/// it is not a `FlowGraph` field, so it cannot be borrowed from one here.
+fn parse_value_names_attr(function: &Function) -> HashMap<ValueId, String> {
+    function
+        .attrs
+        .get("value_names")
+        .into_iter()
+        .flat_map(|value| value.split('\u{1f}'))
+        .filter_map(|entry| {
+            let (value, name) = entry.split_once('=')?;
+            let value = value.parse::<u32>().ok()?;
+            Some((ValueId(value), name.to_string()))
+        })
+        .collect()
+}
+
+/// Mirror `build_call_meta`'s receiver-symbol qualification (calls.rs) so the
+/// pre-graph slice's call/rule matching agrees with the real attach logic.
+///
+/// A bare method name is not enough to match a receiver-qualified rule (for
+/// example `regex: '[.]to_json$'`): `build_call_meta` additionally resolves
+/// the receiver value to a synthesized external-symbol name — a literal
+/// index/field key such as Ruby's `params[:user]`, which
+/// `compute_literal_index_keys` resolves to `<external-symbol:params.user>`
+/// — and prefixes the callee name with it before rule matching runs. Skipping
+/// that step here previously made this slice see only the bare `to_json` /
+/// `constantize` name, fail every regex sink matcher that requires a
+/// receiver-qualified name, and prune the one function that both attach
+/// functions would have found taint in.
+///
+/// Both inputs are pure per-function computations (no `FlowGraph` needed),
+/// so recomputing them before a graph exists preserves the slice's purpose:
+/// finding the modeled source/sink component before paying for graph
+/// construction.
+fn qualify_callee_name_for_slice(
+    callee_name: &str,
+    receiver: Option<ValueId>,
+    literal_index_keys: &HashMap<ValueId, String>,
+    value_names: &HashMap<ValueId, String>,
+) -> String {
+    let Some(receiver) = receiver else {
+        return callee_name.to_string();
+    };
+    let receiver_symbol = literal_index_keys
+        .get(&receiver)
+        .and_then(|value| external_symbol_name(value))
+        .map(str::to_string)
+        .or_else(|| {
+            value_names
+                .get(&receiver)
+                .filter(|name| name.starts_with('$'))
+                .cloned()
+        });
+    let Some(symbol) = receiver_symbol else {
+        return callee_name.to_string();
+    };
+    if callee_name.starts_with(&format!("{symbol}.")) || callee_name.starts_with(&format!("{symbol}::")) {
+        return callee_name.to_string();
+    }
+    let method = CallInfo::from_callee_name(callee_name)
+        .method_name
+        .unwrap_or_else(|| callee_name.to_string());
+    format!("{symbol}.{method}")
+}
+
 fn static_taint_scan_function_slice(
     program: &Program,
     rules: &RuleSet,
 ) -> Option<HashSet<FunctionId>> {
-    // These rule forms can attach a source/sink without a call expression.
-    // Do not guess a slice for them: preserving their full semantics matters
-    // more than a memory saving on the uncommon configuration.
-    if rules.named_value_sources.iter().any(|rule| language_matches(&rule.language, &program.language))
-        || rules.field_sources.iter().any(|rule| language_matches(&rule.language, &program.language))
-        || rules.field_sinks.iter().any(|rule| language_matches(&rule.language, &program.language))
-        || rules.index_sinks.iter().any(|rule| language_matches(&rule.language, &program.language))
-        || rules.function_sources.iter().any(|rule| language_matches(&rule.language, &program.language))
-        || rules.function_sinks.iter().any(|rule| language_matches(&rule.language, &program.language))
-    {
-        return None;
-    }
-
     let source_rules = rules
         .sources
         .iter()
@@ -1356,26 +1640,118 @@ fn static_taint_scan_function_slice(
         .iter()
         .filter(|rule| language_matches(&rule.language, &program.language))
         .collect::<Vec<_>>();
-    if source_rules.is_empty() || sink_rules.is_empty() {
-        return Some(HashSet::new());
-    }
-
     let index = FunctionIndex::new(program);
+    // Legacy C# alone has more than a thousand field rules.  Do not make the
+    // pre-graph slice do fields × rules work: field names are sufficient for
+    // this intentionally conservative root test; precise owner matching still
+    // happens while attaching the actual source/sink.
+    let direct_source_fields = rules
+        .field_sources
+        .iter()
+        .filter(|rule| language_matches(&rule.language, &program.language))
+        .map(|rule| rule.matcher.field.as_str())
+        .collect::<HashSet<_>>();
+    let direct_sink_fields = rules
+        .field_sinks
+        .iter()
+        .filter(|rule| language_matches(&rule.language, &program.language))
+        .map(|rule| rule.matcher.field.as_str())
+        .collect::<HashSet<_>>();
+    let has_index_sink = rules
+        .index_sinks
+        .iter()
+        .any(|rule| language_matches(&rule.language, &program.language));
+    let has_unused_return_sink = rules
+        .unused_return_sinks
+        .iter()
+        .any(|rule| language_matches(&rule.language, &program.language));
+    let has_loop_sink = rules
+        .loop_sinks
+        .iter()
+        .any(|rule| language_matches(&rule.language, &program.language));
     let mut source_functions = HashSet::new();
     let mut sink_functions = HashSet::new();
     let mut callers = HashMap::<FunctionId, Vec<FunctionId>>::new();
     let mut callees = HashMap::<FunctionId, Vec<FunctionId>>::new();
 
     for function in &program.functions {
+        // Sources and sinks which attach directly to a function/value are
+        // still local to that function.  Treat every syntactically plausible
+        // field/index site as a root when its owner/base cannot be proven
+        // here; that is an intentional over-approximation which keeps the
+        // slice sound without first allocating a FlowGraph.
+        if function_has_direct_source_model(program, rules, function, &direct_source_fields) {
+            source_functions.insert(function.id);
+        }
+        if function_has_direct_sink_model(
+            program,
+            rules,
+            function,
+            &direct_sink_fields,
+            has_index_sink,
+            has_unused_return_sink,
+        ) {
+            sink_functions.insert(function.id);
+        }
+        // A loop-condition sink is not represented by a call instruction.
+        // Keep every function with a branch as a conservative pre-graph root;
+        // `attach_loop_taint_sinks` applies the precise source-loop and
+        // relational-condition checks after lowering.
+        if has_loop_sink
+            && function
+                .blocks
+                .iter()
+                .any(|block| matches!(&block.term, Terminator::Branch { .. }))
+        {
+            sink_functions.insert(function.id);
+        }
+        // `build_call_meta` (the real attach path) qualifies a bare callee
+        // name with a receiver's synthesized external-symbol name before
+        // matching it against a rule's regex/exact matcher — for example
+        // Ruby's `params[:user].to_json` resolves its receiver's literal
+        // index key to `params.user`, giving the callee the matchable name
+        // `params.user.to_json` instead of the bare `to_json`.  Both maps
+        // below are pure per-function computations (no `FlowGraph` needed),
+        // so recomputing them here keeps the slice's rule matching in sync
+        // with the real attach logic without paying for graph construction.
+        let literal_index_keys = compute_literal_index_keys(function, &program.language);
+        let value_names = parse_value_names_attr(function);
         for block in &function.blocks {
             for inst in &block.insts {
+                // Semantic-boundary adapters may attach a model to one
+                // precise call instruction instead of a broad callee name.
+                // Those models are genuine source/sink roots for the rule
+                // driven slice: omitting them here can prune two components
+                // that are connected only through HTTP, a queue, FFI, or a
+                // persisted-resource boundary before the synthetic nodes are
+                // ever built.
+                if rules.call_site_sources.iter().any(|rule| {
+                    language_matches(&rule.language, &program.language)
+                        && call_site_function_matches(&rule.function, &function.name)
+                        && rule.inst_id == inst.id.0
+                }) {
+                    source_functions.insert(function.id);
+                }
+                if rules.call_site_sinks.iter().any(|rule| {
+                    language_matches(&rule.language, &program.language)
+                        && call_site_function_matches(&rule.function, &function.name)
+                        && rule.inst_id == inst.id.0
+                }) {
+                    sink_functions.insert(function.id);
+                }
                 let InstKind::Call(call) = &inst.kind else {
                     continue;
                 };
                 let Some(callee_name) = static_callee_name(call) else {
                     continue;
                 };
-                let mut info = CallInfo::from_callee_name(&callee_name);
+                let qualified_callee_name = qualify_callee_name_for_slice(
+                    &callee_name,
+                    call.receiver,
+                    &literal_index_keys,
+                    &value_names,
+                );
+                let mut info = CallInfo::from_callee_name(&qualified_callee_name);
                 info.containing_function = Some(function.name.clone());
                 info.arg_count = Some(call.args.len());
                 info.arg_types = call
@@ -1449,6 +1825,106 @@ fn static_taint_scan_function_slice(
             .copied()
             .collect(),
     )
+}
+
+/// Check direct source roots using the same function metadata used by graph
+/// construction.  This deliberately does not inspect field owners: keeping a
+/// same-named field site is cheaper than materializing the whole project and
+/// avoids a type-information-dependent false negative.
+fn function_has_direct_source_model(
+    program: &Program,
+    rules: &RuleSet,
+    function: &Function,
+    direct_source_fields: &HashSet<&str>,
+) -> bool {
+    let function_rule_matches = rules.function_sources.iter().any(|rule| {
+        language_matches(&rule.language, &program.language)
+            && function_matches_rule(program, function, &rule.matcher)
+    });
+    if function_rule_matches || function_has_named_source(program, rules, function) {
+        return true;
+    }
+
+    function.blocks.iter().flat_map(|block| &block.insts).any(|inst| {
+        let InstKind::LoadField { field, .. } = &inst.kind else {
+            return false;
+        };
+        direct_source_fields.contains("*") || direct_source_fields.contains(field.as_str())
+    })
+}
+
+/// Check direct sink roots without constructing field/index cells.  An unused
+/// return rule is a sink at every call site, so retaining functions containing
+/// calls is the smallest safe pre-graph approximation.
+fn function_has_direct_sink_model(
+    program: &Program,
+    rules: &RuleSet,
+    function: &Function,
+    direct_sink_fields: &HashSet<&str>,
+    has_index_sink: bool,
+    has_unused_return_sink: bool,
+) -> bool {
+    let function_rule_matches = rules.function_sinks.iter().any(|rule| {
+        language_matches(&rule.language, &program.language)
+            && function_matches_rule(program, function, &rule.matcher)
+    });
+    if function_rule_matches {
+        return true;
+    }
+
+    function.blocks.iter().flat_map(|block| &block.insts).any(|inst| match &inst.kind {
+        InstKind::StoreField { field, .. } => {
+            direct_sink_fields.contains("*") || direct_sink_fields.contains(field.as_str())
+        }
+        InstKind::LoadIndex { .. } | InstKind::StoreIndex { .. } => has_index_sink,
+        InstKind::Call(_) => has_unused_return_sink,
+        _ => false,
+    })
+}
+
+fn function_has_named_source(program: &Program, rules: &RuleSet, function: &Function) -> bool {
+    let names = function
+        .attrs
+        .get("value_names")
+        .into_iter()
+        .flat_map(|value| value.split('\u{1f}'))
+        .filter_map(|entry| entry.split_once('=').map(|(_, name)| name));
+    let parameter_names = function
+        .attrs
+        .get("param_names")
+        .into_iter()
+        .flat_map(|value| value.split('\u{1f}'));
+    rules.named_value_sources.iter().any(|rule| {
+        language_matches(&rule.language, &program.language)
+            && names.clone().chain(parameter_names.clone()).any(|name| rule.matches_name(name))
+    })
+}
+
+fn function_matches_rule(
+    _program: &Program,
+    function: &Function,
+    matcher: &uniflow_rules::FunctionMatcher,
+) -> bool {
+    let decorators = function
+        .attrs
+        .get("python.decorators")
+        .map(|value| {
+            value
+                .split('\u{1f}')
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    // The IR hierarchy is an IndexMap while the call resolver's expansion
+    // cache is a HashMap.  Copying the entire hierarchy merely to pre-slice
+    // functions would defeat the memory saving.  Omitting owner constraints
+    // here is safe: it only retains extra functions when hierarchy data is
+    // incomplete; graph construction applies the precise matcher later.
+    let mut conservative = matcher.clone();
+    conservative.owner = None;
+    conservative.owner_regex = None;
+    conservative.matches(&function.name, &[], &decorators)
 }
 
 fn traverse_function_slice(

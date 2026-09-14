@@ -1,0 +1,15 @@
+[package]
+name = "uniflow-lang-java-bytecode"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+indexmap.workspace = true
+rayon.workspace = true
+zip.workspace = true
+uniflow-hir = { path = "../hir" }
+uniflow-ir = { path = "../ir" }
+uniflow-jni-bridge = { path = "../jni_bridge" }

@@ -1,28 +1,40 @@
+mod ffi_bridge;
+
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde::Serialize;
 use serde_json::json;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use uniflow_baseline::{
     audit_legacy_rule_tree, builtin_pack_manifest, builtin_security_pack,
-    bundled_legacy_raw_assets, decrypt_legacy_rule_tree, BaselineScanOptions, OracleFormsMetadata,
+    bundled_legacy_raw_assets, decrypt_legacy_rule_tree, BaselineFinding, BaselineScanOptions,
+    OracleFormsMetadata,
 };
-use uniflow_cache::{build_project_with_cache_options, load_project_cache, save_project_cache};
+use uniflow_cache::{
+    build_project_with_cache_options, load_mixed_project_cache, load_project_cache,
+    save_mixed_project_cache, save_project_cache, CachePlan, MixedProjectCache,
+};
 use uniflow_checker_api::{event_kind, CheckerFinding};
 use uniflow_checker_host::{
     CheckerFailurePolicy, CheckerHostOptions, CheckerIsolation, CheckerManager,
 };
 use uniflow_frontend::{
-    collect_auxiliary_files, collect_source_files, parse_project_files_with_options_and_progress,
-    parse_project_sources_with_options, parse_source_with_options, FrontendOptions,
+    collect_auxiliary_files, collect_dotnet_bytecode_files, collect_java_bytecode_files,
+    collect_mixed_source_files, collect_python_bytecode_files, collect_source_files,
+    collect_wasm_bytecode_files, parse_project_files_with_options,
+    parse_project_files_with_options_and_progress, parse_project_sources_with_options,
+    parse_source_with_options, FrontendOptions,
 };
-use uniflow_hir::Language;
-use uniflow_ir::{sample_java_sql_program, validate_program, Program as IrProgram};
+use uniflow_hir::{Language, Program as HirProgram};
+use uniflow_ir::{
+    merge_programs, sample_java_sql_program, validate_program, Program as IrProgram,
+};
+use uniflow_lang_java_bytecode::{lower_archive, lower_class_file};
 use uniflow_lowering::lower_program;
 use uniflow_models::{
     audit_legacy_jvm_rule_tree, compile_legacy_csharp_pack, compile_legacy_go_pack,
@@ -35,12 +47,44 @@ use uniflow_platform::PlatformProfile;
 use uniflow_report::{
     export_dot, export_markdown_report_with_checkers, export_sarif_with_checker_manifests,
 };
+use uniflow_reasoning_oracle::{
+    ConstraintKind, ConstraintQuery, Domain, LeanOracle, LlmOracle, LlmOracleConfig, Oracle,
+    SemanticAnswer, SemanticQuery,
+};
 use uniflow_rules::{RuleSet, RuleTranslations};
 use uniflow_taint::{analyze, pretty_findings, TaintFinding};
 use uniflow_value_flow::{
     build_for_rules_with_progress, build_for_scan_with_progress, build_with_capabilities,
     AnalysisCapabilities, FlowGraph, FlowNode,
 };
+
+/// Recursively extracts every supported archive (zip/tar and their
+/// gzip/bzip2/xz/zstd-compressed forms — see `uniflow_archive_extract` for
+/// the full format list and why it deliberately excludes 7z/RAR/firmware
+/// images) found anywhere under `roots` into a scratch directory, then
+/// appends that scratch directory to `roots` so the caller's existing
+/// extension-based file collectors see the unpacked content with no changes
+/// of their own. Returns the scratch directory's guard, which the caller
+/// must keep bound (not `_`) for as long as anything still needs to read
+/// from `roots` — it deletes the directory on drop.
+fn extract_archives_into(roots: &mut Vec<PathBuf>) -> Result<Option<tempfile::TempDir>> {
+    let Some((guard, report)) =
+        uniflow_archive_extract::extract_archives_recursively(roots, &Default::default())
+            .context("failed to recursively extract archives under the scan input")?
+    else {
+        return Ok(None);
+    };
+    if report.truncated {
+        eprintln!(
+            "uniflow: archive extraction under the scan input stopped early after hitting a \
+             safety budget ({} archive(s) extracted, {} bytes written); results from inside \
+             archives may be partial",
+            report.archives_found, report.bytes_written
+        );
+    }
+    roots.push(report.extraction_root);
+    Ok(Some(guard))
+}
 
 #[derive(Debug, Parser)]
 #[command(name = "uniflow")]
@@ -53,6 +97,10 @@ struct Cli {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum LangArg {
+    /// Auto-detect each file's language by extension and scan the project
+    /// as a set of independently-analyzed per-language groups. Valid only
+    /// for `analyze-project`; `analyze-source` always names one language.
+    Mix,
     C,
     Cpp,
     #[value(name = "csharp", alias = "cs")]
@@ -81,6 +129,12 @@ enum LangArg {
 impl From<LangArg> for Language {
     fn from(value: LangArg) -> Self {
         match value {
+            // `Mix` is a CLI-only orchestration mode handled before this
+            // conversion is ever reached for `analyze-project`; converting
+            // it here at all only matters for `analyze-source`, where it
+            // naturally bails out downstream ("language must be
+            // specified") rather than silently picking a language.
+            LangArg::Mix => Language::Unknown,
             LangArg::C => Language::C,
             LangArg::Cpp => Language::Cpp,
             LangArg::CSharp => Language::CSharp,
@@ -146,6 +200,27 @@ enum CheckerIsolationArg {
     InProcess,
 }
 
+/// The only theorem shapes UniFlow currently sends to Lean's kernel-checked
+/// `omega` procedure.  These deliberately stay separate from language
+/// syntax: the input is the small normalized integer-expression grammar
+/// accepted by the reasoning-oracle crate.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ProofKindArg {
+    Satisfiability,
+    Equivalence,
+    Implication,
+}
+
+impl From<ProofKindArg> for ConstraintKind {
+    fn from(value: ProofKindArg) -> Self {
+        match value {
+            ProofKindArg::Satisfiability => ConstraintKind::Satisfiability,
+            ProofKindArg::Equivalence => ConstraintKind::Equivalence,
+            ProofKindArg::Implication => ConstraintKind::Implication,
+        }
+    }
+}
+
 impl From<CheckerIsolationArg> for CheckerIsolation {
     fn from(value: CheckerIsolationArg) -> Self {
         match value {
@@ -209,6 +284,11 @@ struct ReportOutputs {
     sarif_out: Option<String>,
     dot_out: Option<String>,
     markdown_out: Option<String>,
+    /// Only populated by mixed-language project scans: the recovered
+    /// system-wide graph (Docker Compose/Kubernetes topology, config
+    /// resolution, HTTP routes, lifecycle hooks, ...) — see
+    /// `uniflow_system_graph`.
+    system_graph_out: Option<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -216,6 +296,62 @@ enum Command {
     CheckRules {
         #[arg(long)]
         rules: String,
+    },
+    /// Ask an explicitly configured LLM for an advisory review of one source file.
+    /// The answer is never promoted to a security finding without an
+    /// independently verifiable UniFlow rule/flow path.
+    ReviewCode {
+        #[arg(long)]
+        language: LangArg,
+        #[arg(long)]
+        input: String,
+        /// OpenAI-compatible chat-completions endpoint. Source is sent only
+        /// after --allow-llm-source-upload is also supplied.
+        #[arg(long)]
+        llm_endpoint: String,
+        /// Model name accepted by --llm-endpoint.
+        #[arg(long)]
+        llm_model: String,
+        /// Environment variable that holds the endpoint API key.
+        #[arg(long, default_value = "UNIFLOW_LLM_API_KEY")]
+        llm_api_key_env: String,
+        /// Required acknowledgement that the input source may leave this machine.
+        #[arg(long, default_value_t = false)]
+        allow_llm_source_upload: bool,
+        /// Limit source uploaded to the LLM, in bytes.
+        #[arg(long, default_value_t = 65_536)]
+        max_input_bytes: usize,
+        /// Per-request network deadline for the advisory review.
+        #[arg(long, default_value_t = 15_000)]
+        llm_timeout_ms: u64,
+        /// Optional focused review question; defaults to a security/correctness review.
+        #[arg(long)]
+        question: Option<String>,
+        /// Write the advisory JSON document to this path instead of stdout.
+        #[arg(long)]
+        json_out: Option<String>,
+    },
+    /// Submit a normalized integer constraint to Lean's kernel-checked
+    /// omega procedure. This emits a formal result or an explicit
+    /// toolchain-unavailable/unknown state; it never emits a taint finding.
+    ProveConstraint {
+        #[arg(long, value_enum)]
+        kind: ProofKindArg,
+        /// Left-hand normalized integer expression (or predicate for satisfiability).
+        #[arg(long)]
+        lhs: String,
+        /// Right-hand normalized integer expression; required for equivalence and implication.
+        #[arg(long)]
+        rhs: Option<String>,
+        /// Optional bounded variable assumption, NAME=LOW..HIGH. May be repeated.
+        #[arg(long = "bound", value_name = "NAME=LOW..HIGH")]
+        bounds: Vec<String>,
+        /// Lean executable to use; defaults to `lean` on PATH.
+        #[arg(long, default_value = "lean")]
+        lean_binary: String,
+        /// Write the formal-result JSON document to this path instead of stdout.
+        #[arg(long)]
+        json_out: Option<String>,
     },
     ListRulePacks,
     ListBaselinePacks,
@@ -324,7 +460,9 @@ enum Command {
         output: Option<String>,
     },
     CheckBaseline {
-        #[arg(long)]
+        /// Defaults to `mix`: route every source file to its own frontend
+        /// before running bundled coding-style/baseline checkers.
+        #[arg(long, value_enum, default_value = "mix")]
         language: LangArg,
         #[arg(long = "input", required = true)]
         inputs: Vec<String>,
@@ -408,7 +546,9 @@ enum Command {
         checker_isolation: CheckerIsolationArg,
     },
     AnalyzeProject {
-        #[arg(long)]
+        /// Defaults to `mix`: auto-detect each file's language by extension
+        /// and analyze the project as independent per-language groups.
+        #[arg(long, value_enum, default_value = "mix")]
         language: LangArg,
         #[arg(long, value_enum, default_value = "generic")]
         platform: PlatformArg,
@@ -449,6 +589,11 @@ enum Command {
         dot_out: Option<String>,
         #[arg(long)]
         markdown_out: Option<String>,
+        /// Mixed-language scans only: writes the recovered system-wide
+        /// graph (Docker Compose/Kubernetes topology, config resolution,
+        /// HTTP routes, lifecycle hooks, ...) as JSON.
+        #[arg(long)]
+        system_graph_out: Option<String>,
         /// Load an external checker dynamic library. May be repeated.
         #[arg(long = "checker", value_name = "LIBRARY")]
         checkers: Vec<String>,
@@ -576,6 +721,69 @@ fn format_duration(duration: Duration) -> String {
 /// thread's (often 8MB) stack.
 const WORKER_STACK_SIZE: usize = 1 << 30;
 
+fn default_semantic_review_question() -> String {
+    "Review this one code unit for security and correctness defects. Identify concrete unsafe source/sink, authorization or validation gaps, injection/deserialization, filesystem/network/crypto, lifetime/concurrency, and framework-boundary hazards. State the exact symbols and preconditions for every claim. This is an advisory hypothesis: do not claim proof of a vulnerability when required context is absent.".to_string()
+}
+
+/// LLM output is deliberately isolated from ordinary SARIF findings. A model
+/// can suggest a useful hypothesis, but it has not established a source,
+/// sink, propagation path, or deployment precondition in UniFlow's IR.
+fn semantic_review_document(input: &str, language: Language, answer: SemanticAnswer) -> serde_json::Value {
+    json!({
+        "classification": "advisory",
+        "oracle": "llm",
+        "input": input,
+        "language": language.as_str(),
+        "answer": answer.answer,
+        "confidence": answer.confidence,
+        "rationale": answer.rationale,
+        "verification_required": [
+            "Resolve every cited symbol and source span in the parsed frontend.",
+            "Establish a deterministic source-to-sink or checker-rule path before promotion to a finding.",
+            "Record configuration, framework, FFI, or deployment assumptions as boundary evidence."
+        ]
+    })
+}
+
+fn parse_proof_bounds(raw_bounds: Vec<String>) -> Result<Vec<(String, String)>> {
+    raw_bounds
+        .into_iter()
+        .map(|raw| {
+            let (name, range) = raw
+                .split_once('=')
+                .context("--bound must have the form NAME=LOW..HIGH")?;
+            if name.is_empty()
+                || !name.chars().next().is_some_and(|ch| ch.is_ascii_alphabetic() || ch == '_')
+                || !name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            {
+                anyhow::bail!("invalid --bound variable name {name:?}");
+            }
+            let (low, high) = range
+                .split_once("..")
+                .context("--bound range must have the form LOW..HIGH")?;
+            let _: i64 = low.trim().parse().context("--bound lower bound must be an integer")?;
+            let _: i64 = high.trim().parse().context("--bound upper bound must be an integer")?;
+            Ok((name.to_string(), range.to_string()))
+        })
+        .collect()
+}
+
+fn formal_proof_document(
+    query: &ConstraintQuery,
+    lean_binary: &str,
+    decision: Option<uniflow_reasoning_oracle::Decision>,
+) -> serde_json::Value {
+    json!({
+        "classification": "formal-proof-result",
+        "verifier": "lean-omega",
+        "lean_binary": lean_binary,
+        "query": query,
+        "status": if decision.is_some() { "kernel-checked" } else { "toolchain-unavailable" },
+        "decision": decision,
+        "finding_promotion": "A formal arithmetic decision constrains path feasibility only. A UniFlow source-to-sink path and all boundary evidence remain required for a security finding."
+    })
+}
+
 fn main() -> Result<()> {
     std::thread::Builder::new()
         .stack_size(WORKER_STACK_SIZE)
@@ -600,6 +808,83 @@ fn run() -> Result<()> {
                 .with_context(|| format!("failed to read rules from {rules}"))?;
             let _ = RuleSet::from_yaml_str(&text)?;
             println!("rules ok");
+        }
+        Command::ReviewCode {
+            language,
+            input,
+            llm_endpoint,
+            llm_model,
+            llm_api_key_env,
+            allow_llm_source_upload,
+            max_input_bytes,
+            llm_timeout_ms,
+            question,
+            json_out,
+        } => {
+            if matches!(language, LangArg::Mix) {
+                anyhow::bail!("review-code requires one concrete --language; use analyze-project --language mix for a system scan");
+            }
+            if !allow_llm_source_upload {
+                anyhow::bail!(
+                    "refusing to upload source: pass --allow-llm-source-upload after reviewing the endpoint and data-handling policy"
+                );
+            }
+            if max_input_bytes == 0 {
+                anyhow::bail!("--max-input-bytes must be greater than zero");
+            }
+            let source = fs::read_to_string(&input)
+                .with_context(|| format!("failed to read source from {input}"))?;
+            if source.len() > max_input_bytes {
+                anyhow::bail!(
+                    "refusing to upload {} bytes from {input}; --max-input-bytes is {max_input_bytes}",
+                    source.len()
+                );
+            }
+            let api_key = std::env::var(&llm_api_key_env).with_context(|| {
+                format!("LLM API key environment variable {llm_api_key_env:?} is not set")
+            })?;
+            let mut config = LlmOracleConfig::new(llm_endpoint, api_key, llm_model);
+            config.timeout = Duration::from_millis(llm_timeout_ms.clamp(1, 120_000));
+            let answer = LlmOracle::new(config).interpret_semantics(&SemanticQuery {
+                language: Language::from(language).as_str().to_string(),
+                code_snippet: source,
+                question: question.unwrap_or_else(default_semantic_review_question),
+            })?;
+            let document = semantic_review_document(&input, Language::from(language), answer);
+            let rendered = serde_json::to_string_pretty(&document)
+                .context("failed to serialize LLM advisory review")?;
+            if let Some(path) = json_out {
+                write_text_file(&path, &rendered)?;
+            } else {
+                println!("{rendered}");
+            }
+        }
+        Command::ProveConstraint { kind, lhs, rhs, bounds, lean_binary, json_out } => {
+            if matches!(kind, ProofKindArg::Equivalence | ProofKindArg::Implication) && rhs.is_none() {
+                anyhow::bail!("--rhs is required for --kind {kind:?}");
+            }
+            if matches!(kind, ProofKindArg::Satisfiability) && rhs.is_some() {
+                anyhow::bail!("--rhs is not accepted for --kind satisfiability");
+            }
+            let query = ConstraintQuery {
+                kind: kind.into(),
+                domain: Domain::IntegerArithmetic,
+                language: "uniflow-normalized".to_string(),
+                lhs,
+                rhs,
+                context: parse_proof_bounds(bounds)?,
+            };
+            let decision = LeanOracle::detect_named(&lean_binary)
+                .map(|oracle| oracle.decide_constraint(&query))
+                .transpose()?;
+            let document = formal_proof_document(&query, &lean_binary, decision);
+            let rendered = serde_json::to_string_pretty(&document)
+                .context("failed to serialize Lean proof result")?;
+            if let Some(path) = json_out {
+                write_text_file(&path, &rendered)?;
+            } else {
+                println!("{rendered}");
+            }
         }
         Command::ListRulePacks => {
             println!("{}", mit_catalog_manifest());
@@ -893,8 +1178,19 @@ fn run() -> Result<()> {
             sql_xpath_query,
             sql_xpath_message,
         } => {
+            if matches!(language, LangArg::Mix) {
+                run_mixed_baseline(
+                    inputs,
+                    json_out,
+                    forms_metadata,
+                    sql_xpath_query,
+                    sql_xpath_message,
+                )?;
+                return Ok(());
+            }
             let language = Language::from(language);
-            let roots = inputs.iter().map(PathBuf::from).collect::<Vec<_>>();
+            let mut roots = inputs.iter().map(PathBuf::from).collect::<Vec<_>>();
+            let _extract_guard = extract_archives_into(&mut roots)?;
             let files = collect_source_files(language.clone(), &roots)?;
             let mut pack = builtin_security_pack()?;
             if let Some(query) = sql_xpath_query {
@@ -981,6 +1277,7 @@ fn run() -> Result<()> {
                     sarif_out,
                     dot_out,
                     markdown_out,
+                    ..Default::default()
                 },
                 &[],
                 &[],
@@ -1041,6 +1338,7 @@ fn run() -> Result<()> {
                     sarif_out,
                     dot_out,
                     markdown_out,
+                    ..Default::default()
                 },
                 &checkers,
                 RuntimeCheckerOptions {
@@ -1071,15 +1369,50 @@ fn run() -> Result<()> {
             sarif_out,
             dot_out,
             markdown_out,
+            system_graph_out,
             checkers,
             checker_timeout_ms,
             checker_failure,
             checker_isolation,
         } => {
+            if matches!(language, LangArg::Mix) {
+                run_mixed_project(
+                    platform,
+                    c_family,
+                    inputs,
+                    rules,
+                    use_default_models,
+                    &rule_ids,
+                    list_files,
+                    dump_hir,
+                    dump_ir,
+                    dump_graph,
+                    dump_call_report,
+                    dump_stats,
+                    pretty,
+                    dump_cache_plan,
+                    cache_in,
+                    cache_out,
+                    &ReportOutputs {
+                        sarif_out,
+                        dot_out,
+                        markdown_out,
+                        system_graph_out,
+                    },
+                    &checkers,
+                    RuntimeCheckerOptions {
+                        timeout_ms: checker_timeout_ms,
+                        failure_policy: checker_failure,
+                        isolation: checker_isolation,
+                    },
+                )?;
+                return Ok(());
+            }
             let language: Language = language.into();
             let hydrate_bundled_metadata = use_default_models || rules.is_none();
             let frontend_options = make_frontend_options(platform, c_family);
-            let paths = inputs.into_iter().map(PathBuf::from).collect::<Vec<_>>();
+            let mut paths = inputs.into_iter().map(PathBuf::from).collect::<Vec<_>>();
+            let _extract_guard = extract_archives_into(&mut paths)?;
             let use_cache = cache_in.is_some() || cache_out.is_some() || dump_cache_plan;
             let total_steps = 11;
             let mut tracker = ProgressTracker::new(total_steps);
@@ -1107,7 +1440,23 @@ fn run() -> Result<()> {
                 );
             }
 
-            let hir = if use_cache {
+            // JAR/WAR, .NET, CPython, and WASM bytecode dependencies are
+            // each decoded straight to IR (bypassing every HIR source
+            // frontend entirely — there isn't one for compiled-only input)
+            // and merged in below, so a compiled dependency participates in
+            // the same flow graph as the project's own sources. Collected
+            // up front so a project made up *entirely* of bytecode (no
+            // source files at all) can skip HIR parsing rather than failing
+            // on an empty source-file list.
+            let extra_ir_programs = collect_bytecode_ir_programs(&language, &paths)?;
+
+            let hir = if files.is_empty() {
+                anyhow::ensure!(
+                    !extra_ir_programs.is_empty(),
+                    "no supported source files or archives found"
+                );
+                uniflow_hir::Program::empty(language.clone())
+            } else if use_cache {
                 tracker.phase(
                     "build-project-cache",
                     format!("{} files", files.len()),
@@ -1170,7 +1519,7 @@ fn run() -> Result<()> {
                 )?
             };
 
-            run_and_print_with_progress(
+            run_and_print_with_progress_and_extra_ir(
                 &mut tracker,
                 hir,
                 rules,
@@ -1185,6 +1534,11 @@ fn run() -> Result<()> {
                     sarif_out,
                     dot_out,
                     markdown_out,
+                    // System-wide semantic boundary recovery only runs for
+                    // mixed-language project scans (see `run_mixed_project`);
+                    // `--system-graph-out` has no effect on a single-language
+                    // `analyze-project` run.
+                    system_graph_out: None,
                 },
                 &checkers,
                 RuntimeCheckerOptions {
@@ -1192,8 +1546,123 @@ fn run() -> Result<()> {
                     failure_policy: checker_failure,
                     isolation: checker_isolation,
                 },
+                extra_ir_programs,
             )?;
         }
+    }
+    Ok(())
+}
+
+/// Runs the frontend coding-style/baseline checker over every language group
+/// in a polyglot project.  HIR is language-specific, so each group is parsed
+/// independently and findings are merged only at the report boundary.
+fn run_mixed_baseline(
+    inputs: Vec<String>,
+    json_out: Option<String>,
+    forms_metadata: Option<String>,
+    sql_xpath_query: Option<String>,
+    sql_xpath_message: Option<String>,
+) -> Result<()> {
+    if sql_xpath_query.is_none() {
+        anyhow::ensure!(
+            sql_xpath_message.is_none(),
+            "--sql-xpath-message requires --sql-xpath-query"
+        );
+    }
+    let mut roots = inputs.into_iter().map(PathBuf::from).collect::<Vec<_>>();
+    let _extract_guard = extract_archives_into(&mut roots)?;
+    let options = BaselineScanOptions {
+        oracle_forms_metadata: forms_metadata
+            .as_deref()
+            .map(|path| {
+                let text = fs::read_to_string(path)
+                    .with_context(|| format!("failed to read Oracle Forms metadata from {path}"))?;
+                serde_json::from_str::<OracleFormsMetadata>(&text)
+                    .with_context(|| format!("failed to parse Oracle Forms metadata from {path}"))
+            })
+            .transpose()?,
+    };
+    let mut groups: Vec<(Language, Vec<PathBuf>)> = Vec::new();
+    for (language, path) in collect_mixed_source_files(&roots)? {
+        match groups.iter_mut().find(|(existing, _)| *existing == language) {
+            Some((_, files)) => files.push(path),
+            None => groups.push((language, vec![path])),
+        }
+    }
+    // Java configuration checkers (Android manifest, Spring properties,
+    // Dockerfile, etc.) are source-independent.  In a configuration-only
+    // project mixed discovery has no `.java` path from which to create a
+    // group, so explicitly retain an empty Java group to run those bundled
+    // structured rules against the auxiliary inputs.
+    let java_auxiliary_files = collect_auxiliary_files(Language::Java, &roots)?;
+    if !java_auxiliary_files.is_empty()
+        && !groups
+            .iter()
+            .any(|(language, _)| *language == Language::Java)
+    {
+        groups.push((Language::Java, Vec::new()));
+    }
+    groups.sort_by(|(left, _), (right, _)| left.as_str().cmp(right.as_str()));
+    anyhow::ensure!(
+        !groups.is_empty(),
+        "no supported source files or Java auxiliary configuration files found"
+    );
+
+    let mut findings: Vec<BaselineFinding> = Vec::new();
+    for (language, files) in groups {
+        let mut sources = HashMap::with_capacity(files.len());
+        let entries = files
+            .iter()
+            .map(|file| {
+                let path = file.to_string_lossy().to_string();
+                let source = fs::read_to_string(file)
+                    .with_context(|| format!("failed to read source from {}", file.display()))?;
+                sources.insert(path.clone(), source.clone());
+                Ok((path, source))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let program = if entries.is_empty() {
+            // Only Java's structured auxiliary rule family can create an
+            // empty source group. `scan_hir_with_options` still evaluates
+            // source-independent project/config checks against `sources`.
+            HirProgram::empty(language.clone())
+        } else {
+            parse_project_sources_with_options(
+                language.clone(),
+                &entries,
+                &FrontendOptions::default(),
+            )?
+        };
+        if language == Language::Java {
+            for file in &java_auxiliary_files {
+                let path = file.to_string_lossy().to_string();
+                let source = fs::read_to_string(file).with_context(|| {
+                    format!("failed to read auxiliary project file {}", file.display())
+                })?;
+                sources.insert(path, source);
+            }
+        }
+        let mut pack = builtin_security_pack()?;
+        if let Some(query) = sql_xpath_query.as_ref() {
+            let template = pack
+                .rules
+                .iter_mut()
+                .find(|rule| rule.id == "LEGACY-SQL-XPath")
+                .context("bundled SQL XPath template is missing")?;
+            template.matcher.sql_xpath_query = query.clone();
+            if let Some(message) = sql_xpath_message.as_ref() {
+                template.matcher.sql_xpath_message = message.clone();
+            }
+            pack.validate()?;
+        }
+        findings.extend(pack.scan_hir_with_options(&program, &sources, &options));
+    }
+    let json = serde_json::to_string_pretty(&findings)
+        .context("failed to serialize mixed baseline findings")?;
+    if let Some(path) = json_out {
+        write_text_file(&path, &json)?;
+    } else {
+        println!("{json}");
     }
     Ok(())
 }
@@ -1243,6 +1712,45 @@ fn load_analysis_rules(
 fn run_and_print_with_progress(
     tracker: &mut ProgressTracker,
     hir: uniflow_hir::Program,
+    rules: RuleSet,
+    hydrate_bundled_metadata: bool,
+    dump_hir: bool,
+    dump_ir: bool,
+    dump_graph: bool,
+    dump_call_report: bool,
+    dump_stats: bool,
+    pretty_findings_flag: bool,
+    report_outputs: &ReportOutputs,
+    checker_paths: &[String],
+    checker_options: RuntimeCheckerOptions,
+) -> Result<()> {
+    run_and_print_with_progress_and_extra_ir(
+        tracker,
+        hir,
+        rules,
+        hydrate_bundled_metadata,
+        dump_hir,
+        dump_ir,
+        dump_graph,
+        dump_call_report,
+        dump_stats,
+        pretty_findings_flag,
+        report_outputs,
+        checker_paths,
+        checker_options,
+        Vec::new(),
+    )
+}
+
+/// Same as `run_and_print_with_progress`, but also merges `extra_ir_programs`
+/// (for example, Java classes decoded from `.jar`/`.war` archives via
+/// `uniflow_lang_java_bytecode`) into the source-derived IR before dataflow
+/// analysis, so a project's compiled dependencies participate in the same
+/// flow graph as its own sources.
+#[allow(clippy::too_many_arguments)]
+fn run_and_print_with_progress_and_extra_ir(
+    tracker: &mut ProgressTracker,
+    hir: uniflow_hir::Program,
     mut rules: RuleSet,
     hydrate_bundled_metadata: bool,
     dump_hir: bool,
@@ -1254,6 +1762,7 @@ fn run_and_print_with_progress(
     report_outputs: &ReportOutputs,
     checker_paths: &[String],
     checker_options: RuntimeCheckerOptions,
+    extra_ir_programs: Vec<IrProgram>,
 ) -> Result<()> {
     let mut checker_manager = tracker.phase(
         "load-checkers",
@@ -1324,6 +1833,14 @@ fn run_and_print_with_progress(
     let ir = tracker.phase("lower", format!("{} files", hir.files.len()), |_| {
         validate_or_quarantine_invalid_ir_functions(lower_program(&hir))
     })?;
+    let ir = if extra_ir_programs.is_empty() {
+        ir
+    } else {
+        let mut programs = Vec::with_capacity(extra_ir_programs.len() + 1);
+        programs.push(ir);
+        programs.extend(extra_ir_programs);
+        merge_programs(programs).context("failed to merge decoded archive classes into project IR")?
+    };
     if checker_manager.has_subscriber(event_kind::IR_PROGRAM) {
         checker_findings.extend(checker_manager.broadcast(
             event_kind::IR_PROGRAM,
@@ -1425,6 +1942,11 @@ fn run_and_print_with_progress(
                 .iter()
                 .map(|diagnostic| diagnostic.rule_id.clone()),
         );
+        report_ids.extend(
+            flow.lifetime_diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.rule_id.clone()),
+        );
         attach_legacy_metadata_for_ids(&flow.language, &mut rules, &report_ids)?;
     }
     let findings = tracker.phase(
@@ -1468,6 +1990,802 @@ fn run_and_print_with_progress(
     })?;
     tracker.finish();
     Ok(())
+}
+
+/// Scans a project auto-detecting each file's language by extension
+/// (`uniflow_frontend::collect_mixed_source_files`) plus any `.jar`/`.war`
+/// archives, and runs each language group through its own
+/// parse/lower/flow/taint pipeline independently — a mixed project is never
+/// fed to one frontend, since `ir::Program`/`FlowGraph` are single-language.
+/// Findings are aggregated for SARIF/console output; DOT and Markdown
+/// exports stay per-language-group (both are relative to one `FlowGraph`),
+/// gaining a `.<language>` suffix whenever more than one group produced
+/// output.
+#[allow(clippy::too_many_arguments)]
+fn run_mixed_project(
+    platform: PlatformArg,
+    c_family: CFamilyFrontendArgs,
+    inputs: Vec<String>,
+    rules_path: Option<String>,
+    use_default_models: bool,
+    rule_ids: &[String],
+    list_files: bool,
+    dump_hir: bool,
+    dump_ir: bool,
+    dump_graph: bool,
+    dump_call_report: bool,
+    dump_stats: bool,
+    pretty_findings_flag: bool,
+    dump_cache_plan: bool,
+    cache_in: Option<String>,
+    cache_out: Option<String>,
+    report_outputs: &ReportOutputs,
+    checker_paths: &[String],
+    checker_options: RuntimeCheckerOptions,
+) -> Result<()> {
+    let hydrate_bundled_metadata = use_default_models || rules_path.is_none();
+    let frontend_options = make_frontend_options(platform, c_family);
+    let mut paths = inputs.into_iter().map(PathBuf::from).collect::<Vec<_>>();
+    let _extract_guard = extract_archives_into(&mut paths)?;
+
+    let mixed_files = collect_mixed_source_files(&paths)
+        .context("failed to collect mixed-language project files")?;
+    let archive_files = collect_java_bytecode_files(&paths)
+        .context("failed to collect Java bytecode inputs")?;
+    let dotnet_bytecode_files = collect_dotnet_bytecode_files(&paths)
+        .context("failed to collect .NET bytecode inputs")?;
+    let python_bytecode_files = collect_python_bytecode_files(&paths)
+        .context("failed to collect CPython bytecode inputs")?;
+    let wasm_bytecode_files = collect_wasm_bytecode_files(&paths)
+        .context("failed to collect WASM bytecode inputs")?;
+
+    if list_files {
+        let mut listed = mixed_files
+            .iter()
+            .map(|(language, path)| {
+                json!({ "language": language.as_str(), "path": path.display().to_string() })
+            })
+            .collect::<Vec<_>>();
+        listed.extend(archive_files.iter().map(|path| {
+            json!({ "language": "java", "path": path.display().to_string() })
+        }));
+        listed.extend(dotnet_bytecode_files.iter().map(|path| {
+            json!({ "language": "csharp", "path": path.display().to_string() })
+        }));
+        listed.extend(python_bytecode_files.iter().map(|path| {
+            json!({ "language": "python", "path": path.display().to_string() })
+        }));
+        // WASM has no owning source `Language` (see `collect_bytecode_ir_programs`),
+        // so it is listed under its own literal tag rather than an existing one.
+        listed.extend(wasm_bytecode_files.iter().map(|path| {
+            json!({ "language": "wasm", "path": path.display().to_string() })
+        }));
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&listed).context("failed to serialize file list")?
+        );
+    }
+
+    anyhow::ensure!(
+        !mixed_files.is_empty()
+            || !archive_files.is_empty()
+            || !dotnet_bytecode_files.is_empty()
+            || !python_bytecode_files.is_empty()
+            || !wasm_bytecode_files.is_empty(),
+        "no supported source files or archives found"
+    );
+
+    let mut groups: Vec<(Language, Vec<PathBuf>)> = Vec::new();
+    for (language, path) in mixed_files {
+        match groups.iter_mut().find(|(existing, _)| *existing == language) {
+            Some((_, files)) => files.push(path),
+            None => groups.push((language, vec![path])),
+        }
+    }
+    if !archive_files.is_empty() && !groups.iter().any(|(language, _)| *language == Language::Java) {
+        groups.push((Language::Java, Vec::new()));
+    }
+    if !dotnet_bytecode_files.is_empty() && !groups.iter().any(|(language, _)| *language == Language::CSharp) {
+        groups.push((Language::CSharp, Vec::new()));
+    }
+    if !python_bytecode_files.is_empty() && !groups.iter().any(|(language, _)| *language == Language::Python) {
+        groups.push((Language::Python, Vec::new()));
+    }
+    // WASM has no owning source `Language` (it is a genuine cross-language
+    // compilation target — Rust/C/C++/AssemblyScript/TinyGo all produce
+    // it); `Language::Unknown` is used as its dedicated pseudo-group tag
+    // the same way `Language::Java` doubles as the archive-only group tag
+    // above, rather than guessing an owning language.
+    if !wasm_bytecode_files.is_empty() && !groups.iter().any(|(language, _)| *language == Language::Unknown) {
+        groups.push((Language::Unknown, Vec::new()));
+    }
+    // Alphabetical order also happens to put every C-family group ("c",
+    // "cpp") ahead of "java", which the FFI bridge below depends on: by the
+    // time the Java group is analyzed, every C/C++ group has already
+    // contributed to `native_summaries`.
+    groups.sort_by(|(a, _), (b, _)| a.as_str().cmp(b.as_str()));
+
+    // FFI/JNI bridge: when the project has both a Java group and a C/C++
+    // group, probe each native declaration's same-named C/C++ implementation
+    // for its own taint behavior, then splice that behavior into the Java
+    // group's rules as synthetic source/sink/propagator rules. See
+    // `ffi_bridge` for the full design rationale.
+    let java_source_files: Vec<PathBuf> = groups
+        .iter()
+        .find(|(language, _)| *language == Language::Java)
+        .map(|(_, files)| files.clone())
+        .unwrap_or_default();
+    let has_c_family_group = groups
+        .iter()
+        .any(|(language, _)| matches!(language, Language::C | Language::Cpp));
+    let ffi_bridge_candidates = if has_c_family_group {
+        let native_decls =
+            ffi_bridge::collect_native_method_decls(&java_source_files, &archive_files)
+                .context("failed to scan for native (JNI) method declarations")?;
+        ffi_bridge::dedupe_by_mangled_name(native_decls)
+    } else {
+        HashMap::new()
+    };
+    let mut native_summaries: HashMap<String, ffi_bridge::NativeSummary> = HashMap::new();
+
+    // System-wide semantic boundary recovery: Docker Compose/Kubernetes
+    // topology, `getenv`-style config reads, HTTP route registrations,
+    // message consumers/producers, and
+    // lifecycle hooks are recovered into one `SystemGraph`, then folded into
+    // synthetic per-language rules the main loop below merges in just like
+    // the FFI bridge's own rules above. This requires parsing+lowering every
+    // group before a group's own rules are finalized, because an outbound
+    // HTTP call in one group can only be matched against a route recovered
+    // from *any* group. The resulting IR is retained and reused by normal
+    // scans below, avoiding a second source pass. See
+    // `uniflow_system_graph` for the full design.
+    let mut system_graph = uniflow_system_graph::SystemGraph::new();
+    uniflow_system_graph::docker_compose::discover_into(
+        &mut system_graph,
+        &uniflow_system_graph::docker_compose::find_compose_files(&paths),
+    )
+    .context("failed to discover Docker Compose topology")?;
+    uniflow_system_graph::kubernetes::discover_into(
+        &mut system_graph,
+        &uniflow_system_graph::kubernetes::find_manifest_files(&paths),
+    )
+    .context("failed to discover Kubernetes topology")?;
+    let proto_services = uniflow_system_graph::grpc::load_proto_services(&uniflow_system_graph::grpc::find_proto_files(&paths))
+        .context("failed to parse .proto service declarations")?;
+
+    let use_cache = cache_in.is_some() || cache_out.is_some() || dump_cache_plan;
+    let existing_mixed_cache = cache_in
+        .as_deref()
+        .map(Path::new)
+        .map(load_mixed_project_cache)
+        .transpose()?;
+    let mut rebuilt_cache_groups = BTreeMap::new();
+    let mut cache_plans = BTreeMap::<String, CachePlan>::new();
+    let mut system_graph_programs: Vec<(Language, IrProgram)> = Vec::new();
+    let mut database_operations = Vec::new();
+    for (language, files) in &groups {
+        if files.is_empty() {
+            continue;
+        }
+        let parsed = if use_cache {
+            build_project_with_cache_options(
+                language.clone(),
+                files,
+                existing_mixed_cache
+                    .as_ref()
+                    .and_then(|cache| cache.compatible_group(language)),
+                &frontend_options,
+            )
+            .map(|result| {
+                cache_plans.insert(language.as_str().to_string(), result.plan);
+                rebuilt_cache_groups.insert(language.as_str().to_string(), result.cache);
+                result.program
+            })
+        } else {
+            parse_project_files_with_options(language.clone(), files, &frontend_options)
+        };
+        let Ok(hir) = parsed else {
+            // Not this pass's job to report a parse error — the main loop
+            // below parses the same files again and will surface it there.
+            continue;
+        };
+        system_graph_programs.push((language.clone(), lower_program(&hir)));
+    }
+    if dump_cache_plan {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&cache_plans)
+                .context("failed to serialize mixed-project cache plan")?
+        );
+    }
+    if let Some(path) = cache_out.as_deref() {
+        save_mixed_project_cache(Path::new(path), &MixedProjectCache::new(rebuilt_cache_groups))?;
+    }
+    let mut grpc_servers = Vec::new();
+    for (language, ir) in &system_graph_programs {
+        uniflow_system_graph::config::discover_into(&mut system_graph, ir)
+            .with_context(|| format!("failed to discover configuration reads in {}", language.as_str()))?;
+        database_operations.extend(
+            uniflow_system_graph::database::discover_into(&mut system_graph, ir)
+                .with_context(|| format!("failed to discover database resource use in {}", language.as_str()))?,
+        );
+        uniflow_system_graph::lifecycle::discover_into(&mut system_graph, ir)
+            .with_context(|| format!("failed to discover lifecycle hooks in {}", language.as_str()))?;
+        uniflow_system_graph::http::discover_routes_into(&mut system_graph, ir)
+            .with_context(|| format!("failed to discover HTTP routes in {}", language.as_str()))?;
+        grpc_servers.extend(
+            uniflow_system_graph::grpc::discover_server_methods_into(&mut system_graph, &proto_services, ir)
+                .with_context(|| format!("failed to discover gRPC server implementations in {}", language.as_str()))?,
+        );
+    }
+    uniflow_system_graph::python_ffi::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover Python ctypes/cffi native boundaries")?;
+    uniflow_system_graph::php_ffi::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover PHP FFI native boundaries")?;
+    uniflow_system_graph::csharp_ffi::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover C# P/Invoke native boundaries")?;
+    uniflow_system_graph::rust_ffi::discover_calls_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover Rust extern \"C\" native call boundaries")?;
+    uniflow_system_graph::rust_ffi::discover_exports_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover native calls into #[no_mangle]-exported Rust functions")?;
+    uniflow_system_graph::js_ffi::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover Node native-addon boundaries")?;
+    uniflow_system_graph::ruby_ffi::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover Ruby `ffi` gem native boundaries")?;
+    uniflow_system_graph::go_ffi::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover Go cgo native boundaries")?;
+    // Cross-referencing a route's handler (which may live in a *different*
+    // group's `Program`) by its own parameter names — not merging
+    // Programs, not regex/string-matching call sites — is what lets the
+    // outbound-call pass below recover a precise, field-level
+    // `BoundaryFlowEdge` instead of "some value reaches somewhere". See
+    // `uniflow_system_graph::ir_utils::FunctionIndex`.
+    let function_index = uniflow_system_graph::FunctionIndex::build(&system_graph_programs);
+    let mut message_consumers = Vec::new();
+    for (language, ir) in &system_graph_programs {
+        message_consumers.extend(
+            uniflow_system_graph::message::discover_consumers_into(&mut system_graph, ir)
+                .with_context(|| format!("failed to discover message consumers in {}", language.as_str()))?,
+        );
+    }
+    for (language, ir) in &system_graph_programs {
+        uniflow_system_graph::http::discover_outbound_calls_into(&mut system_graph, ir, &function_index)
+            .with_context(|| format!("failed to discover outbound HTTP calls in {}", language.as_str()))?;
+        uniflow_system_graph::message::discover_publications_into(
+            &mut system_graph,
+            ir,
+            &message_consumers,
+            &function_index,
+        )
+        .with_context(|| format!("failed to discover message publications in {}", language.as_str()))?;
+        uniflow_system_graph::grpc::discover_client_calls_into(&mut system_graph, &proto_services, ir, &grpc_servers, &function_index)
+            .with_context(|| format!("failed to discover gRPC client calls in {}", language.as_str()))?;
+    }
+    uniflow_system_graph::database::connect_operations_into(&mut system_graph, &database_operations)
+        .context("failed to connect statically identified database persistence flows")?;
+
+    let mut tracker = ProgressTracker::new((groups.len() as u64 * 3).max(1) + 2);
+    let mut checker_manager = tracker.phase(
+        "load-checkers",
+        if checker_paths.is_empty() {
+            "none".to_string()
+        } else {
+            format!("{} dynamic libraries", checker_paths.len())
+        },
+        |_| {
+            CheckerManager::load_with_options(
+                checker_paths,
+                CheckerHostOptions {
+                    isolation: checker_options.isolation.into(),
+                    timeout: Duration::from_millis(checker_options.timeout_ms.max(1)),
+                    failure_policy: checker_options.failure_policy.into(),
+                },
+            )
+        },
+    )?;
+    let checker_manifests = checker_manager.manifests();
+    let mut checker_findings = Vec::new();
+    if checker_manager.has_subscriber(event_kind::ANALYSIS_START) {
+        let mut all_files = groups
+            .iter()
+            .flat_map(|(_, files)| files.iter().map(|path| path.display().to_string()))
+            .collect::<Vec<_>>();
+        all_files.extend(archive_files.iter().map(|path| path.display().to_string()));
+        all_files.extend(dotnet_bytecode_files.iter().map(|path| path.display().to_string()));
+        all_files.extend(python_bytecode_files.iter().map(|path| path.display().to_string()));
+        all_files.extend(wasm_bytecode_files.iter().map(|path| path.display().to_string()));
+        checker_findings.extend(checker_manager.broadcast(
+            event_kind::ANALYSIS_START,
+            json!({
+                "language": "mix",
+                "files": all_files,
+                "checkers": &checker_manifests,
+            }),
+        )?);
+    }
+
+    // The system-boundary pass above has already parsed and lowered every
+    // source group.  A normal scan consumes only IR, so retain those programs
+    // instead of parsing and lowering the complete project a second time.
+    // HIR dumps and HIR/source-file checker callbacks intentionally keep the
+    // old path: their public payloads require the original frontend program.
+    let mut prepared_source_irs = system_graph_programs;
+
+    let mut all_findings: Vec<TaintFinding> = Vec::new();
+    let mut per_language_flows: Vec<(Language, FlowGraph, Vec<TaintFinding>)> = Vec::new();
+
+    for (language, files) in groups {
+        let group_label = language.as_str().to_string();
+        let mut rules = tracker.phase(
+            &format!("load-rules[{group_label}]"),
+            rules_path.clone().unwrap_or_else(|| "defaults".to_string()),
+            |_| load_analysis_rules(language.clone(), rules_path.as_deref(), use_default_models),
+        )?;
+        rules.retain_reportable_ids(rule_ids)?;
+
+        if !ffi_bridge_candidates.is_empty() {
+            if matches!(language, Language::C | Language::Cpp) {
+                rules.merge(ffi_bridge::build_probe_ruleset(&ffi_bridge_candidates));
+            } else if language == Language::Java {
+                rules.merge(ffi_bridge::build_bridge_ruleset(
+                    &ffi_bridge_candidates,
+                    &native_summaries,
+                ));
+            }
+        }
+
+        // System-wide boundary bridging: a field-precise `BoundaryFlowEdge`
+        // (recovered above) becomes exactly two rules — a sink on the
+        // producer's own mapped parameter, a source on the consumer's own
+        // mapped parameter — so the *value itself* (not "some parameter")
+        // crosses the boundary. The blanket external-ingress fallback only
+        // applies to a route nothing in the analyzed code ever calls. See
+        // `uniflow_system_graph::bridge`.
+        rules.merge(uniflow_system_graph::bridge::boundary_output_sink_rules(&system_graph, &language));
+        rules.merge(uniflow_system_graph::bridge::boundary_input_source_rules(&system_graph, &language));
+        rules.merge(uniflow_system_graph::bridge::handler_source_rules(&system_graph, &language));
+
+        let requires_hir = dump_hir
+            || checker_manager.has_subscriber(event_kind::SOURCE_FILE)
+            || checker_manager.has_subscriber(event_kind::HIR_PROGRAM);
+        let (hir, mut source_ir) = if files.is_empty() {
+            (None, None)
+        } else if !requires_hir {
+            // A failed boundary pre-pass must never hide a parse failure from
+            // the actual analysis.  Fall back to the normal parse/lower path
+            // when it did not yield a reusable program for this group.
+            let prepared_index = prepared_source_irs
+                .iter()
+                .position(|(prepared_language, _)| *prepared_language == language);
+            match prepared_index.map(|index| prepared_source_irs.swap_remove(index).1) {
+                Some(ir) => (None, Some(ir)),
+                None => {
+                    let hir = tracker.phase(
+                        &format!("parse-project[{group_label}]"),
+                        format!("{} source files", files.len()),
+                        |_| {
+                            parse_project_files_with_options(
+                                language.clone(),
+                                &files,
+                                &frontend_options,
+                            )
+                        },
+                    )?;
+                    (Some(hir), None)
+                }
+            }
+        } else {
+            // The retained IR is not useful when a public HIR payload is
+            // requested. Drop it before parsing so a large group is never
+            // kept twice in memory (once as pre-pass IR and once as HIR).
+            if let Some(index) = prepared_source_irs
+                .iter()
+                .position(|(prepared_language, _)| *prepared_language == language)
+            {
+                prepared_source_irs.swap_remove(index);
+            }
+            let hir = tracker.phase(
+                &format!("parse-project[{group_label}]"),
+                format!("{} source files", files.len()),
+                |_| parse_project_files_with_options(language.clone(), &files, &frontend_options),
+            )?;
+            (Some(hir), None)
+        };
+
+        if dump_hir {
+            if let Some(hir) = &hir {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(hir).context("failed to serialize hir")?
+                );
+            }
+        }
+        if let Some(hir) = &hir {
+            if checker_manager.has_subscriber(event_kind::SOURCE_FILE) {
+                for file in &hir.files {
+                    let source = fs::read_to_string(&file.path).with_context(|| {
+                        format!("failed to read checker source event from {}", file.path)
+                    })?;
+                    checker_findings.extend(checker_manager.broadcast(
+                        event_kind::SOURCE_FILE,
+                        source_file_payload(&file.path, &hir.language, source),
+                    )?);
+                }
+            }
+            if checker_manager.has_subscriber(event_kind::HIR_PROGRAM) {
+                checker_findings.extend(checker_manager.broadcast(
+                    event_kind::HIR_PROGRAM,
+                    serde_json::to_value(hir).context("failed to serialize HIR checker event")?,
+                )?);
+            }
+        }
+
+        if source_ir.is_none() {
+            source_ir = hir
+                .as_ref()
+                .map(|hir| validate_or_quarantine_invalid_ir_functions(lower_program(hir)))
+                .transpose()?;
+        }
+
+        let has_bytecode_for_group = (language == Language::Java && !archive_files.is_empty())
+            || (language == Language::CSharp && !dotnet_bytecode_files.is_empty())
+            || (language == Language::Python && !python_bytecode_files.is_empty())
+            || (language == Language::Unknown && !wasm_bytecode_files.is_empty());
+        let ir = if has_bytecode_for_group {
+            let mut programs = Vec::new();
+            if let Some(source_ir) = source_ir {
+                programs.push(source_ir);
+            }
+            if language == Language::Java {
+                for archive in &archive_files {
+                    let (program, diagnostics, _natives) = lower_java_bytecode_input(archive).with_context(|| {
+                        format!("failed to decode Java bytecode input {}", archive.display())
+                    })?;
+                    for diagnostic in diagnostics {
+                        eprintln!("uniflow: {}: {}", archive.display(), diagnostic.0);
+                    }
+                    programs.push(program);
+                }
+            }
+            if language == Language::CSharp {
+                for dotnet_file in &dotnet_bytecode_files {
+                    let (program, diagnostics) = lower_dotnet_bytecode_input(dotnet_file).with_context(|| {
+                        format!("failed to decode .NET bytecode input {}", dotnet_file.display())
+                    })?;
+                    for diagnostic in diagnostics {
+                        eprintln!("uniflow: {}: {diagnostic}", dotnet_file.display());
+                    }
+                    programs.push(program);
+                }
+            }
+            if language == Language::Python {
+                for pyc_file in &python_bytecode_files {
+                    let (program, diagnostics) = lower_python_bytecode_input(pyc_file).with_context(|| {
+                        format!("failed to decode CPython bytecode input {}", pyc_file.display())
+                    })?;
+                    for diagnostic in diagnostics {
+                        eprintln!("uniflow: {}: {diagnostic}", pyc_file.display());
+                    }
+                    programs.push(program);
+                }
+            }
+            if language == Language::Unknown {
+                for wasm_file in &wasm_bytecode_files {
+                    let program = lower_wasm_bytecode_input(wasm_file).with_context(|| {
+                        format!("failed to decode WASM bytecode input {}", wasm_file.display())
+                    })?;
+                    programs.push(program);
+                }
+            }
+            merge_programs(programs).context("failed to merge decoded bytecode inputs")?
+        } else {
+            source_ir.with_context(|| format!("no lowered IR for language {group_label}"))?
+        };
+
+        if checker_manager.has_subscriber(event_kind::IR_PROGRAM) {
+            checker_findings.extend(checker_manager.broadcast(
+                event_kind::IR_PROGRAM,
+                serde_json::to_value(&ir).context("failed to serialize IR checker event")?,
+            )?);
+        }
+        if dump_ir {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&ir).context("failed to serialize ir")?
+            );
+        }
+
+        let force_full_flow = flow_requires_full_materialization(
+            dump_graph,
+            dump_call_report,
+            checker_manager.has_subscriber(event_kind::FLOW_SUMMARY),
+            checker_manager.has_subscriber(event_kind::CALL),
+        );
+        let capabilities = if force_full_flow {
+            AnalysisCapabilities::full()
+        } else {
+            AnalysisCapabilities::for_rules(&ir, &rules)
+        };
+        let flow = tracker.phase_with_spinner(
+            &format!("build-flow[{group_label}]"),
+            format!("{} IR functions", ir.functions.len()),
+            |_, spinner| {
+                let build = |progress: uniflow_value_flow::BuildProgress| {
+                    spinner.set_message(format!(
+                        "build-flow/{}: {}",
+                        progress.stage, progress.detail
+                    ));
+                };
+                if force_full_flow {
+                    Ok(build_with_capabilities(&ir, &rules, capabilities, build))
+                } else {
+                    Ok(build_for_scan_with_progress(&ir, &rules, build))
+                }
+            },
+        )?;
+
+        let flow_summary_subscribed = checker_manager.has_subscriber(event_kind::FLOW_SUMMARY);
+        let call_subscribed = checker_manager.has_subscriber(event_kind::CALL);
+        if flow_summary_subscribed || call_subscribed {
+            let call_report = flow.call_report();
+            if flow_summary_subscribed {
+                checker_findings.extend(checker_manager.broadcast(
+                    event_kind::FLOW_SUMMARY,
+                    json!({
+                        "stats": flow.stats(),
+                        "calls": &call_report,
+                    }),
+                )?);
+            }
+            if call_subscribed {
+                for call in &call_report {
+                    checker_findings.extend(checker_manager.broadcast(
+                        event_kind::CALL,
+                        serde_json::to_value(call)
+                            .context("failed to serialize call checker event")?,
+                    )?);
+                }
+            }
+        }
+        if dump_graph || dump_call_report || dump_stats {
+            println!("== {group_label} ==");
+            emit_flow_views(&flow, dump_graph, dump_call_report, dump_stats)?;
+        }
+
+        if hydrate_bundled_metadata {
+            let mut report_ids = flow
+                .synthetic_sinks
+                .iter()
+                .filter_map(|node| match &flow.graph[*node] {
+                    FlowNode::SyntheticSink { rule_id, .. } => Some(rule_id.clone()),
+                    _ => None,
+                })
+                .collect::<HashSet<_>>();
+            report_ids.extend(
+                flow.native_dataflow_diagnostics
+                    .iter()
+                    .map(|diagnostic| diagnostic.rule_id.clone()),
+            );
+            report_ids.extend(
+                flow.lifetime_diagnostics
+                    .iter()
+                    .map(|diagnostic| diagnostic.rule_id.clone()),
+            );
+            attach_legacy_metadata_for_ids(&flow.language, &mut rules, &report_ids)?;
+        }
+
+        let findings = tracker.phase(
+            &format!("taint-analysis[{group_label}]"),
+            format!("{} flow nodes", flow.graph.node_count()),
+            |_| Ok(analyze(&flow, &rules)),
+        )?;
+        let (findings, ffi_probe_findings) = ffi_bridge::partition_probe_findings(findings);
+        ffi_bridge::fold_native_summaries(&ffi_probe_findings, &mut native_summaries);
+        if checker_manager.has_subscriber(event_kind::TAINT_FINDING) {
+            for finding in &findings {
+                checker_findings.extend(checker_manager.broadcast(
+                    event_kind::TAINT_FINDING,
+                    serde_json::to_value(finding)
+                        .context("failed to serialize taint checker event")?,
+                )?);
+            }
+        }
+
+        all_findings.extend(findings.iter().cloned());
+        per_language_flows.push((language, flow, findings));
+    }
+
+    // Every finding whose source/sink rule id is a boundary-output/-input
+    // marker (injected above) is intermediate plumbing, not an
+    // independently reportable violation — pull matching producer/consumer
+    // pairs out into one continuous cross-component `SystemFinding` and
+    // drop the raw pair from the ordinary findings list. See
+    // `uniflow_system_graph::compose`.
+    let cross_component_findings =
+        uniflow_system_graph::compose::compose_cross_boundary_findings(&mut all_findings, &system_graph);
+
+    let checker_finding_count_before_end = checker_findings.len();
+    if checker_manager.has_subscriber(event_kind::ANALYSIS_END) {
+        checker_findings.extend(checker_manager.broadcast(
+            event_kind::ANALYSIS_END,
+            json!({
+                "taintFindingCount": all_findings.len(),
+                "checkerFindingCount": checker_finding_count_before_end,
+            }),
+        )?);
+    }
+    for diagnostic in checker_manager.take_diagnostics() {
+        eprintln!(
+            "checker diagnostic: {}",
+            serde_json::to_string(&diagnostic).context("failed to serialize checker diagnostic")?
+        );
+    }
+
+    if let Some(path) = report_outputs.system_graph_out.as_deref() {
+        let mut document = system_graph.to_json();
+        document["cross_component_findings"] = serde_json::to_value(&cross_component_findings)
+            .context("failed to encode cross-component findings")?;
+        write_text_file(
+            path,
+            &serde_json::to_string_pretty(&document).context("failed to encode system graph")?,
+        )?;
+    }
+    if let Some(path) = report_outputs.sarif_out.as_deref() {
+        let value = export_sarif_with_checker_manifests(
+            "uniflow",
+            &all_findings,
+            &checker_findings,
+            &checker_manifests,
+        );
+        write_text_file(
+            path,
+            &serde_json::to_string_pretty(&value).context("failed to encode SARIF")?,
+        )?;
+    }
+    if per_language_flows.len() == 1 {
+        let (_, flow, findings) = &per_language_flows[0];
+        if let Some(path) = report_outputs.dot_out.as_deref() {
+            write_text_file(path, &export_dot(flow, findings))?;
+        }
+        if let Some(path) = report_outputs.markdown_out.as_deref() {
+            write_text_file(
+                path,
+                &export_markdown_report_with_checkers(flow, findings, &checker_findings),
+            )?;
+        }
+    } else {
+        for (language, flow, findings) in &per_language_flows {
+            if let Some(path) = report_outputs.dot_out.as_deref() {
+                write_text_file(&suffix_path_for_language(path, language), &export_dot(flow, findings))?;
+            }
+            if let Some(path) = report_outputs.markdown_out.as_deref() {
+                write_text_file(
+                    &suffix_path_for_language(path, language),
+                    &export_markdown_report_with_checkers(flow, findings, &checker_findings),
+                )?;
+            }
+        }
+    }
+
+    print_all_findings(&all_findings, &checker_findings, pretty_findings_flag)?;
+    tracker.finish();
+    Ok(())
+}
+
+fn lower_java_bytecode_input(
+    path: &Path,
+) -> Result<(
+    IrProgram,
+    Vec<uniflow_lang_java_bytecode::ClassfileDiagnostic>,
+    Vec<uniflow_jni_bridge::NativeMethodDecl>,
+)> {
+    if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension == "class")
+    {
+        lower_class_file(path)
+    } else {
+        lower_archive(path)
+    }
+}
+
+/// Decodes one `.dll`/`.exe` (.NET CIL) input into IR, mirroring
+/// `lower_java_bytecode_input`'s shape for the JVM.
+fn lower_dotnet_bytecode_input(path: &Path) -> Result<(IrProgram, Vec<String>)> {
+    uniflow_lang_dotnet_bytecode::lower_assembly_file(path)
+}
+
+/// Decodes one `.pyc` (CPython bytecode) input into IR, mirroring
+/// `lower_java_bytecode_input`'s shape for the JVM.
+fn lower_python_bytecode_input(path: &Path) -> Result<(IrProgram, Vec<String>)> {
+    uniflow_lang_python_bytecode::lower_pyc_file(path)
+}
+
+/// Decodes one `.wasm` input into IR. Unlike the other three bytecode
+/// formats, a WASM module carries no per-file diagnostics list — its
+/// frontend never produces partial/best-effort output, only success or a
+/// hard parse error.
+fn lower_wasm_bytecode_input(path: &Path) -> Result<IrProgram> {
+    uniflow_lang_wasm_bytecode::lower_module_file(path)
+}
+
+/// Decodes every bytecode dependency reachable from `paths` straight to IR
+/// (bypassing each format's HIR source frontend entirely — there isn't one
+/// for compiled-only input), for a *single-language* scan. Java bytecode
+/// (`.class`/`.jar`/`.war`) is collected only when `language` is `Java`,
+/// .NET CIL (`.dll`/`.exe`) only when `CSharp`, and CPython bytecode
+/// (`.pyc`) only when `Python` — mirroring how the project's own source
+/// files are gated. WASM (`.wasm`) has no owning source `Language` (it is a
+/// genuine cross-language compilation target), so it is always collected
+/// regardless of which language this scan is otherwise restricted to.
+fn collect_bytecode_ir_programs(language: &Language, paths: &[PathBuf]) -> Result<Vec<IrProgram>> {
+    let mut programs = Vec::new();
+    if *language == Language::Java {
+        let bytecode_files =
+            collect_java_bytecode_files(paths).context("failed to collect Java bytecode inputs")?;
+        for bytecode_file in &bytecode_files {
+            let (program, diagnostics, _natives) = lower_java_bytecode_input(bytecode_file)
+                .with_context(|| format!("failed to decode Java bytecode input {}", bytecode_file.display()))?;
+            for diagnostic in diagnostics {
+                eprintln!("uniflow: {}: {}", bytecode_file.display(), diagnostic.0);
+            }
+            programs.push(program);
+        }
+    }
+    if *language == Language::CSharp {
+        let dotnet_files =
+            collect_dotnet_bytecode_files(paths).context("failed to collect .NET bytecode inputs")?;
+        for dotnet_file in &dotnet_files {
+            let (program, diagnostics) = lower_dotnet_bytecode_input(dotnet_file)
+                .with_context(|| format!("failed to decode .NET bytecode input {}", dotnet_file.display()))?;
+            for diagnostic in diagnostics {
+                eprintln!("uniflow: {}: {diagnostic}", dotnet_file.display());
+            }
+            programs.push(program);
+        }
+    }
+    if *language == Language::Python {
+        let pyc_files =
+            collect_python_bytecode_files(paths).context("failed to collect CPython bytecode inputs")?;
+        for pyc_file in &pyc_files {
+            let (program, diagnostics) = lower_python_bytecode_input(pyc_file)
+                .with_context(|| format!("failed to decode CPython bytecode input {}", pyc_file.display()))?;
+            for diagnostic in diagnostics {
+                eprintln!("uniflow: {}: {diagnostic}", pyc_file.display());
+            }
+            programs.push(program);
+        }
+    }
+    let wasm_files = collect_wasm_bytecode_files(paths).context("failed to collect WASM bytecode inputs")?;
+    for wasm_file in &wasm_files {
+        let program = lower_wasm_bytecode_input(wasm_file)
+            .with_context(|| format!("failed to decode WASM bytecode input {}", wasm_file.display()))?;
+        programs.push(program);
+    }
+    Ok(programs)
+}
+
+/// Inserts `.<language>` before a report path's extension (or appends it if
+/// the path has none), used when a mixed run produces more than one
+/// per-language-group DOT/Markdown report and they can't share one filename.
+fn suffix_path_for_language(path: &str, language: &Language) -> String {
+    let path_buf = Path::new(path);
+    let suffix = language.as_str();
+    match path_buf.extension().and_then(|ext| ext.to_str()) {
+        Some(ext) => {
+            let stem = path_buf
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .unwrap_or("output");
+            let file_name = format!("{stem}.{suffix}.{ext}");
+            match path_buf.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+                Some(parent) => parent.join(file_name).display().to_string(),
+                None => file_name,
+            }
+        }
+        None => format!("{path}.{suffix}"),
+    }
 }
 
 fn emit_flow_views(
@@ -1730,6 +3048,84 @@ mod tests {
     use super::*;
 
     #[test]
+    fn llm_review_document_is_explicitly_advisory_and_requires_verification() {
+        let document = semantic_review_document(
+            "service.py",
+            Language::Python,
+            SemanticAnswer {
+                answer: "possible command injection".to_string(),
+                confidence: 0.7,
+                rationale: "request data reaches shell construction".to_string(),
+            },
+        );
+        assert_eq!(document["classification"], "advisory");
+        assert_eq!(document["oracle"], "llm");
+        assert_eq!(document["language"], "python");
+        assert_eq!(document["verification_required"].as_array().map(Vec::len), Some(3));
+    }
+
+    #[test]
+    fn review_code_cli_requires_an_explicit_source_upload_acknowledgement_flag() {
+        let cli = Cli::try_parse_from([
+            "uniflow",
+            "review-code",
+            "--language",
+            "python",
+            "--input",
+            "service.py",
+            "--llm-endpoint",
+            "https://llm.example/v1/chat/completions",
+            "--llm-model",
+            "model",
+        ])
+        .expect("parse review-code arguments");
+        let Command::ReviewCode { allow_llm_source_upload, max_input_bytes, .. } = cli.command else {
+            panic!("review-code command");
+        };
+        assert!(!allow_llm_source_upload);
+        assert_eq!(max_input_bytes, 65_536);
+    }
+
+    #[test]
+    fn prove_constraint_cli_keeps_formal_results_separate_from_findings() {
+        let cli = Cli::try_parse_from([
+            "uniflow",
+            "prove-constraint",
+            "--kind",
+            "implication",
+            "--lhs",
+            "x >= 0",
+            "--rhs",
+            "x + 1 > 0",
+            "--bound",
+            "x=0..256",
+        ])
+        .expect("parse prove-constraint arguments");
+        let Command::ProveConstraint { kind, lhs, rhs, bounds, .. } = cli.command else {
+            panic!("prove-constraint command");
+        };
+        let query = ConstraintQuery {
+            kind: kind.into(),
+            domain: Domain::IntegerArithmetic,
+            language: "uniflow-normalized".to_string(),
+            lhs,
+            rhs,
+            context: parse_proof_bounds(bounds).expect("valid bound"),
+        };
+        let document = formal_proof_document(&query, "lean", None);
+        assert_eq!(document["classification"], "formal-proof-result");
+        assert_eq!(document["status"], "toolchain-unavailable");
+        assert!(document["finding_promotion"].as_str().is_some_and(|text| text.contains("source-to-sink")));
+    }
+
+    #[test]
+    fn proof_bounds_reject_non_integer_or_ambiguous_input() {
+        assert!(parse_proof_bounds(vec!["x=zero..1".to_string()]).is_err());
+        assert!(parse_proof_bounds(vec!["x=0..1..2".to_string()]).is_err());
+        assert!(parse_proof_bounds(vec!["not-a-name=0..1".to_string()]).is_err());
+    }
+
+    #[test]
     fn invalid_lowered_functions_are_quarantined_without_disabling_the_project() {
         let mut ir = sample_java_sql_program();
         let duplicate = ir.functions[0].blocks[0].clone();
@@ -1751,6 +3147,10 @@ mod tests {
         assert_eq!(
             actual,
             vec![
+                // `Mix` is a CLI-only orchestration mode, not a real
+                // frontend language; it deliberately has no dedicated
+                // `Language` variant.
+                Language::Unknown,
                 Language::C,
                 Language::Cpp,
                 Language::CSharp,

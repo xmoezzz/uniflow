@@ -74,6 +74,8 @@ fn go_for_continue_runs_update_and_carries_taint() {
         check(
             Language::Go,
             r#"
+package main
+
 func run(ready bool) {
     value := "safe"
     for ; ready; value = input() { sink(value); continue }
@@ -294,6 +296,8 @@ fn go_for_short_declaration_shadows_outer_variable() {
         check(
             Language::Go,
             r#"
+package main
+
 func run(ready bool) {
     value := "safe"
     for value := input(); ready; ready = false { sink(value) }
@@ -310,7 +314,7 @@ fn shared_for_break_does_not_execute_update() {
     for (language, source) in [
         (Language::JavaScript, "function run() { let value = 'safe'; for (;; value=input()) { sink(value); break; } }"),
         (Language::CSharp, "class Demo { void Run() { string value = \"safe\"; for (;; value=input()) { sink(value); break; } } }"),
-        (Language::Go, "func run() { value := \"safe\"; for ;; value=input() { sink(value); break } }"),
+        (Language::Go, "package main\nfunc run() { value := \"safe\"; for ;; value=input() { sink(value); break } }"),
         (Language::Php, "<?php function run() { $value = 'safe'; for (;; $value=input()) { sink($value); break; } }"),
     ] {
         assert_eq!(check(language.clone(), source), 0, "{language:?}");

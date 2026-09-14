@@ -798,6 +798,56 @@ fn attach_rule_sources_and_sinks(
             }
         }
     });
+
+    // Semantic-boundary adapters use this instruction-anchored form when a
+    // broad API matcher would conflate independent calls to the same client
+    // library (for example two SQL queries against different tables).
+    let graph_language = fg.language.clone();
+    for rule in rules.call_site_sources.iter().filter(|rule| {
+        language_matches(&rule.language, &graph_language)
+            && call_site_function_matches(&rule.function, &meta.function_name)
+            && rule.inst_id == inst.0
+    }) {
+        for output in expand_port(&rule.out, call.args.len()) {
+            let source = fg.graph.add_node(FlowNode::SyntheticSource {
+                func,
+                inst,
+                rule_id: rule.id.clone(),
+                kind: rule.kind.clone(),
+                out: output.clone(),
+            });
+            fg.synthetic_sources.push(source);
+            let Some(port) = get_or_create_rule_port(
+                fg, func, inst, call.receiver, output.clone(), Some(call_info.callee_name.clone()),
+            ) else { continue };
+            fg.graph.add_edge(source, port, FlowEdge { kind: EdgeKind::Source { rule_id: rule.id.clone() } });
+            let written = match output {
+                Port::Arg(index) => call.args.get(index).copied(),
+                Port::NamedArg(name) => call.arg_names.iter().position(|candidate| candidate.as_deref() == Some(name.as_str())).and_then(|index| call.args.get(index).copied()),
+                Port::Receiver => call.receiver,
+                _ => None,
+            };
+            if let Some(value) = written {
+                fg.graph.add_edge(port, value_node(fg, func, value), FlowEdge { kind: EdgeKind::CallPortToValue });
+            }
+        }
+    }
+    for rule in rules.call_site_sinks.iter().filter(|rule| {
+        language_matches(&rule.language, &graph_language)
+            && call_site_function_matches(&rule.function, &meta.function_name)
+            && rule.inst_id == inst.0
+    }) {
+        for input in rule.inputs.iter().flat_map(|input| expand_sink_input(input, call)) {
+            let sink = fg.graph.add_node(FlowNode::SyntheticSink {
+                func, inst, rule_id: rule.id.clone(), kind: rule.kind.clone(), input: input.clone(),
+            });
+            fg.synthetic_sinks.push(sink);
+            let Some(port) = get_or_create_rule_port(
+                fg, func, inst, call.receiver, input, Some(call_info.callee_name.clone()),
+            ) else { continue };
+            fg.graph.add_edge(port, sink, FlowEdge { kind: EdgeKind::Sink { rule_id: rule.id.clone() } });
+        }
+    }
 }
 
 fn attach_unused_return_sinks(

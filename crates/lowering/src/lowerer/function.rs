@@ -165,6 +165,9 @@ struct FunctionLoweringContext<'a> {
     source_break_blocks: HashSet<BlockId>,
     source_return_blocks: HashSet<BlockId>,
     source_switch_blocks: HashSet<BlockId>,
+    /// Retain source-loop headers even if every body path breaks and the
+    /// optimized CFG therefore contains no syntactic back edge.
+    source_loop_control_blocks: HashSet<BlockId>,
     /// Block each enclosing `switch` (or loop) jumps to on `break`, innermost last.
     break_stack: Vec<BlockId>,
     /// Block each enclosing loop jumps to on `continue`, innermost last.
@@ -238,6 +241,7 @@ impl<'a> FunctionLoweringContext<'a> {
             source_break_blocks: HashSet::new(),
             source_return_blocks: HashSet::new(),
             source_switch_blocks: HashSet::new(),
+            source_loop_control_blocks: HashSet::new(),
             break_stack: Vec::new(),
             continue_stack: Vec::new(),
             edge_environments: HashMap::new(),

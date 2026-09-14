@@ -1407,7 +1407,7 @@ void demo(int value) {
 }
 
 #[test]
-fn anzu_empty_function_parameters_covers_prototypes_and_definitions_not_function_pointers() {
+fn anzu_empty_c_function_parameters_cover_prototypes_and_definitions_not_function_pointers() {
     let source = r#"
 #define HIDDEN_EMPTY() void hidden()
 void declared();
@@ -1417,8 +1417,8 @@ int (*callback)();
 void takes_callback(void (*named_callback)());
 "#;
     let findings = builtin_security_pack().expect("pack").scan_text(
-        &Language::Cpp,
-        std::path::Path::new("empty_parameters.cpp"),
+        &Language::C,
+        std::path::Path::new("empty_parameters.c"),
         source,
     );
     let matches = findings
@@ -1429,6 +1429,17 @@ void takes_callback(void (*named_callback)());
     assert_eq!(
         matches.iter().map(|finding| finding.line).collect::<Vec<_>>(),
         vec![3, 4]
+    );
+    let cpp_findings = builtin_security_pack().expect("pack").scan_text(
+        &Language::Cpp,
+        std::path::Path::new("empty_parameters.cpp"),
+        "int main() {}",
+    );
+    assert!(
+        cpp_findings
+            .iter()
+            .all(|finding| finding.rule_id != "ANZU-EXPLICIT-VOID-PARAMETER-LIST"),
+        "valid C++ zero-argument functions must not require void: {cpp_findings:#?}"
     );
 }
 
@@ -1948,4 +1959,15 @@ void demo(void *ctx, const void *data) {
             .collect::<Vec<_>>(),
         vec![3, 4, 5, 6, 7]
     );
+}
+
+#[test]
+fn cpp_namespace_separator_is_normalized_for_structured_callee_rules() {
+    let source = "int main() { return std::system(\"command\"); }";
+    let program = parse_c_like_file(Language::Cpp, "command.cpp", source).expect("C++ HIR");
+    let sources = HashMap::from([("command.cpp".to_string(), source.to_string())]);
+    let mut pack = builtin_security_pack().expect("pack");
+    pack.rules.retain(|rule| rule.id == "UF-C-ENV-SYSTEM");
+    let findings = pack.scan_hir(&program, &sources);
+    assert_eq!(findings.len(), 1, "{findings:#?}\nHIR: {program:#?}");
 }

@@ -231,7 +231,9 @@ rules:
       message: 非 void 函式的 return 缺少傳回值。
 - id: LEGACY-C-AST-func-decl-empty
   title: Empty parameter list in function definition
-  languages: [c, cpp]
+  # C++ gives an empty parameter list an unambiguous no-argument meaning;
+  # this legacy C declaration rule must not report valid C++ definitions.
+  languages: [c]
   severity: warning
   confidence: high
   matcher:

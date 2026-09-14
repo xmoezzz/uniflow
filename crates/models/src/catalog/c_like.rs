@@ -3,6 +3,9 @@ fn c_like_models(language: Language) -> RuleSet {
         metadata: Vec::new(),
         sink_reports: Vec::new(),
         index_sinks: Vec::new(),
+        loop_sinks: Vec::new(),
+        call_site_sources: Vec::new(),
+        call_site_sinks: Vec::new(),
         sources: vec![
             SourceRule {
                 id: "c-getenv".to_string(),
@@ -672,6 +675,107 @@ fn c_like_models(language: Language) -> RuleSet {
     };
 
     if matches!(language, Language::C | Language::Cpp) {
+        rules.loop_sinks.push(LoopSinkRule {
+            id: "ANZU-TAINTED-LOOP-VARIABLE".to_string(),
+            language: Some(language.clone()),
+            kind: "generic".to_string(),
+        });
+        rules.metadata.push(RuleMetadata {
+            id: "ANZU-TAINTED-LOOP-VARIABLE".to_string(),
+            title: "Tainted loop control variable".to_string(),
+            message: "loop var '{}' is tainted value".to_string(),
+            severity: "warning".to_string(),
+            cwe: Vec::new(),
+            standards: vec![
+                "0201000010120027".to_string(),
+                "0301000010120027".to_string(),
+                "0501000010120027".to_string(),
+            ],
+            translations: RuleTranslations {
+                zh_cn: Some(LocalizedRuleText {
+                    title: "循环控制变量被污染".to_string(),
+                    message: "循环变量 ‘{}’ 是被污染的值".to_string(),
+                }),
+                en: Some(LocalizedRuleText {
+                    title: "Tainted loop control variable".to_string(),
+                    message: "loop var '{}' is tainted value".to_string(),
+                }),
+                zh_tw: Some(LocalizedRuleText {
+                    title: "迴圈控制變數被污染".to_string(),
+                    message: "迴圈變數 ‘{}’ 是被污染的值".to_string(),
+                }),
+            },
+        });
+        for (id, title, message, standards) in [
+            ("ANZU-REF-UNDEF-OR-ALREADY-FREE-POINTER", "Undefined or released pointer", "Pointer is released, used, or freed while undefined or already released.", vec!["0701000010130025", "0101000010110262", "0901000010110262", "0101000010110268", "0901000010110268"]),
+            ("ANZU-REF-ALREADY-FREE-POINTER", "Released pointer use", "Do not free or dereference a pointer that has already been released.", vec!["0701000010130052", "0201000010120000", "0301000010120000", "2401000010120000"]),
+        ] {
+            rules.metadata.push(RuleMetadata {
+                id: id.to_string(), title: title.to_string(), message: message.to_string(), severity: "warning".to_string(), cwe: Vec::new(),
+                standards: standards.into_iter().map(str::to_string).collect(),
+                translations: RuleTranslations { zh_cn: Some(LocalizedRuleText { title: "释放后指针使用".to_string(), message: "不要释放或使用未定义、已释放的指针。".to_string() }), en: Some(LocalizedRuleText { title: title.to_string(), message: message.to_string() }), zh_tw: Some(LocalizedRuleText { title: "釋放後指標使用".to_string(), message: "不要釋放或使用未定義、已釋放的指標。".to_string() }) },
+            });
+            rules.native_dataflow_rules.push(NativeDataflowRule { id: id.to_string(), language: Some(language.clone()) });
+        }
+        rules.metadata.push(RuleMetadata {
+            id: "ANZU-MALLOC-FREE".to_string(),
+            title: "Pointer passed to free must originate from a C allocator".to_string(),
+            message: "Pointer must be allocated by malloc or calloc".to_string(),
+            severity: "warning".to_string(),
+            cwe: Vec::new(),
+            standards: vec!["0701000010130053".to_string()],
+            translations: RuleTranslations {
+                zh_cn: Some(LocalizedRuleText {
+                    title: "传给 free 的指针必须来自内存分配函数".to_string(),
+                    message: "指针必须由malloc或calloc分配".to_string(),
+                }),
+                en: Some(LocalizedRuleText {
+                    title: "Pointer passed to free must originate from a C allocator".to_string(),
+                    message: "Pointer must be allocated by malloc or calloc".to_string(),
+                }),
+                zh_tw: Some(LocalizedRuleText {
+                    title: "傳給 free 的指標必須來自記憶體配置函式".to_string(),
+                    message: "指標必須由malloc或calloc配置".to_string(),
+                }),
+            },
+        });
+        // Lifetime analysis emits this diagnostic directly from the unified
+        // flow engine.  Register it as an executable native-dataflow rule so
+        // validation, report filtering, and the bundled metadata all agree.
+        rules.native_dataflow_rules.push(NativeDataflowRule {
+            id: "ANZU-MALLOC-FREE".to_string(),
+            language: Some(language.clone()),
+        });
+        rules.metadata.push(RuleMetadata {
+            id: "ANZU-DYNAMIC-ALLOC-POINTER-USE".to_string(),
+            title: "Dynamically allocated pointer must be checked before use".to_string(),
+            message: "Dynamically allocated pointer must be checked for NULL before use.".to_string(),
+            severity: "warning".to_string(),
+            cwe: Vec::new(),
+            standards: vec![
+                "0701000010130027".to_string(),
+                "0101000010110338".to_string(),
+            ],
+            translations: RuleTranslations {
+                zh_cn: Some(LocalizedRuleText {
+                    title: "动态分配指针使用前必须检查".to_string(),
+                    message: "动态指针在使用前必须检查是否为NULL。".to_string(),
+                }),
+                en: Some(LocalizedRuleText {
+                    title: "Dynamically allocated pointer must be checked before use".to_string(),
+                    message: "Dynamically allocated pointer must be checked for NULL before use."
+                        .to_string(),
+                }),
+                zh_tw: Some(LocalizedRuleText {
+                    title: "動態配置指標使用前必須檢查".to_string(),
+                    message: "動態指標在使用前必須檢查是否為NULL。".to_string(),
+                }),
+            },
+        });
+        rules.native_dataflow_rules.push(NativeDataflowRule {
+            id: "ANZU-DYNAMIC-ALLOC-POINTER-USE".to_string(),
+            language: Some(language.clone()),
+        });
         rules.native_dataflow_rules.push(NativeDataflowRule {
             id: "ANZU-ARRAY-INDEX".to_string(),
             language: Some(language.clone()),

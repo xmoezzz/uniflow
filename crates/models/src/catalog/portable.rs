@@ -82,9 +82,12 @@ fn portable_models(language: Language) -> RuleSet {
 
     let prefix = language.as_str();
     RuleSet {
+        loop_sinks: Vec::new(),
         metadata: Vec::new(),
         sink_reports: Vec::new(),
         index_sinks: Vec::new(),
+        call_site_sources: Vec::new(),
+        call_site_sinks: Vec::new(),
         sources: vec![SourceRule {
             id: format!("{prefix}-portable-untrusted-input"),
             language: Some(language.clone()),

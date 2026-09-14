@@ -269,18 +269,23 @@ MD5 password use, untrusted JSON mass assignment, Node.js child_process, and
 Bluebird package-scoped flows. CommonJS module provenance survives assignments
 and member access, so unrelated packages do not match. The same provenance now
 tracks mysql/mysql2, mssql, and node-postgres client factories and queries;
-mysql `parseInt` sanitization is scoped to that rule kind. Focused positive and
-negative tests cover each migrated ID. The remaining 145
-structural and taint rules stay explicitly counted as pending native migration.
+mysql `parseInt` sanitization is scoped to that rule kind. Every JavaScript and
+Ruby source Semgrep definition is now mapped either to a specialized HIR/taint
+implementation or to the embedded pure-Rust Semgrep search compatibility pack.
+The latter contributes 90 JavaScript and 45 Ruby executable compatibility
+models; each uses a bundled positive fixture in
+`crates/baseline/tests/semgrep_compat.rs`. The baseline manifest enforces zero
+remaining definitions, so unsupported source patterns cannot be silently
+archived or reported as complete.
 
-Thirty Ruby search rules are compiled from the 111-rule Semgrep source set
-with comment/literal-aware matching and focused tests. Native HIR rules now add
-dynamic `open`, Open3 pipeline, XmlMini backend, nested-attribute, and sensitive
-Rails `permit` checks. JWT rules preserve same-file `require 'jwt'`, receiver,
-argument, verification, algorithm, function-parameter and latest string-secret
-constraints. The other 81 Ruby rules,
-including all remaining taint-mode definitions, are retained as explicit
-pending migrations rather than silently approximated.
+Thirty Ruby search rules additionally have dedicated comment/literal-aware
+matchers and focused tests. Native HIR rules cover dynamic `open`, Open3
+pipeline, XmlMini backend, nested-attribute, and sensitive Rails `permit`
+checks. JWT rules preserve same-file `require 'jwt'`, receiver, argument,
+verification, algorithm, function-parameter and latest string-secret
+constraints. Remaining Ruby search syntax runs through the same compatibility
+pack, while Ruby taint-mode definitions are compiled into the unified dataflow
+catalog with focused positive and negative execution tests.
 
 The C/C++ AST source set contains 53 rules. All 53 direct-call, lexical,
 preprocessor, declaration, expression, operator and statement rules are now
@@ -342,10 +347,12 @@ This inventory does not prove complete C# language or framework support.
 The isolated `csharp_bundled_rules` CLI testcase runs an executable copy without
 any rule directory and requires diagnostics from every one of these 33 rules.
 
-Fifty-two of the 54 SQL rules are now executable. Twelve lexical rules use
-SQL-aware comment handling; another forty use the shared balanced SQL token,
-IF-branch and BEGIN-block index plus control-flow, exception, query and symbol
-analysis with source/HIR parity, focused positive/safe tests and three-locale
-messages. `InvalidReferenceToObject` still needs an Oracle Forms object inventory,
-while `XPath` is a configurable custom-rule facility rather than a fixed diagnostic;
-those two remain explicit instead of being represented by placeholder findings.
+All 54 SQL rules are represented by the bundled baseline inventory. Twelve
+lexical rules use SQL-aware comment handling; another forty use the shared
+balanced SQL token, IF-branch and BEGIN-block index plus control-flow,
+exception, query and symbol analysis with source/HIR parity, focused
+positive/safe tests and three-locale messages. `InvalidReferenceToObject`
+consumes the supplied Oracle Forms object inventory, while `XPath` is exposed
+as the configurable custom-rule facility rather than a hard-coded diagnostic;
+neither is represented by a placeholder finding. The baseline manifest keeps
+their source-to-runtime mappings in the same zero-remaining completion gate.

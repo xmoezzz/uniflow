@@ -7,8 +7,20 @@ members = [
   "crates/lang_c",
   "crates/lang_cpp",
   "crates/lang_java",
+  "crates/lang_java_bytecode",
+  "crates/jni_bridge",
+  "crates/archive_extract",
+  "crates/system_graph",
   "crates/lang_python",
+  "crates/lang_javascript",
+  "crates/lang_go",
+  "crates/lang_rust",
+  "crates/lang_ruby",
+  "crates/lang_dotnet_bytecode",
+  "crates/lang_python_bytecode",
+  "crates/lang_wasm_bytecode",
   "crates/lang_frontends",
+  "crates/reasoning_oracle",
   "crates/frontend",
   "crates/lowering",
   "crates/models",
@@ -50,6 +62,20 @@ sha2 = "0.10"
 aes = "0.8"
 indicatif = "0.17"
 rayon = "1.10"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+oxc_allocator = "0.149"
+oxc_ast = "0.149"
+oxc_parser = "0.149"
+oxc_span = "0.149"
+oxc_syntax = "0.149"
+gosyn = "0.2.15"
+syn = { version = "2", features = ["full", "extra-traits", "visit"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
+lib-ruby-parser = "4"
+dotnetdll = "0.3"
+walrus = "0.27"
+py-marshal = "0.4"
+ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
 
 # Rule packs deliberately contain a large amount of executable matcher code.
 # Test binaries do not need DWARF data, and emitting it for every incremental

@@ -419,6 +419,9 @@ pub struct BaselineMatcher {
     pub sql_wildcard_query_argument: bool,
     /// Regex selecting resource variable types for function-scoped close analysis.
     pub unreleased_resource_type_pattern: String,
+    /// Optional regex selecting the factory call that acquires an unreleased
+    /// resource.  Empty preserves the legacy generic resource matcher.
+    pub resource_acquire_callee_pattern: String,
     /// Report receiver use after close/release/recycle for variables of this type.
     pub resource_use_after_release_type_pattern: String,
     /// Require a call to occur within an `if` condition (not merely any loop condition).
@@ -649,6 +652,7 @@ impl BaselineMatcher {
             || self.redundant_reassignment
             || self.sql_wildcard_query_argument
             || !self.unreleased_resource_type_pattern.is_empty()
+            || !self.resource_acquire_callee_pattern.is_empty()
             || !self.resource_use_after_release_type_pattern.is_empty()
             || self.inside_if_condition
             || self.call_not_last_statement
@@ -1006,6 +1010,7 @@ impl BaselinePack {
                 &rule.matcher.loop_condition_type_pattern,
                 &rule.matcher.enclosing_param_type_pattern,
                 &rule.matcher.unreleased_resource_type_pattern,
+                &rule.matcher.resource_acquire_callee_pattern,
                 &rule.matcher.resource_use_after_release_type_pattern,
                 &rule.matcher.lock_acquired_twice_type_pattern,
                 &rule.matcher.lock_released_twice_type_pattern,
@@ -2295,7 +2300,7 @@ mod tests {
     fn builtin_pack_is_valid_and_has_expected_rule_count() {
         let pack = builtin_security_pack().expect("built-in baseline pack");
         assert_eq!(pack.id, "uniflow-security-1.0");
-        assert_eq!(pack.rules.len(), 1816);
+        assert_eq!(pack.rules.len(), 1840);
         let mut ids = HashSet::new();
         assert!(pack.rules.iter().all(|rule| ids.insert(rule.id.as_str())));
     }

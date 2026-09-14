@@ -32,9 +32,11 @@ static char *manifest_json_v1(void) {
     return manifest_json_for_abi(UNIFLOW_CHECKER_ABI_VERSION_V1);
 }
 
+#if !defined(CHECKER_V1_ONLY)
 static char *manifest_json_v2(void) {
     return manifest_json_for_abi(UNIFLOW_CHECKER_ABI_VERSION_V2);
 }
+#endif
 
 static void *create_checker(void) {
     return malloc(1);

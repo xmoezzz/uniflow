@@ -57,6 +57,9 @@ fn retarget_models(mut rules: RuleSet, language: Language) -> RuleSet {
     for rule in &mut rules.field_sinks {
         rule.language = Some(language.clone());
     }
+    for rule in &mut rules.loop_sinks {
+        rule.language = Some(language.clone());
+    }
     for rule in &mut rules.field_sanitizers {
         rule.language = Some(language.clone());
     }

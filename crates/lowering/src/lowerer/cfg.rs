@@ -271,6 +271,7 @@ impl FunctionLoweringContext<'_> {
                     let body_id = self.alloc_block_id();
                     let cond_id = self.alloc_block_id();
                     let exit_id = self.alloc_block_id();
+                    self.source_loop_control_blocks.insert(cond_id);
                     let mut blocks = vec![BasicBlock {
                         id: current_id,
                         insts,
@@ -567,6 +568,7 @@ impl FunctionLoweringContext<'_> {
                     let header_id = self.alloc_block_id();
                     let body_id = self.alloc_block_id();
                     let exit_id = self.alloc_block_id();
+                    self.source_loop_control_blocks.insert(header_id);
                     let mut blocks = vec![BasicBlock {
                         id: current_id,
                         insts,
@@ -635,6 +637,9 @@ impl FunctionLoweringContext<'_> {
                     let body_id = self.alloc_block_id();
                     let update_id = self.alloc_block_id();
                     let exit_id = self.alloc_block_id();
+                    if cond.is_some() {
+                        self.source_loop_control_blocks.insert(header_id);
+                    }
                     let outer_symbols = value_map.keys().copied().collect::<HashSet<_>>();
                     let (mut blocks, initial_env) = self.lower_stmt_sequence_with_prefix(
                         &init.stmts, current_id, insts, value_map, Terminator::Goto(header_id),

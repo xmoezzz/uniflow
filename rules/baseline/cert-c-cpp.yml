@@ -133,7 +133,10 @@ rules:
     zh-TW: { title: 對常數運算式使用邏輯非, message: 不允許將邏輯非運算套用於常數值。 }
 - id: ANZU-EXPLICIT-VOID-PARAMETER-LIST
   title: Empty function parameter list must use void
-  languages: [c, cpp]
+  # In C++, `f()` already denotes a no-argument function.  Requiring `void`
+  # is a C-only style rule and produces false positives on ordinary C++ entry
+  # points such as `int main()`.
+  languages: [c]
   severity: warning
   confidence: high
   matcher:
@@ -1302,6 +1305,71 @@ rules:
     zh-CN: { title: 类数据成员不是 private, message: 类数据成员应声明为 private，并通过受控操作访问。 }
     en: { title: Class data member is not private, message: Declare class data members private and expose controlled operations instead. }
     zh-TW: { title: 類別資料成員不是 private, message: 類別資料成員應宣告為 private，並透過受控操作存取。 }
+- id: ANZU-NO-PRIVATE-DATA-RETURN
+  title: Public method returns private data
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: no_private_data_return
+  standards: [0101000010110398]
+  message: Do not return a pointer or reference to private or protected data from a public method.
+  translations:
+    zh-CN: { title: 公有方法返回私有数据, message: 不要从公有方法返回指向 private 或 protected 数据的指针或引用。 }
+    en: { title: Public method returns private data, message: Do not return a pointer or reference to private or protected data from a public method. }
+    zh-TW: { title: 公開方法回傳私有資料, message: 不要從公開方法回傳指向 private 或 protected 資料的指標或參考。 }
+- id: ANZU-VIRTUAL-CALL-FROM-CONSTRUCTOR-OR-DESTRUCTOR
+  title: Virtual call from constructor or destructor
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: virtual_call_from_constructor_or_destructor
+  standards: [0101000010110401]
+  message: Do not invoke a virtual member function from a constructor or destructor.
+  translations:
+    zh-CN: { title: 构造或析构函数中调用虚函数, message: 请勿在构造函数或析构函数中调用虚成员函数。 }
+    en: { title: Virtual call from constructor or destructor, message: Do not invoke a virtual member function from a constructor or destructor. }
+    zh-TW: { title: 建構或解構函式中呼叫虛擬函式, message: 請勿在建構函式或解構函式中呼叫虛擬成員函式。 }
+- id: ANZU-CONSTRUCTOR-DESTRUCTOR-TRY-CATCH-MEMBER-ACCESS
+  title: Member access from constructor/destructor function-try-block
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: constructor_destructor_try_catch_member_access
+  standards: ['0101000010110343']
+  message: Do not reference class members in function-try-block of constructor/destructor.
+  translations:
+    zh-CN: { title: 构造函数/析构函数 function-try-block 中访问成员, message: 不要在构造函数/析构函数的 function-try-block 中引用类成员。 }
+    en: { title: Member access from constructor/destructor function-try-block, message: Do not reference class members in function-try-block of constructor/destructor. }
+    zh-TW: { title: 建構函式/解構函式 function-try-block 中存取成員, message: 不要在建構函式/解構函式的 function-try-block 中引用類別成員。 }
+- id: ANZU-MEMBER-INITIALIZER-UNINITIALIZED-USE
+  title: Member initializer reads an uninitialized member
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: member_initializer_uninitialized_use
+  standards: ['2401000010120103', '0101000010110404', '2801000010180047']
+  message: The order of the initialization list is incorrect.
+  translations:
+    zh-CN: { title: 成员初始化列表顺序错误, message: 初始化列表的顺序不正确。 }
+    en: { title: Member initializer reads an uninitialized member, message: The order of the initialization list is incorrect. }
+    zh-TW: { title: 成員初始化列表順序錯誤, message: 初始化列表的順序不正確。 }
+- id: ANZU-VIRTUAL-DESTRUCTOR-DELETE-MISMATCH
+  title: Deleting non-virtual-destructor object through another static type
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    c_declaration: virtual_destructor_delete_mismatch
+  standards: ['0101000010110403', '0101000010110444']
+  message: Deleting an object with a non-virtual destructor through a different static type might cause undefined behavior.
+  translations:
+    zh-CN: { title: 经由不同静态类型删除非虚析构对象, message: 删除具有非虚析构函数的对象时使用不同静态类型可能导致未定义行为。 }
+    en: { title: Deleting non-virtual-destructor object through another static type, message: Deleting an object with a non-virtual destructor through a different static type might cause undefined behavior. }
+    zh-TW: { title: 經由不同靜態型別刪除非虛擬解構物件, message: 使用不同靜態型別刪除具有非虛擬解構函式的物件可能導致未定義行為。 }
 - id: ANZU-CPP-PRIVATE-STATIC-DATA-MEMBER
   title: Private static class data member declared
   languages: [cpp]
@@ -1757,6 +1825,18 @@ rules:
     zh-CN: { title: static_cast 在不同类指针间转换, message: 在不同多态类指针间转换时优先考虑 dynamic_cast。 }
     en: { title: static_cast converts between distinct record pointer types, message: Prefer dynamic_cast when converting between distinct polymorphic record pointer types. }
     zh-TW: { title: static_cast 在不同類別指標間轉型, message: 在不同多型類別指標間轉型時優先考慮 dynamic_cast。 }
+- id: ANZU-REINTERPRET-CAST-MULTIPLE-INHERITANCE
+  title: Avoid reinterpret_cast from a multiply inherited class
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: reinterpret_cast_multiple_inheritance }
+  standards: ['0101000010110352']
+  message: Avoid using reinterpret_cast with objects of a class with multiple inheritance.
+  translations:
+    zh-CN: { title: 避免对多重继承类使用 reinterpret_cast, message: 避免对使用多重继承的类的对象使用reinterpret_cast。 }
+    en: { title: Avoid reinterpret_cast from a multiply inherited class, message: Avoid using reinterpret_cast with objects of a class with multiple inheritance. }
+    zh-TW: { title: 避免對多重繼承類別使用 reinterpret_cast, message: 避免對使用多重繼承類別的物件使用reinterpret_cast。 }
 - id: ANZU-SIDE-EFFECTING-SIZEOF
   title: Side effect in sizeof operand
   languages: [c, cpp]
@@ -3925,6 +4005,18 @@ rules:
     zh-CN: { title: nullptr 被转换为整数, message: NULL不能当作整数0来使用 }
     en: { title: nullptr converted to an integer, message: NULL should not be used as an integer 0 }
     zh-TW: { title: nullptr 被轉換為整數, message: NULL不能當作整數0來使用 }
+- id: ANZU-TAINTED-LOOP-VARIABLE
+  title: Tainted loop control variable
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0201000010120027', '0301000010120027', '0501000010120027']
+  message: "loop var '{}' is tainted value"
+  translations:
+    zh-CN: { title: 循环控制变量被污染, message: "循环变量 ‘{}’ 是被污染的值" }
+    en: { title: Tainted loop control variable, message: "loop var '{}' is tainted value" }
+    zh-TW: { title: 迴圈控制變數被污染, message: "迴圈變數 ‘{}’ 是被污染的值" }
 - id: ANZU-POINTER-MUST-BE-NULL-AFTER-FREE
   title: Pointer should be set to NULL after release
   languages: [c, cpp]
@@ -3937,6 +4029,78 @@ rules:
     zh-CN: { title: 指针释放后应该设置为 NULL, message: "{} 应该设置为NULL" }
     en: { title: Pointer should be set to NULL after release, message: "{} should be set to NULL" }
     zh-TW: { title: 指標釋放後應該設定為 NULL, message: "{} 應該設定為NULL" }
+- id: ANZU-BSTR-USAGE
+  title: Improper BSTR usage
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: bstr_usage }
+  standards: ['2401000010120074']
+  message: Do not perform pointer arithmetic, incompatible casts, or invalid Sys* calls on BSTR.
+  translations:
+    zh-CN: { title: BSTR 使用不当, message: 不要对 BSTR 进行指针算术、不兼容转换或无效 Sys* 调用。 }
+    en: { title: Improper BSTR usage, message: Do not perform pointer arithmetic, incompatible casts, or invalid Sys* calls on BSTR. }
+    zh-TW: { title: BSTR 使用不當, message: 不要對 BSTR 進行指標算術、不相容轉換或無效 Sys* 呼叫。 }
+- id: ANZU-INCOMPATIBLE-POINTER-STORE-TYPE
+  title: Incompatible pointer store type
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: incompatible_pointer_store_type }
+  standards: ['0101000010110208']
+  message: Do not access a variable through a pointer of an incompatible type.
+  translations:
+    zh-CN: { title: 不兼容指针类型写入, message: 不要通过不兼容类型的指针访问变量。 }
+    en: { title: Incompatible pointer store type, message: Do not access a variable through a pointer of an incompatible type. }
+    zh-TW: { title: 不相容指標型別寫入, message: 不要透過不相容型別的指標存取變數。 }
+- id: ANZU-REF-UNDEF-OR-ALREADY-FREE-POINTER
+  title: Undefined or released pointer
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0701000010130025', '0101000010110262', '0901000010110262', '0101000010110268', '0901000010110268']
+  message: Pointer is released, used, or freed while undefined or already released.
+  translations:
+    zh-CN: { title: 释放后指针使用, message: 不要释放或使用未定义、已释放的指针。 }
+    en: { title: Undefined or released pointer, message: Pointer is released, used, or freed while undefined or already released. }
+    zh-TW: { title: 釋放後指標使用, message: 不要釋放或使用未定義、已釋放的指標。 }
+- id: ANZU-REF-ALREADY-FREE-POINTER
+  title: Released pointer use
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0701000010130052', '0201000010120000', '0301000010120000', '2401000010120000']
+  message: Do not free or dereference a pointer that has already been released.
+  translations:
+    zh-CN: { title: 释放后指针使用, message: 不要释放或解引用已释放的指针。 }
+    en: { title: Released pointer use, message: Do not free or dereference a pointer that has already been released. }
+    zh-TW: { title: 釋放後指標使用, message: 不要釋放或解參考已釋放的指標。 }
+- id: ANZU-MALLOC-FREE
+  title: Pointer passed to free must originate from a C allocator
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0701000010130053']
+  message: Pointer must be allocated by malloc or calloc
+  translations:
+    zh-CN: { title: 传给 free 的指针必须来自内存分配函数, message: 指针必须由malloc或calloc分配 }
+    en: { title: Pointer passed to free must originate from a C allocator, message: Pointer must be allocated by malloc or calloc }
+    zh-TW: { title: 傳給 free 的指標必須來自記憶體配置函式, message: 指標必須由malloc或calloc配置 }
+- id: ANZU-DYNAMIC-ALLOC-POINTER-USE
+  title: Dynamically allocated pointer must be checked before use
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { native_dataflow: true }
+  standards: ['0701000010130027', '0101000010110338']
+  message: Dynamically allocated pointer must be checked for NULL before use.
+  translations:
+    zh-CN: { title: 动态分配指针使用前必须检查, message: 动态指针在使用前必须检查是否为NULL。 }
+    en: { title: Dynamically allocated pointer must be checked before use, message: Dynamically allocated pointer must be checked for NULL before use. }
+    zh-TW: { title: 動態配置指標使用前必須檢查, message: 動態指標在使用前必須檢查是否為NULL。 }
 - id: ANZU-ALIGNED-ALLOC-REALLOC
   title: Aligned allocation resized with realloc
   languages: [c, cpp]
@@ -4016,6 +4180,114 @@ rules:
     zh-CN: { title: PointerArithmeticChecker, message: 检测到指针算术运算 }
     en: { title: PointerArithmeticChecker, message: Pointer arithmetic detected }
     zh-TW: { title: PointerArithmeticChecker, message: 偵測到指標算術運算 }
+- id: ANZU-POINTER-ARITHMETIC-OUT-OF-BOUNDS
+  title: Pointer arithmetic exceeds array bounds
+  languages: [c]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: pointer_arithmetic_out_of_bounds }
+  standards: ['0101000010110149', '0101000010110190', '0901000010110190']
+  message: Pointer arithmetic detected outside the source array bounds.
+  translations:
+    zh-CN: { title: 指针算术超出数组边界, message: 检测到超出源数组边界的指针算术运算。 }
+    en: { title: Pointer arithmetic exceeds array bounds, message: Pointer arithmetic detected outside the source array bounds. }
+    zh-TW: { title: 指標算術超出陣列邊界, message: 偵測到超出來源陣列邊界的指標算術運算。 }
+- id: ANZU-POINTER-CAST-STRICTER-ALIGNMENT
+  title: Pointer cast has stricter alignment requirements
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: pointer_cast_stricter_alignment }
+  standards: ['0101000010110206', '0901000010110206', '2401000010120206', '0101000010110443', '0901000010110443', '2401000010120443', '2801000010180010']
+  message: Do not convert pointers to pointer types with stricter alignment requirements.
+  translations:
+    zh-CN: { title: 指针转换要求更严格对齐, message: 不要将指针转换为具有更严格对齐要求的指针类型。 }
+    en: { title: Pointer cast has stricter alignment requirements, message: Do not convert pointers to pointer types with stricter alignment requirements. }
+    zh-TW: { title: 指標轉換要求更嚴格對齊, message: 不要將指標轉換為具有更嚴格對齊要求的指標型別。 }
+- id: ANZU-POINTER-OFFSET-MISALIGNMENT
+  title: Pointer arithmetic has erroneous scaling
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: pointer_offset_misalignment }
+  standards: ['0201000010120024', '2401000010120024']
+  message: Possible erroneous pointer scaling.
+  translations:
+    zh-CN: { title: 指针算术缩放错误, message: 可能存在错误的指针缩放。 }
+    en: { title: Pointer arithmetic has erroneous scaling, message: Possible erroneous pointer scaling. }
+    zh-TW: { title: 指標算術縮放錯誤, message: 可能存在錯誤的指標縮放。 }
+- id: ANZU-SIGNED-INTEGER-OVERFLOW
+  title: Signed integer overflow
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: signed_integer_overflow }
+  standards: ['0101000010120011', '0201000010120011', '0301000010120011', '0501000010120011', '0901000010120011', '2401000010120011']
+  message: Signed integer overflow.
+  translations:
+    zh-CN: { title: 有符号整数溢出, message: 有符号整数溢出。 }
+    en: { title: Signed integer overflow, message: Signed integer overflow. }
+    zh-TW: { title: 有號整數溢位, message: 有號整數溢位。 }
+- id: ANZU-UNSIGNED-INTEGER-OVERFLOW
+  title: Unsigned integer wraparound
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: unsigned_integer_overflow }
+  standards: ['0201000010120019', '0301000010120019', '0501000010120019', '2401000010120019', '0101000010110415', '0901000010110415']
+  message: Unsigned integer wraparound.
+  translations:
+    zh-CN: { title: 无符号整数绕回, message: 无符号整数绕回。 }
+    en: { title: Unsigned integer wraparound, message: Unsigned integer wraparound. }
+    zh-TW: { title: 無號整數繞回, message: 無號整數繞回。 }
+- id: ANZU-DELETE-ARRAY-WRONG-TYPE
+  title: Array deletion through the wrong pointer type
+  languages: [cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: delete_array_wrong_type }
+  standards: ['0101000010110355']
+  message: Do not delete an array through a pointer of the incorrect type.
+  translations:
+    zh-CN: { title: 不能通过错误类型的指针删除数组, message: 不要通过错误类型的指针删除数组。 }
+    en: { title: Array deletion through the wrong pointer type, message: Do not delete an array through a pointer of the incorrect type. }
+    zh-TW: { title: 不可透過錯誤型別的指標刪除陣列, message: 不要透過錯誤型別的指標刪除陣列。 }
+- id: ANZU-STRONG-TYPEDEF-ARGUMENT-MISMATCH
+  title: Strong typedef argument mismatch
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: strong_typedef_argument_mismatch }
+  standards: ['2401000010120093']
+  message: Strong typedef argument mismatch
+  translations:
+    zh-CN: { title: 强类型定义参数不匹配, message: 强类型定义参数不匹配 }
+    en: { title: Strong typedef argument mismatch, message: Strong typedef argument mismatch }
+    zh-TW: { title: 強型別定義參數不匹配, message: 強型別定義參數不匹配 }
+- id: ANZU-STRONG-TYPEDEF-RETURN-MISMATCH
+  title: Strong typedef return mismatch
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: strong_typedef_return_mismatch }
+  standards: ['2401000010120094']
+  message: Strong typedef return mismatch
+  translations:
+    zh-CN: { title: 强类型定义返回值类型不匹配, message: 强类型定义返回值类型不匹配 }
+    en: { title: Strong typedef return mismatch, message: Strong typedef return mismatch }
+    zh-TW: { title: 強型別定義回傳值型別不匹配, message: 強型別定義回傳值型別不匹配 }
+- id: ANZU-STRONG-TYPEDEF-MISMATCH
+  title: Strong typedef mismatch
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher: { c_expression: strong_typedef_binary_mismatch }
+  standards: ['2401000010120095']
+  message: Strong typedef mismatch
+  translations:
+    zh-CN: { title: 强类型定义不匹配, message: 强类型定义不匹配 }
+    en: { title: Strong typedef mismatch, message: Strong typedef mismatch }
+    zh-TW: { title: 強型別定義不匹配, message: 強型別定義不匹配 }
 - id: ANZU-MIXED-TYPE-OPERATION
   title: MixedTypeOperationChecker
   languages: [c, cpp]
@@ -4726,3 +4998,19 @@ rules:
     zh-CN: { title: 依赖序列点之间的求值顺序, message: 不依赖序列点之间的生成顺序 }
     en: { title: Evaluation order relied on between sequence points, message: Do not rely on the evaluation order between sequence points }
     zh-TW: { title: 依賴序列點之間的求值順序, message: 不依賴序列點之間的生成順序 }
+- id: ANZU-FILE-POINTER-LEAK
+  title: File handle is not closed
+  languages: [c, cpp]
+  severity: warning
+  confidence: high
+  matcher:
+    # The C frontend canonicalizes declaration pointer qualifiers, so this
+    # accepts both the source spelling `FILE *` and the canonical `FILE`.
+    unreleased_resource_type_pattern: '(^|\s)FILE(?:\s*\*)?$'
+    resource_acquire_callee_pattern: '(^|\.)fopen$'
+  standards: ['0701000010130029', '0201000010120017', '0301000010120017', '2401000010120017', '0101000010110233', '0101000010110426', '0101000010110178', '0901000010110178', '0101000010110445', '0901000010110445']
+  message: file handler leak.
+  translations:
+    zh-CN: { title: 文件句柄泄露, message: 文件句柄泄露 }
+    en: { title: File handle is not closed, message: file handler leak. }
+    zh-TW: { title: 檔案控制代碼洩漏, message: 檔案控制代碼洩漏 }

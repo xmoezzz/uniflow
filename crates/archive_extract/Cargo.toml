@@ -1,0 +1,20 @@
+[package]
+name = "uniflow-archive-extract"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+zip.workspace = true
+tar = "0.4"
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+bzip2-rs = "0.1"
+lzma-rs = "0.3"
+ruzstd = "0.9"
+tempfile = "3.27"
+pure-magic = "0.4"
+magic-db = "0.6"
+
+[dev-dependencies]

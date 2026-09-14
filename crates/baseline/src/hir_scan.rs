@@ -351,11 +351,13 @@ impl HirScanner<'_> {
             self.types.bind(receiver.symbol, receiver.ty);
         }
         self.match_missing_contract_null_check(function);
-        self.match_unreleased_resources(function);
         self.match_null_safety(function);
         self.match_external_process_buffers(function);
         self.match_conflicting_expression_side_effects(function);
         self.visit_block(&function.body);
+        // Resource rules match declared local types.  Run after visiting the
+        // body, which is where the type index binds local `let` declarations.
+        self.match_unreleased_resources(function);
         self.current_function_name = previous_name;
         self.current_return_type = previous_return;
         self.current_param_types = previous_param_types;
@@ -738,16 +740,29 @@ impl HirScanner<'_> {
             })
             .collect::<Vec<_>>();
         for (rule, type_regex) in rules {
-            for (symbol, span) in &events.acquisitions {
-                if !events.closed.contains(symbol)
+            let acquire_callee = (!rule.matcher.resource_acquire_callee_pattern.is_empty())
+                .then(|| Regex::new(&rule.matcher.resource_acquire_callee_pattern).ok())
+                .flatten();
+            for acquisition in &events.acquisitions {
+                let symbol = acquisition.symbol;
+                let span = acquisition.span;
+                if acquire_callee.as_ref().is_some_and(|regex| {
+                    !acquisition
+                        .callee
+                        .as_deref()
+                        .is_some_and(|callee| regex.is_match(callee))
+                }) {
+                    continue;
+                }
+                if !events.closed.contains(&symbol)
                     && self
                         .types
                         .symbols
-                        .get(symbol)
+                        .get(&symbol)
                         .is_some_and(|ty| type_regex.is_match(ty))
-                    && self.rule_matches_span_path(rule, *span)
+                    && self.rule_matches_span_path(rule, span)
                 {
-                    self.push_finding(rule, "unreleased resource", *span);
+                    self.push_finding(rule, "unreleased resource", span);
                 }
             }
             for (symbol, span) in &events.close_in_try {
@@ -1554,10 +1569,20 @@ impl HirScanner<'_> {
     fn callee_pattern_matches(&self, pattern: &str, callee: &str) -> bool {
         let mut cache = self.callee_regexes.borrow_mut();
         if let Some(regex) = cache.get(pattern) {
-            return regex.as_ref().is_some_and(|regex| regex.is_match(callee));
+            return regex.as_ref().is_some_and(|regex| {
+                regex.is_match(callee)
+                    || (*self.language == Language::Cpp
+                        && callee.contains('.')
+                        && regex.is_match(&callee.replace('.', "::")))
+            });
         }
         let regex = Regex::new(pattern).ok();
-        let matches = regex.as_ref().is_some_and(|regex| regex.is_match(callee));
+        let matches = regex.as_ref().is_some_and(|regex| {
+            regex.is_match(callee)
+                || (*self.language == Language::Cpp
+                    && callee.contains('.')
+                    && regex.is_match(&callee.replace('.', "::")))
+        });
         cache.insert(pattern.to_string(), regex);
         matches
     }
@@ -3488,6 +3513,16 @@ fn is_create_temp_file_call(expr: &Expr) -> bool {
     )
 }
 
+fn direct_named_call(expr: &Expr) -> Option<String> {
+    match expr {
+        Expr::Call(CallExpr {
+            target: CallTarget::Named(name),
+            ..
+        }) => Some(name.clone()),
+        _ => None,
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum NullValueState {
     DefinitelyNull,
@@ -4116,12 +4151,18 @@ fn named_argument_index(call: &CallExpr, name: &str) -> Option<usize> {
 
 #[derive(Default)]
 struct ResourceEvents {
-    acquisitions: Vec<(SymbolId, Span)>,
+    acquisitions: Vec<ResourceAcquisition>,
     closed: HashSet<SymbolId>,
     close_in_try: Vec<(SymbolId, Span)>,
     lifecycle: Vec<ResourceLifecycleEvent>,
     lock_lifecycle: Vec<LockLifecycleEvent>,
     temp_files: Vec<TempFileEvent>,
+}
+
+struct ResourceAcquisition {
+    symbol: SymbolId,
+    span: Span,
+    callee: Option<String>,
 }
 
 enum ResourceLifecycleEvent {
@@ -4154,7 +4195,11 @@ fn collect_resource_block(
                 symbol, init, span, ..
             } => {
                 if init.as_ref().is_some_and(|value| !is_null_literal(value)) {
-                    out.acquisitions.push((*symbol, *span));
+                    out.acquisitions.push(ResourceAcquisition {
+                        symbol: *symbol,
+                        span: *span,
+                        callee: direct_named_call(init.as_ref().expect("checked above")),
+                    });
                 }
                 if let Some(value) = init {
                     collect_resource_expr(value, try_depth, finally_depth, out);
@@ -4169,7 +4214,11 @@ fn collect_resource_block(
             Stmt::Assign { lhs, rhs, span, .. } => {
                 if let LValue::Var(symbol) = lhs {
                     if !is_null_literal(rhs) {
-                        out.acquisitions.push((*symbol, *span));
+                        out.acquisitions.push(ResourceAcquisition {
+                            symbol: *symbol,
+                            span: *span,
+                            callee: direct_named_call(rhs),
+                        });
                     }
                 }
                 collect_resource_expr(rhs, try_depth, finally_depth, out);
@@ -4304,6 +4353,18 @@ fn collect_resource_expr(
                         .push(ResourceLifecycleEvent::Use(symbol, call.span));
                 }
             }
+            // C resources are closed through a free function instead of an
+            // instance receiver.  Keep this in the shared collector so rules
+            // can opt into an exact factory/type pair (for example fopen/FILE).
+            if final_name == Some("fclose") {
+                if let Some(symbol) = call.args.first().and_then(referenced_symbol) {
+                    out.closed.insert(symbol);
+                    if try_depth != 0 && finally_depth == 0 {
+                        out.close_in_try.push((symbol, call.span));
+                    }
+                    out.lifecycle.push(ResourceLifecycleEvent::Release(symbol));
+                }
+            }
             if let Some(receiver) = &call.receiver {
                 collect_resource_expr(receiver, try_depth, finally_depth, out);
             }
@@ -4317,7 +4378,11 @@ fn collect_resource_expr(
         Expr::Assign { lhs, rhs, span, .. } => {
             if let LValue::Var(symbol) = lhs {
                 if !is_null_literal(rhs) {
-                    out.acquisitions.push((*symbol, *span));
+                    out.acquisitions.push(ResourceAcquisition {
+                        symbol: *symbol,
+                        span: *span,
+                        callee: direct_named_call(rhs),
+                    });
                 }
             }
             collect_resource_expr(rhs, try_depth, finally_depth, out);

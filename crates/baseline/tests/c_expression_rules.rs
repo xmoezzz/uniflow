@@ -211,12 +211,12 @@ int compare(int *left, int *right, int value, struct Node *node) {
 "#;
     assert_eq!(check(rule, source, 5), vec![(9, 14), (10, 20), (11, 16), (12, 19), (13, 20)]);
 
-    check(
+    check_cpp(
         rule,
         "#define WRAP(value) (value)\nint f(int *a, int *b) { return WRAP(a < b); }",
         0,
     );
-    check(
+    check_cpp(
         rule,
         "#define PTR_LT(a, b) ((a) < (b))\nint f(int *a, int *b) { return PTR_LT(a, b); }",
         0,
@@ -247,6 +247,131 @@ int f(int *left, int *right, int value, int *__range1) {
         "#define PTR_ADD(value) ((value) + 1)\nint f(int *value) { return PTR_ADD(value); }",
         0,
     );
+}
+
+#[test]
+fn anzu_delete_array_wrong_type_requires_a_record_pointer_cast_at_delete_site() {
+    let rule = "ANZU-DELETE-ARRAY-WRONG-TYPE";
+    check_cpp(
+        rule,
+        r#"
+struct Base { int base; };
+struct Derived : Base { int derived; };
+void release(Base *items) {
+    delete[] (Derived *)items;
+}
+"#,
+        1,
+    );
+    check_cpp(
+        rule,
+        r#"
+struct Base { int base; };
+void release(Base *items) {
+    delete[] (Base *)items;
+}
+"#,
+        0,
+    );
+    check_cpp(
+        rule,
+        "void release(int *items) { delete[] (long *)items; }",
+        0,
+    );
+    check_cpp(
+        rule,
+        "struct Base {}; struct Derived : Base {}; void use(Base *items) { Derived *copy = (Derived *)items; delete[] items; }",
+        0,
+    );
+}
+
+#[test]
+fn anzu_reinterpret_cast_multiple_inheritance_requires_distinct_record_types() {
+    let rule = "ANZU-REINTERPRET-CAST-MULTIPLE-INHERITANCE";
+    check_cpp(
+        rule,
+        r#"
+struct Left {};
+struct Right {};
+struct Multi : Left, Right {};
+struct Destination {};
+Destination *convert(Multi *value) {
+    return reinterpret_cast<Destination *>(value);
+}
+"#,
+        1,
+    );
+    check_cpp(
+        rule,
+        r#"
+struct Left {};
+struct Single : Left {};
+struct Destination {};
+Destination *convert(Single *value) {
+    return reinterpret_cast<Destination *>(value);
+}
+"#,
+        0,
+    );
+    check_cpp(
+        rule,
+        r#"
+struct Left {};
+struct Right {};
+struct Multi : Left, Right {};
+Multi *convert(Multi *value) {
+    return reinterpret_cast<Multi *>(value);
+}
+"#,
+        0,
+    );
+    check_cpp(
+        rule,
+        r#"
+struct Left {};
+struct Right {};
+struct Multi : Left, Right {};
+struct Destination {};
+Destination *convert(Multi *value) {
+    return static_cast<Destination *>(value);
+}
+"#,
+        0,
+    );
+}
+
+#[test]
+fn anzu_strong_typedef_rules_preserve_distinct_alias_identity() {
+    let source = r#"
+typedef int UserId;
+typedef int GroupId;
+void accept_user(UserId value) {}
+UserId default_user(void) { GroupId group = 1; return group; }
+int combine(UserId user, GroupId group) {
+    accept_user(group);
+    return user + group;
+}
+"#;
+    check("ANZU-STRONG-TYPEDEF-ARGUMENT-MISMATCH", source, 1);
+    check("ANZU-STRONG-TYPEDEF-RETURN-MISMATCH", source, 1);
+    check("ANZU-STRONG-TYPEDEF-MISMATCH", source, 1);
+
+    let matching = r#"
+typedef int UserId;
+void accept_user(UserId value) {}
+UserId default_user(UserId user) { return user; }
+int combine(UserId left, UserId right) {
+    accept_user(left);
+    return left + right;
+}
+"#;
+    for rule in [
+        "ANZU-STRONG-TYPEDEF-ARGUMENT-MISMATCH",
+        "ANZU-STRONG-TYPEDEF-RETURN-MISMATCH",
+        "ANZU-STRONG-TYPEDEF-MISMATCH",
+    ] {
+        check(rule, matching, 0);
+    }
 }
 
 #[test]
@@ -2886,6 +3011,88 @@ fn anzu_integer_overflow_assignment_reports_constant_outside_target_range() {
 }
 
 #[test]
+fn anzu_bstr_usage_preserves_the_four_legacy_misuse_forms() {
+    let source = "typedef wchar_t *BSTR; void audit(BSTR text, wchar_t *wide, char *narrow) { BSTR shifted = text + 1; SysFreeString(narrow); BSTR casted = (BSTR)wide; SysAllocString(text); SysStringLen(text); }";
+    assert_eq!(check("ANZU-BSTR-USAGE", source, 4).len(), 4);
+}
+
+#[test]
+fn anzu_incompatible_pointer_store_type_reports_only_wider_casted_writes() {
+    let source = r#"
+void write_values(void) {
+    short small = 0;
+    *((int *)&small) = 1;
+    int regular = 0;
+    *((short *)&regular) = 1;
+    short *pointer = &small;
+    *((int *)pointer) = 1;
+    int *same = (int *)&regular;
+    *same = 1;
+    int load = *((int *)&small);
+}
+"#;
+    assert_eq!(
+        check_c_only("ANZU-INCOMPATIBLE-POINTER-STORE-TYPE", source, 2),
+        vec![(4, 7), (8, 7)]
+    );
+}
+
+#[test]
+fn anzu_pointer_arithmetic_out_of_bounds_requires_a_concrete_array_offset() {
+    let source = r#"
+void f(void) {
+    int values[3];
+    int *bad = values + 3;
+    int *bad_reverse = 4 + values;
+    int *safe = values + 2;
+    int *unknown = values + count;
+    int *subtract = values - 3;
+    int *synthetic = __range1 + 9;
+}
+"#;
+    assert_eq!(
+        check_c_only("ANZU-POINTER-ARITHMETIC-OUT-OF-BOUNDS", source, 3),
+        vec![(4, 25), (5, 24), (8, 30)]
+    );
+}
+
+#[test]
+fn anzu_pointer_align_checker_covers_stricter_casts_and_misaligned_array_offsets() {
+    let source = r#"
+void check(void) {
+    char *bytes = 0;
+    int *bad_cast = (int *)bytes;
+    int *safe_cast = (int *)(void *)bytes;
+    int words[4];
+    char *narrow = (char *)words;
+    char *misaligned = narrow + 1;
+    char *aligned = narrow + 4;
+}
+"#;
+    assert_eq!(
+        check("ANZU-POINTER-CAST-STRICTER-ALIGNMENT", source, 1),
+        vec![(4, 21)]
+    );
+    assert_eq!(
+        check("ANZU-POINTER-OFFSET-MISALIGNMENT", source, 1),
+        vec![(8, 31)]
+    );
+}
+
+#[test]
+fn anzu_legacy_integer_overflow_rules_follow_target_signedness_and_additive_sources() {
+    let source = "void check(void) { int signed_bad = 2147483647 + 1; unsigned int unsigned_bad; unsigned_bad = 2147483647 + 1; unsigned int unsigned_source = 1u + 2147483647; unsigned_bad = unsigned_source; int plain = 1; plain = 10 + 2; }";
+    assert_eq!(
+        check("ANZU-SIGNED-INTEGER-OVERFLOW", source, 1),
+        vec![(1, 48)]
+    );
+    assert_eq!(
+        check("ANZU-UNSIGNED-INTEGER-OVERFLOW", source, 1),
+        vec![(1, 106)]
+    );
+}
+
+#[test]
 fn anzu_constant_arithmetic_overflow_reports_only_out_of_i32_range_results() {
     let source = "void audit() { int first = 2147483647 + 1; int second = 50000 * 50000; int safe = 3 + 4; }";
     assert_eq!(check("ANZU-CONSTANT-ARITHMETIC-OVERFLOW", source, 2), vec![(1, 39), (1, 63)]);
@@ -3675,6 +3882,20 @@ void demo(float floating, long wide) {
     assert_eq!(
         check("ANZU-INCONSISTENT-NUMERIC-ASSIGNMENT-TYPE", source, 5),
         vec![(3, 22), (4, 22), (7, 40), (8, 36), (12, 12)]
+    );
+}
+
+#[test]
+fn anzu_numeric_assignment_type_ignores_pointer_and_array_initializers() {
+    let source = r#"
+void demo(void) {
+    const char *url = "https://example.invalid";
+    char text[] = "value";
+    int *pointer = 0;
+}
+"#;
+    assert!(
+        check("ANZU-INCONSISTENT-NUMERIC-ASSIGNMENT-TYPE", source, 0).is_empty()
     );
 }
 

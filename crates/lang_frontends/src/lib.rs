@@ -2,11 +2,15 @@
 //! one of the older specialized parsers. Every language owns a descriptor; the
 //! shared parser only supplies recovery, HIR construction and common grammar.
 
+use std::collections::HashMap;
+
 use anyhow::{bail, Result};
+use rayon::prelude::*;
 use regex::Regex;
 use uniflow_hir::{
-    CallExpr, CallTarget, Class, CppValueSemantics, Expr, Import, Item, LValue, Language,
-    LiteralKind, Param, ParamKind, Program, ProgramMerger, Span, Stmt, SymbolKind,
+    CallExpr, CallTarget, Class, CppValueSemantics, Expr, Function, Import, Item, LValue,
+    Language, LiteralKind, Param, ParamKind, Program, ProgramMerger, Span, Stmt, SymbolId,
+    SymbolKind,
 };
 use uniflow_parser_core::{
     parse_program_with, BlockStyle, ExprOps, InterpStyle, Keywords, LangDescriptor, LangHooks,
@@ -43,6 +47,13 @@ pub fn parse_file(language: Language, path: &str, source: &str) -> Result<Progra
     let prepared = match language {
         Language::Jsp => embedded_code_view(source, "<%", "%>", true),
         Language::Php => php_code_view(source),
+        // The descriptor grammar has no C# attribute production. A
+        // controller-level `[Route(...)]` otherwise becomes a phantom
+        // top-level expression and prevents the following class from being
+        // recognized. Mask only attribute lists that syntactically precede a
+        // class/record; method attributes remain in place for the existing
+        // method parser and are recovered below from the original source.
+        Language::CSharp => csharp_code_view(source),
         _ => source.to_string(),
     };
     let mut hooks = FrontendHooks {
@@ -53,7 +64,240 @@ pub fn parse_file(language: Language, path: &str, source: &str) -> Result<Progra
     if language == Language::JavaScript {
         add_commonjs_imports(&mut program, source);
     }
+    if language == Language::CSharp {
+        add_csharp_attributes_raw(&mut program, source);
+    }
+    if language == Language::Php {
+        add_php_ffi_bindings(&mut program, source);
+    }
     Ok(program)
+}
+
+/// Preserves literal PHP FFI declarations for the system-boundary adapter.
+/// PHP's `FFI::cdef` carries both a source-visible C ABI prototype and a
+/// library path, so it is a real, statically provable interop declaration
+/// when both strings are literals. Dynamic cdefs, header-file `FFI::load`,
+/// typedef-only declarations and function-pointer casts deliberately remain
+/// unresolved rather than guessed.
+fn add_php_ffi_bindings(program: &mut Program, source: &str) {
+    let declarations = Regex::new(
+        r#"(?s)\$([A-Za-z_][A-Za-z0-9_]*)\s*=\s*FFI\s*::\s*cdef\s*\(\s*["']([^"']*)["']\s*,\s*["']([^"']+)["']"#,
+    )
+    .expect("valid PHP FFI cdef regex");
+    let prototype = Regex::new(
+        r#"(?m)\b[A-Za-z_][A-Za-z0-9_]*(?:\s*\*+)?\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^;{}]*\)\s*;"#,
+    )
+    .expect("valid C prototype regex");
+    let mut bindings = Vec::new();
+    for captures in declarations.captures_iter(source) {
+        let alias = captures[1].to_string();
+        let library = captures[3].to_string();
+        for signature in prototype.captures_iter(&captures[2]) {
+            bindings.push(format!("{alias}\u{1e}{}\u{1e}{library}", &signature[1]));
+        }
+    }
+    if bindings.is_empty() {
+        return;
+    }
+    bindings.sort();
+    bindings.dedup();
+    let raw = bindings.join("\u{1f}");
+    let mut targets = Vec::new();
+    for module in &program.modules {
+        for item in &module.items {
+            match item {
+                Item::Function(function) => function.symbol.into_iter().for_each(|symbol| targets.push(symbol)),
+                Item::Class(class) => {
+                    for method in &class.methods {
+                        if let Some(symbol) = method.symbol {
+                            targets.push(symbol);
+                        }
+                    }
+                }
+                Item::GlobalVar(_) => {}
+            }
+        }
+    }
+    for symbol_id in targets {
+        if let Some(symbol) = program.symbols.iter_mut().find(|symbol| symbol.id == symbol_id) {
+            symbol.attributes.insert("php.ffi.bindings".to_string(), raw.clone());
+        }
+    }
+}
+
+fn csharp_code_view(source: &str) -> String {
+    let class_attribute = Regex::new(
+        r#"(?s)((?:[ \t]*\[[^\[\]]*\][ \t]*\r?\n?)+)([\w\s]*?\b(?:class|record)\s+\w+)"#,
+    )
+    .expect("valid C# class attribute masking regex");
+    class_attribute
+        .replace_all(source, |captures: &regex::Captures<'_>| {
+            let blank = captures[1]
+                .chars()
+                .map(|ch| if ch == '\n' || ch == '\r' { ch } else { ' ' })
+                .collect::<String>();
+            format!("{blank}{}", &captures[2])
+        })
+        .into_owned()
+}
+
+/// Recovers C# attribute lists (`[DllImport("lib.dll")]`, `[HttpGet("/x")]`,
+/// `[Authorize]`, ...) immediately preceding a method declaration, since the
+/// shared descriptor grammar has no attribute-syntax awareness at all and
+/// silently discards a leading `[...]` block during its own recovery — the
+/// method itself still parses fine (confirmed empirically: a body-less
+/// `extern` declaration already produces a real `Function` with an empty
+/// body), only the attribute text is lost. Mirrors `java.annotations.raw`/
+/// `python.decorators.raw`'s existing convention exactly: one raw string per
+/// attribute, unit-separator-joined, stashed on the method's own `Symbol` so
+/// `crates/system_graph`'s `http.rs` (route recognition) and `csharp_ffi.rs`
+/// (P/Invoke boundary recognition) can each parse out what they need from
+/// the same source of truth, the way Java's Spring/JNI-adjacent consumers
+/// already do for `java.annotations.raw`.
+fn add_csharp_attributes_raw(program: &mut Program, source: &str) {
+    // Group 1: one or more consecutive bracketed attribute lists. Group 2:
+    // the method name that follows an (optionally empty) run of modifier/
+    // return-type tokens. Deliberately approximate — this is descriptor-
+    // engine-precision regex recovery, not a real C# parser — and scoped to
+    // methods only (attributes on classes/properties/fields are out of
+    // scope for both current consumers).
+    let regex = Regex::new(
+        r#"(?s)((?:[ \t]*\[[^\[\]]*\][ \t]*\r?\n?)+)[\w<>\[\],\.\?\s]*?\b(\w+)\s*\("#,
+    )
+    .expect("valid C# attribute regex");
+    let mut raw_by_method: HashMap<String, Vec<String>> = HashMap::new();
+    for captures in regex.captures_iter(source) {
+        let blocks = &captures[1];
+        let method_name = captures[2].to_string();
+        let mut attributes = Vec::new();
+        for block in blocks.split('[').skip(1) {
+            let Some(inner) = block.rsplit_once(']') else { continue };
+            for attribute in split_top_level_commas(inner.0) {
+                let attribute = attribute.trim();
+                if !attribute.is_empty() {
+                    attributes.push(attribute.to_string());
+                }
+            }
+        }
+        if !attributes.is_empty() {
+            raw_by_method.entry(method_name).or_default().extend(attributes);
+        }
+    }
+    if raw_by_method.is_empty() {
+        // Class attributes can still carry endpoint metadata even when no
+        // method happens to have an attribute of its own.
+    }
+    let class_regex = Regex::new(
+        r#"(?s)((?:[ \t]*\[[^\[\]]*\][ \t]*\r?\n?)+)[\w\s]*?\b(?:class|record)\s+(\w+)"#,
+    )
+    .expect("valid C# class attribute regex");
+    let mut raw_by_class: HashMap<String, Vec<String>> = HashMap::new();
+    for captures in class_regex.captures_iter(source) {
+        let mut attributes = Vec::new();
+        for block in captures[1].split('[').skip(1) {
+            let Some(inner) = block.rsplit_once(']') else { continue };
+            for attribute in split_top_level_commas(inner.0) {
+                let attribute = attribute.trim();
+                if !attribute.is_empty() {
+                    attributes.push(attribute.to_string());
+                }
+            }
+        }
+        if !attributes.is_empty() {
+            raw_by_class.entry(captures[2].to_string()).or_default().extend(attributes);
+        }
+    }
+    if raw_by_method.is_empty() && raw_by_class.is_empty() {
+        return;
+    }
+    let mut symbol_targets: Vec<(SymbolId, String)> = Vec::new();
+    let mut class_symbol_targets: Vec<(SymbolId, String)> = Vec::new();
+    for module in &program.modules {
+        for item in &module.items {
+            collect_csharp_method_symbols(item, &raw_by_method, &mut symbol_targets);
+            collect_csharp_class_attribute_symbols(item, &raw_by_class, &mut class_symbol_targets);
+        }
+    }
+    for (symbol_id, raw) in symbol_targets {
+        if let Some(symbol) = program.symbols.iter_mut().find(|symbol| symbol.id == symbol_id) {
+            symbol.attributes.insert("csharp.attributes.raw".to_string(), raw);
+        }
+    }
+    for (symbol_id, raw) in class_symbol_targets {
+        if let Some(symbol) = program.symbols.iter_mut().find(|symbol| symbol.id == symbol_id) {
+            symbol.attributes.insert("csharp.class.attributes.raw".to_string(), raw);
+        }
+    }
+}
+
+/// Splits `[Foo(a, b), Bar]`'s inner text on commas that are not nested
+/// inside a parenthesized argument list, e.g. `Route("/x"), Authorize` ->
+/// `["Route(\"/x\")", "Authorize"]`, not split mid-argument-list.
+fn split_top_level_commas(text: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut depth = 0i32;
+    let mut start = 0usize;
+    for (index, ch) in text.char_indices() {
+        match ch {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ',' if depth == 0 => {
+                parts.push(text[start..index].to_string());
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    parts.push(text[start..].to_string());
+    parts
+}
+
+fn function_raw_attributes(function: &Function, raw_by_method: &HashMap<String, Vec<String>>) -> Option<(SymbolId, String)> {
+    let symbol = function.symbol?;
+    // A method name is looked up bare (not qualified) since the regex above
+    // matches against raw source text, which never spells a qualified name.
+    let bare_name = function.name.rsplit('.').next().unwrap_or(&function.name);
+    let attributes = raw_by_method.get(bare_name)?;
+    Some((symbol, attributes.join("\u{1f}")))
+}
+
+fn collect_csharp_method_symbols(item: &Item, raw_by_method: &HashMap<String, Vec<String>>, out: &mut Vec<(SymbolId, String)>) {
+    match item {
+        Item::Function(function) => {
+            if let Some(entry) = function_raw_attributes(function, raw_by_method) {
+                out.push(entry);
+            }
+        }
+        Item::Class(class) => {
+            for method in &class.methods {
+                if let Some(entry) = function_raw_attributes(method, raw_by_method) {
+                    out.push(entry);
+                }
+            }
+        }
+        Item::GlobalVar(_) => {}
+    }
+}
+
+/// Copies a class-level attribute list to the symbols of that class's
+/// methods. Lowering preserves function-symbol attributes but does not carry
+/// a general enclosing-class metadata channel, so this is the narrow bridge
+/// required by endpoint discovery. Matching uses the parsed `Class` item,
+/// never a method-name-only guess.
+fn collect_csharp_class_attribute_symbols(
+    item: &Item,
+    raw_by_class: &HashMap<String, Vec<String>>,
+    out: &mut Vec<(SymbolId, String)>,
+) {
+    let Item::Class(class) = item else { return };
+    let bare_name = class.name.rsplit('.').next().unwrap_or(&class.name);
+    let Some(attributes) = raw_by_class.get(bare_name) else { return };
+    let raw = attributes.join("\u{1f}");
+    for method in &class.methods {
+        if let Some(symbol) = method.symbol {
+            out.push((symbol, raw.clone()));
+        }
+    }
 }
 
 fn add_commonjs_imports(program: &mut Program, source: &str) {
@@ -116,9 +360,24 @@ pub fn parse_project_sources(language: Language, entries: &[(String, String)]) -
     if entries.is_empty() {
         bail!("no supported source files found");
     }
+
+    // Descriptor frontends share no mutable parser state between files. Parse
+    // all files on Rayon, then merge in input order so function IDs and report
+    // locations remain reproducible regardless of worker scheduling.
+    let mut parsed = entries
+        .par_iter()
+        .enumerate()
+        .map(|(index, (path, source))| {
+            (
+                index,
+                parse_file(language.clone(), path, source),
+            )
+        })
+        .collect::<Vec<_>>();
+    parsed.sort_by_key(|(index, _)| *index);
     let mut project = ProgramMerger::new(language.clone());
-    for (path, source) in entries {
-        project.merge(parse_file(language.clone(), path, source)?);
+    for (_, unit) in parsed {
+        project.merge(unit?);
     }
     Ok(project.finish())
 }

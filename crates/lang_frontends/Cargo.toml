@@ -8,5 +8,6 @@ authors.workspace = true
 [dependencies]
 anyhow.workspace = true
 regex.workspace = true
+rayon.workspace = true
 uniflow-hir = { path = "../hir" }
 uniflow-parser-core = { path = "../parser_core" }
