@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 
 use uniflow_hir::Language;
-use uniflow_ir::{Callee, Function, InstKind, Program, ValueId};
+use uniflow_ir::{Callee, Function, InstKind, Program, Terminator, ValueId};
 
 /// Returns whether `function` is the Python frontend's compatibility alias
 /// for a root-module function. Project parsing retains `run` next to
@@ -231,5 +231,53 @@ fn resolve_root(defs: &HashMap<ValueId, &InstKind>, value: ValueId, visited: &mu
             if all_agree { first } else { value }
         }
         _ => value,
+    }
+}
+
+/// Whether `value` is read anywhere in `function` — as an ordinary
+/// instruction operand or as the value carried by a `return`/`throw`/branch
+/// terminator. This IR allocates a destination `ValueId` for every call
+/// unconditionally (confirmed empirically across every lowering site),
+/// whether or not anything actually reads the result, so `call.dst.is_some()`
+/// alone cannot distinguish "the caller uses this response" from "the call
+/// was issued for its side effect and the result is discarded" — an adapter
+/// that wants that distinction (e.g. before modeling a boundary edge onto
+/// the call's own result) needs this real, function-wide use check instead.
+pub fn value_is_used_in_function(function: &Function, value: ValueId) -> bool {
+    for block in &function.blocks {
+        if block.insts.iter().any(|inst| instruction_reads_value(&inst.kind, value)) {
+            return true;
+        }
+        let read_by_terminator = match &block.term {
+            Terminator::Branch { cond, .. } => *cond == value,
+            Terminator::Return(Some(v)) | Terminator::Throw(Some(v)) => *v == value,
+            Terminator::Goto(_) | Terminator::Return(None) | Terminator::Throw(None) | Terminator::Unreachable => false,
+        };
+        if read_by_terminator {
+            return true;
+        }
+    }
+    false
+}
+
+fn instruction_reads_value(kind: &InstKind, value: ValueId) -> bool {
+    match kind {
+        InstKind::ConstInt { .. } | InstKind::ConstString { .. } => false,
+        InstKind::Copy { src, .. }
+        | InstKind::Move { src, .. }
+        | InstKind::Cast { src, .. }
+        | InstKind::Deref { src, .. }
+        | InstKind::NumericStep { src, .. }
+        | InstKind::NumericNeg { src, .. } => *src == value,
+        InstKind::Lifetime { value: lifetime_value, .. } => *lifetime_value == value,
+        InstKind::Compare { lhs, rhs, .. } => *lhs == value || *rhs == value,
+        InstKind::Phi { inputs, .. } => inputs.contains(&value),
+        InstKind::LoadField { base, .. } => *base == value,
+        InstKind::StoreField { base, src, .. } => *base == value || *src == value,
+        InstKind::LoadIndex { base, index, .. } => *base == value || *index == value,
+        InstKind::StoreIndex { base, index, src } => *base == value || *index == value || *src == value,
+        InstKind::Call(call) => {
+            call.receiver == Some(value) || call.args.contains(&value) || matches!(&call.callee, Callee::Dynamic(target) if *target == value)
+        }
     }
 }

@@ -1435,6 +1435,21 @@ impl<'a> Pg<'a> {
         let start = self.cur.pos;
         let kw = &self.d.kw;
         let begins_without_try = !kw.try_kw.map_or(false, |word| self.cur.at_kw(word));
+        if begins_without_try
+            && (kw.catch_kw.iter().any(|word| self.cur.at_kw(word))
+                || kw.finally_kw.iter().any(|word| self.cur.at_kw(word)))
+        {
+            // A bare `catch`/`finally` with no preceding `try` is not a valid
+            // Ruby-style bodyless-try opener (that shape always has a real
+            // statement body, never another catch/finally token) — it is a
+            // stray clause, typically left over from upstream recovery after
+            // a malformed construct. Treating it as the try body here would
+            // send it into `block_for`'s single-statement-body branch, which
+            // calls back into `statement()` on this exact same, un-advanced
+            // token — infinite recursion with no way to terminate.
+            self.cur.advance();
+            return Ok(None);
+        }
         let try_block = if begins_without_try {
             // Ruby `begin ... rescue ... end` / Java `try` with no keyword seen.
             self.block_for(
@@ -1980,9 +1995,26 @@ impl<'a> Pg<'a> {
 
     /// Parse the file: imports, types, functions, and module-level statements.
     pub fn parse_items<H: LangHooks>(&mut self, hooks: &mut H) -> anyhow::Result<()> {
+        self.parse_item_sequence(hooks, false)
+    }
+
+    /// Shared body for [`Self::parse_items`] and a `namespace { ... }` block:
+    /// a namespace is a transparent container in this generic engine (which
+    /// does not model namespace-qualified name resolution at all), so its
+    /// members are parsed with exactly the same item dispatch as the module
+    /// top level, only bounded by a closing `}` instead of end-of-file.
+    fn parse_item_sequence<H: LangHooks>(
+        &mut self,
+        hooks: &mut H,
+        stop_at_close_brace: bool,
+    ) -> anyhow::Result<()> {
         loop {
             self.cur.skip_newlines();
             if self.cur.eof() {
+                break;
+            }
+            if stop_at_close_brace && self.cur.at("}") {
+                self.cur.advance();
                 break;
             }
             if self.cur.eat(";") || self.cur.eat(",") {
@@ -1991,11 +2023,17 @@ impl<'a> Pg<'a> {
             if hooks.item(self)? {
                 continue;
             }
+            if self.cur.current().kind == TokKind::Keyword
+                && self.cur.current().text.eq_ignore_ascii_case("namespace")
+            {
+                self.parse_namespace_block(hooks)?;
+                continue;
+            }
             if self.at_import() {
                 self.parse_import();
                 continue;
             }
-            if self.d.kw.class_kw.iter().any(|word| self.cur.at_kw(word)) {
+            if self.class_kw_ahead() {
                 if let Some(class) = self.class_definition(hooks)? {
                     self.b.push_item(Item::Class(class));
                     continue;
@@ -2045,12 +2083,49 @@ impl<'a> Pg<'a> {
                 | "using"
                 | "use"
                 | "package"
-                | "namespace"
                 | "from"
                 | "load"
                 | "add"
                 | "source"
         ) && self.cur.current().kind == TokKind::Keyword
+    }
+
+    /// A `namespace` block is a transparent container, not a `;`-terminated
+    /// import header: unlike `import`/`using`/etc., its body is ordinary
+    /// braced content (declarations, even further nested namespaces), so
+    /// treating it as import-header text via [`Self::header_until_statement`]
+    /// (which stops only at `;` or a real newline token — meaningless for a
+    /// brace-style, non-newline-terminated language) would swallow the
+    /// entire namespace body as garbage. This engine does not model
+    /// namespace-qualified name resolution at all, so the fix is simply to
+    /// recurse into the same item dispatch for its members.
+    fn parse_namespace_block<H: LangHooks>(&mut self, hooks: &mut H) -> anyhow::Result<()> {
+        self.cur.advance(); // consume `namespace`
+        self.cur.skip_newlines();
+        // Optional dotted/`::`-qualified name (`namespace A.B.C` / `namespace A::B::C`);
+        // an anonymous C++ `namespace { ... }` has none.
+        while self.cur.current().kind == TokKind::Ident {
+            self.cur.advance();
+            if self.cur.eat(".") {
+                continue;
+            }
+            if self.cur.at(":") && self.cur.peek(1).text == ":" {
+                self.cur.advance();
+                self.cur.advance();
+                continue;
+            }
+            break;
+        }
+        self.cur.skip_newlines();
+        if self.cur.eat(";") {
+            // File-scoped namespace (C# 10+): everything after it is
+            // implicitly a member: nothing further to consume here.
+            return Ok(());
+        }
+        if self.cur.eat("{") {
+            return self.parse_item_sequence(hooks, true);
+        }
+        Ok(())
     }
 
     fn parse_import(&mut self) {
@@ -2191,7 +2266,7 @@ impl<'a> Pg<'a> {
                 if hooks.item(self)? {
                     continue;
                 }
-                if self.d.kw.class_kw.iter().any(|word| self.cur.at_kw(word)) {
+                if self.class_kw_ahead() {
                     // Nested type: skip its body.
                     self.skip_balanced_body();
                     continue;
@@ -2353,6 +2428,53 @@ impl<'a> Pg<'a> {
                 _ => {}
             }
             probe += 1;
+        }
+        false
+    }
+
+    /// Whether a (possibly modifier-prefixed) class/struct/interface/enum
+    /// declaration starts at the cursor. `class_definition`'s own leading
+    /// while-loop already walks past an arbitrary run of access/other
+    /// modifiers before a `class_kw` word, but callers deciding *whether* to
+    /// invoke it only checked the bare current token — missing the extremely
+    /// common `public class Foo { ... }` shape entirely (the modifier-less
+    /// `class Foo { ... }` matched, everything else silently fell through to
+    /// generic statement/expression recovery, leaking the class's own
+    /// members out as bogus top-level items). Mirrors the same modifier set
+    /// `class_definition` itself already treats as skippable prefix noise.
+    fn class_kw_ahead(&self) -> bool {
+        let mut index = self.cur.pos;
+        while index < self.cur.tokens.len() {
+            let token = &self.cur.tokens[index];
+            if token.kind == TokKind::Newline {
+                index += 1;
+                continue;
+            }
+            if self.d.kw.class_kw.iter().any(|word| token.text.eq_ignore_ascii_case(word)) {
+                return true;
+            }
+            if !matches!(
+                token.text.to_ascii_lowercase().as_str(),
+                "public"
+                    | "private"
+                    | "protected"
+                    | "abstract"
+                    | "final"
+                    | "static"
+                    | "sealed"
+                    | "open"
+                    | "internal"
+                    | "data"
+                    | "protocol"
+                    | "trait"
+                    | "type"
+                    | "new"
+                    | "partial"
+                    | "nested"
+            ) {
+                return false;
+            }
+            index += 1;
         }
         false
     }
@@ -2679,7 +2801,22 @@ impl<'a> Pg<'a> {
             }
             let group_text = group.join(" ").replace("  ", " ").trim().to_string();
             if !group_text.is_empty() {
-                let (param_name, param_type) = self.split_param(&group_text);
+                let (raw_param_name, param_type) = self.split_param(&group_text);
+                // Swift parameters can carry a distinct external argument
+                // label: `func f(_ local: T)` or `func f(label local: T)`.
+                // Only `local` is visible in the function body. Keeping the
+                // entire label pair as the lexical binding makes every body
+                // reference to `local` look unresolved during lowering,
+                // severing local and cross-language data-flow alike.
+                let param_name = if self.d.language == uniflow_hir::Language::Swift {
+                    raw_param_name
+                        .split_whitespace()
+                        .last()
+                        .unwrap_or_default()
+                        .to_string()
+                } else {
+                    raw_param_name
+                };
                 if !param_name.is_empty() {
                     let symbol = self.define(
                         &strip_ident_sigils(&param_name),

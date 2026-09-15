@@ -2806,6 +2806,7 @@ dependencies = [
  "uniflow-frontend",
  "uniflow-hir",
  "uniflow-ir",
+ "uniflow-jni-bridge",
  "uniflow-lang-c",
  "uniflow-lang-frontends",
  "uniflow-lang-go",
@@ -2813,10 +2814,12 @@ dependencies = [
  "uniflow-lang-javascript",
  "uniflow-lang-python",
  "uniflow-lang-ruby",
+ "uniflow-lang-rust",
  "uniflow-lowering",
  "uniflow-parser-core",
  "uniflow-rules",
  "uniflow-taint",
+ "uniflow-value-flow",
 ]
 
 [[package]]

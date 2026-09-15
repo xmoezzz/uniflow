@@ -810,7 +810,7 @@ impl Lowerer {
         if let Some(symbol_id) = func.symbol {
             if let Some(symbol) = self.program_symbols.get(&symbol_id) {
                 for (key, value) in &symbol.attributes {
-                    if key.starts_with("cpp.") || key.starts_with("python.") || key.starts_with("java.") || key.starts_with("go.") || key.starts_with("csharp.") || key.starts_with("rust.") || key.starts_with("ruby.") || key.starts_with("js.") || key.starts_with("php.") {
+                    if key.starts_with("cpp.") || key.starts_with("python.") || key.starts_with("java.") || key.starts_with("kotlin.") || key.starts_with("go.") || key.starts_with("csharp.") || key.starts_with("rust.") || key.starts_with("ruby.") || key.starts_with("js.") || key.starts_with("php.") {
                         attrs.insert(key.clone(), value.clone());
                     }
                 }

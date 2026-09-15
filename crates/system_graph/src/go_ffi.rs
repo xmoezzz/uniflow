@@ -75,7 +75,10 @@ pub fn discover_into(graph: &mut SystemGraph, programs: &[(Language, Program)]) 
                         qualified_name: function.name.clone(),
                     }),
                 );
-                graph.upsert_node(SystemNode::new(NodeKind::AbstractObject, external_c_caller_node_id(), "external C caller (cgo //export)"));
+                graph.upsert_node(
+                    SystemNode::new(NodeKind::AbstractObject, external_c_caller_node_id(), "external C caller (cgo //export)")
+                        .with_attr("ffi_external_caller", "true"),
+                );
                 graph.apply_boundary(
                     BoundarySummary::new(EdgeKind::InteropCall, external_c_caller_node_id(), handler_id, Confidence::Exact)
                         .with_evidence(Evidence::new(format!("{} is marked //export, callable from C when built as a cgo archive/shared library", function.name))),
@@ -188,5 +191,9 @@ func sink(value string) {}
         let interop_calls: Vec<_> = graph.edges().filter(|(_, _, edge)| edge.kind == EdgeKind::InteropCall).collect();
         assert_eq!(interop_calls.len(), 1, "{interop_calls:?}");
         assert_eq!(interop_calls[0].1.code_ref.as_ref().map(|c| c.qualified_name.as_str()), Some("main.GoCallback"));
+        let ingress = crate::bridge::handler_source_rules(&graph, &Language::Go);
+        assert_eq!(ingress.function_sources.len(), 1, "{:?}", ingress.function_sources);
+        assert_eq!(ingress.function_sources[0].matcher.exact.as_deref(), Some("main.GoCallback"));
+        assert_eq!(ingress.function_sources[0].out, Port::ArgsFrom(0));
     }
 }

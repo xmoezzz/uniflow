@@ -2,7 +2,7 @@
 //! one of the older specialized parsers. Every language owns a descriptor; the
 //! shared parser only supplies recovery, HIR construction and common grammar.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use anyhow::{bail, Result};
 use rayon::prelude::*;
@@ -54,6 +54,11 @@ pub fn parse_file(language: Language, path: &str, source: &str) -> Result<Progra
         // class/record; method attributes remain in place for the existing
         // method parser and are recovered below from the original source.
         Language::CSharp => csharp_code_view(source),
+        // `external fun` is a body-less Kotlin JNI declaration. The shared
+        // grammar understands `fun` but not modifier runs before it; retain
+        // source offsets while masking only this modifier, then recover the
+        // semantic fact from the original source below.
+        Language::Kotlin => kotlin_code_view(source),
         _ => source.to_string(),
     };
     let mut hooks = FrontendHooks {
@@ -70,7 +75,81 @@ pub fn parse_file(language: Language, path: &str, source: &str) -> Result<Progra
     if language == Language::Php {
         add_php_ffi_bindings(&mut program, source);
     }
+    if language == Language::Kotlin {
+        add_kotlin_jni_declarations(&mut program, path, source);
+    }
     Ok(program)
+}
+
+fn kotlin_code_view(source: &str) -> String {
+    let external = Regex::new(r"\bexternal(\s+fun\b)").expect("valid Kotlin external modifier regex");
+    external.replace_all(source, "        $1").into_owned()
+}
+
+/// Retains Kotlin/JVM's `external fun` declarations for the system graph.
+/// The generic HIR deliberately does not model every Kotlin modifier, so the
+/// raw declaration fact is stored on its matching function symbol. `@JvmName`,
+/// overloaded JNI long names, and generated bindings remain unresolved.
+fn add_kotlin_jni_declarations(program: &mut Program, path: &str, source: &str) {
+    let external_fun = Regex::new(r"(?m)\bexternal\s+fun\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+        .expect("valid Kotlin external function regex");
+    let mut declaration_counts = HashMap::<String, usize>::new();
+    for captures in external_fun.captures_iter(source) {
+        *declaration_counts.entry(captures[1].to_string()).or_default() += 1;
+    }
+    if declaration_counts.is_empty() {
+        return;
+    }
+    let package = Regex::new(r"(?m)^\s*package\s+([A-Za-z_][A-Za-z0-9_.]*)")
+        .expect("valid Kotlin package regex")
+        .captures(source)
+        .map(|captures| captures[1].to_string())
+        .unwrap_or_default();
+    let facade = Path::new(path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .filter(|stem| !stem.is_empty())
+        .map(|stem| format!("{stem}Kt"))
+        .unwrap_or_else(|| "MainKt".to_string());
+    let mut candidates = HashMap::<String, Vec<SymbolId>>::new();
+    for module in &program.modules {
+        for item in &module.items {
+            match item {
+                Item::Function(function) => {
+                    if let Some(symbol) = function.symbol {
+                        candidates.entry(function.name.clone()).or_default().push(symbol);
+                    }
+                }
+                Item::Class(class) => {
+                    for method in &class.methods {
+                        if let Some(symbol) = method.symbol {
+                            candidates.entry(method.name.clone()).or_default().push(symbol);
+                        }
+                    }
+                }
+                Item::GlobalVar(_) => {}
+            }
+        }
+    }
+    for (method, declaration_count) in declaration_counts {
+        let matching = candidates
+            .iter()
+            .filter(|(name, _)| name.rsplit('.').next() == Some(method.as_str()))
+            .flat_map(|(_, symbols)| symbols.iter().copied())
+            .collect::<Vec<_>>();
+        // Same-spelled methods in unrelated owners cannot be associated with
+        // a raw declaration without a full Kotlin AST. Require exact
+        // cardinality rather than marking a non-external sibling as JNI.
+        if matching.len() != declaration_count {
+            continue;
+        }
+        for symbol_id in matching {
+            let Some(symbol) = program.symbols.iter_mut().find(|symbol| symbol.id == symbol_id) else { continue };
+            symbol.attributes.insert("kotlin.jni.external".to_string(), "true".to_string());
+            symbol.attributes.insert("kotlin.jni.package".to_string(), package.clone());
+            symbol.attributes.insert("kotlin.jni.facade".to_string(), facade.clone());
+        }
+    }
 }
 
 /// Preserves literal PHP FFI declarations for the system-boundary adapter.
@@ -1245,6 +1324,70 @@ mod tests {
                 "no function carrier for {path}: {program:#?}"
             );
         }
+    }
+
+    #[test]
+    fn swift_external_argument_labels_bind_the_body_local_name() {
+        let program = parse_file(
+            Language::Swift,
+            "labels.swift",
+            "func run(_ input: String) { native_sink(input) }\nfunc named(remote local: String) { native_sink(local) }",
+        )
+        .expect("parse Swift labels");
+        let functions = program
+            .modules
+            .iter()
+            .flat_map(|module| &module.items)
+            .filter_map(|item| match item {
+                Item::Function(function) => Some(function),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(functions.len(), 2, "{functions:#?}");
+        for (function, expected_name) in functions.into_iter().zip(["input", "local"]) {
+            assert_eq!(function.params[0].name, expected_name);
+            let Stmt::Expr { expr: Expr::Call(call), .. } = &function.body.stmts[0] else {
+                panic!("expected native call: {:#?}", function.body.stmts);
+            };
+            let Expr::VarRef { symbol, .. } = &call.args[0] else {
+                panic!("expected local argument: {:#?}", call.args);
+            };
+            assert_eq!(*symbol, function.params[0].symbol);
+        }
+    }
+
+    #[test]
+    fn kotlin_external_fun_is_retained_as_an_unambiguous_jni_declaration() {
+        let program = parse_file(
+            Language::Kotlin,
+            "Native.kt",
+            r#"
+package com.example
+class Native {
+    external fun consume(input: String)
+    fun invoke(input: String) { consume(input) }
+}
+"#,
+        )
+        .expect("parse Kotlin JNI declaration");
+        let native = program
+            .modules
+            .iter()
+            .flat_map(|module| &module.items)
+            .filter_map(|item| match item {
+                Item::Class(class) => class.methods.iter().find(|method| method.name == "Native.consume"),
+                _ => None,
+            })
+            .next()
+            .expect("external Kotlin method");
+        let symbol = program
+            .symbols
+            .iter()
+            .find(|symbol| Some(symbol.id) == native.symbol)
+            .expect("Kotlin native symbol");
+        assert_eq!(symbol.attributes.get("kotlin.jni.external").map(String::as_str), Some("true"));
+        assert_eq!(symbol.attributes.get("kotlin.jni.package").map(String::as_str), Some("com.example"));
+        assert_eq!(symbol.attributes.get("kotlin.jni.facade").map(String::as_str), Some("NativeKt"));
     }
 
     #[test]

@@ -48,7 +48,7 @@ use crate::graph::{
     BoundaryFlowEdge, BoundarySummary, CodeRef, Confidence, EdgeKind, Evidence, FlowNodeRef,
     NodeKind, SystemGraph, SystemNode, ValueMappingKind,
 };
-use crate::ir_utils::{is_python_root_alias, parameter_index, parameter_index_by_name, resolve_callable_argument, resolve_string_sequence, FunctionIndex, StringPiece};
+use crate::ir_utils::{is_python_root_alias, parameter_index, parameter_index_by_name, resolve_callable_argument, resolve_string_sequence, value_is_used_in_function, FunctionIndex, StringPiece};
 
 // `handlefunc` is Go's own convention (`http.HandleFunc`/`mux.HandleFunc`,
 // stdlib `net/http`) — the same literal-path-plus-callable-argument shape
@@ -599,11 +599,11 @@ fn resolve_field_value(value_text: &str, placeholders: &HashMap<String, ValueId>
 }
 
 /// Recovers the literal key -> value correspondence of a JavaScript/Ruby map
-/// literal that lowering has explicitly marked with
-/// `__uniflow.compose.map`.  A bare `Phi` is deliberately not accepted: the
-/// IR also uses it for control-flow joins, where input position does not mean
-/// key/value position.  This makes the body model conservative by
-/// construction and avoids treating arbitrary POST payloads as JSON.
+/// literal that lowering marks with `__uniflow.compose.map`, or a Python
+/// dict literal lowered as `builtins.dict`. A bare `Phi` is deliberately not
+/// accepted: the IR also uses it for control-flow joins, where input position
+/// does not mean key/value position. This makes the body model conservative
+/// by construction and avoids treating arbitrary POST payloads as JSON.
 fn literal_map_fields(function: &Function, value: ValueId) -> Vec<(String, ValueId)> {
     let mut definitions = HashMap::new();
     for block in &function.blocks {
@@ -619,7 +619,9 @@ fn literal_map_fields(function: &Function, value: ValueId) -> Vec<(String, Value
                     let source = matches!(&call.callee, Callee::Static(name) if name == "__uniflow.compose.map")
                         .then(|| call.args.first().copied())
                         .flatten();
-                    definitions.insert(call.dst.expect("checked"), (source, None));
+                    let literal_pairs = matches!(&call.callee, Callee::Static(name) if name == "builtins.dict")
+                        .then_some(call.args.as_slice());
+                    definitions.insert(call.dst.expect("checked"), (source, literal_pairs));
                 }
                 _ => {}
             }
@@ -649,11 +651,70 @@ fn literal_map_fields(function: &Function, value: ValueId) -> Vec<(String, Value
 /// `request(...)`/`fetch(...)` options object has framework-specific method
 /// and nested-body semantics, so it is intentionally left for a dedicated
 /// framework model rather than guessed here.
-fn direct_body_values(method: &str, args: &[ValueId]) -> impl Iterator<Item = ValueId> {
+fn direct_body_values(method: &str, call: &uniflow_ir::CallInst) -> impl Iterator<Item = ValueId> {
     matches!(method, "post" | "put" | "patch" | "postforobject" | "postforentity")
-        .then(|| args.get(1).copied())
+        // Python's `requests.post(url, params=...)` places the query map at
+        // this same physical slot; only an *unnamed* second argument has the
+        // conventional positional body meaning.
+        .then(|| call.arg_names.get(1).is_none_or(|name| name.is_none()).then(|| call.args.get(1).copied()).flatten())
         .flatten()
         .into_iter()
+}
+
+/// Keyword map arguments used by Python's `requests`/`httpx`/`aiohttp` APIs
+/// (`params=`, `json=`, `data=`) and by similarly-shaped clients. Argument
+/// names are frontend facts, so this does not infer positional semantics for
+/// an arbitrary `request(...)` wrapper.
+fn named_map_values(call: &uniflow_ir::CallInst, names: &[&str]) -> Vec<ValueId> {
+    call.args
+        .iter()
+        .copied()
+        .enumerate()
+        .filter_map(|(index, value)| names.contains(&call.arg_names.get(index).and_then(|name| name.as_deref())?).then_some(value))
+        .collect()
+}
+
+/// Adds direct literal-map fields to the matching named handler parameters.
+/// This is deliberately reusable for positional POST bodies and Python's
+/// explicit `params=`/`json=`/`data=` shapes: all have an identical
+/// `{literal field: caller value}` wire contract once established.
+fn add_literal_map_mappings(
+    summary: &mut BoundarySummary,
+    function: &Function,
+    caller_language: &uniflow_hir::Language,
+    handlers: &[CodeRef],
+    function_index: &FunctionIndex<'_>,
+    body: ValueId,
+    route_is_ambiguous: bool,
+    base_confidence: Confidence,
+    field_kind: &str,
+) {
+    for (field_name, value) in literal_map_fields(function, body) {
+        let Some(caller_param_index) = parameter_index(function, value) else {
+            continue;
+        };
+        for handler in handlers {
+            let Some((handler_language, handler_function)) = function_index.get(&handler.qualified_name) else {
+                continue;
+            };
+            let Some(handler_param_index) = parameter_index_by_name(handler_function, &field_name) else {
+                continue;
+            };
+            let mapping_confidence = if route_is_ambiguous { Confidence::Conservative } else { base_confidence };
+            summary.value_mappings.push(
+                BoundaryFlowEdge::new(
+                    ValueMappingKind::ArgumentToParameter,
+                    FlowNodeRef::function_port(caller_language.clone(), function.name.clone(), Port::Arg(caller_param_index)),
+                    FlowNodeRef::function_port(handler_language.clone(), handler.qualified_name.clone(), Port::Arg(handler_param_index)),
+                    mapping_confidence,
+                )
+                .with_evidence(Evidence::new(format!(
+                    "literal {field_kind} field {field_name:?} binds to parameter {field_name:?} of {}",
+                    handler.qualified_name
+                ))),
+            );
+        }
+    }
 }
 
 /// Replaces any dynamic piece that is itself a resolvable `getenv(...)`
@@ -786,32 +847,93 @@ pub fn discover_outbound_calls_into(
                 // explicit map-composition marker is accepted here; dynamic
                 // serializers and generic options objects remain unresolved
                 // until their framework model can prove a correspondence.
-                for body in direct_body_values(&method_name(name), &call.args) {
-                    for (field_name, value) in literal_map_fields(function, body) {
-                        let Some(caller_param_index) = parameter_index(function, value) else {
+                for body in direct_body_values(&method_name(name), call) {
+                    add_literal_map_mappings(
+                        &mut summary,
+                        function,
+                        &program.language,
+                        &handlers,
+                        function_index,
+                        body,
+                        route_is_ambiguous,
+                        base_confidence,
+                        "request-body",
+                    );
+                }
+
+                // Python HTTP clients conventionally carry query parameters
+                // outside the URL and JSON/form payloads as keyword maps.
+                // These are explicit frontend argument names, so applying
+                // this model cannot mistake a generic positional options
+                // object for a request field contract.
+                for params in named_map_values(call, &["params"]) {
+                    add_literal_map_mappings(
+                        &mut summary,
+                        function,
+                        &program.language,
+                        &handlers,
+                        function_index,
+                        params,
+                        route_is_ambiguous,
+                        base_confidence,
+                        "query",
+                    );
+                }
+                for body in named_map_values(call, &["json", "data"]) {
+                    add_literal_map_mappings(
+                        &mut summary,
+                        function,
+                        &program.language,
+                        &handlers,
+                        function_index,
+                        body,
+                        route_is_ambiguous,
+                        base_confidence,
+                        "request-body",
+                    );
+                }
+
+                // An HTTP response is a second, independent data boundary:
+                // a value returned by the resolved handler becomes the
+                // result of this *specific* client call.  Do not emit a
+                // function-wide caller return rule here: a client helper can
+                // issue several requests, and only this instruction receives
+                // this response.  Likewise, a discarded response has no
+                // receiver-side value to model at all — this IR allocates a
+                // destination for every call unconditionally, so checking
+                // `call.dst.is_some()` alone cannot tell a used result from a
+                // side-effect-only one; `value_is_used_in_function` can.
+                if call.dst.is_some_and(|dst| value_is_used_in_function(function, dst)) {
+                    for handler in &handlers {
+                        let Some((handler_language, _)) = function_index.get(&handler.qualified_name) else {
                             continue;
                         };
-                        for handler in &handlers {
-                            let Some((handler_language, handler_function)) = function_index.get(&handler.qualified_name) else {
-                                continue;
-                            };
-                            let Some(handler_param_index) = parameter_index_by_name(handler_function, &field_name) else {
-                                continue;
-                            };
-                            let mapping_confidence = if route_is_ambiguous { Confidence::Conservative } else { base_confidence };
-                            summary = summary.with_value_mapping(
-                                BoundaryFlowEdge::new(
-                                    ValueMappingKind::ArgumentToParameter,
-                                    FlowNodeRef::function_port(program.language.clone(), function.name.clone(), Port::Arg(caller_param_index)),
-                                    FlowNodeRef::function_port(handler_language.clone(), handler.qualified_name.clone(), Port::Arg(handler_param_index)),
-                                    mapping_confidence,
-                                )
-                                .with_evidence(Evidence::new(format!(
-                                    "literal request-body field {field_name:?} binds to parameter {field_name:?} of {}",
-                                    handler.qualified_name
-                                ))),
-                            );
-                        }
+                        let mapping_confidence = if route_is_ambiguous {
+                            Confidence::Conservative
+                        } else {
+                            base_confidence
+                        };
+                        summary = summary.with_value_mapping(
+                            BoundaryFlowEdge::new(
+                                ValueMappingKind::ReturnToResult,
+                                FlowNodeRef::function_port(
+                                    handler_language.clone(),
+                                    handler.qualified_name.clone(),
+                                    Port::Return,
+                                ),
+                                FlowNodeRef::call_site_port(
+                                    program.language.clone(),
+                                    function.name.clone(),
+                                    inst.id.0,
+                                    Port::Return,
+                                ),
+                                mapping_confidence,
+                            )
+                            .with_evidence(Evidence::new(format!(
+                                "HTTP response returned by {} becomes the result of this client call",
+                                handler.qualified_name
+                            ))),
+                        );
                     }
                 }
 
@@ -1239,6 +1361,47 @@ class ServiceA {
     }
 
     #[test]
+    fn maps_a_resolved_handler_return_to_the_specific_client_call_result() {
+        let route_program = lower_java(
+            r#"
+class ProfileController {
+    @GetMapping("/profile")
+    static String handler() { return readProfile(); }
+}
+"#,
+        );
+        let call_program = lower_java(
+            r#"
+class Gateway {
+    static String fetch() { return Http.get("/profile"); }
+}
+"#,
+        );
+        let mut graph = SystemGraph::new();
+        discover_routes_into(&mut graph, &route_program).expect("discover routes");
+        let programs = vec![
+            (uniflow_hir::Language::Java, route_program),
+            (uniflow_hir::Language::Java, call_program.clone()),
+        ];
+        let index = FunctionIndex::build(&programs);
+        discover_outbound_calls_into(&mut graph, &call_program, &index).expect("discover outbound calls");
+
+        let call = graph.edges().find(|(_, _, edge)| edge.kind == EdgeKind::HttpCall).expect("HTTP call");
+        let response = call
+            .2
+            .value_mappings
+            .iter()
+            .find(|mapping| mapping.kind == ValueMappingKind::ReturnToResult)
+            .expect("handler return mapping");
+        assert_eq!(response.from.function, "ProfileController.handler");
+        assert_eq!(response.from.port, Port::Return);
+        assert_eq!(response.to.function, "Gateway.fetch");
+        assert_eq!(response.to.port, Port::Return);
+        assert!(response.to.call_site.is_some(), "response must stay anchored to one client call");
+        assert_eq!(response.confidence, Confidence::Exact);
+    }
+
+    #[test]
     fn maps_a_literal_javascript_post_body_field_to_the_matching_handler_parameter() {
         let route_program = lower_java(
             r#"
@@ -1275,6 +1438,47 @@ function run(userInput) {
             .evidence
             .iter()
             .any(|evidence| evidence.description.contains("request-body field \"id\"")));
+    }
+
+    #[test]
+    fn maps_python_requests_keyword_query_and_json_fields_to_handler_parameters() {
+        let route_program = lower_java(
+            r#"
+class ProfileController {
+    @PostMapping("/profile")
+    String handler(String id, String token) { return id; }
+}
+"#,
+        );
+        let caller_program = uniflow_lowering::lower_program(
+            &uniflow_lang_python::PythonParser::default()
+                .parse_file(
+                    "gateway.py",
+                    r#"
+def forward(user_id, auth_token):
+    requests.post("/profile", params={"id": user_id}, json={"token": auth_token})
+"#,
+                )
+                .expect("parse Python"),
+        );
+        let mut graph = SystemGraph::new();
+        discover_routes_into(&mut graph, &route_program).expect("discover route");
+        let programs = vec![
+            (uniflow_hir::Language::Java, route_program),
+            (uniflow_hir::Language::Python, caller_program.clone()),
+        ];
+        let index = FunctionIndex::build(&programs);
+        discover_outbound_calls_into(&mut graph, &caller_program, &index).expect("discover HTTP call");
+
+        let call = graph.edges().find(|(_, _, edge)| edge.kind == EdgeKind::HttpCall).expect("HTTP call");
+        let mut targets = call
+            .2
+            .value_mappings
+            .iter()
+            .map(|mapping| (mapping.from.port.clone(), mapping.to.port.clone()))
+            .collect::<Vec<_>>();
+        targets.sort_by_key(|(_, to)| format!("{to:?}"));
+        assert_eq!(targets, vec![(Port::Arg(0), Port::Arg(0)), (Port::Arg(1), Port::Arg(1))], "{:#?}", call.2.value_mappings);
     }
 
     #[test]

@@ -37,6 +37,7 @@ const PYTHON_LISTENER_DECORATORS: &[&str] = &[
     "kafka_listener", "kafkalistener", "rabbit_listener", "rabbitlistener", "message_listener", "messagelistener",
 ];
 const PYTHON_CELERY_TASK_DECORATORS: &[&str] = &["task", "shared_task"];
+const SPRING_MESSAGE_LISTENER_ANNOTATIONS: &[&str] = &["kafkalistener", "rabbitlistener"];
 
 #[derive(Clone, Debug)]
 pub struct MessageConsumer {
@@ -180,6 +181,70 @@ fn python_celery_task_topic(function: &Function) -> Option<String> {
     })
 }
 
+/// Spring Kafka/Rabbit listener methods are invoked by the framework without
+/// a source-level subscription call. The Java frontend preserves annotations
+/// on the method symbol, so accept only one literal `topics`/`queues` (or
+/// positional) value. SpEL, placeholders, arrays, and multiple destinations
+/// require runtime/framework semantics and deliberately remain unresolved.
+fn java_spring_listener_topic(function: &Function) -> Option<String> {
+    let raw = function.attrs.get("java.annotations.raw")?;
+    raw.split('\u{1f}').find_map(|annotation| {
+        let text = annotation.trim().trim_start_matches('@').trim();
+        let (name, args) = text.split_once('(')?;
+        if !SPRING_MESSAGE_LISTENER_ANNOTATIONS.contains(&name.rsplit('.').next()?.to_ascii_lowercase().as_str()) {
+            return None;
+        }
+        let args = args.strip_suffix(')')?.trim();
+        if args.contains(['{', '}', '#', '$']) {
+            return None;
+        }
+        let literal = |value: &str| {
+            let value = value.trim();
+            let quote = value.chars().next()?;
+            (matches!(quote, '\'' | '"') && value.ends_with(quote) && value.len() >= 2)
+                .then(|| value[1..value.len() - 1].to_string())
+        };
+        for argument in args.split(',') {
+            let argument = argument.trim();
+            if let Some((key, value)) = argument.split_once('=') {
+                if matches!(key.trim(), "topics" | "topic" | "queues" | "queue") {
+                    return literal(value);
+                }
+            } else if !argument.contains('=') {
+                return literal(argument);
+            }
+        }
+        None
+    })
+}
+
+fn add_decorated_consumer(
+    graph: &mut SystemGraph,
+    program: &Program,
+    function: &Function,
+    topic: String,
+    evidence: &str,
+) -> Result<MessageConsumer> {
+    let topic_id = ensure_topic(graph, &topic);
+    let handler_id = ensure_handler(graph, &program.language, &function.name);
+    graph.apply_boundary(
+        BoundarySummary::new(EdgeKind::Subscribes, handler_id.clone(), topic_id.clone(), Confidence::Exact).with_evidence(Evidence::new(format!(
+            "{} is {evidence} for literal message topic {topic:?}", function.name
+        ))),
+    )?;
+    graph.apply_boundary(
+        BoundarySummary::new(EdgeKind::DeliversTo, topic_id, handler_id, Confidence::Exact).with_evidence(Evidence::new(format!(
+            "{evidence} dispatches topic {topic:?} to {}", function.name
+        ))),
+    )?;
+    Ok(MessageConsumer {
+        topic,
+        function: function.name.clone(),
+        confidence: Confidence::Exact,
+        evidence: Evidence::new(evidence),
+    })
+}
+
 /// Discovers consumer endpoints before publications.  The caller aggregates
 /// results from every language group, then invokes
 /// [`discover_publications_into`] so a producer in one language may target a
@@ -191,24 +256,7 @@ pub fn discover_consumers_into(graph: &mut SystemGraph, program: &Program) -> Re
             continue;
         }
         if let Some(topic) = python_decorator_topic(function) {
-            let topic_id = ensure_topic(graph, &topic);
-            let handler_id = ensure_handler(graph, &program.language, &function.name);
-            graph.apply_boundary(
-                BoundarySummary::new(EdgeKind::Subscribes, handler_id.clone(), topic_id.clone(), Confidence::Exact).with_evidence(Evidence::new(format!(
-                    "{} is decorated as a consumer of literal topic {topic:?}", function.name
-                ))),
-            )?;
-            graph.apply_boundary(
-                BoundarySummary::new(EdgeKind::DeliversTo, topic_id, handler_id, Confidence::Exact).with_evidence(Evidence::new(format!(
-                    "literal Python listener decorator dispatches topic {topic:?} to {}", function.name
-                ))),
-            )?;
-            consumers.push(MessageConsumer {
-                topic,
-                function: function.name.clone(),
-                confidence: Confidence::Exact,
-                evidence: Evidence::new("literal Python message-listener decorator"),
-            });
+            consumers.push(add_decorated_consumer(graph, program, function, topic, "a literal Python message-listener decorator")?);
         }
         if let Some(topic) = python_celery_task_topic(function) {
             let topic_id = ensure_topic(graph, &topic);
@@ -229,6 +277,9 @@ pub fn discover_consumers_into(graph: &mut SystemGraph, program: &Program) -> Re
                 confidence: Confidence::Exact,
                 evidence: Evidence::new("literal Celery task decorator name"),
             });
+        }
+        if let Some(topic) = java_spring_listener_topic(function) {
+            consumers.push(add_decorated_consumer(graph, program, function, topic, "a literal Spring Kafka/Rabbit listener annotation")?);
         }
         for block in &function.blocks {
             for inst in &block.insts {
@@ -493,6 +544,55 @@ class Producer { static void send(String input) { KafkaTemplate.send("orders", i
         assert_eq!(mappings[0].from.port, Port::Arg(0));
         assert_eq!(mappings[0].to.function, "Consumer.handle");
         assert_eq!(mappings[0].to.port, Port::Arg(0));
+    }
+
+    #[test]
+    fn maps_a_kafka_template_publication_to_a_literal_spring_kafka_listener() {
+        let consumer_program = lower_java(
+            r#"
+class Worker {
+    @KafkaListener(topics = "orders")
+    void consume(String payload) { sink(payload); }
+}
+"#,
+        );
+        let producer_program = lower_java(
+            r#"
+class Producer {
+    static void submit(String input) { KafkaTemplate.send("orders", input); }
+}
+"#,
+        );
+        let programs = vec![
+            (uniflow_hir::Language::Java, consumer_program.clone()),
+            (uniflow_hir::Language::Java, producer_program.clone()),
+        ];
+        let index = FunctionIndex::build(&programs);
+        let mut graph = SystemGraph::new();
+        let consumers = discover_consumers_into(&mut graph, &consumer_program).expect("discover listener");
+        assert_eq!(consumers.len(), 1, "{consumers:?}");
+        discover_publications_into(&mut graph, &producer_program, &consumers, &index).expect("discover publication");
+        let published = graph.edges().find(|(_, _, edge)| edge.kind == EdgeKind::Publishes).expect("publication");
+        assert_eq!(published.2.value_mappings.len(), 1, "{:#?}", published.2.value_mappings);
+        assert_eq!(published.2.value_mappings[0].from.function, "Producer.submit");
+        assert_eq!(published.2.value_mappings[0].to.function, "Worker.consume");
+    }
+
+    #[test]
+    fn does_not_guess_a_dynamic_or_multi_destination_spring_listener() {
+        let program = lower_java(
+            r#"
+class Worker {
+    @KafkaListener(topics = "${ORDER_TOPIC}")
+    void dynamic(String payload) {}
+    @RabbitListener(queues = {"orders", "retries"})
+    void multiple(String payload) {}
+}
+"#,
+        );
+        let mut graph = SystemGraph::new();
+        let consumers = discover_consumers_into(&mut graph, &program).expect("discover listeners");
+        assert!(consumers.is_empty(), "{consumers:?}");
     }
 
     #[test]

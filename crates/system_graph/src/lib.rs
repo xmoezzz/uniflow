@@ -84,13 +84,16 @@ pub mod grpc;
 pub mod http;
 mod ir_utils;
 pub mod js_ffi;
+pub mod kotlin_jni;
 pub mod kubernetes;
 pub mod lifecycle;
 pub mod message;
+pub mod objc_ffi;
 pub mod php_ffi;
 pub mod python_ffi;
 pub mod rust_ffi;
 pub mod ruby_ffi;
+pub mod swift_ffi;
 
 pub use graph::{
     BoundaryFlowEdge, BoundarySummary, CodeRef, Confidence, Evidence, FlowNodeRef, NodeKind,

@@ -82,3 +82,50 @@ fn csharp_catches_keep_types_scopes_and_static_calls_are_not_declarations() {
     assert_eq!(type_name(*ty), "System.Text.StringBuilder");
     assert_eq!(allocated, "System.Text.StringBuilder");
 }
+
+/// Regression test: a class wrapped in a `namespace { ... }` block with a
+/// non-empty `try` body followed by a `catch`/`finally` clause used to
+/// overflow the stack. Root cause was two-fold: `namespace` was treated as
+/// an `import`-style header (which only terminates at `;`/newline — never
+/// true for a brace-style, non-newline-terminated language), so it silently
+/// swallowed the entire namespace body up to the first real `;`, leaving a
+/// stray `catch`/`finally` behind; dispatching that stray token into
+/// `try_statement`'s "no `try` keyword seen" (Ruby `begin`) path then made
+/// `block_for` call back into `statement()` on the same, un-advanced token
+/// forever. This exercises both the namespace-as-container fix and the
+/// orphaned-catch/finally guard directly on real-shaped code (mirrors what
+/// was found crashing on Google's `microservices-demo` cartservice).
+#[test]
+fn csharp_namespace_wrapped_try_catch_and_try_finally_do_not_overflow_the_stack() {
+    let source = r#"namespace N {
+        public class C {
+            public void M() {
+                try {
+                    int a = 1;
+                } catch (Exception ex) {
+                    int b = 2;
+                }
+            }
+            public void M2() {
+                try {
+                    int a = 1;
+                } finally {
+                    int b = 2;
+                }
+            }
+        }
+    }"#;
+    let program = parse_file(Language::CSharp, "Namespaced.cs", source).unwrap();
+    let Item::Class(class) = &program.modules[0].items[0] else {
+        panic!("expected the namespace body to yield a top-level class item");
+    };
+    assert_eq!(class.methods.len(), 2);
+    let Stmt::Try { catches, .. } = &class.methods[0].body.stmts[0] else {
+        panic!("expected a try/catch as method M's first statement");
+    };
+    assert_eq!(catches.len(), 1);
+    let Stmt::Try { finally_block, .. } = &class.methods[1].body.stmts[0] else {
+        panic!("expected a try/finally as method N's first statement");
+    };
+    assert!(finally_block.is_some());
+}

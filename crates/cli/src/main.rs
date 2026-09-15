@@ -2224,6 +2224,8 @@ fn run_mixed_project(
         .context("failed to discover PHP FFI native boundaries")?;
     uniflow_system_graph::csharp_ffi::discover_into(&mut system_graph, &system_graph_programs)
         .context("failed to discover C# P/Invoke native boundaries")?;
+    uniflow_system_graph::csharp_ffi::discover_exports_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover C# unmanaged-callable exports")?;
     uniflow_system_graph::rust_ffi::discover_calls_into(&mut system_graph, &system_graph_programs)
         .context("failed to discover Rust extern \"C\" native call boundaries")?;
     uniflow_system_graph::rust_ffi::discover_exports_into(&mut system_graph, &system_graph_programs)
@@ -2234,6 +2236,12 @@ fn run_mixed_project(
         .context("failed to discover Ruby `ffi` gem native boundaries")?;
     uniflow_system_graph::go_ffi::discover_into(&mut system_graph, &system_graph_programs)
         .context("failed to discover Go cgo native boundaries")?;
+    uniflow_system_graph::objc_ffi::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover Objective-C C ABI boundaries")?;
+    uniflow_system_graph::swift_ffi::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover Swift imported-C ABI boundaries")?;
+    uniflow_system_graph::kotlin_jni::discover_into(&mut system_graph, &system_graph_programs)
+        .context("failed to discover Kotlin/JVM JNI boundaries")?;
     // Cross-referencing a route's handler (which may live in a *different*
     // group's `Program`) by its own parameter names — not merging
     // Programs, not regex/string-matching call sites — is what lets the

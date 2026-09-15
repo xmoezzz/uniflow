@@ -77,6 +77,102 @@ fn native_functions(programs: &[(Language, Program)]) -> HashMap<String, Vec<(La
     out
 }
 
+/// Case/separator-insensitive key for the same-name fallback: strips
+/// everything but ASCII alphanumerics and lowercases the rest, so `Add`
+/// (a common C/C++ implementation spelling), `add` (its equally common
+/// lowerCamelCase JS-visible spelling), and `do_transform`/`doTransform`
+/// all collide on one canonical key. Real Node addons routinely pair a
+/// PascalCase native function with a camelCase JS method name (see e.g.
+/// the official `node-addon-examples` "function arguments" sample); an
+/// exact-spelling-only fallback misses that entirely.
+fn normalize_ffi_symbol(name: &str) -> String {
+    name.chars().filter(char::is_ascii_alphanumeric).map(|c| c.to_ascii_lowercase()).collect()
+}
+
+/// Same population as [`native_functions`], keyed by [`normalize_ffi_symbol`]
+/// instead of the literal name. Two distinctly-spelled native functions that
+/// happen to normalize the same way correctly collide into one ambiguous
+/// (unbridgeable) bucket, exactly like the exact-name map already does for
+/// literal duplicates.
+fn native_functions_by_normalized_name(programs: &[(Language, Program)]) -> HashMap<String, Vec<(Language, String, usize)>> {
+    let mut out: HashMap<String, Vec<(Language, String, usize)>> = HashMap::new();
+    for (language, program) in programs {
+        if !matches!(language, Language::C | Language::Cpp) {
+            continue;
+        }
+        for function in &program.functions {
+            if function.name.contains("::") || function.is_external {
+                continue;
+            }
+            out.entry(normalize_ffi_symbol(&function.name))
+                .or_default()
+                .push((language.clone(), function.name.clone(), function.params.len()));
+        }
+    }
+    out
+}
+
+/// Recovers literal JavaScript export names and their callbacks from the C
+/// N-API registration primitive `napi_create_function(env, "name", ...,
+/// callback, ...)`. N-API keeps the public JS name separate from the native
+/// implementation name, so this is stronger evidence than a name convention.
+/// Dynamic export names and callback expressions deliberately remain absent.
+fn napi_registered_functions(programs: &[(Language, Program)]) -> HashMap<String, Vec<(Language, String, usize)>> {
+    let native = native_functions(programs);
+    let mut registrations = HashMap::<String, Vec<(Language, String, usize)>>::new();
+    for (language, program) in programs {
+        if !matches!(language, Language::C | Language::Cpp) {
+            continue;
+        }
+        for function in &program.functions {
+            let constants = function
+                .blocks
+                .iter()
+                .flat_map(|block| &block.insts)
+                .filter_map(|inst| match &inst.kind {
+                    InstKind::ConstString { dst, value } => Some((*dst, value.as_str())),
+                    _ => None,
+                })
+                .collect::<HashMap<_, _>>();
+            for inst in function.blocks.iter().flat_map(|block| &block.insts) {
+                let InstKind::Call(call) = &inst.kind else { continue };
+                let Callee::Static(callee) = &call.callee else { continue };
+                if callee != "napi_create_function" || call.args.len() < 4 {
+                    continue;
+                }
+                let Some(export_name) = constants.get(&call.args[1]) else { continue };
+                if export_name.starts_with("<external-symbol:") || export_name.is_empty() {
+                    continue;
+                }
+                let Some(callback) = constants
+                    .get(&call.args[3])
+                    .and_then(|value| value.strip_prefix("<external-symbol:"))
+                    .and_then(|value| value.strip_suffix('>'))
+                else {
+                    continue;
+                };
+                let Some(candidates) = native.get(callback) else { continue };
+                let [candidate] = candidates.as_slice() else { continue };
+                registrations
+                    .entry((*export_name).to_string())
+                    .or_default()
+                    .push(candidate.clone());
+            }
+        }
+    }
+    for candidates in registrations.values_mut() {
+        candidates.sort_by(|left, right| {
+            left.0
+                .as_str()
+                .cmp(right.0.as_str())
+                .then_with(|| left.1.cmp(&right.1))
+                .then_with(|| left.2.cmp(&right.2))
+        });
+        candidates.dedup();
+    }
+    registrations
+}
+
 fn library_node_id(library: &str) -> String {
     format!("ffi:node-addon:{library}")
 }
@@ -87,6 +183,8 @@ fn library_node_id(library: &str) -> String {
 /// call-site ports — same shape as [`crate::python_ffi::discover_into`].
 pub fn discover_into(graph: &mut SystemGraph, programs: &[(Language, Program)]) -> Result<()> {
     let native = native_functions(programs);
+    let native_normalized = native_functions_by_normalized_name(programs);
+    let registered = napi_registered_functions(programs);
     for (language, program) in programs {
         if *language != Language::JavaScript {
             continue;
@@ -106,7 +204,16 @@ pub fn discover_into(graph: &mut SystemGraph, programs: &[(Language, Program)]) 
                 if all_bindings.iter().filter(|other| other.symbol == binding.symbol).count() != 1 {
                     continue;
                 }
-                let Some(candidates) = native.get(&binding.symbol) else { continue };
+                // Explicit N-API registration wins over the legacy same-name
+                // convention, and an exact spelling match wins over the
+                // case/separator-insensitive fallback. If several addons
+                // register a name, do not infer a binary association the
+                // source IR cannot prove.
+                let candidates = registered
+                    .get(&binding.symbol)
+                    .or_else(|| native.get(&binding.symbol))
+                    .or_else(|| native_normalized.get(&normalize_ffi_symbol(&binding.symbol)));
+                let Some(candidates) = candidates else { continue };
                 let [candidate] = candidates.as_slice() else { continue };
                 let (native_language, native_function, native_arity) = candidate;
                 for block in &function.blocks {
@@ -226,6 +333,80 @@ int transform(int value) {
         let mut graph = SystemGraph::new();
         discover_into(&mut graph, &programs).expect("discover node-addon boundary");
         assert!(graph.nodes().any(|node| node.kind == NodeKind::Function && node.name == "transform"));
+    }
+
+    #[test]
+    fn a_literal_napi_registration_maps_a_differently_named_js_export_to_its_callback() {
+        let js_source = r#"
+        const addon = require('./build/Release/thing.node');
+        function run(input) { return addon.sanitize(input); }
+        "#;
+        let c_source = r#"
+int sanitize_impl(int value) { return value; }
+void init(void) {
+    napi_create_function(env, "sanitize", 8, sanitize_impl, 0, result);
+}
+"#;
+        let js_program = lower_js("index.js", js_source);
+        let c_program = lower_c("thing.c", c_source);
+        let programs = vec![(Language::JavaScript, js_program), (Language::C, c_program)];
+
+        let mut graph = SystemGraph::new();
+        discover_into(&mut graph, &programs).expect("discover N-API boundary");
+        let mapping = graph
+            .edges()
+            .find(|(_, _, edge)| edge.kind == EdgeKind::InteropArg)
+            .expect("registered addon argument mapping");
+        assert_eq!(mapping.2.value_mappings[0].from.function, "index.run");
+        assert_eq!(mapping.2.value_mappings[0].to.function, "sanitize_impl");
+        assert!(mapping.2.evidence[0].description.contains("sanitize"));
+    }
+
+    #[test]
+    fn a_pascal_case_native_function_bridges_a_camel_case_js_method_by_normalized_name() {
+        // Mirrors the real-world naming convention in Node's own
+        // `node-addon-examples` "function arguments" sample: the JS-visible
+        // method is lowerCamelCase while the C/C++ implementation is
+        // PascalCase, with no N-API registration call in scope to disambiguate.
+        let js_source = r#"
+        const addon = require('./build/Release/thing.node');
+        function run(input) {
+            return addon.add(input);
+        }
+        "#;
+        let c_source = r#"
+int Add(int value) {
+    return value;
+}
+"#;
+        let js_program = lower_js("index.js", js_source);
+        let c_program = lower_c("thing.c", c_source);
+        let programs = vec![(Language::JavaScript, js_program), (Language::C, c_program)];
+
+        let mut graph = SystemGraph::new();
+        discover_into(&mut graph, &programs).expect("discover node-addon boundary");
+        assert!(graph.nodes().any(|node| node.kind == NodeKind::Function && node.name == "Add"), "expected the PascalCase native function to be linked via normalized-name fallback");
+    }
+
+    #[test]
+    fn two_native_functions_colliding_under_normalization_are_not_bridged() {
+        let js_source = r#"
+        const addon = require('./build/Release/thing.node');
+        function run(input) {
+            return addon.doTransform(input);
+        }
+        "#;
+        let c_source = r#"
+int do_transform(int value) { return value; }
+int DoTransform(int value) { return value; }
+"#;
+        let js_program = lower_js("index.js", js_source);
+        let c_program = lower_c("thing.c", c_source);
+        let programs = vec![(Language::JavaScript, js_program), (Language::C, c_program)];
+
+        let mut graph = SystemGraph::new();
+        discover_into(&mut graph, &programs).expect("discover node-addon boundary");
+        assert!(!graph.nodes().any(|node| node.kind == NodeKind::AbstractObject && node.name.contains("thing.node")), "two normalization-colliding native candidates must not bridge");
     }
 
     #[test]

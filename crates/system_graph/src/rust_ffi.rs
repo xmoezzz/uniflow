@@ -107,6 +107,7 @@ pub fn discover_calls_into(graph: &mut SystemGraph, programs: &[(Language, Progr
 /// parameters/return the same way.
 pub fn discover_exports_into(graph: &mut SystemGraph, programs: &[(Language, Program)]) -> Result<()> {
     let mut exported: std::collections::HashMap<String, Vec<(String, usize)>> = std::collections::HashMap::new();
+    const EXTERNAL_NATIVE_CALLER_ID: &str = "ffi:rust:external-native-caller";
     for (language, program) in programs {
         if *language != Language::Rust {
             continue;
@@ -114,6 +115,24 @@ pub fn discover_exports_into(graph: &mut SystemGraph, programs: &[(Language, Pro
         for function in &program.functions {
             let Some(symbol) = function.attrs.get("rust.ffi.export") else { continue };
             exported.entry(symbol.clone()).or_default().push((function.name.clone(), function.params.len()));
+            let rust_id = format!("code:rust:{}", function.name);
+            graph.upsert_node(
+                SystemNode::new(NodeKind::Entrypoint, rust_id.clone(), &function.name).with_code_ref(CodeRef {
+                    language: Language::Rust,
+                    qualified_name: function.name.clone(),
+                }),
+            );
+            graph.upsert_node(
+                SystemNode::new(NodeKind::AbstractObject, EXTERNAL_NATIVE_CALLER_ID, "external native caller (Rust export)")
+                    .with_attr("ffi_external_caller", "true"),
+            );
+            graph.apply_boundary(
+                BoundarySummary::new(EdgeKind::InteropCall, EXTERNAL_NATIVE_CALLER_ID, rust_id, Confidence::Exact)
+                    .with_evidence(Evidence::new(format!(
+                        "{} is exported to native callers as literal symbol {symbol:?}",
+                        function.name
+                    ))),
+            )?;
         }
     }
     for (language, program) in programs {
@@ -160,4 +179,54 @@ pub fn discover_exports_into(graph: &mut SystemGraph, programs: &[(Language, Pro
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uniflow_parser_core::SourceParser;
+
+    fn lower_rust(source: &str) -> Program {
+        let hir = uniflow_lang_rust::RustParser::default()
+            .parse_file("lib.rs", source)
+            .expect("parse Rust");
+        uniflow_lowering::lower_program(&hir)
+    }
+
+    #[test]
+    fn a_no_mangle_rust_export_is_an_external_native_ingress() {
+        let program = lower_rust(
+            r#"
+#[no_mangle]
+pub extern "C" fn native_callback(input: *const u8) { sink(input); }
+
+fn sink(value: *const u8) {}
+"#,
+        );
+        assert!(
+            program
+                .functions
+                .iter()
+                .any(|function| function.attrs.contains_key("rust.ffi.export")),
+            "lowered Rust functions: {:#?}",
+            program.functions
+        );
+        let mut graph = SystemGraph::new();
+        discover_exports_into(&mut graph, &[(Language::Rust, program)]).expect("discover Rust export");
+        let entry = graph.node("code:rust:native_callback").expect("Rust export entrypoint");
+        assert_eq!(entry.kind, NodeKind::Entrypoint);
+        let edge = graph
+            .edges()
+            .find(|(from, to, edge)| {
+                from.id == "ffi:rust:external-native-caller"
+                    && to.id == "code:rust:native_callback"
+                    && edge.kind == EdgeKind::InteropCall
+            })
+            .expect("external native caller edge");
+        assert!(edge.2.evidence[0].description.contains("native_callback"));
+        let ingress = crate::bridge::handler_source_rules(&graph, &Language::Rust);
+        assert_eq!(ingress.function_sources.len(), 1, "{:?}", ingress.function_sources);
+        assert_eq!(ingress.function_sources[0].matcher.exact.as_deref(), Some("native_callback"));
+        assert_eq!(ingress.function_sources[0].out, Port::ArgsFrom(0));
+    }
 }

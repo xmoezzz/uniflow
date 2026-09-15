@@ -259,6 +259,24 @@ pub fn parse(input: &str) -> Result<Expr, ParseError> {
     Ok(expr)
 }
 
+/// Replaces every `Var` in `expr` whose name is a key of `values` with the
+/// corresponding literal `Int` — used to turn a bounded existential into a
+/// finite disjunction of concrete witnesses (`omega` decides disjunctions of
+/// quantifier-free facts natively; it cannot synthesize an existential
+/// witness itself, see `crate::lean::LeanOracle`). A variable absent from
+/// `values` is left untouched.
+pub fn substitute_ints(expr: &Expr, values: &std::collections::HashMap<String, i64>) -> Expr {
+    match expr {
+        Expr::Int(_) | Expr::Bool(_) => expr.clone(),
+        Expr::Var(name) => match values.get(name) {
+            Some(value) => Expr::Int(*value),
+            None => expr.clone(),
+        },
+        Expr::Unary(op, inner) => Expr::Unary(*op, Box::new(substitute_ints(inner, values))),
+        Expr::Binary(op, lhs, rhs) => Expr::Binary(*op, Box::new(substitute_ints(lhs, values)), Box::new(substitute_ints(rhs, values))),
+    }
+}
+
 /// Every free variable `expr` references, in first-seen order.
 pub fn free_vars(expr: &Expr, out: &mut Vec<String>) {
     match expr {
@@ -344,5 +362,14 @@ mod tests {
     #[test]
     fn rejects_unknown_characters() {
         assert!(parse("a == b @ c").is_err());
+    }
+
+    #[test]
+    fn substitute_ints_replaces_only_named_variables() {
+        let expr = parse("x + y == 2").unwrap();
+        let mut values = std::collections::HashMap::new();
+        values.insert("x".to_string(), 3);
+        let substituted = substitute_ints(&expr, &values);
+        assert_eq!(render_lean(&substituted), "((3 + y) = 2)");
     }
 }

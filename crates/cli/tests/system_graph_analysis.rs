@@ -185,6 +185,280 @@ class ServiceB {
     assert_eq!(mappings[0]["to"]["port"], "arg0");
 }
 
+/// A request boundary is bidirectional: an explicit source returned by a
+/// remote handler must reach the result value of the precise HTTP call in
+/// the client, then a real local sink. This guards against a system graph
+/// that merely records a response edge without turning it into executable
+/// per-program source/sink bridge rules.
+#[test]
+fn http_handler_response_reaches_the_client_call_result_and_local_sink() {
+    let project = Scratch(scratch("sysgraph-http-response"));
+    std::fs::write(
+        project.0.join("ServiceA.java"),
+        r#"
+class ServiceA {
+    static void run() {
+        String profile = Http.get("http://user:8080/profile");
+        sink(profile);
+    }
+    static void sink(String value) {}
+}
+"#,
+    )
+    .expect("write client service");
+    std::fs::write(
+        project.0.join("ServiceB.java"),
+        r#"
+class ServiceB {
+    static void registerRoutes() { route("/profile", ServiceB::handler); }
+    static String handler() { return secret(); }
+    static String secret() { return "secret"; }
+}
+"#,
+    )
+    .expect("write remote service");
+    let system_graph_path = project.0.join("system-graph.json");
+    let findings = run_mix(
+        &project.0,
+        r#"
+function_sources:
+  - id: remote-response
+    language: java
+    matcher:
+      exact: ServiceB.handler
+    out: return
+    kind: untrusted
+function_sinks:
+  - id: client-sink
+    language: java
+    matcher:
+      exact: ServiceA.sink
+    inputs: [arg0]
+    kind: untrusted
+"#,
+        &system_graph_path,
+    );
+    assert!(findings.is_empty(), "boundary plumbing must be composed: {findings:#?}");
+
+    let graph = read_system_graph(&system_graph_path);
+    let composed = cross_component_findings(&graph);
+    assert_eq!(composed.len(), 1, "{composed:#?}");
+    assert_eq!(composed[0]["boundary_kind"], "HTTP_CALL");
+    assert_eq!(composed[0]["producer"]["source_rule_id"], "remote-response");
+    assert_eq!(composed[0]["consumer"]["sink_rule_id"], "client-sink");
+    let http_calls = edges_of_kind(&graph, "HTTP_CALL");
+    assert_eq!(http_calls.len(), 1, "{http_calls:#?}");
+    let response = http_calls[0]["value_mappings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|mapping| mapping["kind"] == "return_to_result")
+        .expect("response mapping");
+    assert_eq!(response["from"]["function"], "ServiceB.handler");
+    assert_eq!(response["to"]["function"], "ServiceA.run");
+    assert_eq!(response["to"]["port"], "return");
+    assert!(response["to"]["call_site"].is_number());
+}
+
+/// NativeAOT's explicit unmanaged export is a real lifecycle entrypoint:
+/// native code can supply its arguments without a managed call site. The
+/// system graph must therefore inject the same external-ingress source that
+/// an HTTP/RPC boundary receives, but only for an explicitly annotated ABI
+/// export rather than for arbitrary C# static methods.
+#[test]
+fn csharp_unmanaged_callers_only_export_reaches_a_local_sink_from_external_native_input() {
+    let project = Scratch(scratch("sysgraph-csharp-unmanaged-export"));
+    std::fs::write(
+        project.0.join("Callbacks.cs"),
+        r#"
+class Callbacks {
+    [UnmanagedCallersOnly(EntryPoint = "native_callback")]
+    public static void Callback(string input) {
+        Sink(input);
+    }
+    static void Sink(string value) {}
+}
+"#,
+    )
+    .expect("write C# callback");
+    let system_graph_path = project.0.join("system-graph.json");
+    let findings = run_mix(
+        &project.0,
+        r#"
+function_sinks:
+  - id: csharp-callback-sink
+    language: csharp
+    matcher:
+      exact: Callbacks.Sink
+    inputs: [arg0]
+    kind: untrusted
+"#,
+        &system_graph_path,
+    );
+    assert_eq!(findings.len(), 1, "{findings:#?}");
+    assert!(
+        findings[0]["source_rule_id"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("system-boundary::ffi-external-ingress::Callbacks.Callback")),
+        "{findings:#?}"
+    );
+    assert_eq!(findings[0]["sink_rule_id"], "csharp-callback-sink");
+    let graph = read_system_graph(&system_graph_path);
+    let edge = edges_of_kind(&graph, "INTEROP_CALL")
+        .into_iter()
+        .find(|edge| edge["from"] == "ffi:csharp:external-native-caller")
+        .expect("external native caller edge");
+    assert_eq!(edge["to"], "code:csharp:Callbacks.Callback");
+}
+
+/// Rust cdylib/staticlib exports are also externally callable lifecycle
+/// entrypoints. This verifies the strict Rust frontend's `#[no_mangle]`
+/// attribute reaches the mixed-project system pass and becomes an executable
+/// native-input taint source, not merely a graph annotation.
+#[test]
+fn rust_no_mangle_export_reaches_a_local_sink_from_external_native_input() {
+    let project = Scratch(scratch("sysgraph-rust-native-export"));
+    std::fs::write(
+        project.0.join("lib.rs"),
+        r#"
+#[no_mangle]
+pub extern "C" fn native_callback(input: *const u8) {
+    sink(input);
+}
+
+fn sink(value: *const u8) {}
+"#,
+    )
+    .expect("write Rust export");
+    let system_graph_path = project.0.join("system-graph.json");
+    let findings = run_mix(
+        &project.0,
+        r#"
+function_sinks:
+  - id: rust-callback-sink
+    language: rust
+    matcher:
+      exact: sink
+    inputs: [arg0]
+    kind: untrusted
+"#,
+        &system_graph_path,
+    );
+    assert_eq!(findings.len(), 1, "{findings:#?}");
+    assert!(
+        findings[0]["source_rule_id"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("system-boundary::ffi-external-ingress::native_callback")),
+        "{findings:#?}"
+    );
+    assert_eq!(findings[0]["sink_rule_id"], "rust-callback-sink");
+    let graph = read_system_graph(&system_graph_path);
+    let edge = edges_of_kind(&graph, "INTEROP_CALL")
+        .into_iter()
+        .find(|edge| edge["from"] == "ffi:rust:external-native-caller")
+        .expect("external native caller edge");
+    assert_eq!(edge["to"], "code:rust:native_callback");
+}
+
+/// Objective-C calls C ABI functions directly rather than through a separate
+/// FFI runtime. A unique project-local C definition is enough evidence to
+/// carry this exact argument across the language boundary.
+#[test]
+fn objective_c_direct_c_abi_call_produces_one_cross_component_finding() {
+    let project = Scratch(scratch("sysgraph-objc-c-abi"));
+    std::fs::write(
+        project.0.join("Caller.m"),
+        r#"
+void run(char *user_input) {
+    native_sink(user_input);
+}
+"#,
+    )
+    .expect("write Objective-C caller");
+    std::fs::write(
+        project.0.join("native.c"),
+        r#"
+void native_sink(char *value) {}
+"#,
+    )
+    .expect("write C native sink");
+    let system_graph_path = project.0.join("system-graph.json");
+    let findings = run_mix(
+        &project.0,
+        r#"
+function_sources:
+  - id: objc-source
+    language: objc
+    matcher:
+      exact: run
+    out: arg0
+    kind: untrusted
+function_sinks:
+  - id: c-native-sink
+    language: c
+    matcher:
+      exact: native_sink
+    inputs: [arg0]
+    kind: untrusted
+"#,
+        &system_graph_path,
+    );
+    assert!(findings.is_empty(), "boundary plumbing must be composed: {findings:#?}");
+    let graph = read_system_graph(&system_graph_path);
+    let composed = cross_component_findings(&graph);
+    assert_eq!(composed.len(), 1, "{composed:#?}");
+    assert_eq!(composed[0]["boundary_kind"], "INTEROP_ARG");
+    assert_eq!(composed[0]["producer"]["source_rule_id"], "objc-source");
+    assert_eq!(composed[0]["consumer"]["sink_rule_id"], "c-native-sink");
+}
+
+/// A Swift bridging header/Clang module exposes C functions as bare Swift
+/// calls. A unique local C implementation therefore creates one executable
+/// interop boundary rather than two disconnected per-language results.
+#[test]
+fn swift_imported_c_call_produces_one_cross_component_finding() {
+    let project = Scratch(scratch("sysgraph-swift-c-abi"));
+    std::fs::write(
+        project.0.join("Caller.swift"),
+        r#"
+func run(_ userInput: String) {
+    native_sink(userInput)
+}
+"#,
+    )
+    .expect("write Swift caller");
+    std::fs::write(project.0.join("native.c"), "void native_sink(char *value) {}")
+        .expect("write C native sink");
+    let system_graph_path = project.0.join("system-graph.json");
+    let findings = run_mix(
+        &project.0,
+        r#"
+function_sources:
+  - id: swift-source
+    language: swift
+    matcher:
+      exact: run
+    out: arg0
+    kind: untrusted
+function_sinks:
+  - id: c-native-sink
+    language: c
+    matcher:
+      exact: native_sink
+    inputs: [arg0]
+    kind: untrusted
+"#,
+        &system_graph_path,
+    );
+    assert!(findings.is_empty(), "boundary plumbing must be composed: {findings:#?}");
+    let graph = read_system_graph(&system_graph_path);
+    let composed = cross_component_findings(&graph);
+    assert_eq!(composed.len(), 1, "{composed:#?}");
+    assert_eq!(composed[0]["boundary_kind"], "INTEROP_ARG");
+    assert_eq!(composed[0]["producer"]["source_rule_id"], "swift-source");
+    assert_eq!(composed[0]["consumer"]["sink_rule_id"], "c-native-sink");
+}
+
 /// Test A (negative): the query field is a hardcoded literal. A literal can
 /// never be a taint source, so no value ever crosses the boundary and no
 /// finding — composed or plain — may appear.
@@ -1275,6 +1549,62 @@ function_sinks:
     assert_eq!(composed[0]["boundary_kind"], "INTEROP_ARG");
     assert_eq!(composed[0]["producer"]["source_rule_id"], "js-addon-source");
     assert_eq!(composed[0]["consumer"]["sink_rule_id"], "c-addon-sink");
+}
+
+/// N-API commonly exposes a public JS method name that differs from its C
+/// callback's implementation name. The literal registration call, rather
+/// than a naming convention, must carry the cross-language value flow.
+#[test]
+fn javascript_napi_registration_reaches_the_registered_differently_named_c_callback() {
+    let project = Scratch(scratch("sysgraph-js-napi-registration"));
+    std::fs::write(
+        project.0.join("index.js"),
+        r#"
+const addon = require('./build/Release/native.node');
+function invoke(untrusted) {
+  addon.consume(untrusted);
+}
+"#,
+    )
+    .expect("write addon caller");
+    std::fs::write(
+        project.0.join("native.c"),
+        r#"
+void consume_impl(char *value) {}
+void init(void) {
+  napi_create_function(env, "consume", 7, consume_impl, 0, result);
+}
+"#,
+    )
+    .expect("write N-API registration");
+    let system_graph_path = project.0.join("system-graph.json");
+    let findings = run_mix(
+        &project.0,
+        r#"
+function_sources:
+  - id: js-napi-source
+    language: javascript
+    matcher:
+      exact: index.invoke
+    out: arg0
+    kind: untrusted
+function_sinks:
+  - id: c-napi-sink
+    language: c
+    matcher:
+      exact: consume_impl
+    inputs: [arg0]
+    kind: untrusted
+"#,
+        &system_graph_path,
+    );
+    let graph = read_system_graph(&system_graph_path);
+    let composed = cross_component_findings(&graph);
+    assert!(findings.is_empty(), "boundary plumbing must compose rather than leak: {findings:#?}");
+    assert_eq!(composed.len(), 1, "{composed:#?}");
+    assert_eq!(composed[0]["boundary_kind"], "INTEROP_ARG");
+    assert_eq!(composed[0]["producer"]["source_rule_id"], "js-napi-source");
+    assert_eq!(composed[0]["consumer"]["sink_rule_id"], "c-napi-sink");
 }
 
 /// P/Invoke is declaration-level FFI: ordinary code first reaches the C#

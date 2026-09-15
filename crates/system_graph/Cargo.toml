@@ -14,6 +14,7 @@ petgraph.workspace = true
 regex.workspace = true
 uniflow-hir = { path = "../hir" }
 uniflow-ir = { path = "../ir" }
+uniflow-jni-bridge = { path = "../jni_bridge" }
 uniflow-rules = { path = "../rules" }
 uniflow-taint = { path = "../taint" }
 
@@ -27,5 +28,7 @@ uniflow-lang-java = { path = "../lang_java" }
 uniflow-lang-javascript = { path = "../lang_javascript" }
 uniflow-lang-python = { path = "../lang_python" }
 uniflow-lang-ruby = { path = "../lang_ruby" }
+uniflow-lang-rust = { path = "../lang_rust" }
 uniflow-lowering = { path = "../lowering" }
 uniflow-parser-core = { path = "../parser_core" }
+uniflow-value-flow = { path = "../value_flow" }
