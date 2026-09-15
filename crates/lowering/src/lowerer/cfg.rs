@@ -104,6 +104,26 @@ impl FunctionLoweringContext<'_> {
                             symbol_types.insert(*symbol, name.clone());
                             value_types.insert(dst, name);
                         }
+                    } else {
+                        // No initializer: `dst` is registered in `value_map`
+                        // so a later read (a function-call argument, another
+                        // declaration's initializer, ...) resolves to a real
+                        // `ValueId` — but until an assignment gives it one, no
+                        // instruction has ever defined that value. A read
+                        // before any assignment (well-defined in the source
+                        // language as an indeterminate/default value, or
+                        // undefined behavior in C — either way, not an
+                        // absence of a value) must not reach the IR validator
+                        // as a `ValueId` with no reaching definition. An
+                        // explicit opaque placeholder, the same sentinel
+                        // convention already used for an unresolvable
+                        // external reference, keeps the value real without
+                        // inventing a false constant.
+                        self.push_inst(
+                            &mut insts,
+                            InstKind::ConstString { dst, value: format!("<uninitialized:{}>", declared_ty.as_deref().unwrap_or("?")) },
+                            *span,
+                        );
                     }
                 }
                 Stmt::Assign { lhs, rhs, span, .. } => {

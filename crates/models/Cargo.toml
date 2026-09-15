@@ -11,6 +11,7 @@ regex.workspace = true
 serde.workspace = true
 uniflow-hir = { path = "../hir" }
 uniflow-rules = { path = "../rules" }
+uniflow-rule-crypto = { path = "../rule_crypto" }
 serde_yaml.workspace = true
 bincode.workspace = true
 zhhz.workspace = true
@@ -19,6 +20,7 @@ zhhz.workspace = true
 bincode.workspace = true
 serde_yaml.workspace = true
 uniflow-rules = { path = "../rules" }
+uniflow-rule-crypto = { path = "../rule_crypto" }
 
 [dev-dependencies]
 regex-syntax.workspace = true

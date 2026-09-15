@@ -437,8 +437,8 @@ fn bundles_every_repository_legacy_source_asset() {
         .collect::<Vec<_>>();
     assert_eq!(java_descriptions.len(), 2_119);
     assert!(java_descriptions.iter().all(|asset| {
-        !asset.bytes.is_empty()
-            && asset.bytes.windows(b"<BugInfo".len()).any(|part| part == b"<BugInfo")
+        let plaintext = asset.plaintext();
+        !plaintext.is_empty() && plaintext.windows(b"<BugInfo".len()).any(|part| part == b"<BugInfo")
     }));
 }
 

@@ -84,7 +84,7 @@ fn every_java_product_description_maps_to_a_bundled_checker_or_dataflow_policy()
         .find(|asset| asset.path == "rules-desc/java.yaml")
         .expect("bundled Java product rule index");
     let descriptor: serde_yaml::Value =
-        serde_yaml::from_slice(descriptor.bytes).expect("parse Java product rule index");
+        serde_yaml::from_slice(&descriptor.plaintext()).expect("parse Java product rule index");
     let mut indexed = Vec::new();
     collect_descriptor_ids(&descriptor, &mut indexed);
     assert_eq!(indexed.len(), 2_124);

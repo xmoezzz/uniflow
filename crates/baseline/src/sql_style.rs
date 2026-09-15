@@ -100,6 +100,24 @@ impl SqlStyleCheck {
                 .map(|offset| (offset, message.clone()))
                 .collect();
         }
+        // `DisabledTest`/`ParsingError` are the two checks whose backing
+        // `SqlSyntax` field is already a final source *byte offset*
+        // (`unexplained_disabled_tests`/`parse_errors` — see their doc
+        // comments in `sql_syntax.rs`), not a `syntax.tokens` index like
+        // every other check here. Resolving them through the same
+        // `tokens.get(index).start` lookup below would treat a byte offset
+        // as a token-array index — almost always out of range for a short
+        // snippet, silently dropping every real finding via `filter_map`.
+        if matches!(self, Self::DisabledTest | Self::ParsingError) {
+            let mut offsets = match self {
+                Self::DisabledTest => syntax.unexplained_disabled_tests.clone(),
+                Self::ParsingError => syntax.parse_errors.clone(),
+                _ => unreachable!(),
+            };
+            offsets.sort_unstable();
+            offsets.dedup();
+            return offsets.into_iter().map(|offset| (offset, None)).collect();
+        }
         let token_indices = match self {
             Self::AddParenthesesInNestedExpression => mixed_boolean_offsets(syntax),
             Self::CollapsibleIfStatements => collapsible_if_offsets(syntax),
@@ -127,10 +145,9 @@ impl SqlStyleCheck {
             Self::ColumnsShouldHaveTableName => unqualified_column_offsets(syntax),
             Self::CursorBodyInPackageSpec => package_cursor_body_offsets(syntax),
             Self::DeadCode => dead_code_offsets(syntax),
-            Self::DisabledTest => syntax.unexplained_disabled_tests.clone(),
+            Self::DisabledTest | Self::ParsingError => unreachable!("handled above"),
             Self::NotASelectedExpression => distinct_order_offsets(syntax),
             Self::NotFound => not_found_offsets(syntax),
-            Self::ParsingError => syntax.parse_errors.clone(),
             Self::QueryWithoutExceptionHandling => query_without_handler_offsets(syntax),
             Self::RaiseStandardException => raise_standard_offsets(syntax),
             Self::RedundantExpectation => redundant_expectation_offsets(syntax),

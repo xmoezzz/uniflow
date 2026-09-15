@@ -619,3 +619,43 @@ void run() {
     assert!(rendered.contains("__compound_struct_Pair"));
     assert!(rendered.contains("consume"));
 }
+
+#[test]
+fn normalizes_a_plain_scalar_aggregate_initializer_with_no_cast_prefix() {
+    let source = r#"
+napi_property_descriptor desc = { "add", 0, Add, 0 };
+"#;
+    let normalized = normalize_c_surface(source);
+    assert!(normalized.contains(r#"__compound_napi_property_descriptor("add", 0, Add, 0)"#), "{normalized}");
+}
+
+#[test]
+fn normalizes_an_array_of_nested_aggregate_literals_into_nested_compound_calls() {
+    let source = r#"
+JNINativeMethod methods[] = { {"nativeAdd", "(II)I", (void*)nativeAdd}, {"nativeSub", "(II)I", nativeSub} };
+"#;
+    let normalized = normalize_c_surface(source);
+    assert!(
+        normalized.contains(
+            r#"__compound_array_JNINativeMethod(__compound_JNINativeMethod("nativeAdd", "(II)I", nativeAdd), __compound_JNINativeMethod("nativeSub", "(II)I", nativeSub))"#
+        ),
+        "{normalized}"
+    );
+}
+
+#[test]
+fn leaves_a_macro_call_array_element_untouched() {
+    let source = r#"
+napi_property_descriptor properties[] = { DECLARE_NAPI_METHOD("add", Add) };
+"#;
+    let normalized = normalize_c_surface(source);
+    assert!(normalized.contains(r#"__compound_array_napi_property_descriptor(DECLARE_NAPI_METHOD("add", Add))"#), "{normalized}");
+}
+
+#[test]
+fn does_not_rewrite_a_primitive_typed_array_initializer() {
+    let source = "int lookup[3] = {1, 2, 3};";
+    let normalized = normalize_c_surface(source);
+    assert!(!normalized.contains("__compound"), "{normalized}");
+    assert!(normalized.contains("{1, 2, 3}"), "{normalized}");
+}

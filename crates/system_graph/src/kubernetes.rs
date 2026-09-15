@@ -107,7 +107,8 @@ pub fn discover_into(graph: &mut SystemGraph, manifest_files: &[PathBuf]) -> Res
 fn collect_documents(path: &Path, out: &mut Vec<(Value, PathBuf)>) -> Result<()> {
     let text = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read Kubernetes manifest {}", path.display()))?;
-    for document in serde_yaml::Deserializer::from_str(&text) {
+    let yaml = normalize_helm_template(&text);
+    for document in serde_yaml::Deserializer::from_str(&yaml) {
         let value = Value::deserialize(document)
             .with_context(|| format!("failed to parse a YAML document in {}", path.display()))?;
         if value.is_null() {
@@ -116,6 +117,110 @@ fn collect_documents(path: &Path, out: &mut Vec<(Value, PathBuf)>) -> Result<()>
         out.push((value, path.to_path_buf()));
     }
     Ok(())
+}
+
+/// Produces a conservative YAML view of a Helm template without evaluating it.
+///
+/// Deployment discovery needs stable resource names/selectors, not rendered
+/// values. Helm control lines are not YAML, so drop them and replace inline
+/// expressions with deterministic scalar markers. Identical value references
+/// receive identical markers, preserving relationships such as a Service's
+/// selector and its Deployment label. For an `if`/`else`, the first branch is
+/// selected as a stable representative; evaluating every branch in one YAML
+/// document would create duplicate mapping keys and lose the entire manifest.
+fn normalize_helm_template(text: &str) -> String {
+    if !text.contains("{{") {
+        return text.to_string();
+    }
+    let mut output = Vec::new();
+    let mut branches = Vec::<bool>::new();
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if let Some(action) = helm_control_action(trimmed) {
+            let active = branches.last().copied().unwrap_or(true);
+            if is_helm_branch_start(action) {
+                branches.push(active);
+            } else if action.starts_with("else") {
+                if let Some(current) = branches.last_mut() {
+                    // Keep the first branch. A single representative preserves
+                    // valid YAML while we cannot know chart values statically.
+                    *current = false;
+                }
+            } else if action == "end" {
+                branches.pop();
+            }
+            continue;
+        }
+        if branches.last().copied().unwrap_or(true) {
+            output.push(replace_helm_actions(line));
+        }
+    }
+    output.join("\n")
+}
+
+fn helm_control_action(line: &str) -> Option<&str> {
+    let action = line.strip_prefix("{{")?.strip_suffix("}}")?;
+    Some(action.trim().trim_matches('-').trim())
+}
+
+fn is_helm_branch_start(action: &str) -> bool {
+    action == "if"
+        || action.starts_with("if ")
+        || action == "with"
+        || action.starts_with("with ")
+        || action == "range"
+        || action.starts_with("range ")
+        || action == "define"
+        || action.starts_with("define ")
+        || action == "block"
+        || action.starts_with("block ")
+}
+
+fn replace_helm_actions(line: &str) -> String {
+    let mut output = String::with_capacity(line.len());
+    let mut remaining = line;
+    while let Some(start) = remaining.find("{{") {
+        output.push_str(&remaining[..start]);
+        let after_open = &remaining[start + 2..];
+        let Some(end) = after_open.find("}}") else {
+            // Leave an unterminated action intact so the YAML parser reports
+            // the original malformed manifest instead of silently changing it.
+            output.push_str(&remaining[start..]);
+            return output;
+        };
+        output.push_str(&helm_action_marker(&after_open[..end]));
+        remaining = &after_open[end + 2..];
+    }
+    output.push_str(remaining);
+    output
+}
+
+fn helm_action_marker(action: &str) -> String {
+    let action = action.trim().trim_matches('-').trim();
+    let reference = action
+        .split(|character: char| {
+            character.is_whitespace() || matches!(character, '|' | '(' | ')' | ',')
+        })
+        .find(|token| {
+            token.starts_with(".Values.")
+                || token.starts_with(".Release.")
+                || token.starts_with(".Chart.")
+        });
+    let Some(reference) = reference else {
+        return "uniflow-helm-expression".to_string();
+    };
+    let slug = reference
+        .trim_start_matches('.')
+        .chars()
+        .map(|character| match character {
+            '.' => '-',
+            character if character.is_ascii_alphanumeric() || character == '_' || character == '-' => {
+                character.to_ascii_lowercase()
+            }
+            _ => '-',
+        })
+        .collect::<String>();
+    format!("uniflow-helm-{slug}")
 }
 
 fn kind_of(document: &Value) -> Option<&str> {
@@ -564,6 +669,57 @@ spec:
             from.id == "k8s:Deployment:default/producer"
                 && to.id == topic.id
                 && edge.kind == EdgeKind::DefinesConfig
+        }));
+    }
+
+    #[test]
+    fn recovers_workload_service_relationships_from_a_helm_template() {
+        let (_dir, path) = write_temp(
+            "worker.yaml",
+            r#"
+{{- if .Values.worker.create }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.worker.name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.worker.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.worker.name }}
+    spec:
+      containers:
+        - name: worker
+          image: {{ .Values.images.repository }}/{{ .Values.worker.name }}:{{ .Values.images.tag }}
+      {{- if .Values.serviceAccounts.create }}
+      serviceAccountName: {{ .Values.worker.name }}
+      {{- else }}
+      serviceAccountName: default
+      {{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.worker.name }}
+spec:
+  selector:
+    app: {{ .Values.worker.name }}
+"#,
+        );
+        let mut graph = SystemGraph::new();
+        discover_into(&mut graph, &[path]).expect("discover Helm manifest");
+
+        let name = "uniflow-helm-values-worker-name";
+        assert!(graph.contains(&workload_id("Deployment", "default", name)));
+        assert!(graph.contains(&service_id("default", name)));
+        assert!(graph.edges().any(|(from, to, edge)| {
+            from.id == service_id("default", name)
+                && to.id == workload_id("Deployment", "default", name)
+                && edge.kind == EdgeKind::Selects
         }));
     }
 }

@@ -25,6 +25,7 @@ members = [
   "crates/lowering",
   "crates/models",
   "crates/rules",
+  "crates/rule_crypto",
   "crates/value_flow",
   "crates/taint",
   "crates/report",

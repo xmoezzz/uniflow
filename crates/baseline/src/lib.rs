@@ -28,12 +28,62 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
+use std::sync::OnceLock;
 use uniflow_hir::Language;
 
+/// Declares one build-time-encrypted named asset (see
+/// `uniflow_rule_crypto`'s module doc comment), decrypted once, on first
+/// use, into a cached `&'static str`. `$label` must match the label
+/// `build.rs`'s `encrypt_named_baseline_assets` encrypted the same asset
+/// under exactly.
+macro_rules! encrypted_asset {
+    ($name:ident, $label:literal, $enc_file:literal) => {
+        fn $name() -> &'static str {
+            static CIPHERTEXT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/", $enc_file));
+            static CELL: OnceLock<String> = OnceLock::new();
+            CELL.get_or_init(|| {
+                let bytes = uniflow_rule_crypto::transform($label, CIPHERTEXT);
+                String::from_utf8(bytes)
+                    .unwrap_or_else(|error| panic!("decrypted asset {:?} is not valid UTF-8: {error}", $label))
+            })
+            .as_str()
+        }
+    };
+}
+
+encrypted_asset!(java_ast_metadata_report_asset, "legacy/java-ast-metadata-report.json", "java-ast-metadata-report.json.enc");
+encrypted_asset!(cert_c_cpp_pack, "baseline/cert-c-cpp.yml", "baseline-cert-c-cpp.yml.enc");
+encrypted_asset!(python_security_pack, "baseline/python-security.yml", "baseline-python-security.yml.enc");
+encrypted_asset!(java_security_pack, "baseline/java-security.yml", "baseline-java-security.yml.enc");
+encrypted_asset!(common_security_pack, "baseline/common-security.yml", "baseline-common-security.yml.enc");
+encrypted_asset!(swift_security_pack, "baseline/swift-security.yml", "baseline-swift-security.yml.enc");
+encrypted_asset!(legacy_java_ast_pack, "baseline/legacy-java-ast.yml", "baseline-legacy-java-ast.yml.enc");
+encrypted_asset!(legacy_js_semgrep_regex_pack, "baseline/legacy-js-semgrep-regex.yml", "baseline-legacy-js-semgrep-regex.yml.enc");
+encrypted_asset!(legacy_ruby_semgrep_pack, "baseline/legacy-ruby-semgrep.yml", "baseline-legacy-ruby-semgrep.yml.enc");
+encrypted_asset!(legacy_c_ast_pack, "baseline/legacy-c-ast.yml", "baseline-legacy-c-ast.yml.enc");
+encrypted_asset!(legacy_csharp_ast_pack, "baseline/legacy-csharp-ast.yml", "baseline-legacy-csharp-ast.yml.enc");
+encrypted_asset!(legacy_sql_pack, "baseline/legacy-sql.yml", "baseline-legacy-sql.yml.enc");
+encrypted_asset!(baseline_manifest_asset, "baseline/manifest.json", "baseline-manifest.json.enc");
+
+/// `bytes` is the build-time-obfuscated form of the asset at `path` (see
+/// `uniflow_rule_crypto`'s module doc comment for what that does and does
+/// not achieve) — call [`LegacyRawRuleAsset::plaintext`] to recover the
+/// original content. `bytes.len()` is unchanged by the transform, so a
+/// caller that only needs the size (a listing command, for example) can
+/// keep reading it directly.
 #[derive(Clone, Copy, Debug)]
 pub struct LegacyRawRuleAsset {
     pub path: &'static str,
     pub bytes: &'static [u8],
+}
+
+impl LegacyRawRuleAsset {
+    /// Recovers this asset's original bytes. `path` is already this
+    /// asset's own stable, unique identifier, so it doubles as the label
+    /// the build script obfuscated it under — see `build.rs`.
+    pub fn plaintext(&self) -> Vec<u8> {
+        uniflow_rule_crypto::transform(self.path, self.bytes)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -117,7 +167,7 @@ pub fn bundled_java_ast_rules() -> &'static [LegacyJavaAstRule] {
 }
 
 pub fn bundled_java_ast_metadata_report() -> &'static str {
-    include_str!("../../../rules/legacy/java-ast-metadata-report.json")
+    java_ast_metadata_report_asset()
 }
 
 pub fn bundled_c_ast_rules() -> &'static [LegacyCAstRule] {
@@ -2255,31 +2305,17 @@ pub fn builtin_security_pack() -> Result<BaselinePack> {
         "uniflow-security-1.0",
         "UniFlow security baseline",
         [
-            BaselinePack::from_yaml_str(include_str!("../../../rules/baseline/cert-c-cpp.yml"))?,
-            BaselinePack::from_yaml_str(include_str!(
-                "../../../rules/baseline/python-security.yml"
-            ))?,
-            BaselinePack::from_yaml_str(include_str!("../../../rules/baseline/java-security.yml"))?,
-            BaselinePack::from_yaml_str(include_str!(
-                "../../../rules/baseline/common-security.yml"
-            ))?,
-            BaselinePack::from_yaml_str(include_str!(
-                "../../../rules/baseline/swift-security.yml"
-            ))?,
-            BaselinePack::from_yaml_str(include_str!(
-                "../../../rules/baseline/legacy-java-ast.yml"
-            ))?,
-            BaselinePack::from_yaml_str(include_str!(
-                "../../../rules/baseline/legacy-js-semgrep-regex.yml"
-            ))?,
-            BaselinePack::from_yaml_str(include_str!(
-                "../../../rules/baseline/legacy-ruby-semgrep.yml"
-            ))?,
-            BaselinePack::from_yaml_str(include_str!("../../../rules/baseline/legacy-c-ast.yml"))?,
-            BaselinePack::from_yaml_str(include_str!(
-                "../../../rules/baseline/legacy-csharp-ast.yml"
-            ))?,
-            BaselinePack::from_yaml_str(include_str!("../../../rules/baseline/legacy-sql.yml"))?,
+            BaselinePack::from_yaml_str(cert_c_cpp_pack())?,
+            BaselinePack::from_yaml_str(python_security_pack())?,
+            BaselinePack::from_yaml_str(java_security_pack())?,
+            BaselinePack::from_yaml_str(common_security_pack())?,
+            BaselinePack::from_yaml_str(swift_security_pack())?,
+            BaselinePack::from_yaml_str(legacy_java_ast_pack())?,
+            BaselinePack::from_yaml_str(legacy_js_semgrep_regex_pack())?,
+            BaselinePack::from_yaml_str(legacy_ruby_semgrep_pack())?,
+            BaselinePack::from_yaml_str(legacy_c_ast_pack())?,
+            BaselinePack::from_yaml_str(legacy_csharp_ast_pack())?,
+            BaselinePack::from_yaml_str(legacy_sql_pack())?,
             bundled_java_package_pack()?,
             bundled_semgrep_search_compat_pack()?,
         ],
@@ -2287,7 +2323,7 @@ pub fn builtin_security_pack() -> Result<BaselinePack> {
 }
 
 pub fn builtin_pack_manifest() -> &'static str {
-    include_str!("../../../rules/baseline/manifest.json")
+    baseline_manifest_asset()
 }
 
 #[cfg(test)]

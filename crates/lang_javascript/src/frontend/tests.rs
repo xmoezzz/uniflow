@@ -149,6 +149,23 @@ return Foo(input);
 }
 
 #[test]
+fn one_fatal_javascript_file_does_not_abort_an_entire_project_scan() {
+    let program = parse_project_sources(&[
+        ("broken.js".to_string(), "function { this is not valid JavaScript".to_string()),
+        ("server.js".to_string(), "function handle(input) { sink(input); }".to_string()),
+    ])
+    .expect("a valid project module must survive an unrelated fatal source");
+    assert!(
+        program
+            .modules
+            .iter()
+            .flat_map(|module| &module.items)
+            .any(|item| matches!(item, Item::Function(function) if function.name == "server.handle")),
+        "valid source was lost: {program:#?}"
+    );
+}
+
+#[test]
 fn a_class_method_reads_and_writes_its_own_fields() {
     let program = parse(
         r#"

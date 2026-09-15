@@ -32,7 +32,8 @@ fn assert_language_compatibility_models(language_name: &str, language: Language)
                         .is_some_and(|parent| parent == Path::new(directory))
             })
             .filter(|asset| {
-                let text = String::from_utf8_lossy(asset.bytes);
+                let plaintext = asset.plaintext();
+                let text = String::from_utf8_lossy(&plaintext);
                 annotation
                     .captures_iter(&text)
                     .any(|capture| &capture[1] == legacy_id)
@@ -86,7 +87,8 @@ fn assert_language_compatibility_models(language_name: &str, language: Language)
                 .is_some_and(|message| message.to_ascii_lowercase().contains("deprecated"));
         if deprecated {
             for asset in &fixtures {
-                let source = String::from_utf8_lossy(asset.bytes);
+                let plaintext = asset.plaintext();
+                let source = String::from_utf8_lossy(&plaintext);
                 assert!(
                     focused
                         .scan_text(&language, Path::new(asset.path), &source)
@@ -99,7 +101,8 @@ fn assert_language_compatibility_models(language_name: &str, language: Language)
             continue;
         }
         let found = fixtures.iter().any(|asset| {
-            let source = String::from_utf8_lossy(asset.bytes);
+            let plaintext = asset.plaintext();
+            let source = String::from_utf8_lossy(&plaintext);
             focused
                 .scan_text(&language, Path::new(asset.path), &source)
                 .iter()

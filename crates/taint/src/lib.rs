@@ -1,4 +1,4 @@
-use petgraph::graph::NodeIndex;
+use petgraph::{Direction, graph::NodeIndex};
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
@@ -1339,9 +1339,26 @@ fn normalize_kind(kind: &str) -> &str {
 
 fn node_location(flow: &FlowGraph, idx: NodeIndex) -> String {
     match &flow.graph[idx] {
-        FlowNode::CallPort { func, inst, .. }
-        | FlowNode::SyntheticSource { func, inst, .. }
-        | FlowNode::SyntheticSink { func, inst, .. } => flow.location_text(*func, *inst),
+        FlowNode::CallPort { func, inst, .. } => flow.location_text(*func, *inst),
+        // Function-boundary rules deliberately use a synthetic instruction ID:
+        // the parameter/return they attach to is the real source location. Do
+        // not leak that implementation detail into SARIF as `@unknown`.
+        FlowNode::SyntheticSource { func, inst, .. } => {
+            let location = flow.location_text(*func, *inst);
+            if location != "@unknown" {
+                location
+            } else {
+                adjacent_node_location(flow, idx, Direction::Outgoing)
+            }
+        }
+        FlowNode::SyntheticSink { func, inst, .. } => {
+            let location = flow.location_text(*func, *inst);
+            if location != "@unknown" {
+                location
+            } else {
+                adjacent_node_location(flow, idx, Direction::Incoming)
+            }
+        }
         FlowNode::FieldCell { func, inst, .. } | FlowNode::IndexCell { func, inst, .. } => {
             flow.location_text(*func, *inst)
         }
@@ -1360,6 +1377,21 @@ fn node_location(flow: &FlowGraph, idx: NodeIndex) -> String {
             .map(|span| flow.span_text(span))
             .unwrap_or_else(|| "@unknown".to_string()),
     }
+}
+
+fn adjacent_node_location(flow: &FlowGraph, idx: NodeIndex, direction: Direction) -> String {
+    flow.graph
+        .neighbors_directed(idx, direction)
+        .map(|neighbor| match &flow.graph[neighbor] {
+            // A synthetic boundary can be directly paired with another boundary
+            // rule. Its own missing instruction span is not useful evidence.
+            FlowNode::SyntheticSource { .. } | FlowNode::SyntheticSink { .. } => {
+                "@unknown".to_string()
+            }
+            _ => node_location(flow, neighbor),
+        })
+        .find(|location| location != "@unknown")
+        .unwrap_or_else(|| "@unknown".to_string())
 }
 
 #[cfg(test)]
@@ -1591,9 +1623,11 @@ def hello(name):
         let ir = lower_program(&hir);
         let flow = build(&ir, &rules);
         let findings = analyze(&flow, &rules);
-        assert!(findings.iter().any(|finding| {
+        let finding = findings.iter().find(|finding| {
             finding.source_rule_id == "route-source" && finding.sink_rule_id == "route-return"
-        }));
+        }).expect("route taint finding");
+        assert_ne!(finding.source_location, "@unknown");
+        assert_ne!(finding.sink_location, "@unknown");
     }
 
     #[test]

@@ -212,9 +212,27 @@ pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
 pub fn parse_project_sources_with_progress(entries: &[(String, String)], on_module_parsed: &(dyn Fn() + Sync)) -> Result<Program> {
     let index = Arc::new(JsProjectIndex::build(entries));
     let mut project = ProgramMerger::new(Language::JavaScript);
+    let mut parsed_modules = 0usize;
     for (path, source) in entries {
-        project.merge(parse_one(path, source, Some(&index))?);
+        match parse_one(path, source, Some(&index)) {
+            Ok(module) => {
+                project.merge(module);
+                parsed_modules += 1;
+            }
+            Err(error) => {
+                // A project may contain third-party rule fixtures, generated
+                // sources, or an incomplete vendored checkout beside the
+                // actual application. One syntactically fatal JS file must
+                // not discard every independently parsable module or prevent
+                // a SARIF report for the rest of the system. Standalone
+                // `analyze-source` remains strict; this is project recovery.
+                eprintln!("uniflow: skipping unparsable JavaScript source {path}: {error}");
+            }
+        }
         on_module_parsed();
+    }
+    if parsed_modules == 0 {
+        anyhow::bail!("no JavaScript source files could be parsed successfully");
     }
     Ok(project.finish())
 }

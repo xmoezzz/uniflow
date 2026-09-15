@@ -26,10 +26,10 @@ mod tests {
         assert_eq!(mit_assets_for(&Language::Python).len(), 2);
         assert!(mit_assets_for(&Language::Java)
             .iter()
-            .any(|asset| *asset == MARIANA_MODELS));
+            .any(|asset| *asset == mariana_models()));
         assert!(mit_assets_for(&Language::Java)
             .iter()
-            .any(|asset| *asset == CODEQL_MODELS));
+            .any(|asset| *asset == codeql_models()));
         assert!(mit_assets_for(&Language::JavaScript).is_empty());
     }
 
@@ -109,15 +109,36 @@ mod tests {
     #[test]
     fn bundled_legacy_jvm_catalogs_have_exact_migrated_counts() {
         let java = legacy_models_for(Language::Java).expect("bundled Java legacy rules");
-        assert_eq!(java.sources.len(), 1_643);
-        assert_eq!(java.sinks.len(), 4_515);
+        assert_eq!(java.sources.len(), 1_635);
+        assert_eq!(java.sinks.len(), 4_513);
         assert_eq!(java.unused_return_sinks.len(), 1);
         assert_eq!(java.sanitizers.len(), 403);
         assert_eq!(java.taint_transforms.len(), 538);
         assert_eq!(java.propagators.len(), 3_240);
-        assert_eq!(java.metadata.len(), 4_516);
-        assert_eq!(java.sink_conditions.len(), 4_512);
+        assert_eq!(java.metadata.len(), 4_514);
+        assert_eq!(java.sink_conditions.len(), 4_510);
         assert_eq!(java.call_conditions.len(), 278);
+
+        let is_unbounded = |matcher: &uniflow_rules::ApiMatcher| {
+            matcher.receiver_regex.as_deref() == Some("^(?:.*)\\.(?:.*)$")
+                && matcher.method_regex.as_deref() == Some("^(?:.*)$")
+                && matcher.exact.is_none()
+                && matcher.contains.is_none()
+                && matcher.regex.is_none()
+                && matcher.receiver_type.is_none()
+                && matcher.receiver_contains.is_none()
+                && matcher.receiver_parameter.is_none()
+                && matcher.method_name.is_none()
+                && matcher.method_contains.is_none()
+                && matcher.arg_count.is_none()
+                && matcher.arg_count_min.is_none()
+                && matcher.arg_count_max.is_none()
+                && matcher.arg_types.is_empty()
+                && matcher.arg_type_regexes.is_empty()
+        };
+        assert!(java.sources.iter().all(|rule| !is_unbounded(&rule.matcher)));
+        assert!(java.sinks.iter().all(|rule| !is_unbounded(&rule.matcher)),
+            "bundled Java models must not taint every dotted method call");
 
         let javascript =
             legacy_models_for(Language::JavaScript).expect("bundled JavaScript legacy rules");

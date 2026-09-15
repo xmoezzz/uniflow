@@ -548,9 +548,20 @@ impl LegacyRuleInventory {
 }
 
 pub fn legacy_cpp_inventory() -> Result<LegacyRuleInventory> {
-    LegacyRuleInventory::from_json_str(include_str!(
-        "../../../rules/migration/anzu-cpp-checkers.json"
-    ))
+    LegacyRuleInventory::from_json_str(anzu_cpp_checkers_asset())
+}
+
+/// Build-time-encrypted (see `uniflow_rule_crypto`'s module doc comment),
+/// decrypted once on first use. The label must match `build.rs`'s
+/// `encrypt_named_baseline_assets` entry for this asset exactly.
+fn anzu_cpp_checkers_asset() -> &'static str {
+    static CIPHERTEXT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/migration-anzu-cpp-checkers.json.enc"));
+    static CELL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    CELL.get_or_init(|| {
+        let bytes = uniflow_rule_crypto::transform("migration/anzu-cpp-checkers.json", CIPHERTEXT);
+        String::from_utf8(bytes).expect("decrypted anzu-cpp-checkers.json is not valid UTF-8")
+    })
+    .as_str()
 }
 
 #[cfg(test)]

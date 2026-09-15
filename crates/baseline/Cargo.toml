@@ -16,6 +16,7 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 uniflow-hir = { path = "../hir" }
 uniflow-parser-core = { path = "../parser_core" }
+uniflow-rule-crypto = { path = "../rule_crypto" }
 
 [dev-dependencies]
 regex-syntax.workspace = true
@@ -26,3 +27,4 @@ uniflow-lang-java = { path = "../lang_java" }
 
 [build-dependencies]
 serde_yaml.workspace = true
+uniflow-rule-crypto = { path = "../rule_crypto" }

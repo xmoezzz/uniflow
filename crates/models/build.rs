@@ -1,5 +1,5 @@
 use std::{
-    collections::hash_map::DefaultHasher,
+    collections::{HashSet, hash_map::DefaultHasher},
     env, fs,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
@@ -10,6 +10,8 @@ fn main() {
     let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("manifest dir"));
     let rules = manifest.join("../../rules/legacy");
     let out = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
+
+    encrypt_mit_assets(&manifest, &out);
 
     compile_pack(
         &rules,
@@ -55,7 +57,7 @@ fn compile_pack(
     // Bincode serializes structs positionally. Bump this whenever RuleSet's
     // serialized field layout changes so cached bundled tables cannot be
     // accepted with a stale schema.
-    const FORMAT_VERSION: &str = "uniflow-rule-table-v4";
+    const FORMAT_VERSION: &str = "uniflow-rule-table-v6";
     let output = out_dir.join(format!("legacy-{name}.bin"));
     let metadata_output = out_dir.join(format!("legacy-{name}.metadata.bin"));
     let stamp = out_dir.join(format!("legacy-{name}.stamp"));
@@ -100,6 +102,7 @@ fn compile_pack(
         merged.merge(parsed);
     }
     if java_policy {
+        remove_unconstrained_java_taint_models(&mut merged);
         attach_general_java_sanitization_policy(&mut merged);
     }
     merged
@@ -123,6 +126,57 @@ fn compile_pack(
     });
     fs::write(&stamp, fingerprint)
         .unwrap_or_else(|error| panic!("failed to stamp compiled {name} rule pack: {error}"));
+}
+
+/// Some legacy Java exports contain fallback models equivalent to “every
+/// dotted receiver and every method”.  Those are neither source nor sink
+/// specifications: they turn ordinary bootstrap/configuration calls into
+/// database and XSS findings.  Keep every constrained migrated model, while
+/// refusing this provably uninformative wildcard pair at bundle time.
+fn remove_unconstrained_java_taint_models(rules: &mut RuleSet) {
+    let mut removed = HashSet::new();
+    rules.sources.retain(|rule| {
+        let keep = !is_unconstrained_java_api_model(&rule.matcher);
+        if !keep {
+            removed.insert(rule.id.clone());
+        }
+        keep
+    });
+    rules.sinks.retain(|rule| {
+        let keep = !is_unconstrained_java_api_model(&rule.matcher);
+        if !keep {
+            removed.insert(rule.id.clone());
+        }
+        keep
+    });
+    // A removed executable model must not leave a dangling report or a
+    // condition that validation would later attach to an unrelated rule.
+    rules.metadata.retain(|metadata| !removed.contains(&metadata.id));
+    rules.sink_conditions.retain(|rule| !removed.contains(&rule.sink_rule_id));
+    rules.call_conditions.retain(|rule| !removed.contains(&rule.rule_id));
+    rules.sink_reports.retain(|rule| {
+        !removed.contains(&rule.sink_rule_id) && !removed.contains(&rule.report_rule_id)
+    });
+    rules.model_dependencies.retain(|rule| !removed.contains(&rule.rule_id));
+}
+
+fn is_unconstrained_java_api_model(matcher: &uniflow_rules::ApiMatcher) -> bool {
+    matcher.exact.is_none()
+        && matcher.contains.is_none()
+        && matcher.regex.is_none()
+        && matcher.containing_function_regex.is_none()
+        && matcher.receiver_type.is_none()
+        && matcher.receiver_contains.is_none()
+        && matcher.receiver_parameter.is_none()
+        && matcher.receiver_regex.as_deref() == Some("^(?:.*)\\.(?:.*)$")
+        && matcher.method_name.is_none()
+        && matcher.method_contains.is_none()
+        && matcher.method_regex.as_deref() == Some("^(?:.*)$")
+        && matcher.arg_count.is_none()
+        && matcher.arg_count_min.is_none()
+        && matcher.arg_count_max.is_none()
+        && matcher.arg_types.is_empty()
+        && matcher.arg_type_regexes.is_empty()
 }
 
 fn encode_metadata_archive(metadata: &[RuleMetadata]) -> Vec<u8> {
@@ -164,5 +218,33 @@ fn attach_general_java_sanitization_policy(rules: &mut RuleSet) {
                 metadata.standards.push(standard.to_string());
             }
         }
+    }
+}
+
+/// The MIT-derived catalogs (`crates/models/src/catalog/mit.rs`) are
+/// distributed as plain YAML/JSON on disk but must not sit as
+/// `strings`-recoverable plaintext in the compiled binary — see
+/// `uniflow_rule_crypto`'s module doc comment for exactly what obfuscating
+/// them here does and does not achieve. Each source file is read once at
+/// build time, transformed under its own stable label (mirrored exactly by
+/// the matching `include_bytes!`/decrypt call in `mit.rs` — the two sides
+/// must always agree), and written to `OUT_DIR` as `<output_name>.enc`.
+fn encrypt_mit_assets(manifest: &Path, out: &Path) {
+    const ASSETS: &[(&str, &str, &str)] = &[
+        ("pysa-python.yml", "mit/pysa-python.yml", "mit-pysa-python.yml.enc"),
+        ("mariana-java.yml", "mit/mariana-java.yml", "mit-mariana-java.yml.enc"),
+        ("infer-c-cpp.yml", "mit/infer-c-cpp.yml", "mit-infer-c-cpp.yml.enc"),
+        ("codeql-security.yml", "mit/codeql-security.yml", "mit-codeql-security.yml.enc"),
+        ("manifest.json", "mit/manifest.json", "mit-manifest.json.enc"),
+    ];
+    let mit_dir = manifest.join("../../rules/mit");
+    for (source_name, label, output_name) in ASSETS {
+        let source_path = mit_dir.join(source_name);
+        println!("cargo:rerun-if-changed={}", source_path.display());
+        let plaintext = fs::read(&source_path)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", source_path.display()));
+        let ciphertext = uniflow_rule_crypto::transform(label, &plaintext);
+        fs::write(out.join(output_name), ciphertext)
+            .unwrap_or_else(|error| panic!("failed to write encrypted {output_name}: {error}"));
     }
 }

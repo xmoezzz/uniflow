@@ -138,17 +138,178 @@ fn normalize_c_surface_tracked(mut out: TrackedSource) -> TrackedSource {
             let body = caps.get(2).map_or("", |m| m.as_str());
             let values = split_top_level_commas(body)
                 .into_iter()
-                .map(|part| {
-                    let part = part.trim();
-                    part.split_once('=')
-                        .map_or_else(|| part.to_string(), |(_, value)| value.trim().to_string())
-                })
+                .map(strip_designator)
                 .collect::<Vec<_>>()
                 .join(", ");
             format!("__compound_{ty}({values})")
         });
 
-    out
+    rewrite_plain_aggregate_initializers(out)
+}
+
+/// C's array/struct-designator initializer syntax: `.field = value` for a
+/// struct, `[index] = value` for an array. Only `value` carries analyzable
+/// data, so both `compound_re` above and
+/// [`rewrite_plain_aggregate_initializers`] discard the designator the same
+/// way — this is the one shared place that decision is made. Also strips one
+/// leading C-style cast (`(void*) nativeAdd` -> `nativeAdd`) and one
+/// wrapping C++ `reinterpret_cast<T>(nativeAdd)`-shaped call (already
+/// rewritten, by the time this runs, to `reinterpret_cast__uniflow_tpl_T(
+/// nativeAdd)` by `lang_cpp`'s own generic templated-call normalizer) — a
+/// real function-pointer field (`JNINativeMethod.fnPtr`, in particular) is
+/// conventionally cast to the field's declared pointer type, and without
+/// this the value is later recovered as an external-symbol/synthetic-call
+/// reference whose name still carries the cast text, which can never match
+/// a real function.
+fn strip_designator(part: String) -> String {
+    let part = part.trim();
+    let value = part.split_once('=').map_or(part, |(_, value)| value.trim());
+    strip_template_call_wrapper(strip_leading_cast(value)).to_string()
+}
+
+fn strip_leading_cast(value: &str) -> &str {
+    let Some(rest) = value.strip_prefix('(') else { return value };
+    let Some(close) = rest.find(')') else { return value };
+    let inner = &rest[..close];
+    let looks_like_type = !inner.is_empty() && inner.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '*' || ch.is_ascii_whitespace());
+    if !looks_like_type {
+        return value;
+    }
+    let after = rest[close + 1..].trim();
+    if after.is_empty() { value } else { after }
+}
+
+/// Unwraps a single-argument call to a `_uniflow_tpl_`-tagged synthetic
+/// callee (`lang_cpp`'s `lower_observed_template_calls` renames any
+/// `Name<Args>(...)` concrete template invocation this way, including every
+/// `reinterpret_cast`/`static_cast`/`const_cast`/`dynamic_cast<T>(x)`) down
+/// to its own single argument. A real value never legitimately has this
+/// synthetic marker in its own name, so any match is this rewrite's own
+/// output, safe to see through unconditionally.
+fn strip_template_call_wrapper(value: &str) -> &str {
+    let Some(open) = value.find('(') else { return value };
+    let name = &value[..open];
+    if name.is_empty() || !name.contains("__uniflow_tpl_") || !name.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == ':') {
+        return value;
+    }
+    let Some(rest) = value.strip_suffix(')') else { return value };
+    let inner = rest[open + 1..].trim();
+    if inner.is_empty() { value } else { inner }
+}
+
+/// The primitive/standard scalar type keywords a plain `name = {`
+/// aggregate initializer must NOT trigger on: these spellings cover the
+/// overwhelming majority of real-world brace-initialized arrays (lookup
+/// tables, byte buffers, coefficient lists, ...) that already parse
+/// adequately today and must not be disturbed. [`rewrite_plain_aggregate_initializers`]
+/// only rewrites a declared type that is anything else — in practice a
+/// struct/typedef name, which is exactly the shape a registration table
+/// (`JNINativeMethod[]`, `napi_property_descriptor[]`, ...) uses.
+const PRIMITIVE_TYPE_KEYWORDS: &[&str] = &[
+    "void", "char", "short", "int", "long", "float", "double", "signed", "unsigned", "bool", "_bool", "size_t",
+    "ssize_t", "ptrdiff_t", "wchar_t", "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t",
+    "uint64_t", "intptr_t", "uintptr_t",
+];
+
+/// Rewrites `Type name = { v0, v1, ... };` and `Type name[...] = { ... };` —
+/// a positional aggregate initializer with no C99 cast prefix, the far more
+/// common real-world spelling `compound_re` above does not cover at all (it
+/// requires both a `(Type)` cast AND `.field =` designators) — into a call
+/// the existing expression parser already understands: `Type name =
+/// __compound_Type(v0, v1, ...);` for a scalar aggregate, or `Type name =
+/// __compound_array_Type(e0, e1, ...);` for an array (the `[...]`
+/// declarator is dropped: nothing downstream needs the array-ness, only the
+/// value each element resolves to). Each array element that is itself a
+/// nested `{ ... }` group (`{ {a,b}, {c,d} }`) is rewritten the same way,
+/// using the array's own declared element type; any other element (a macro
+/// invocation like `DECLARE_NAPI_METHOD(name, fn)`, a plain identifier, a
+/// literal, ...) is already valid call-argument syntax and is left
+/// untouched. Without this, real FFI registration tables (`JNINativeMethod
+/// methods[] = {...}`, `napi_property_descriptor properties[] = {...}`)
+/// recovered as one opaque, unparseable blob per struct/array — see
+/// `crates/system_graph`'s `kotlin_jni.rs`/`js_ffi.rs`, which read the
+/// `__compound_*`/`__compound_array_*` calls this produces.
+///
+/// Gated to non-primitive declared types (see [`PRIMITIVE_TYPE_KEYWORDS`])
+/// specifically to leave the ubiquitous `int lookup[N] = {...}`/`char
+/// buf[N] = {0}` style alone — this transform is lossy (element count and
+/// implicit zero-fill are not modeled), an acceptable trade for a
+/// registration table nobody previously parsed at all, but not one worth
+/// making for constructs that already work.
+fn rewrite_plain_aggregate_initializers(source: TrackedSource) -> TrackedSource {
+    let header_re = Regex::new(
+        r"(?:[A-Za-z_][A-Za-z0-9_]*\s+)+\*?\s*([A-Za-z_][A-Za-z0-9_]*)(\s*\[[^\[\]]*\])?\s*=\s*\{",
+    )
+    .expect("valid aggregate-initializer header regex");
+
+    let TrackedSource { text, macro_bytes } = source;
+    let mut out_text = String::with_capacity(text.len());
+    let mut out_macro = Vec::with_capacity(macro_bytes.len());
+    let mut cursor = 0usize;
+
+    while cursor < text.len() {
+        let Some(captures) = header_re.captures(&text[cursor..]) else {
+            break;
+        };
+        let whole = captures.get(0).expect("group 0 always matches");
+        let match_start = cursor + whole.start();
+        let brace_index = cursor + whole.end() - 1;
+        let name_start = cursor + captures.get(1).expect("group 1 is mandatory").start();
+        let is_array = captures.get(2).is_some();
+        let type_name = text[match_start..name_start].split_whitespace().last().unwrap_or("compound").trim_start_matches('*').to_string();
+
+        let Some(close_index) = find_matching_brace(&text, brace_index) else {
+            // Unbalanced braces: leave the remainder untouched rather than guess.
+            break;
+        };
+
+        if PRIMITIVE_TYPE_KEYWORDS.contains(&type_name.to_ascii_lowercase().as_str()) {
+            out_text.push_str(&text[cursor..close_index + 1]);
+            out_macro.extend_from_slice(&macro_bytes[cursor..close_index + 1]);
+            cursor = close_index + 1;
+            continue;
+        }
+
+        out_text.push_str(&text[cursor..match_start]);
+        out_macro.extend_from_slice(&macro_bytes[cursor..match_start]);
+
+        let header_without_brace = &text[match_start..brace_index];
+        let body = &text[brace_index + 1..close_index];
+        let rewritten = if is_array {
+            let elements = split_top_level_commas(body)
+                .into_iter()
+                .map(|element| rewrite_aggregate_element(element, &type_name))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{header_without_brace}__compound_array_{type_name}({elements})")
+        } else {
+            let values = split_top_level_commas(body).into_iter().map(strip_designator).collect::<Vec<_>>().join(", ");
+            format!("{header_without_brace}__compound_{type_name}({values})")
+        };
+        let macro_origin = macro_bytes[match_start..=close_index].iter().copied().any(|marked| marked);
+        out_text.push_str(&rewritten);
+        out_macro.extend(std::iter::repeat(macro_origin).take(rewritten.len()));
+        cursor = close_index + 1;
+    }
+    out_text.push_str(&text[cursor..]);
+    out_macro.extend_from_slice(&macro_bytes[cursor..]);
+    TrackedSource { text: out_text, macro_bytes: out_macro }
+}
+
+/// One array-initializer element: a nested `{ ... }` group becomes
+/// `__compound_<array_element_type>(values...)` (see
+/// [`rewrite_plain_aggregate_initializers`]); anything else is already
+/// valid call-argument syntax and passes through unchanged.
+fn rewrite_aggregate_element(element: String, array_element_type: &str) -> String {
+    let trimmed = element.trim();
+    let Some(rest) = trimmed.strip_prefix('{') else {
+        return trimmed.to_string();
+    };
+    let Some(inner) = rest.strip_suffix('}') else {
+        return trimmed.to_string();
+    };
+    let values = split_top_level_commas(inner).into_iter().map(strip_designator).collect::<Vec<_>>().join(", ");
+    format!("__compound_{array_element_type}({values})")
 }
 
 #[derive(Clone, Debug)]
@@ -1173,15 +1334,25 @@ fn parse_function(
         if part.is_empty() || part == "void" {
             continue;
         }
-        let Some((name, ty_name)) = parse_typed_name(part) else {
-            continue;
-        };
+        // A type with no declared name (`void foo(JNIEnv* env, jobject)`) is
+        // ordinary, common C/C++ — the parameter simply cannot be referenced
+        // in the body. `parse_typed_name` can't split a name out of it and
+        // returns `None`; that must still occupy a real positional `Param`
+        // (an empty name, the whole text as the type) rather than being
+        // dropped, or the function's own arity silently undercounts by one
+        // per unnamed parameter — exactly what real JNI signatures like
+        // `jstring StringFromJni(JNIEnv* env, jobject)` do for an unused
+        // receiver, and what every arity-sensitive consumer (JNI implicit-
+        // parameter accounting among them) depends on being correct.
+        let (name, ty_name) = parse_typed_name(part).unwrap_or_else(|| (String::new(), part.to_string()));
         let symbol = builder.add_symbol(&name, SymbolKind::Param);
-        env.vars.insert(name.clone(), symbol);
-        env.types.insert(name.clone(), ty_name.clone());
-        record_array_extents(builder, symbol, part, &mut env);
-        if function_pointer_typedefs.contains(ty_name.trim()) {
-            env.function_pointer_vars.insert(name.clone());
+        if !name.is_empty() {
+            env.vars.insert(name.clone(), symbol);
+            env.types.insert(name.clone(), ty_name.clone());
+            record_array_extents(builder, symbol, part, &mut env);
+            if function_pointer_typedefs.contains(ty_name.trim()) {
+                env.function_pointer_vars.insert(name.clone());
+            }
         }
         params.push(Param {
             name,

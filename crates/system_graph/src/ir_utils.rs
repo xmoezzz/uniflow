@@ -219,6 +219,21 @@ pub fn resolve_value_root(function: &Function, value: ValueId) -> ValueId {
     resolve_root(&defs, value, &mut visited)
 }
 
+/// The `CallInst` whose destination is `value`, if any — a plain "find the
+/// producing call" lookup restricted to this function's own instructions.
+/// Combine with [`resolve_value_root`] to walk through the `Copy` alias a
+/// declaration's own use of a value typically introduces before finding the
+/// call that actually produced it (e.g. an FFI registration-table argument
+/// resolving back to the `__compound_array_*`/`__compound_*` call chain
+/// `crates/lang_c`'s `rewrite_plain_aggregate_initializers` produces for a
+/// real struct/array literal).
+pub fn call_defining(function: &Function, value: ValueId) -> Option<&uniflow_ir::CallInst> {
+    function.blocks.iter().flat_map(|block| &block.insts).find_map(|inst| match &inst.kind {
+        InstKind::Call(call) if call.dst == Some(value) => Some(call),
+        _ => None,
+    })
+}
+
 fn resolve_root(defs: &HashMap<ValueId, &InstKind>, value: ValueId, visited: &mut HashSet<ValueId>) -> ValueId {
     if !visited.insert(value) {
         return value;

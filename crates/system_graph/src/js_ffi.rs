@@ -27,13 +27,14 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use uniflow_hir::Language;
-use uniflow_ir::{Callee, InstKind, Program};
+use uniflow_ir::{Callee, InstKind, Program, ValueId};
 use uniflow_rules::Port;
 
 use crate::graph::{
     BoundaryFlowEdge, BoundarySummary, CodeRef, Confidence, EdgeKind, Evidence, FlowNodeRef,
     NodeKind, SystemGraph, SystemNode, ValueMappingKind,
 };
+use crate::ir_utils::{call_defining, resolve_value_root};
 
 #[derive(Clone, Debug)]
 struct Binding {
@@ -112,11 +113,45 @@ fn native_functions_by_normalized_name(programs: &[(Language, Program)]) -> Hash
     out
 }
 
-/// Recovers literal JavaScript export names and their callbacks from the C
-/// N-API registration primitive `napi_create_function(env, "name", ...,
-/// callback, ...)`. N-API keeps the public JS name separate from the native
-/// implementation name, so this is stronger evidence than a name convention.
-/// Dynamic export names and callback expressions deliberately remain absent.
+/// Extracts a `(name, callback_symbol)` registration pair from one call
+/// carrying a property/method descriptor: either the real
+/// `napi_property_descriptor` layout the C frontend's
+/// `__compound_napi_property_descriptor(utf8name, name, method, ...)`
+/// recovers (`utf8name` at position 0, `method` at position 2 — see
+/// `rewrite_plain_aggregate_initializers` in `crates/lang_c`), or an
+/// unrecognized macro-wrapped element (`DECLARE_NAPI_METHOD(name, fn)`,
+/// common in real Node addon sample code): the first argument that resolves
+/// to a plain literal string is the name, the first *other* argument that
+/// resolves to a function reference is the callback. Both paths reuse the
+/// exact same `<external-symbol:...>` convention `napi_create_function`'s
+/// own extraction already relies on.
+fn extract_descriptor_name_and_callback(call: &uniflow_ir::CallInst, constants: &HashMap<ValueId, &str>) -> Option<(String, String)> {
+    let is_known_layout = matches!(&call.callee, Callee::Static(name) if name == "__compound_napi_property_descriptor");
+    if is_known_layout {
+        let name = constants.get(call.args.first()?)?;
+        if name.starts_with("<external-symbol:") || name.is_empty() {
+            return None;
+        }
+        let callback = constants.get(call.args.get(2)?)?.strip_prefix("<external-symbol:")?.strip_suffix('>')?;
+        return Some(((*name).to_string(), callback.to_string()));
+    }
+    let name = call.args.iter().find_map(|arg| {
+        let text = *constants.get(arg)?;
+        (!text.starts_with("<external-symbol:") && !text.is_empty()).then(|| text.to_string())
+    })?;
+    let callback = call.args.iter().find_map(|arg| constants.get(arg)?.strip_prefix("<external-symbol:")?.strip_suffix('>').map(str::to_string))?;
+    Some((name, callback))
+}
+
+/// Recovers literal JavaScript export names and their callbacks from the two
+/// N-API registration primitives real addons use: `napi_create_function(env,
+/// "name", ..., callback, ...)` for a single method, and
+/// `napi_define_properties(env, exports, count, properties)` for a whole
+/// `napi_property_descriptor[]` table (the more common real-world shape —
+/// see e.g. Node's own `node-addon-examples`). N-API keeps the public JS
+/// name separate from the native implementation name, so both are stronger
+/// evidence than a name convention. Dynamic export names and callback
+/// expressions deliberately remain absent.
 fn napi_registered_functions(programs: &[(Language, Program)]) -> HashMap<String, Vec<(Language, String, usize)>> {
     let native = native_functions(programs);
     let mut registrations = HashMap::<String, Vec<(Language, String, usize)>>::new();
@@ -137,26 +172,50 @@ fn napi_registered_functions(programs: &[(Language, Program)]) -> HashMap<String
             for inst in function.blocks.iter().flat_map(|block| &block.insts) {
                 let InstKind::Call(call) = &inst.kind else { continue };
                 let Callee::Static(callee) = &call.callee else { continue };
-                if callee != "napi_create_function" || call.args.len() < 4 {
+                if callee == "napi_create_function" && call.args.len() >= 4 {
+                    let Some(export_name) = constants.get(&call.args[1]) else { continue };
+                    if export_name.starts_with("<external-symbol:") || export_name.is_empty() {
+                        continue;
+                    }
+                    let Some(callback) = constants
+                        .get(&call.args[3])
+                        .and_then(|value| value.strip_prefix("<external-symbol:"))
+                        .and_then(|value| value.strip_suffix('>'))
+                    else {
+                        continue;
+                    };
+                    let Some(candidates) = native.get(callback) else { continue };
+                    let [candidate] = candidates.as_slice() else { continue };
+                    registrations.entry((*export_name).to_string()).or_default().push(candidate.clone());
                     continue;
                 }
-                let Some(export_name) = constants.get(&call.args[1]) else { continue };
-                if export_name.starts_with("<external-symbol:") || export_name.is_empty() {
-                    continue;
+                if callee == "napi_define_properties" && call.args.len() >= 4 {
+                    let array_root = resolve_value_root(function, call.args[3]);
+                    let Some(array_call) = call_defining(function, array_root) else { continue };
+                    // Real addon code passes either a whole table (`Type
+                    // arr[] = {...}`, recovered as `__compound_array_Type`)
+                    // or, just as commonly (a single-method addon has no
+                    // reason to build an array of one), a bare `&scalar`
+                    // (`Type desc = DECLARE_NAPI_METHOD(...); ...(&desc)`,
+                    // recovered as a direct `__compound_Type` call — no
+                    // array wrapper at all). Treat the latter as its own
+                    // one-element table.
+                    let elements: Vec<ValueId> = if matches!(&array_call.callee, Callee::Static(name) if name == "__compound_array_napi_property_descriptor") {
+                        array_call.args.clone()
+                    } else if matches!(&array_call.callee, Callee::Static(name) if name == "__compound_napi_property_descriptor") {
+                        vec![array_root]
+                    } else {
+                        continue;
+                    };
+                    for element in elements {
+                        let element_root = resolve_value_root(function, element);
+                        let Some(element_call) = call_defining(function, element_root) else { continue };
+                        let Some((name, callback)) = extract_descriptor_name_and_callback(element_call, &constants) else { continue };
+                        let Some(candidates) = native.get(callback.as_str()) else { continue };
+                        let [candidate] = candidates.as_slice() else { continue };
+                        registrations.entry(name).or_default().push(candidate.clone());
+                    }
                 }
-                let Some(callback) = constants
-                    .get(&call.args[3])
-                    .and_then(|value| value.strip_prefix("<external-symbol:"))
-                    .and_then(|value| value.strip_suffix('>'))
-                else {
-                    continue;
-                };
-                let Some(candidates) = native.get(callback) else { continue };
-                let [candidate] = candidates.as_slice() else { continue };
-                registrations
-                    .entry((*export_name).to_string())
-                    .or_default()
-                    .push(candidate.clone());
             }
         }
     }
@@ -360,6 +419,89 @@ void init(void) {
         assert_eq!(mapping.2.value_mappings[0].from.function, "index.run");
         assert_eq!(mapping.2.value_mappings[0].to.function, "sanitize_impl");
         assert!(mapping.2.evidence[0].description.contains("sanitize"));
+    }
+
+    #[test]
+    fn a_napi_define_properties_table_maps_each_descriptor_to_its_callback() {
+        // Mirrors the real-world shape found in Node's own
+        // `node-addon-examples`: a `napi_property_descriptor[]` table passed
+        // to `napi_define_properties`, rather than one-at-a-time
+        // `napi_create_function` calls.
+        let js_source = r#"
+        const addon = require('./build/Release/thing.node');
+        function run(input) { return addon.add(input); }
+        "#;
+        let c_source = r#"
+int Add(int value) { return value; }
+void init(void) {
+    napi_property_descriptor properties[] = { { "add", 0, Add, 0, 0, 0, napi_default, 0 } };
+    napi_define_properties(env, exports, 1, properties);
+}
+"#;
+        let js_program = lower_js("index.js", js_source);
+        let c_program = lower_c("thing.c", c_source);
+        let programs = vec![(Language::JavaScript, js_program), (Language::C, c_program)];
+
+        let mut graph = SystemGraph::new();
+        discover_into(&mut graph, &programs).expect("discover N-API boundary");
+        let mapping = graph.edges().find(|(_, _, edge)| edge.kind == EdgeKind::InteropArg).expect("registered addon argument mapping");
+        assert_eq!(mapping.2.value_mappings[0].to.function, "Add");
+    }
+
+    #[test]
+    fn a_napi_define_properties_table_with_a_macro_wrapped_descriptor_still_bridges() {
+        // The dominant real-world idiom: `DECLARE_NAPI_METHOD(name, fn)` as
+        // an array element, left unexpanded because its defining macro
+        // typically lives in a header this single-file scan never sees.
+        let js_source = r#"
+        const addon = require('./build/Release/thing.node');
+        function run(input) { return addon.add(input); }
+        "#;
+        let c_source = r#"
+int Add(int value) { return value; }
+void init(void) {
+    napi_property_descriptor properties[] = { DECLARE_NAPI_METHOD("add", Add) };
+    napi_define_properties(env, exports, 1, properties);
+}
+"#;
+        let js_program = lower_js("index.js", js_source);
+        let c_program = lower_c("thing.c", c_source);
+        let programs = vec![(Language::JavaScript, js_program), (Language::C, c_program)];
+
+        let mut graph = SystemGraph::new();
+        discover_into(&mut graph, &programs).expect("discover N-API boundary");
+        let mapping = graph.edges().find(|(_, _, edge)| edge.kind == EdgeKind::InteropArg).expect("registered addon argument mapping");
+        assert_eq!(mapping.2.value_mappings[0].to.function, "Add");
+    }
+
+    #[test]
+    fn a_scalar_napi_define_properties_descriptor_bridges_with_no_array_wrapper() {
+        // Mirrors the real, unmodified shape in Node's own
+        // `node-addon-examples` (`1-getting-started/2_function_arguments`):
+        // a single macro-defined descriptor passed by address, never
+        // wrapped in an array at all — `napi_define_properties`'s own
+        // signature takes a pointer to the first element either way.
+        let js_source = r#"
+        const addon = require('bindings')('addon.node');
+        console.log(addon.add(3, 5));
+        "#;
+        let c_source = r#"
+static int Add(int env, int info) { return env + info; }
+#define DECLARE_NAPI_METHOD(name, func) { name, 0, func, 0, 0, 0, napi_default, 0 }
+int Init(int env, int exports) {
+    napi_property_descriptor addDescriptor = DECLARE_NAPI_METHOD("add", Add);
+    int status = napi_define_properties(env, exports, 1, &addDescriptor);
+    return status;
+}
+"#;
+        let js_program = lower_js("index.js", js_source);
+        let c_program = lower_c("addon.c", c_source);
+        let programs = vec![(Language::JavaScript, js_program), (Language::C, c_program)];
+
+        let mut graph = SystemGraph::new();
+        discover_into(&mut graph, &programs).expect("discover N-API boundary");
+        let mapping = graph.edges().find(|(_, _, edge)| edge.kind == EdgeKind::InteropArg).expect("registered addon argument mapping");
+        assert_eq!(mapping.2.value_mappings[0].to.function, "Add");
     }
 
     #[test]

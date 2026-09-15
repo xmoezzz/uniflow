@@ -16,6 +16,11 @@ fn main() {
     collect_files(&source_root, &mut files);
     files.sort();
 
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("out dir"));
+    let encrypted_root = out_dir.join("legacy_raw_encrypted");
+
+    encrypt_named_baseline_assets(&manifest_dir, &out_dir);
+
     let mut generated =
         String::from("pub static BUNDLED_LEGACY_RAW_ASSETS: &[LegacyRawRuleAsset] = &[\n");
     for file in files {
@@ -24,10 +29,22 @@ fn main() {
             .expect("legacy asset below source root")
             .to_string_lossy()
             .replace('\\', "/");
+        // Obfuscated the same way as every other bundled rule asset (see
+        // `uniflow_rule_crypto`'s module doc comment) — each asset's own
+        // `relative` path is a stable, already-unique label, so no separate
+        // nonce/id bookkeeping is needed here.
+        let plaintext = fs::read(&file)
+            .unwrap_or_else(|error| panic!("failed to read legacy asset {}: {error}", file.display()));
+        let ciphertext = uniflow_rule_crypto::transform(&relative, &plaintext);
+        let encrypted_path = encrypted_root.join(format!("{relative}.enc"));
+        fs::create_dir_all(encrypted_path.parent().expect("encrypted asset has a parent dir"))
+            .unwrap_or_else(|error| panic!("failed to create directory for {}: {error}", encrypted_path.display()));
+        fs::write(&encrypted_path, ciphertext)
+            .unwrap_or_else(|error| panic!("failed to write encrypted legacy asset {}: {error}", encrypted_path.display()));
         generated.push_str("    LegacyRawRuleAsset { path: ");
         generated.push_str(&format!("{relative:?}"));
         generated.push_str(", bytes: include_bytes!(");
-        generated.push_str(&format!("{:?}", file.to_string_lossy()));
+        generated.push_str(&format!("{:?}", encrypted_path.to_string_lossy()));
         generated.push_str(") },\n");
     }
     generated.push_str("];\n");
@@ -913,8 +930,7 @@ fn main() {
     }
     generated.push_str("];\n");
 
-    let output =
-        PathBuf::from(env::var_os("OUT_DIR").expect("out dir")).join("legacy_raw_assets.rs");
+    let output = out_dir.join("legacy_raw_assets.rs");
     fs::write(output, generated).expect("write bundled legacy asset table");
 }
 
@@ -1516,5 +1532,39 @@ fn collect_files(directory: &Path, output: &mut Vec<PathBuf>) {
         {
             output.push(path);
         }
+    }
+}
+
+/// The fixed set of named baseline/legacy assets `crates/baseline/src/lib.rs`
+/// embeds directly (as opposed to `BUNDLED_LEGACY_RAW_ASSETS`'s dynamically
+/// discovered file list, handled separately above). Each is obfuscated the
+/// same way — see `uniflow_rule_crypto`'s module doc comment — under a
+/// label that must match the corresponding `encrypted_asset!` invocation in
+/// `lib.rs` exactly.
+fn encrypt_named_baseline_assets(manifest_dir: &Path, out_dir: &Path) {
+    const ASSETS: &[(&str, &str, &str)] = &[
+        ("../../rules/legacy/java-ast-metadata-report.json", "legacy/java-ast-metadata-report.json", "java-ast-metadata-report.json.enc"),
+        ("../../rules/baseline/cert-c-cpp.yml", "baseline/cert-c-cpp.yml", "baseline-cert-c-cpp.yml.enc"),
+        ("../../rules/baseline/python-security.yml", "baseline/python-security.yml", "baseline-python-security.yml.enc"),
+        ("../../rules/baseline/java-security.yml", "baseline/java-security.yml", "baseline-java-security.yml.enc"),
+        ("../../rules/baseline/common-security.yml", "baseline/common-security.yml", "baseline-common-security.yml.enc"),
+        ("../../rules/baseline/swift-security.yml", "baseline/swift-security.yml", "baseline-swift-security.yml.enc"),
+        ("../../rules/baseline/legacy-java-ast.yml", "baseline/legacy-java-ast.yml", "baseline-legacy-java-ast.yml.enc"),
+        ("../../rules/baseline/legacy-js-semgrep-regex.yml", "baseline/legacy-js-semgrep-regex.yml", "baseline-legacy-js-semgrep-regex.yml.enc"),
+        ("../../rules/baseline/legacy-ruby-semgrep.yml", "baseline/legacy-ruby-semgrep.yml", "baseline-legacy-ruby-semgrep.yml.enc"),
+        ("../../rules/baseline/legacy-c-ast.yml", "baseline/legacy-c-ast.yml", "baseline-legacy-c-ast.yml.enc"),
+        ("../../rules/baseline/legacy-csharp-ast.yml", "baseline/legacy-csharp-ast.yml", "baseline-legacy-csharp-ast.yml.enc"),
+        ("../../rules/baseline/legacy-sql.yml", "baseline/legacy-sql.yml", "baseline-legacy-sql.yml.enc"),
+        ("../../rules/baseline/manifest.json", "baseline/manifest.json", "baseline-manifest.json.enc"),
+        ("../../rules/migration/anzu-cpp-checkers.json", "migration/anzu-cpp-checkers.json", "migration-anzu-cpp-checkers.json.enc"),
+    ];
+    for (source_relative, label, output_name) in ASSETS {
+        let source_path = manifest_dir.join(source_relative);
+        println!("cargo:rerun-if-changed={}", source_path.display());
+        let plaintext = fs::read(&source_path)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", source_path.display()));
+        let ciphertext = uniflow_rule_crypto::transform(label, &plaintext);
+        fs::write(out_dir.join(output_name), ciphertext)
+            .unwrap_or_else(|error| panic!("failed to write encrypted {output_name}: {error}"));
     }
 }
