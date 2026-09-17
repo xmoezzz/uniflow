@@ -481,7 +481,7 @@ impl FunctionLoweringContext<'_> {
                             value_spans,
                         );
                         merged = next;
-                        exit_insts = insts;
+                        exit_insts.extend(insts);
                     }
                     let (mut continuation, final_env) = self.lower_stmt_sequence_with_prefix(
                         &stmts[index + 1..],
@@ -1138,6 +1138,23 @@ impl FunctionLoweringContext<'_> {
             );
         }
         if stmts.is_empty() {
+            // A nested construct (e.g. a `for`/`range` loop as the very last
+            // statement of an enclosing loop's body) reaches its own exit
+            // here with no further statements to lower, handing the
+            // enclosing loop's own `fallthrough` (its update/exit block)
+            // straight through. That target may be a watched edge target
+            // for an ENCLOSING loop still being lowered further up the call
+            // stack — the same case `lower_stmt_sequence`'s own end-of-list
+            // fallthrough (below) already accounts for. Skipping this here
+            // silently dropped the edge's environment, leaving the
+            // enclosing loop's update/exit block never constructed (all its
+            // recorded edges empty) while a terminator still pointed at it —
+            // an IR-validation "terminator targets missing block" failure.
+            if let Terminator::Goto(target) = &fallthrough {
+                if self.watched_edge_targets.contains(target) {
+                    self.edge_environments.entry(*target).or_default().push(value_map.clone());
+                }
+            }
             return (
                 vec![BasicBlock {
                     id: current_id,

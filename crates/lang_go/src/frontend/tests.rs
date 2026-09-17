@@ -167,3 +167,27 @@ func handle(r *http.Request) string {
     // is required for `propagators`-style receiver->return rules).
     assert!(call.receiver.is_some(), "{call:#?}");
 }
+
+#[test]
+fn a_file_this_frontend_cannot_parse_is_skipped_not_fatal_to_the_whole_project() {
+    // A real checkout can contain one file using a construct this parser
+    // does not yet support (a newer language feature, generated code, a
+    // vendored dependency) beside otherwise valid application code. That one
+    // file must not discard every independently parsable file in the
+    // project — mirrors `uniflow_lang_javascript`'s project index recovery.
+    let program = parse_project_sources(&[
+        ("good.go".to_string(), "package app\n\nfunc run() int {\n\treturn 1\n}\n".to_string()),
+        ("bad.go".to_string(), "package app\n\nfunc broken(((( {\n".to_string()),
+    ])
+    .expect("project parse must recover from one unparsable file");
+
+    let run_function = program
+        .modules
+        .iter()
+        .flat_map(|module| &module.items)
+        .find_map(|item| match item {
+            Item::Function(function) if function.name.ends_with(".run") => Some(function),
+            _ => None,
+        });
+    assert!(run_function.is_some(), "the good file's function must still be present: {program:#?}");
+}

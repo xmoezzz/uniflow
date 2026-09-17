@@ -826,9 +826,26 @@ impl HirScanner<'_> {
             if !rule.languages.is_empty() && !rule.languages.contains(self.language) {
                 continue;
             }
-            let acquired = Regex::new(&rule.matcher.lock_acquired_twice_type_pattern).ok();
-            let released = Regex::new(&rule.matcher.lock_released_twice_type_pattern).ok();
-            let unreleased = Regex::new(&rule.matcher.unreleased_lock_type_pattern).ok();
+            // An empty pattern string means "this rule does not use this
+            // matcher field" — it must NOT be compiled, since `Regex::new("")`
+            // succeeds as an always-matching empty pattern rather than
+            // failing. Compiling it anyway silently turned every rule with
+            // no lock matcher configured (i.e. nearly every rule in every
+            // pack) into a match-everything lock tracker, attributing
+            // "unreleased synchronization lock"/"lock acquired repeatedly"
+            // findings to unrelated rule ids for any lock symbol anywhere in
+            // the same scan — found via real-world verification against
+            // netbox-community/netbox, where it cross-contaminated UF-PY-EVAL,
+            // UF-PY-SQL-EXECUTE-NONLITERAL, and UF-COMMON-HARDCODED-PASSWORD.
+            let acquired = (!rule.matcher.lock_acquired_twice_type_pattern.is_empty())
+                .then(|| Regex::new(&rule.matcher.lock_acquired_twice_type_pattern).ok())
+                .flatten();
+            let released = (!rule.matcher.lock_released_twice_type_pattern.is_empty())
+                .then(|| Regex::new(&rule.matcher.lock_released_twice_type_pattern).ok())
+                .flatten();
+            let unreleased = (!rule.matcher.unreleased_lock_type_pattern.is_empty())
+                .then(|| Regex::new(&rule.matcher.unreleased_lock_type_pattern).ok())
+                .flatten();
             if acquired.is_none()
                 && released.is_none()
                 && unreleased.is_none()

@@ -1595,10 +1595,30 @@ impl<'a> FunctionLoweringContext<'a> {
                         .get(&capture.source_symbol)
                         .copied()
                         .unwrap_or_else(|| {
+                            // A capture's source symbol can legitimately have
+                            // no value yet: e.g. Go's `for k, v := range`
+                            // declares `k` in scope for name resolution but
+                            // `uniflow_lang_go`'s `ForEach` HIR node tracks
+                            // only one per-iteration bound symbol (`v`), so
+                            // `k` never receives a real per-iteration value
+                            // from loop lowering. Registering `fresh` in
+                            // `value_map` with no defining instruction (as
+                            // this used to do) is exactly the "value used
+                            // without a definition" IR-validation failure —
+                            // mirror the `Expr::VarRef` fallback above and
+                            // materialize a real, well-defined placeholder.
                             let fresh = self.alloc_value();
                             locals.push(fresh);
                             value_spans.insert(fresh, capture.span);
                             value_map.insert(capture.source_symbol, fresh);
+                            self.push_inst(
+                                insts,
+                                InstKind::ConstString {
+                                    dst: fresh,
+                                    value: format!("<uncaptured:{}>", capture.name),
+                                },
+                                capture.span,
+                            );
                             fresh
                         });
                     self.push_inst(

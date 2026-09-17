@@ -57,11 +57,32 @@ pub fn find_proto_files(roots: &[PathBuf]) -> Vec<PathBuf> {
 /// service list — a file that fails to read is skipped with an error
 /// context rather than aborting the whole scan (mirrors how a single
 /// malformed Docker Compose/Kubernetes manifest is handled).
+///
+/// A polyglot gRPC project conventionally vendors its own copy of a shared
+/// `.proto` contract into every service directory (each language's build
+/// needs its own local copy to generate bindings from) — this repository's
+/// own fixtures under `examples/` and every real multi-service checkout this
+/// adapter has been run against do exactly that. Without deduplication, each
+/// vendored copy would re-declare the same service and cause every
+/// downstream boundary edge (`HANDLES`, `RPC_CALL`) to be emitted once per
+/// copy instead of once per fact, so services are merged by name (and
+/// methods within a service by name) before returning.
 pub fn load_proto_services(proto_files: &[PathBuf]) -> Result<Vec<ProtoService>> {
-    let mut services = Vec::new();
+    let mut services: Vec<ProtoService> = Vec::new();
     for path in proto_files {
         let source = std::fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-        services.extend(parse_proto_services(&source));
+        for service in parse_proto_services(&source) {
+            match services.iter_mut().find(|existing| existing.name == service.name) {
+                Some(existing) => {
+                    for method in service.methods {
+                        if !existing.methods.iter().any(|existing_method| existing_method.name == method.name) {
+                            existing.methods.push(method);
+                        }
+                    }
+                }
+                None => services.push(service),
+            }
+        }
     }
     Ok(services)
 }
@@ -440,6 +461,27 @@ mod tests {
         assert_eq!(service.methods[1].response_type, "OrderStatus");
         assert!(service.methods[1].client_streaming);
         assert!(service.methods[1].server_streaming);
+    }
+
+    #[test]
+    fn load_proto_services_merges_vendored_copies_of_the_same_service() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let shared = dir.path().join("shared");
+        let cart_service = dir.path().join("cartservice");
+        std::fs::create_dir_all(&shared).expect("mkdir shared");
+        std::fs::create_dir_all(&cart_service).expect("mkdir cartservice");
+        // Every consumer vendors its own copy of the same shared .proto —
+        // the common pattern in polyglot gRPC monorepos.
+        std::fs::write(shared.join("demo.proto"), ORDER_PROTO).expect("write shared copy");
+        std::fs::write(cart_service.join("demo.proto"), ORDER_PROTO).expect("write vendored copy");
+
+        let files = find_proto_files(&[dir.path().to_path_buf()]);
+        assert_eq!(files.len(), 2, "expected both vendored copies to be found: {files:?}");
+
+        let services = load_proto_services(&files).expect("load proto services");
+        assert_eq!(services.len(), 1, "duplicate copies must merge into one service: {services:?}");
+        assert_eq!(services[0].name, "OrderService");
+        assert_eq!(services[0].methods.len(), 2, "duplicate copies must not duplicate methods: {:?}", services[0].methods);
     }
 
     fn lower_java(source: &str) -> Program {

@@ -72,9 +72,29 @@ pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
 pub fn parse_project_sources_with_progress(entries: &[(String, String)], on_module_parsed: &(dyn Fn() + Sync)) -> Result<Program> {
     let crate_root = find_crate_root(entries);
     let mut project = ProgramMerger::new(Language::Rust);
+    let mut parsed_modules = 0usize;
     for (path, source) in entries {
-        project.merge(parse_one(path, source, crate_root.clone())?);
+        match parse_one(path, source, crate_root.clone()) {
+            Ok(module) => {
+                project.merge(module);
+                parsed_modules += 1;
+            }
+            Err(error) => {
+                // A project may contain a file this frontend cannot yet
+                // parse (an edition feature ahead of `syn`, generated code,
+                // a vendored dependency) beside otherwise valid application
+                // code. One syntactically fatal file must not discard every
+                // independently parsable module or prevent a SARIF report
+                // for the rest of the project — the same project-recovery
+                // tradeoff `uniflow_lang_javascript`'s project index already
+                // makes; standalone `analyze-source` remains strict.
+                eprintln!("uniflow: skipping unparsable Rust source {path}: {error}");
+            }
+        }
         on_module_parsed();
+    }
+    if parsed_modules == 0 {
+        anyhow::bail!("no Rust source files could be parsed successfully");
     }
     Ok(project.finish())
 }

@@ -4,7 +4,7 @@ use std::path::Path;
 use uniflow_baseline::{
     builtin_security_pack, bundled_c_ast_rules, bundled_csharp_ast_rules, bundled_java_ast_rules,
     bundled_java_package_pack, bundled_java_package_rules, bundled_legacy_raw_assets,
-    bundled_semgrep_rules, bundled_sql_rules,
+    bundled_semgrep_rules, bundled_sql_rules, BaselinePack,
 };
 use uniflow_hir::Language;
 use uniflow_lang_frontends::parse_file;
@@ -392,6 +392,79 @@ fn detects_python_eval() {
     assert!(findings
         .iter()
         .any(|finding| finding.rule_id == "UF-PY-EVAL"));
+}
+
+#[test]
+fn does_not_flag_a_custom_eval_or_exec_method_on_an_unrelated_receiver() {
+    // Real-world verification against netbox-community/netbox found every
+    // single UF-PY-EVAL hit (131 in that checkout) was a call to some other
+    // class's own `.eval()`/`.exec()` method (a rule evaluator, a template
+    // loader), never the actual `eval`/`exec` builtin — because the callee
+    // regex alone can't distinguish `eval(x)` from `obj.eval(x)`. This is a
+    // structural (receiver-aware) distinction `scan_text`'s regex-only path
+    // cannot make, so this goes through the same HIR-based `scan_hir` path
+    // `check-baseline` actually uses.
+    use uniflow_lang_python::PythonParser;
+    use uniflow_parser_core::SourceParser;
+
+    let pack = builtin_security_pack().expect("built-in pack must load");
+    let source = "def run(condition, loader, data):\n    condition.eval(data)\n    loader.exec(data)\n    eval(data)\n    exec(data)\n";
+    let program = PythonParser::default()
+        .parse_file("demo.py", source)
+        .expect("Python fixture must parse");
+    let sources = HashMap::from([("demo.py".to_string(), source.to_string())]);
+    let findings = pack.scan_hir(&program, &sources);
+    let eval_lines = findings
+        .iter()
+        .filter(|finding| finding.rule_id == "UF-PY-EVAL")
+        .map(|finding| finding.line)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        eval_lines,
+        vec![4, 5],
+        "only the bare builtin eval()/exec() calls (lines 4-5) must be flagged, not the unrelated methods on `condition`/`loader` (lines 2-3): {findings:#?}"
+    );
+}
+
+#[test]
+fn a_real_unreleased_lock_does_not_leak_into_an_unrelated_rules_findings() {
+    // Real-world verification against netbox-community/netbox found a plain
+    // `plan.lock()` call (no matching `.unlock()`) attributed as an
+    // "unreleased synchronization lock" finding under UF-PY-EVAL,
+    // UF-PY-SQL-EXECUTE-NONLITERAL, and UF-COMMON-HARDCODED-PASSWORD alike —
+    // three rules with nothing to do with locks. Root cause: the lock
+    // tracker compiled every rule's (usually empty) lock-pattern fields with
+    // `Regex::new(pattern).ok()`, and `Regex::new("")` succeeds as an
+    // always-matching pattern rather than failing, so a rule with none of
+    // the lock matcher fields set was never skipped and matched every lock
+    // symbol in scope. This uses UF-PY-EVAL itself (no lock fields at all)
+    // as the "unrelated rule" witness.
+    use uniflow_lang_python::PythonParser;
+    use uniflow_parser_core::SourceParser;
+
+    let bundled = builtin_security_pack().expect("built-in pack must load");
+    let eval_rule = bundled
+        .rules
+        .iter()
+        .find(|rule| rule.id == "UF-PY-EVAL")
+        .expect("UF-PY-EVAL must be bundled")
+        .clone();
+    let focused = BaselinePack {
+        id: "focused-UF-PY-EVAL".to_string(),
+        title: "UF-PY-EVAL".to_string(),
+        rules: vec![eval_rule],
+    };
+
+    let source = "class ModuleMovePlan:\n    def lock(self):\n        pass\n\ndef run():\n    plan = ModuleMovePlan()\n    plan.lock()\n";
+    let program = PythonParser::default()
+        .parse_file("demo.py", source)
+        .expect("Python fixture must parse");
+    let sources = HashMap::from([("demo.py".to_string(), source.to_string())]);
+    let findings = focused.scan_hir(&program, &sources);
+    assert!(
+        findings.is_empty(),
+        "a rule with no lock matcher fields must never emit a lock finding: {findings:#?}"
+    );
 }
 
 #[test]

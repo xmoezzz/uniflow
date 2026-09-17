@@ -198,12 +198,25 @@ fn collect_java_bytecode_one(input: &Path, out: &mut Vec<PathBuf>) -> Result<()>
     Ok(())
 }
 
+/// Build-tool bootstrap archives checked into virtually every Gradle/Maven
+/// repository by convention (e.g. `gradle/wrapper/gradle-wrapper.jar`,
+/// `.mvn/wrapper/maven-wrapper.jar`). These vendor the build tool itself, not
+/// the analyzed project's own code, so they are never analysis targets.
+const BUILD_TOOL_WRAPPER_ARCHIVE_NAMES: &[&str] = &["gradle-wrapper.jar", "maven-wrapper.jar"];
+
 pub fn supports_archive_path(path: &Path) -> bool {
     let extension = path
         .extension()
         .and_then(|value| value.to_str())
         .unwrap_or_default();
-    matches!(extension, "jar" | "war")
+    if !matches!(extension, "jar" | "war") {
+        return false;
+    }
+    let is_wrapper_archive = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| BUILD_TOOL_WRAPPER_ARCHIVE_NAMES.contains(&name));
+    !is_wrapper_archive
 }
 
 pub fn supports_java_bytecode_path(path: &Path) -> bool {
@@ -793,6 +806,25 @@ mod tests {
         fs::write(root.join("app.war"), b"PK\x03\x04").unwrap();
         let files = collect_archive_files(&[root.clone()]).unwrap();
         assert_eq!(files, vec![root.join("app.war"), root.join("lib.jar")]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn archive_collection_skips_gradle_and_maven_wrapper_jars() {
+        let root = temp_project("archive-collection-wrapper");
+        fs::write(root.join("lib.jar"), b"PK\x03\x04").unwrap();
+        let gradle_wrapper = root.join("gradle/wrapper/gradle-wrapper.jar");
+        fs::create_dir_all(gradle_wrapper.parent().unwrap()).unwrap();
+        fs::write(&gradle_wrapper, b"PK\x03\x04").unwrap();
+        let maven_wrapper = root.join(".mvn/wrapper/maven-wrapper.jar");
+        fs::create_dir_all(maven_wrapper.parent().unwrap()).unwrap();
+        fs::write(&maven_wrapper, b"PK\x03\x04").unwrap();
+
+        let files = collect_archive_files(&[root.clone()]).unwrap();
+        assert_eq!(files, vec![root.join("lib.jar")]);
+
+        let bytecode_files = collect_java_bytecode_files(&[root.clone()]).unwrap();
+        assert_eq!(bytecode_files, vec![root.join("lib.jar")]);
         fs::remove_dir_all(root).unwrap();
     }
 

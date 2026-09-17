@@ -3,6 +3,7 @@ mod tests {
     use super::*;
     use uniflow_lang_c::CParser;
     use uniflow_lang_cpp::CppParser;
+    use uniflow_lang_go::GoParser;
     use uniflow_lang_python::PythonParser;
     use uniflow_parser_core::SourceParser;
 
@@ -681,6 +682,132 @@ def handle(flag, value):
     }
 
     #[test]
+    fn switch_join_merges_every_clause_into_valid_ir() {
+        // A switch join merges N clause/default environments pairwise into
+        // one join block. Each pairwise merge can introduce its own phi
+        // instructions, and a later pairwise merge's phi can reference a
+        // value defined by an earlier merge — losing any but the last
+        // merge's instructions leaves those earlier phi targets referenced
+        // but never defined. Three branches (one real case, a fallthrough
+        // case, and a default) is the minimum shape that exercises more
+        // than one pairwise merge.
+        let hir = CParser
+            .parse_file(
+                "switch-join.c",
+                r#"
+int f(int selector) {
+    int x = 0;
+    switch (selector) {
+    case 1:
+        x = 1;
+        break;
+    case 2:
+        x = 2;
+        break;
+    default:
+        x = 3;
+    }
+    return x;
+}
+"#,
+            )
+            .expect("parse switch join fixture");
+        let ir = lower_program(&hir);
+        uniflow_ir::validate_program(&ir).expect("switch join must lower to valid IR");
+    }
+
+    #[test]
+    fn range_loop_as_the_last_statement_of_an_outer_loop_body_lowers_to_valid_ir() {
+        // A `for`/`range` loop that is the LAST statement of an enclosing
+        // C-style `for` loop's body hands its own exit straight through to
+        // the enclosing loop's `fallthrough` terminator (its update/exit
+        // block) via `lower_stmt_sequence_with_prefix`'s empty-`stmts` fast
+        // path. That target can be a "watched" edge target the enclosing
+        // loop is still waiting to hear about further up the call stack —
+        // `lower_stmt_sequence`'s own empty-list fallthrough already
+        // registers this, but the `lower_stmt_sequence_with_prefix` fast
+        // path (taken whenever a non-empty `prefix` needs merging in, e.g.
+        // the range loop's own phi for a variable reassigned in its body)
+        // did not, silently dropping the edge and leaving the enclosing
+        // loop's update block referenced by a terminator but never built.
+        let hir = GoParser::default()
+            .parse_file(
+                "nested-loop.go",
+                r#"
+package main
+
+func run(repos []int, n int) {
+	var count int
+	for page := 1; page < n; page++ {
+		for _, repo := range repos {
+			var err error
+			count, err = getCount(repo)
+			if err != nil {
+				continue
+			}
+			use(count)
+		}
+	}
+}
+
+func getCount(repo int) (int, error) {
+	return 0, nil
+}
+
+func use(a int) {}
+"#,
+            )
+            .expect("parse nested-loop Go fixture");
+        let ir = lower_program(&hir);
+        uniflow_ir::validate_program(&ir).expect("nested range-in-for loop must lower to valid IR");
+    }
+
+    #[test]
+    fn closure_capturing_a_two_value_ranges_key_symbol_lowers_to_valid_ir() {
+        // Go's `for k, v := range x` binds two variables, but
+        // `uniflow_lang_go`'s `ForEach` HIR node tracks only one
+        // per-iteration bound symbol (`v`, preferred since it usually
+        // carries the taint-relevant element) — `k` is still declared in
+        // scope for name resolution but never receives a real per-iteration
+        // value from loop lowering (see `uniflow_lang_go::frontend::stmt`'s
+        // `Range` handling). A closure declared in the loop body that
+        // captures `k` used to register a `value_map` entry for it with NO
+        // defining instruction (`Expr::Lambda`'s capture fallback just
+        // allocated and inserted a fresh `ValueId`), which poisoned every
+        // later reference to `k` — including a plain, non-closure reference
+        // after the closure — into reusing that same undefined value. Found
+        // via real-world verification against go-gitea/gitea, where it
+        // quarantined 11 real functions across the whole repository from
+        // this single root cause.
+        let hir = GoParser::default()
+            .parse_file(
+                "range-key-capture.go",
+                r#"
+package main
+
+func fail(n int) {}
+
+func run(cases []int) {
+	for n, c := range cases {
+		b := func() {
+			fail(n)
+		}
+		_ = b
+		_ = c
+		check1(n)
+	}
+}
+
+func check1(n int) {}
+"#,
+            )
+            .expect("parse range-key-capture Go fixture");
+        let ir = lower_program(&hir);
+        uniflow_ir::validate_program(&ir)
+            .expect("closure capturing a two-value range's key symbol must lower to valid IR");
+    }
+
+    #[test]
     fn lowering_distinguishes_source_return_from_implicit_function_exit() {
         let explicit = CppParser
             .parse_file(
@@ -713,5 +840,4 @@ def handle(flag, value):
             .keys()
             .any(|key| key.starts_with("uniflow.source-cfg.return.")));
     }
-
 }

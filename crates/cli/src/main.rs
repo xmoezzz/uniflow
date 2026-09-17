@@ -3023,6 +3023,12 @@ fn validate_or_quarantine_invalid_ir_functions(mut ir: IrProgram) -> Result<IrPr
     }
 
     let dropped = invalid_functions.len();
+    let dropped_details = errors
+        .iter()
+        .filter(|error| invalid_functions.contains(error.function.as_str()))
+        .map(|error| format!("{}: {}", error.function, error.message))
+        .collect::<Vec<_>>()
+        .join("\n  ");
     ir.functions
         .retain(|function| !invalid_functions.contains(function.name.as_str()));
     let retained_ids = ir.functions.iter().map(|function| function.id).collect::<HashSet<_>>();
@@ -3036,7 +3042,7 @@ fn validate_or_quarantine_invalid_ir_functions(mut ir: IrProgram) -> Result<IrPr
         anyhow::bail!("lowered IR still failed validation after quarantining {dropped} function(s):\n{details}");
     }
     eprintln!(
-        "uniflow: quarantined {dropped} function(s) with invalid lowered IR; continuing with {} valid function(s)",
+        "uniflow: quarantined {dropped} function(s) with invalid lowered IR; continuing with {} valid function(s):\n  {dropped_details}",
         ir.functions.len()
     );
     Ok(ir)

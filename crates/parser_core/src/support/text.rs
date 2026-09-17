@@ -2,8 +2,24 @@ pub fn default_span() -> Span {
     Span::default()
 }
 
+/// Rounds `offset` down to the nearest UTF-8 character boundary at or before
+/// it, after clamping to `source`'s length. Recovery paths across the
+/// language frontends compute byte offsets from token/AST positions that are
+/// not always guaranteed to land exactly on a boundary once real-world
+/// multi-byte source text (a typographic quote, non-ASCII identifiers or
+/// comments) is involved — slicing at a non-boundary index panics, so every
+/// caller that turns a raw offset into a `&str` slice must go through this
+/// first rather than assume its offset is already valid.
+fn floor_char_boundary(source: &str, offset: usize) -> usize {
+    let mut capped = offset.min(source.len());
+    while capped > 0 && !source.is_char_boundary(capped) {
+        capped -= 1;
+    }
+    capped
+}
+
 pub fn line_col_for_offset(source: &str, offset: usize) -> (u32, u32) {
-    let capped = offset.min(source.len());
+    let capped = floor_char_boundary(source, offset);
     let mut line = 1u32;
     let mut col = 1u32;
     for ch in source[..capped].chars() {
@@ -49,8 +65,9 @@ pub fn find_substring_span(file: FileId, source: &str, needle: &str, search_from
     if needle.trim().is_empty() {
         return default_span();
     }
-    if let Some(rel) = source[search_from.min(source.len())..].find(needle) {
-        let start = search_from.min(source.len()) + rel;
+    let search_from = floor_char_boundary(source, search_from);
+    if let Some(rel) = source[search_from..].find(needle) {
+        let start = search_from + rel;
         let end = start + needle.len();
         return span_from_offsets(file, source, start, end);
     }
@@ -558,4 +575,37 @@ pub fn is_identifier_like(text: &str) -> bool {
 pub fn is_probable_type_name(text: &str) -> bool {
     let first = text.trim().chars().next();
     matches!(first, Some(ch) if ch.is_ascii_uppercase())
+}
+
+#[cfg(test)]
+mod text_offset_tests {
+    use super::*;
+
+    #[test]
+    fn line_col_for_offset_does_not_panic_on_a_multi_byte_char_boundary() {
+        // U+2019 RIGHT SINGLE QUOTATION MARK ('’') is 3 bytes in UTF-8 — a
+        // real-world source file's typographic apostrophe in a comment or
+        // string literal is exactly the kind of offset a recovering parser
+        // can end up pointing into the middle of.
+        let source = "// it’s fine\nfn f() {}";
+        let quote_byte_start = source.find('’').expect("fixture contains the quote");
+        // One byte into the multi-byte character: not a char boundary.
+        let (line, _col) = line_col_for_offset(source, quote_byte_start + 1);
+        assert_eq!(line, 1, "must recover a line/col instead of panicking");
+    }
+
+    #[test]
+    fn line_col_for_offset_clamps_past_end_of_source() {
+        let source = "abc";
+        let (line, col) = line_col_for_offset(source, 100);
+        assert_eq!((line, col), (1, 4));
+    }
+
+    #[test]
+    fn find_substring_span_does_not_panic_when_search_from_splits_a_multi_byte_char() {
+        let source = "let s = \"it’s\"; needle";
+        let quote_byte_start = source.find('’').expect("fixture contains the quote");
+        let span = find_substring_span(FileId(0), source, "needle", quote_byte_start + 1);
+        assert_eq!(span.start_byte as usize, source.find("needle").unwrap());
+    }
 }

@@ -2448,6 +2448,7 @@ dependencies = [
  "uniflow-lang-c",
  "uniflow-lang-frontends",
  "uniflow-lang-java",
+ "uniflow-lang-python",
  "uniflow-parser-core",
  "uniflow-rule-crypto",
 ]
@@ -2722,6 +2723,7 @@ dependencies = [
  "uniflow-lang-c",
  "uniflow-lang-cpp",
  "uniflow-lang-frontends",
+ "uniflow-lang-go",
  "uniflow-lang-java",
  "uniflow-lang-python",
  "uniflow-parser-core",

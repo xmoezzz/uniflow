@@ -66,9 +66,28 @@ pub fn parse_project_sources_with_progress(entries: &[(String, String)], on_file
         bail!("no Ruby source files provided");
     }
     let mut project = ProgramMerger::new(Language::Ruby);
+    let mut parsed_files = 0usize;
     for (path, source) in entries {
-        project.merge(parse_one(path, source)?);
+        match parse_one(path, source) {
+            Ok(module) => {
+                project.merge(module);
+                parsed_files += 1;
+            }
+            Err(error) => {
+                // A project may contain a file this frontend cannot yet
+                // parse beside otherwise valid application code. One
+                // syntactically fatal file must not discard every
+                // independently parsable file or prevent a SARIF report for
+                // the rest of the project — the same project-recovery
+                // tradeoff `uniflow_lang_javascript`'s project index already
+                // makes; standalone `analyze-source` remains strict.
+                eprintln!("uniflow: skipping unparsable Ruby source {path}: {error}");
+            }
+        }
         on_file_parsed();
+    }
+    if parsed_files == 0 {
+        bail!("no Ruby source files could be parsed successfully");
     }
     Ok(project.finish())
 }

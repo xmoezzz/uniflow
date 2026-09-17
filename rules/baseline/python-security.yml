@@ -9,7 +9,15 @@ rules:
   confidence: high
   pattern: \b(?:eval|exec)\s*\(
   matcher:
-    callee: (^|\.)(eval|exec)$
+    # The builtins `eval`/`exec` are always called bare (no receiver) — a
+    # dotted callee ending in `.eval`/`.exec` is some other class's own
+    # method (e.g. a domain-specific `Condition.eval()` rule evaluator, or a
+    # template loader's `.exec()`), not the dangerous builtin. Real-world
+    # verification against netbox-community/netbox found the un-anchored
+    # `(^|\.)` alternative alone matched 100% custom methods, zero real
+    # `eval`/`exec` calls.
+    callee: ^(eval|exec)$
+    forbids_receiver: true
     min_args: 1
   cwe:
   - CWE-95

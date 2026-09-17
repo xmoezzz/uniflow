@@ -133,7 +133,24 @@ pub fn parse_project_sources(entries: &[(String, String)]) -> Result<Program> {
 pub fn parse_project_sources_with_progress(entries: &[(String, String)], on_file_parsed: &(dyn Fn() + Sync)) -> Result<Program> {
     let mut parsed = Vec::with_capacity(entries.len());
     for (path, source) in entries {
-        parsed.push((path.as_str(), source.as_str(), parse_go_source(path, source)?));
+        match parse_go_source(path, source) {
+            Ok(file) => parsed.push((path.as_str(), source.as_str(), file)),
+            Err(error) => {
+                // A project may contain a construct this frontend cannot yet
+                // parse (a generated file, a vendored dependency, a Go
+                // version feature ahead of this parser) beside otherwise
+                // valid application code. One syntactically fatal file must
+                // not discard every independently parsable file or prevent a
+                // SARIF report for the rest of the project — the same
+                // project-recovery tradeoff `uniflow_lang_javascript`'s
+                // project index already makes; standalone `analyze-source`
+                // remains strict.
+                eprintln!("uniflow: skipping unparsable Go source {path}: {error}");
+            }
+        }
+    }
+    if parsed.is_empty() {
+        anyhow::bail!("no Go source files could be parsed successfully");
     }
     let index = GoProjectIndex::build(parsed.iter().map(|(_, _, file)| file));
 
