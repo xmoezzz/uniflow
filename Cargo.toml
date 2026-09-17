@@ -77,6 +77,8 @@ dotnetdll = "0.3"
 walrus = "0.27"
 py-marshal = "0.4"
 ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
+polars = { version = "0.55.2", features = ["full"] }
+rust_xlsxwriter = "0.99.1"
 
 # Rule packs deliberately contain a large amount of executable matcher code.
 # Test binaries do not need DWARF data, and emitting it for every incremental

@@ -232,3 +232,60 @@ func handle() {
     );
     assert_source_reaches_sink(&findings, source_id, sink_id);
 }
+
+#[test]
+fn yaml_unmarshaled_clone_url_flows_into_add_remote_ssrf_sink() {
+    // Real-world verification against go-gitea/gitea found this EXACT
+    // shape (a `pull_request.yml`-style dump file `yaml.Unmarshal`'d into a
+    // struct, whose `Head.CloneURL` field is then used unvalidated to add a
+    // git remote and fetch from it) matches a live, publicly disclosed
+    // vulnerability: CVE-2026-58441, SSRF in Gitea's `restore-repo` via
+    // unsanitized `pull_request.yml` `Head.CloneURL`. Before this rule
+    // pair, UniFlow's default models produced ZERO findings for this
+    // pattern — no source modeled `yaml.Unmarshal`'s output argument as
+    // tainted, and no sink modeled a URL argument reaching a
+    // remote-add/fetch operation as SSRF-relevant. (On the real, actual
+    // multi-file Gitea checkout the finding still does not fire end to end
+    // — the `Head.CloneURL` value crosses a `Downloader`/`Uploader`
+    // interface-dispatched call in `migrate.go` that UniFlow's Go call
+    // graph does not yet resolve. This test proves the rule pair itself is
+    // sound for any call site where the source and sink are connected
+    // through resolvable calls.)
+    let source_id = "legacy.go.source.146.0.deserialization";
+    let sink_id = "legacy.go.sink.541.0.ssrf";
+    let findings = bundled_findings(
+        r#"
+package main
+
+import (
+	"context"
+
+	yaml "gopkg.in/yaml.v3"
+)
+
+type Head struct {
+	CloneURL string
+}
+
+type PullRequest struct {
+	Head Head
+}
+
+type Repository struct{}
+
+func (r *Repository) AddRemote(ctx context.Context, name, url string, fetch bool) error {
+	return nil
+}
+
+func restore(ctx context.Context, data []byte, repo *Repository) error {
+	var pr PullRequest
+	if err := yaml.Unmarshal(data, &pr); err != nil {
+		return err
+	}
+	return repo.AddRemote(ctx, "head", pr.Head.CloneURL, true)
+}
+"#,
+        &[source_id, sink_id],
+    );
+    assert_source_reaches_sink(&findings, source_id, sink_id);
+}

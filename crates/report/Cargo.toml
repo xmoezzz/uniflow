@@ -11,3 +11,5 @@ serde_json.workspace = true
 uniflow-taint = { path = "../taint" }
 uniflow-value-flow = { path = "../value_flow" }
 uniflow-checker-api = { path = "../checker_api" }
+polars.workspace = true
+rust_xlsxwriter.workspace = true

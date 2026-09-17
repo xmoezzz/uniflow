@@ -968,7 +968,7 @@ impl FunctionLoweringContext<'_> {
                                 try_env.get(symbol).copied().map(|value| (*symbol, value))
                             })
                             .collect::<HashMap<_, _>>();
-                        let (mut handler_env, catch_prefix) = self.merge_environments(
+                        let (mut handler_env, mut catch_prefix) = self.merge_environments(
                             &value_map,
                             &try_outer_env,
                             *span,
@@ -979,6 +979,42 @@ impl FunctionLoweringContext<'_> {
                         );
                         if let (Some(symbol), Some(value)) = (catch.symbol, catch_value) {
                             handler_env.insert(symbol, value);
+                            // `value` is documented (see where `catch_values` is built,
+                            // above) as "an SSA definition produced by the exceptional
+                            // edge, not by an instruction in the handler block" — and
+                            // `validate_program` (crates/ir/src/lib.rs) already knows
+                            // this: it pre-registers every `ExceptionEdge::catch_value`
+                            // as defined before checking instructions, so a value with a
+                            // real edge must NOT also get an instruction here (that would
+                            // make it "defined more than once"). But that edge only
+                            // exists per `cpp_block_throw_sites` when the try body
+                            // contains a call instruction. A try body that raises through
+                            // a non-call operation (Python's attribute access, indexing,
+                            // arithmetic, ...) or that raises nothing detectable at all
+                            // (e.g. `try: pass`) leaves this value with no defining edge
+                            // AND no defining instruction — the same "value used without
+                            // a definition" failure already fixed once for `Expr::VarRef`
+                            // and once for `Expr::Lambda` captures. Only synthesize the
+                            // fallback when no real edge already covers this value.
+                            let has_real_edge = self
+                                .exception_edges
+                                .iter()
+                                .any(|edge| edge.catch_value == Some(value));
+                            if !has_real_edge {
+                                self.push_inst(
+                                    &mut catch_prefix,
+                                    InstKind::ConstString {
+                                        dst: value,
+                                        value: format!(
+                                            "<exception-value:{}>",
+                                            catch.ty
+                                                .and_then(|ty| self.owner.type_name_for(Some(ty)))
+                                                .unwrap_or_else(|| "?".to_string())
+                                        ),
+                                    },
+                                    catch.span,
+                                );
+                            }
                         }
                         if let Some(body) = finally_block {
                             self.finally_stack.push(FinallyFrame { body: body.clone(),

@@ -7539,6 +7539,18 @@ metadata:
     zh-CN: null
     en: null
     zh-TW: null
+- id: legacy.go.sink.541.0.ssrf
+  title: Unvalidated remote URL used to add a git remote
+  message: A URL from an untrusted source (e.g. a deserialized migration/restore payload) is used to add a git remote and fetch from it, without validating its host/scheme first — this lets an attacker make the server issue outbound requests to an arbitrary destination (SSRF), matching the real-world pattern behind CVE-2026-58441 (Gitea SSRF in restore-repo via unsanitized pull_request.yml Head.CloneURL).
+  severity: warning
+  cwe:
+  - CWE-918
+  standards:
+  - OWASP-A10
+  translations:
+    zh-CN: null
+    en: null
+    zh-TW: null
 sources:
 - id: legacy.go.source.0.0.web
   language: go
@@ -11815,6 +11827,25 @@ sources:
     arg_type_regexes: []
   out: return
   kind: systeminfo
+- id: legacy.go.source.146.0.deserialization
+  language: go
+  matcher:
+    exact: null
+    contains: null
+    regex: (?:^|[./]|::)(?:gopkg\.in/yaml\.v[0-9]+|go\.yaml\.in/yaml/v[0-9]+|sigs\.k8s\.io/yaml)(?:[./]|::)(?:Unmarshal|UnmarshalStrict)$
+    receiver_type: null
+    receiver_contains: null
+    receiver_regex: null
+    method_name: null
+    method_contains: null
+    method_regex: ^(?:(?:Unmarshal|UnmarshalStrict))$
+    arg_count: null
+    arg_count_min: null
+    arg_count_max: null
+    arg_types: []
+    arg_type_regexes: []
+  out: arg1
+  kind: generic
 sinks:
 - id: legacy.go.sink.0.0.0
   language: go
@@ -26895,6 +26926,26 @@ sinks:
     arg_type_regexes: []
   inputs:
   - arg0
+  kind: generic
+- id: legacy.go.sink.541.0.ssrf
+  language: go
+  matcher:
+    exact: null
+    contains: null
+    regex: null
+    receiver_type: null
+    receiver_contains: null
+    receiver_regex: null
+    method_name: AddRemote
+    method_contains: null
+    method_regex: null
+    arg_count: 4
+    arg_count_min: null
+    arg_count_max: null
+    arg_types: []
+    arg_type_regexes: []
+  inputs:
+  - arg2
   kind: generic
 sanitizers: []
 taint_transforms: []

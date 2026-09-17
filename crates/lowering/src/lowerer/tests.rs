@@ -808,6 +808,73 @@ func check1(n int) {}
     }
 
     #[test]
+    fn except_bound_exception_variable_lowers_to_valid_ir_even_with_no_detected_throw_site() {
+        // `except Exception as e:` allocates a value for `e` documented as
+        // "an SSA definition produced by the exceptional edge, not by an
+        // instruction in the handler block" (see where `catch_values` is
+        // built in `crates/lowering/src/lowerer/cfg.rs`) — but that edge is
+        // only recorded when the try body contains a `Call` instruction
+        // (`cpp_block_throw_sites`). A try body that raises through a
+        // non-call operation, or that raises nothing a source-level scan can
+        // detect at all (as here — nothing in `pass` looks like it could
+        // raise), leaves `e` with no defining edge and, before this fix, no
+        // defining instruction either: exactly a "value used without a
+        // definition" IR-validation failure. Found via real-world
+        // verification against netbox-community/netbox, where this exact
+        // shape (`try: return record.func_name / except Exception as e:
+        // return repr(e)`, an attribute read rather than a call) quarantined
+        // 4 real functions.
+        let hir = PythonParser
+            .parse_file(
+                "except-binding.py",
+                r#"
+def f():
+    try:
+        pass
+    except Exception as e:
+        return repr(e)
+"#,
+            )
+            .expect("parse except-binding Python fixture");
+        let ir = lower_program(&hir);
+        uniflow_ir::validate_program(&ir)
+            .expect("an except-bound exception variable must lower to valid IR");
+    }
+
+    #[test]
+    fn except_bound_exception_variable_is_not_redefined_when_a_real_throw_site_exists() {
+        // The companion case to the test above: when the try body DOES
+        // contain a call (`walk_path(...)`), `cpp_block_throw_sites` records
+        // a real `ExceptionEdge` for it, and `validate_program`
+        // (crates/ir/src/lib.rs) already pre-registers that edge's
+        // `catch_value` as defined before checking instructions — exactly
+        // the "no defining instruction in the handler block" the doc
+        // comment on `catch_values` describes. An earlier version of the
+        // fix above synthesized a placeholder instruction unconditionally,
+        // which then collided with this pre-registration as "value defined
+        // more than once." Found via real-world verification against
+        // netbox-community/netbox's `extras.conditions.Condition._resolve_attr`,
+        // which has exactly this shape.
+        let hir = PythonParser
+            .parse_file(
+                "except-binding-real-edge.py",
+                r#"
+def f(data, attr):
+    try:
+        value = walk_path(data, attr)
+    except TypeError as e:
+        raise InvalidCondition(f"bad: {e}")
+    return value
+"#,
+            )
+            .expect("parse except-binding-real-edge Python fixture");
+        let ir = lower_program(&hir);
+        uniflow_ir::validate_program(&ir).expect(
+            "an except-bound exception variable covered by a real exception edge must not be redefined",
+        );
+    }
+
+    #[test]
     fn lowering_distinguishes_source_return_from_implicit_function_exit() {
         let explicit = CppParser
             .parse_file(

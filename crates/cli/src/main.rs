@@ -45,7 +45,8 @@ use uniflow_models::{
 };
 use uniflow_platform::PlatformProfile;
 use uniflow_report::{
-    export_dot, export_markdown_report_with_checkers, export_sarif_with_checker_manifests,
+    export_dot, export_excel_report, export_excel_report_sections,
+    export_markdown_report_with_checkers, export_sarif_with_checker_manifests, ExcelReportSection,
 };
 use uniflow_reasoning_oracle::{
     ConstraintKind, ConstraintQuery, Domain, LeanOracle, LlmOracle, LlmOracleConfig, Oracle,
@@ -284,6 +285,7 @@ struct ReportOutputs {
     sarif_out: Option<String>,
     dot_out: Option<String>,
     markdown_out: Option<String>,
+    xlsx_out: Option<String>,
     /// Only populated by mixed-language project scans: the recovered
     /// system-wide graph (Docker Compose/Kubernetes topology, config
     /// resolution, HTTP routes, lifecycle hooks, ...) — see
@@ -497,6 +499,9 @@ enum Command {
         dot_out: Option<String>,
         #[arg(long)]
         markdown_out: Option<String>,
+        /// Write a formatted Excel workbook with findings, paths, calls, and summaries.
+        #[arg(long)]
+        xlsx_out: Option<String>,
     },
     AnalyzeSource {
         #[arg(long)]
@@ -532,6 +537,9 @@ enum Command {
         dot_out: Option<String>,
         #[arg(long)]
         markdown_out: Option<String>,
+        /// Write a formatted Excel workbook with findings, paths, calls, and summaries.
+        #[arg(long)]
+        xlsx_out: Option<String>,
         /// Load an external checker dynamic library. May be repeated.
         #[arg(long = "checker", value_name = "LIBRARY")]
         checkers: Vec<String>,
@@ -589,6 +597,9 @@ enum Command {
         dot_out: Option<String>,
         #[arg(long)]
         markdown_out: Option<String>,
+        /// Write one consolidated Excel workbook, including mixed-language scans.
+        #[arg(long)]
+        xlsx_out: Option<String>,
         /// Mixed-language scans only: writes the recovered system-wide
         /// graph (Docker Compose/Kubernetes topology, config resolution,
         /// HTTP routes, lifecycle hooks, ...) as JSON.
@@ -1263,6 +1274,7 @@ fn run() -> Result<()> {
             sarif_out,
             dot_out,
             markdown_out,
+            xlsx_out,
         } => {
             let language = Language::Java;
             let rules = load_rules(language.clone(), rules.as_deref(), use_default_models)?;
@@ -1277,6 +1289,7 @@ fn run() -> Result<()> {
                     sarif_out,
                     dot_out,
                     markdown_out,
+                    xlsx_out,
                     ..Default::default()
                 },
                 &[],
@@ -1301,6 +1314,7 @@ fn run() -> Result<()> {
             sarif_out,
             dot_out,
             markdown_out,
+            xlsx_out,
             checkers,
             checker_timeout_ms,
             checker_failure,
@@ -1338,6 +1352,7 @@ fn run() -> Result<()> {
                     sarif_out,
                     dot_out,
                     markdown_out,
+                    xlsx_out,
                     ..Default::default()
                 },
                 &checkers,
@@ -1369,6 +1384,7 @@ fn run() -> Result<()> {
             sarif_out,
             dot_out,
             markdown_out,
+            xlsx_out,
             system_graph_out,
             checkers,
             checker_timeout_ms,
@@ -1397,6 +1413,7 @@ fn run() -> Result<()> {
                         sarif_out,
                         dot_out,
                         markdown_out,
+                        xlsx_out,
                         system_graph_out,
                     },
                     &checkers,
@@ -1534,6 +1551,7 @@ fn run() -> Result<()> {
                     sarif_out,
                     dot_out,
                     markdown_out,
+                    xlsx_out,
                     // System-wide semantic boundary recovery only runs for
                     // mixed-language project scans (see `run_mixed_project`);
                     // `--system-graph-out` has no effect on a single-language
@@ -1978,7 +1996,7 @@ fn run_and_print_with_progress_and_extra_ir(
             serde_json::to_string(&diagnostic).context("failed to serialize checker diagnostic")?
         );
     }
-    tracker.phase("reports", "sarif / dot / markdown / findings", |_| {
+    tracker.phase("reports", "sarif / dot / markdown / xlsx / findings", |_| {
         maybe_write_reports(
             &flow,
             &findings,
@@ -2650,6 +2668,18 @@ fn run_mixed_project(
             &serde_json::to_string_pretty(&value).context("failed to encode SARIF")?,
         )?;
     }
+    if let Some(path) = report_outputs.xlsx_out.as_deref() {
+        let sections = per_language_flows
+            .iter()
+            .map(|(language, flow, findings)| ExcelReportSection {
+                name: language.as_str(),
+                flow,
+                findings,
+            })
+            .collect::<Vec<_>>();
+        export_excel_report_sections(path, &sections, &checker_findings)
+            .map_err(|err| anyhow::anyhow!("failed to write Excel report to {path}: {err}"))?;
+    }
     if per_language_flows.len() == 1 {
         let (_, flow, findings) = &per_language_flows[0];
         if let Some(path) = report_outputs.dot_out.as_deref() {
@@ -2852,6 +2882,10 @@ fn maybe_write_reports(
     if let Some(path) = outputs.markdown_out.as_deref() {
         let markdown = export_markdown_report_with_checkers(flow, findings, checker_findings);
         write_text_file(path, &markdown)?;
+    }
+    if let Some(path) = outputs.xlsx_out.as_deref() {
+        export_excel_report(path, flow, findings, checker_findings)
+            .map_err(|err| anyhow::anyhow!("failed to write Excel report to {path}: {err}"))?;
     }
     Ok(())
 }

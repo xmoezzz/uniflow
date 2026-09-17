@@ -224,8 +224,18 @@ mod tests {
     #[test]
     fn bundled_legacy_go_catalog_has_exact_migrated_counts() {
         let go = legacy_models_for(Language::Go).expect("bundled Go legacy rules");
-        assert_eq!(go.sources.len(), 225);
-        assert_eq!(go.sinks.len(), 754);
+        // +1 source (legacy.go.source.146.0.deserialization, `yaml.Unmarshal`'s
+        // output argument) and +1 sink (legacy.go.sink.541.0.ssrf, a URL
+        // argument reaching `AddRemote`) added after real-world verification
+        // against go-gitea/gitea found this exact pattern matches a live,
+        // publicly disclosed vulnerability (CVE-2026-58441) that the
+        // previously-bundled catalog produced zero findings for. Neither has
+        // a `sink_conditions` entry (that field is optional — see
+        // `bundled_legacy_csharp_catalog_has_exact_migrated_counts`, whose
+        // sinks are non-empty with zero conditions), so that count is
+        // unchanged.
+        assert_eq!(go.sources.len(), 226);
+        assert_eq!(go.sinks.len(), 755);
         assert_eq!(go.sink_conditions.len(), 754);
         assert_eq!(go.call_conditions.len(), 41);
         assert!(go.sanitizers.is_empty());

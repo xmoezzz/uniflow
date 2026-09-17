@@ -108,9 +108,9 @@
     {
       "language": "go",
       "file": "go-taint.yml",
-      "sha256": "4c4896d42231d2d152957a5f1149cde9556e2c20f7d7fe323e412dc6314c24fd",
-      "sources": 225,
-      "sinks": 754,
+      "sha256": "67b047c7904f38f1a840250bc0e016b206c7239e82178ff12d494a536e089e35",
+      "sources": 226,
+      "sinks": 755,
       "sanitizers": 0,
       "taint_transforms": 0,
       "propagators": 0,

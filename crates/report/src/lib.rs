@@ -1,3 +1,6 @@
+mod excel;
+pub use excel::{export_excel_report, export_excel_report_sections, ExcelReportSection};
+
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use uniflow_checker_api::{CheckerFinding, CheckerLocation, CheckerManifest, CheckerRule};
