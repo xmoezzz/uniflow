@@ -1,0 +1,15 @@
+[package]
+name = "uniflow-vuln-db"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+uniflow-sca-core = { path = "../sca_core" }
+versions = "8.0.1"
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile = "3.27"

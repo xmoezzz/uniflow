@@ -3,13 +3,20 @@
 //! `uniflow` has no on-disk archive extraction today: `.jar`/`.war` are read
 //! as zip entries fully in-memory by `uniflow_lang_java_bytecode`, and the
 //! `crates/frontend` file collectors only ever match paths by extension —
-//! nothing else ever gets unpacked. This crate fills that gap for a small,
-//! pure-Rust set of general-purpose archive/compression containers likely to
-//! carry source code (zip, tar, and their gzip/bzip2/xz/zstd-compressed
-//! forms) — a much narrower scope than a full SCA/firmware tool needs, and
-//! deliberately excludes 7z/RAR (no mature pure-Rust decoder for either, and
-//! avoiding a C/C++ dependency for them was an explicit goal) and any
-//! filesystem/firmware image format.
+//! nothing else ever gets unpacked. This crate fills that gap for the
+//! general-purpose archive/compression containers and package formats most
+//! likely to carry source code or dependency metadata: zip, tar (and its
+//! gzip/bzip2/xz/zstd/LZMA/lzip/Unix-compress-compressed forms), 7z, `.deb`,
+//! `.rpm`, `.cab`, LHA/LZH, ISO9660, XAR, ar/static libraries, cpio, mtree,
+//! shar, and RAR. Common ZIP package aliases (`.apk`, `.aab`, `.ipa`,
+//! `.nupkg`, `.vsix`, `.appx`, `.whl`, `.egg`, `.crx`) are dispatched to the
+//! same bounded ZIP reader.
+//! RAR4/RAR5 are decoded by a pure-Rust streaming backend; no host `unrar`
+//! command, shared library, or C/C++ archive backend is invoked. Filesystem/
+//! firmware images and legacy formats not listed here remain out of scope
+//! until they have a bounded streaming backend. All formats listed above use
+//! Rust readers/codecs and feed decoded bytes through the same extraction
+//! budget and path-safety checks.
 //!
 //! File-type detection is extension-based first, falling back to pure-Rust
 //! magic sniffing (`pure-magic` + `magic-db`, compiled into this binary at

@@ -1,0 +1,40 @@
+[package]
+name = "uniflow-sca-orchestrator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+walkdir = "2"
+uniflow-archive-extract = { path = "../archive_extract" }
+uniflow-sca-core = { path = "../sca_core" }
+uniflow-filetype = { path = "../filetype" }
+uniflow-deps-npm = { path = "../deps_npm" }
+uniflow-deps-cargo = { path = "../deps_cargo" }
+uniflow-deps-python = { path = "../deps_python" }
+uniflow-deps-go = { path = "../deps_go" }
+uniflow-deps-php = { path = "../deps_php" }
+uniflow-deps-dotnet = { path = "../deps_dotnet" }
+uniflow-deps-ruby = { path = "../deps_ruby" }
+uniflow-deps-maven = { path = "../deps_maven" }
+uniflow-deps-gradle = { path = "../deps_gradle" }
+uniflow-deps-dart = { path = "../deps_dart" }
+uniflow-deps-cocoapods = { path = "../deps_cocoapods" }
+uniflow-deps-conan = { path = "../deps_conan" }
+uniflow-deps-cran = { path = "../deps_cran" }
+uniflow-deps-chef = { path = "../deps_chef" }
+uniflow-deps-elm = { path = "../deps_elm" }
+uniflow-deps-fortran = { path = "../deps_fortran" }
+uniflow-deps-haxelib = { path = "../deps_haxelib" }
+uniflow-deps-opam = { path = "../deps_opam" }
+uniflow-deps-swift = { path = "../deps_swift" }
+uniflow-license-scan = { path = "../license_scan" }
+uniflow-vuln-db = { path = "../vuln_db" }
+uniflow-malware-heuristics = { path = "../malware_heuristics" }
+
+[dev-dependencies]
+tempfile = "3.27"
+sevenz-rust2 = { version = "0.13", features = ["compress"] }

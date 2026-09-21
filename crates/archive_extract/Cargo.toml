@@ -7,14 +7,29 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+crc32fast = "1.4"
+serde.workspace = true
 zip.workspace = true
 tar = "0.4"
 flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 bzip2-rs = "0.1"
-lzma-rs = "0.3"
+lzma-rs = { version = "0.3", features = ["raw_decoder"] }
 ruzstd = "0.9"
 tempfile = "3.27"
 pure-magic = "0.4"
 magic-db = "0.6"
+sevenz-rust2 = "0.13"
+ar = "0.9"
+rpm = { version = "0.28", default-features = false, features = ["payload"] }
+cab = "0.6"
+cpio = "0.4"
+delharc = { version = "0.8", default-features = false, features = ["std", "lh1", "lz", "pm", "lhx"] }
+iso9660_simple = "0.2"
+quick-xml = { version = "0.39", features = ["serialize"] }
+# Pure-Rust RAR4/RAR5 reader and decoder.  Disable the default AWS-LC backend
+# so the archive path remains Rust-only (including encrypted archive support).
+unrar-rs = { version = "0.10.8", default-features = false, features = ["crypto-rust"] }
 
 [dev-dependencies]
+sevenz-rust2 = { version = "0.13", features = ["compress"] }
+rpm = { version = "0.28", default-features = false, features = ["payload", "gzip-compression"] }

@@ -1,0 +1,24 @@
+[package]
+name = "uniflow-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uniflow-checker-api = { path = "../checker_api" }
+uniflow-checker-host = { path = "../checker_host" }
+uniflow-frontend = { path = "../frontend" }
+uniflow-hir = { path = "../hir" }
+uniflow-ir = { path = "../ir" }
+uniflow-lowering = { path = "../lowering" }
+uniflow-models = { path = "../models" }
+uniflow-rules = { path = "../rules" }
+uniflow-taint = { path = "../taint" }
+uniflow-value-flow = { path = "../value_flow" }
+
+[dev-dependencies]
+tempfile = "3.27"

@@ -5,7 +5,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde::Serialize;
 use serde_json::json;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -31,15 +31,13 @@ use uniflow_frontend::{
     parse_source_with_options, FrontendOptions,
 };
 use uniflow_hir::{Language, Program as HirProgram};
-use uniflow_ir::{
-    merge_programs, sample_java_sql_program, validate_program, Program as IrProgram,
-};
+use uniflow_ir::{merge_programs, sample_java_sql_program, Program as IrProgram};
 use uniflow_lang_java_bytecode::{lower_archive, lower_class_file};
 use uniflow_lowering::lower_program;
 use uniflow_models::{
     audit_legacy_jvm_rule_tree, compile_legacy_csharp_pack, compile_legacy_go_pack,
     compile_legacy_jvm_rule_tree, compile_legacy_native_dataflow_pack,
-    attach_legacy_metadata_for_ids, compile_legacy_pysa_rule_tree,
+    compile_legacy_pysa_rule_tree,
     load_with_defaults, load_with_defaults_for_analysis, mit_catalog_manifest, mit_models_for,
     LegacyCsharpPack, LegacyGoPack, LegacyNativeDataflowPack,
 };
@@ -54,15 +52,14 @@ use uniflow_reasoning_oracle::{
 };
 use uniflow_rules::{RuleSet, RuleTranslations};
 use uniflow_taint::{analyze, pretty_findings, TaintFinding};
-use uniflow_value_flow::{
-    build_for_rules_with_progress, build_for_scan_with_progress, build_with_capabilities,
-    AnalysisCapabilities, FlowGraph, FlowNode,
-};
+use uniflow_value_flow::{build_for_rules_with_progress, FlowGraph};
 
-/// Recursively extracts every supported archive (zip/tar and their
-/// gzip/bzip2/xz/zstd-compressed forms — see `uniflow_archive_extract` for
-/// the full format list and why it deliberately excludes 7z/RAR/firmware
-/// images) found anywhere under `roots` into a scratch directory, then
+/// Recursively extracts every supported archive (zip, tar and its
+/// gzip/bzip2/xz/zstd/LZMA/lzip/Unix-compress-compressed forms, 7z, .deb,
+/// .rpm, .cab, LHA/LZH, ISO9660, XAR, ar, cpio, mtree, shar, and RAR — see
+/// `uniflow_archive_extract` for the full format list; filesystem/firmware
+/// images remain out of scope) found anywhere under `roots` into a
+/// scratch directory, then
 /// appends that scratch directory to `roots` so the caller's existing
 /// extension-based file collectors see the unpacked content with no changes
 /// of their own. Returns the scratch directory's guard, which the caller
@@ -1769,7 +1766,7 @@ fn run_and_print_with_progress(
 fn run_and_print_with_progress_and_extra_ir(
     tracker: &mut ProgressTracker,
     hir: uniflow_hir::Program,
-    mut rules: RuleSet,
+    rules: RuleSet,
     hydrate_bundled_metadata: bool,
     dump_hir: bool,
     dump_ir: bool,
@@ -1782,229 +1779,59 @@ fn run_and_print_with_progress_and_extra_ir(
     checker_options: RuntimeCheckerOptions,
     extra_ir_programs: Vec<IrProgram>,
 ) -> Result<()> {
-    let mut checker_manager = tracker.phase(
-        "load-checkers",
-        if checker_paths.is_empty() {
-            "none".to_string()
-        } else {
-            format!("{} dynamic libraries", checker_paths.len())
-        },
-        |_| {
-            CheckerManager::load_with_options(
-                checker_paths,
-                CheckerHostOptions {
-                    isolation: checker_options.isolation.into(),
-                    timeout: Duration::from_millis(checker_options.timeout_ms.max(1)),
-                    failure_policy: checker_options.failure_policy.into(),
-                },
-            )
-        },
-    )?;
-    let checker_manifests = checker_manager.manifests();
-    let mut checker_findings = Vec::new();
-    if checker_manager.has_subscriber(event_kind::ANALYSIS_START) {
-        checker_findings.extend(checker_manager.broadcast(
-            event_kind::ANALYSIS_START,
-            json!({
-                "language": format!("{:?}", hir.language),
-                "files": hir.files.iter().map(|file| file.path.clone()).collect::<Vec<_>>(),
-                "checkers": &checker_manifests,
-            }),
-        )?);
+    // Lowering, checker events, flow construction, and taint analysis are the
+    // part of this pipeline that is identical (up to FFI-bridge partitioning,
+    // which only `run_mixed_project` needs) to the per-language-group
+    // pipeline below, so both live in `uniflow_core` as the shared scan
+    // primitive rather than being duplicated here.
+    if dump_hir {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&hir).context("failed to serialize hir")?
+        );
     }
-    if checker_manager.has_subscriber(event_kind::SOURCE_FILE) {
-        for file in &hir.files {
-            let source = fs::read_to_string(&file.path).with_context(|| {
-                format!("failed to read checker source event from {}", file.path)
-            })?;
-            checker_findings.extend(checker_manager.broadcast(
-                event_kind::SOURCE_FILE,
-                source_file_payload(&file.path, &hir.language, source),
-            )?);
-        }
-    }
-    if checker_manager.has_subscriber(event_kind::HIR_PROGRAM) {
-        checker_findings.extend(checker_manager.broadcast(
-            event_kind::HIR_PROGRAM,
-            serde_json::to_value(&hir).context("failed to serialize HIR checker event")?,
-        )?);
-    }
-
-    tracker.phase(
-        "emit-hir",
-        if dump_hir {
-            "serializing HIR"
-        } else {
-            "skipped"
-        },
-        |_| {
-            if dump_hir {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&hir).context("failed to serialize hir")?
-                );
-            }
-            Ok(())
-        },
-    )?;
-
-    let ir = tracker.phase("lower", format!("{} files", hir.files.len()), |_| {
-        validate_or_quarantine_invalid_ir_functions(lower_program(&hir))
+    let file_count = hir.files.len();
+    let outcome = tracker.phase("scan", format!("{file_count} files"), |_| {
+        uniflow_core::run_single_language_scan(uniflow_core::SingleLanguageScanRequest {
+            hir,
+            rules,
+            hydrate_bundled_metadata,
+            extra_ir_programs,
+            checker_paths: checker_paths.to_vec(),
+            checker_host_options: CheckerHostOptions {
+                isolation: checker_options.isolation.into(),
+                timeout: Duration::from_millis(checker_options.timeout_ms.max(1)),
+                failure_policy: checker_options.failure_policy.into(),
+            },
+            dump_graph,
+            dump_call_report,
+        })
     })?;
-    let ir = if extra_ir_programs.is_empty() {
-        ir
-    } else {
-        let mut programs = Vec::with_capacity(extra_ir_programs.len() + 1);
-        programs.push(ir);
-        programs.extend(extra_ir_programs);
-        merge_programs(programs).context("failed to merge decoded archive classes into project IR")?
-    };
-    if checker_manager.has_subscriber(event_kind::IR_PROGRAM) {
-        checker_findings.extend(checker_manager.broadcast(
-            event_kind::IR_PROGRAM,
-            serde_json::to_value(&ir).context("failed to serialize IR checker event")?,
-        )?);
-    }
-    tracker.phase(
-        "emit-ir",
-        if dump_ir { "serializing IR" } else { "skipped" },
-        |_| {
-            if dump_ir {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&ir).context("failed to serialize ir")?
-                );
-            }
-            Ok(())
-        },
-    )?;
 
-    // Lowering owns all information required by flow/taint analysis.  Keeping
-    // the parsed HIR alive until report emission duplicates a large project in
-    // memory while the flow graph is being built; on PyTorch that alone was
-    // several gigabytes before the first graph node existed.
-    drop(hir);
-
-    // Statistics describe whichever analysis plan was selected and do not
-    // require the legacy global closure.  Keep `--dump-stats` on the normal
-    // rule-driven path so it remains safe to use when investigating a large
-    // project; graph/call dumps still explicitly request full materialization.
-    let force_full_flow = flow_requires_full_materialization(
-        dump_graph,
-        dump_call_report,
-        checker_manager.has_subscriber(event_kind::FLOW_SUMMARY),
-        checker_manager.has_subscriber(event_kind::CALL),
-    );
-    let capabilities = if force_full_flow {
-        AnalysisCapabilities::full()
-    } else {
-        AnalysisCapabilities::for_rules(&ir, &rules)
-    };
-    let flow = tracker.phase_with_spinner(
-        "build-flow",
-        format!("{} IR functions", ir.functions.len()),
-        |_, spinner| {
-            spinner.set_message(format!(
-                "build-flow/init: {} IR functions",
-                ir.functions.len()
-            ));
-            let build = |progress: uniflow_value_flow::BuildProgress| {
-                spinner.set_message(format!(
-                    "build-flow/{}: {}",
-                    progress.stage, progress.detail
-                ));
-            };
-            if force_full_flow {
-                Ok(build_with_capabilities(&ir, &rules, capabilities, build))
-            } else {
-                Ok(build_for_scan_with_progress(&ir, &rules, build))
-            }
-        },
-    )?;
-    let flow_summary_subscribed = checker_manager.has_subscriber(event_kind::FLOW_SUMMARY);
-    let call_subscribed = checker_manager.has_subscriber(event_kind::CALL);
-    if flow_summary_subscribed || call_subscribed {
-        let call_report = flow.call_report();
-        if flow_summary_subscribed {
-            checker_findings.extend(checker_manager.broadcast(
-                event_kind::FLOW_SUMMARY,
-                json!({
-                    "stats": flow.stats(),
-                    "calls": &call_report,
-                }),
-            )?);
-        }
-        if call_subscribed {
-            for call in &call_report {
-                checker_findings.extend(checker_manager.broadcast(
-                    event_kind::CALL,
-                    serde_json::to_value(call).context("failed to serialize call checker event")?,
-                )?);
-            }
-        }
+    if dump_ir {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&outcome.ir).context("failed to serialize ir")?
+        );
     }
     tracker.phase("emit-flow-views", "graph / call report / stats", |_| {
-        emit_flow_views(&flow, dump_graph, dump_call_report, dump_stats)
+        emit_flow_views(&outcome.flow, dump_graph, dump_call_report, dump_stats)
     })?;
-    if hydrate_bundled_metadata {
-        let mut report_ids = flow
-            .synthetic_sinks
-            .iter()
-            .filter_map(|node| match &flow.graph[*node] {
-                FlowNode::SyntheticSink { rule_id, .. } => Some(rule_id.clone()),
-                _ => None,
-            })
-            .collect::<HashSet<_>>();
-        report_ids.extend(
-            flow.native_dataflow_diagnostics
-                .iter()
-                .map(|diagnostic| diagnostic.rule_id.clone()),
-        );
-        report_ids.extend(
-            flow.lifetime_diagnostics
-                .iter()
-                .map(|diagnostic| diagnostic.rule_id.clone()),
-        );
-        attach_legacy_metadata_for_ids(&flow.language, &mut rules, &report_ids)?;
-    }
-    let findings = tracker.phase(
-        "taint-analysis",
-        format!("{} flow nodes", flow.graph.node_count()),
-        |_| Ok(analyze(&flow, &rules)),
-    )?;
-    if checker_manager.has_subscriber(event_kind::TAINT_FINDING) {
-        for finding in &findings {
-            checker_findings.extend(checker_manager.broadcast(
-                event_kind::TAINT_FINDING,
-                serde_json::to_value(finding).context("failed to serialize taint checker event")?,
-            )?);
-        }
-    }
-    let checker_finding_count_before_end = checker_findings.len();
-    if checker_manager.has_subscriber(event_kind::ANALYSIS_END) {
-        checker_findings.extend(checker_manager.broadcast(
-            event_kind::ANALYSIS_END,
-            json!({
-                "taintFindingCount": findings.len(),
-                "checkerFindingCount": checker_finding_count_before_end,
-            }),
-        )?);
-    }
-    for diagnostic in checker_manager.take_diagnostics() {
+    for diagnostic in &outcome.checker_diagnostics {
         eprintln!(
             "checker diagnostic: {}",
-            serde_json::to_string(&diagnostic).context("failed to serialize checker diagnostic")?
+            serde_json::to_string(diagnostic).context("failed to serialize checker diagnostic")?
         );
     }
     tracker.phase("reports", "sarif / dot / markdown / xlsx / findings", |_| {
         maybe_write_reports(
-            &flow,
-            &findings,
+            &outcome.flow,
+            &outcome.findings,
             report_outputs,
-            &checker_findings,
-            &checker_manifests,
+            &outcome.checker_findings,
+            &outcome.checker_manifests,
         )?;
-        print_all_findings(&findings, &checker_findings, pretty_findings_flag)
+        print_all_findings(&outcome.findings, &outcome.checker_findings, pretty_findings_flag)
     })?;
     tracker.finish();
     Ok(())
@@ -2434,7 +2261,7 @@ fn run_mixed_project(
                     })?;
                     checker_findings.extend(checker_manager.broadcast(
                         event_kind::SOURCE_FILE,
-                        source_file_payload(&file.path, &hir.language, source),
+                        uniflow_core::source_file_payload(&file.path, &hir.language, source),
                     )?);
                 }
             }
@@ -2449,7 +2276,7 @@ fn run_mixed_project(
         if source_ir.is_none() {
             source_ir = hir
                 .as_ref()
-                .map(|hir| validate_or_quarantine_invalid_ir_functions(lower_program(hir)))
+                .map(|hir| uniflow_core::validate_or_quarantine_invalid_ir_functions(lower_program(hir)))
                 .transpose()?;
         }
 
@@ -2521,101 +2348,32 @@ fn run_mixed_project(
             );
         }
 
-        let force_full_flow = flow_requires_full_materialization(
-            dump_graph,
-            dump_call_report,
-            checker_manager.has_subscriber(event_kind::FLOW_SUMMARY),
-            checker_manager.has_subscriber(event_kind::CALL),
-        );
-        let capabilities = if force_full_flow {
-            AnalysisCapabilities::full()
-        } else {
-            AnalysisCapabilities::for_rules(&ir, &rules)
-        };
-        let flow = tracker.phase_with_spinner(
-            &format!("build-flow[{group_label}]"),
-            format!("{} IR functions", ir.functions.len()),
-            |_, spinner| {
-                let build = |progress: uniflow_value_flow::BuildProgress| {
-                    spinner.set_message(format!(
-                        "build-flow/{}: {}",
-                        progress.stage, progress.detail
-                    ));
-                };
-                if force_full_flow {
-                    Ok(build_with_capabilities(&ir, &rules, capabilities, build))
-                } else {
-                    Ok(build_for_scan_with_progress(&ir, &rules, build))
-                }
-            },
-        )?;
-
-        let flow_summary_subscribed = checker_manager.has_subscriber(event_kind::FLOW_SUMMARY);
-        let call_subscribed = checker_manager.has_subscriber(event_kind::CALL);
-        if flow_summary_subscribed || call_subscribed {
-            let call_report = flow.call_report();
-            if flow_summary_subscribed {
-                checker_findings.extend(checker_manager.broadcast(
-                    event_kind::FLOW_SUMMARY,
-                    json!({
-                        "stats": flow.stats(),
-                        "calls": &call_report,
-                    }),
-                )?);
-            }
-            if call_subscribed {
-                for call in &call_report {
-                    checker_findings.extend(checker_manager.broadcast(
-                        event_kind::CALL,
-                        serde_json::to_value(call)
-                            .context("failed to serialize call checker event")?,
-                    )?);
-                }
-            }
-        }
+        // Flow construction and (non-FFI-partitioned) taint analysis are
+        // exactly what `run_and_print_with_progress_and_extra_ir` also needs,
+        // so both live in `uniflow_core`; only the FFI-bridge partitioning
+        // step below is specific to a mixed-language project scan.
+        let flow = tracker.phase(&format!("build-flow[{group_label}]"), format!("{} IR functions", ir.functions.len()), |_| {
+            uniflow_core::build_flow_graph(
+                &ir,
+                &rules,
+                dump_graph || dump_call_report,
+                &mut checker_manager,
+                &mut checker_findings,
+            )
+        })?;
         if dump_graph || dump_call_report || dump_stats {
             println!("== {group_label} ==");
             emit_flow_views(&flow, dump_graph, dump_call_report, dump_stats)?;
         }
 
-        if hydrate_bundled_metadata {
-            let mut report_ids = flow
-                .synthetic_sinks
-                .iter()
-                .filter_map(|node| match &flow.graph[*node] {
-                    FlowNode::SyntheticSink { rule_id, .. } => Some(rule_id.clone()),
-                    _ => None,
-                })
-                .collect::<HashSet<_>>();
-            report_ids.extend(
-                flow.native_dataflow_diagnostics
-                    .iter()
-                    .map(|diagnostic| diagnostic.rule_id.clone()),
-            );
-            report_ids.extend(
-                flow.lifetime_diagnostics
-                    .iter()
-                    .map(|diagnostic| diagnostic.rule_id.clone()),
-            );
-            attach_legacy_metadata_for_ids(&flow.language, &mut rules, &report_ids)?;
-        }
-
         let findings = tracker.phase(
             &format!("taint-analysis[{group_label}]"),
             format!("{} flow nodes", flow.graph.node_count()),
-            |_| Ok(analyze(&flow, &rules)),
+            |_| uniflow_core::run_taint_analysis(&flow, &mut rules, hydrate_bundled_metadata),
         )?;
         let (findings, ffi_probe_findings) = ffi_bridge::partition_probe_findings(findings);
         ffi_bridge::fold_native_summaries(&ffi_probe_findings, &mut native_summaries);
-        if checker_manager.has_subscriber(event_kind::TAINT_FINDING) {
-            for finding in &findings {
-                checker_findings.extend(checker_manager.broadcast(
-                    event_kind::TAINT_FINDING,
-                    serde_json::to_value(finding)
-                        .context("failed to serialize taint checker event")?,
-                )?);
-            }
-        }
+        uniflow_core::broadcast_taint_findings(&findings, &mut checker_manager, &mut checker_findings)?;
 
         all_findings.extend(findings.iter().cloned());
         per_language_flows.push((language, flow, findings));
@@ -3025,75 +2783,10 @@ fn print_findings(findings: &[TaintFinding], pretty: bool) -> Result<()> {
     }
 }
 
-fn source_file_payload(path: &str, language: &Language, source: String) -> serde_json::Value {
-    json!({
-        "path": path,
-        "language": language.as_str(),
-        "source": source,
-    })
-}
-
-/// Keep a project scan available when a source frontend cannot lower a small
-/// subset of unsupported constructs into valid IR. Validation remains strict
-/// for every function that reaches dataflow: invalid functions are removed as
-/// an explicit per-function quarantine, never passed to the solver. A whole
-/// project must not lose its SARIF because one generated test helper used a
-/// construct the frontend cannot model yet.
-fn validate_or_quarantine_invalid_ir_functions(mut ir: IrProgram) -> Result<IrProgram> {
-    let Err(errors) = validate_program(&ir) else {
-        return Ok(ir);
-    };
-    let invalid_functions = errors
-        .iter()
-        .filter_map(|error| (error.function != "<program>").then_some(error.function.as_str()))
-        .collect::<HashSet<_>>();
-    if invalid_functions.is_empty() {
-        let details = errors
-            .iter()
-            .map(|error| format!("{}: {}", error.function, error.message))
-            .collect::<Vec<_>>()
-            .join("\n");
-        anyhow::bail!("lowered IR failed validation:\n{details}");
-    }
-
-    let dropped = invalid_functions.len();
-    let dropped_details = errors
-        .iter()
-        .filter(|error| invalid_functions.contains(error.function.as_str()))
-        .map(|error| format!("{}: {}", error.function, error.message))
-        .collect::<Vec<_>>()
-        .join("\n  ");
-    ir.functions
-        .retain(|function| !invalid_functions.contains(function.name.as_str()));
-    let retained_ids = ir.functions.iter().map(|function| function.id).collect::<HashSet<_>>();
-    ir.entry_points.retain(|entry| retained_ids.contains(entry));
-    if let Err(remaining) = validate_program(&ir) {
-        let details = remaining
-            .into_iter()
-            .map(|error| format!("{}: {}", error.function, error.message))
-            .collect::<Vec<_>>()
-            .join("\n");
-        anyhow::bail!("lowered IR still failed validation after quarantining {dropped} function(s):\n{details}");
-    }
-    eprintln!(
-        "uniflow: quarantined {dropped} function(s) with invalid lowered IR; continuing with {} valid function(s):\n  {dropped_details}",
-        ir.functions.len()
-    );
-    Ok(ir)
-}
-
-fn flow_requires_full_materialization(
-    dump_graph: bool,
-    dump_call_report: bool,
-    flow_summary_subscriber: bool,
-    call_subscriber: bool,
-) -> bool {
-    dump_graph || dump_call_report || flow_summary_subscriber || call_subscriber
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uniflow_ir::validate_program;
 
     #[test]
     fn llm_review_document_is_explicitly_advisory_and_requires_verification() {
@@ -3178,7 +2871,7 @@ mod tests {
         let mut ir = sample_java_sql_program();
         let duplicate = ir.functions[0].blocks[0].clone();
         ir.functions[0].blocks.push(duplicate);
-        let valid = validate_or_quarantine_invalid_ir_functions(ir)
+        let valid = uniflow_core::validate_or_quarantine_invalid_ir_functions(ir)
             .expect("the remaining project IR should validate");
         assert!(valid.functions.is_empty());
         assert!(valid.entry_points.is_empty());
@@ -3222,11 +2915,11 @@ mod tests {
 
     #[test]
     fn dump_stats_does_not_force_global_flow_materialization() {
-        assert!(!flow_requires_full_materialization(false, false, false, false));
-        assert!(flow_requires_full_materialization(true, false, false, false));
-        assert!(flow_requires_full_materialization(false, true, false, false));
-        assert!(flow_requires_full_materialization(false, false, true, false));
-        assert!(flow_requires_full_materialization(false, false, false, true));
+        assert!(!uniflow_core::flow_requires_full_materialization(false, false, false, false));
+        assert!(uniflow_core::flow_requires_full_materialization(true, false, false, false));
+        assert!(uniflow_core::flow_requires_full_materialization(false, true, false, false));
+        assert!(uniflow_core::flow_requires_full_materialization(false, false, true, false));
+        assert!(uniflow_core::flow_requires_full_materialization(false, false, false, true));
     }
 
     #[test]
@@ -3249,7 +2942,7 @@ mod tests {
     #[test]
     fn source_file_checker_payload_preserves_host_markup() {
         let source = "<main><% value(); %></main>".to_string();
-        let payload = source_file_payload("view.jsp", &Language::Jsp, source.clone());
+        let payload = uniflow_core::source_file_payload("view.jsp", &Language::Jsp, source.clone());
         assert_eq!(payload["path"], "view.jsp");
         assert_eq!(payload["language"], "jsp");
         assert_eq!(payload["source"], source);

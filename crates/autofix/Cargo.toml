@@ -1,0 +1,18 @@
+[package]
+name = "uniflow-autofix"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uniflow-core = { path = "../uniflow_core" }
+uniflow-reasoning-oracle = { path = "../reasoning_oracle" }
+uniflow-sca-core = { path = "../sca_core" }
+uniflow-sca-orchestrator = { path = "../sca_orchestrator" }
+
+[dev-dependencies]
+tempfile = "3.27"

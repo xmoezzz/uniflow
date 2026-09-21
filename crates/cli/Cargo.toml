@@ -41,6 +41,7 @@ uniflow-baseline = { path = "../baseline" }
 uniflow-checker-api = { path = "../checker_api" }
 uniflow-checker-host = { path = "../checker_host" }
 uniflow-reasoning-oracle = { path = "../reasoning_oracle" }
+uniflow-core = { path = "../uniflow_core" }
 
 [dev-dependencies]
 regex-syntax.workspace = true

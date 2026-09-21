@@ -55,6 +55,10 @@ impl Budget {
         self.max_entry_bytes.min(self.remaining_total)
     }
 
+    pub(crate) fn max_entry_bytes(&self) -> u64 {
+        self.max_entry_bytes
+    }
+
     /// Records that `bytes` were actually written for the entry just
     /// extracted (after the fact, from a [`CappedReader`]/[`CappedWriter`]'s
     /// own count), deducting them from the running total budget.
@@ -90,6 +94,10 @@ impl<R: Read> CappedReader<R> {
     pub(crate) fn bytes_read(&self) -> u64 {
         self.read
     }
+
+    pub(crate) fn into_inner(self) -> R {
+        self.inner
+    }
 }
 
 impl<R: Read> Read for CappedReader<R> {
@@ -118,11 +126,26 @@ impl<R: Read> Read for CappedReader<R> {
 pub(crate) struct CappedWriter<W> {
     inner: W,
     remaining: u64,
+    written: u64,
+    exceeded: bool,
 }
 
 impl<W: Write> CappedWriter<W> {
     pub(crate) fn new(inner: W, cap: u64) -> Self {
-        Self { inner, remaining: cap }
+        Self {
+            inner,
+            remaining: cap,
+            written: 0,
+            exceeded: false,
+        }
+    }
+
+    pub(crate) fn bytes_written(&self) -> u64 {
+        self.written
+    }
+
+    pub(crate) fn exceeded(&self) -> bool {
+        self.exceeded
     }
 
     pub(crate) fn into_inner(self) -> W {
@@ -133,10 +156,12 @@ impl<W: Write> CappedWriter<W> {
 impl<W: Write> Write for CappedWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if buf.len() as u64 > self.remaining {
+            self.exceeded = true;
             return Err(io::Error::other(CAP_EXCEEDED));
         }
         let n = self.inner.write(buf)?;
         self.remaining -= n as u64;
+        self.written += n as u64;
         Ok(n)
     }
 
