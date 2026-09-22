@@ -57,7 +57,12 @@ fn compile_pack(
     // Bincode serializes structs positionally. Bump this whenever RuleSet's
     // serialized field layout changes so cached bundled tables cannot be
     // accepted with a stale schema.
-    const FORMAT_VERSION: &str = "uniflow-rule-table-v6";
+    // Bumped to v7: RuleMetadata gained a `categories` field, changing the
+    // bincode-serialized layout of both the rule table and the metadata
+    // archive below — a stale cached artifact from v6 decodes with the
+    // wrong field layout instead of failing loudly, so the fingerprint must
+    // change even though none of the source YAML files did.
+    const FORMAT_VERSION: &str = "uniflow-rule-table-v7";
     let output = out_dir.join(format!("legacy-{name}.bin"));
     let metadata_output = out_dir.join(format!("legacy-{name}.metadata.bin"));
     let stamp = out_dir.join(format!("legacy-{name}.stamp"));

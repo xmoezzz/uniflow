@@ -549,6 +549,7 @@ impl Compiler<'_> {
             severity: "warning".to_string(),
             cwe: Vec::new(),
             standards: Vec::new(),
+            categories: Default::default(),
             translations: Default::default(),
         });
     }

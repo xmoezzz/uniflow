@@ -895,10 +895,63 @@ pub struct RuleMetadata {
     pub severity: String,
     #[serde(default)]
     pub cwe: Vec<String>,
+    /// Free-form `"<standard type>:<code/value>"` tags — e.g.
+    /// `"OWASP TOP 10:2017:A1 Injection"`, `"CWE:89:Improper Neutralization
+    /// of Special Elements used in an SQL Command"`. A rule can carry
+    /// several unrelated standards at once (CWE and OWASP and PCI DSS are
+    /// all valid simultaneously for the same finding), so this stays a flat
+    /// list rather than one fixed "the" standard per rule.
     #[serde(default)]
     pub standards: Vec<String>,
+    /// The N-level (currently always exactly 3: class > sub_class >
+    /// detail_class) classification tree a rule sits under, independent of
+    /// `standards` — this is the rule library's own taxonomy (mirrors the
+    /// legacy product's `ClassChin`/`SubClassChin`/`DetailClassChin`
+    /// knowledge-base fields), not a reference to an external standard.
+    /// `detail_class` is usually specific enough to double as the rule's
+    /// own title, but `class`/`sub_class` used to be discarded entirely
+    /// during import — this field is what makes the full path visible.
+    #[serde(default)]
+    pub categories: CategoryTranslations,
     #[serde(default)]
     pub translations: RuleTranslations,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct CategoryTranslations {
+    #[serde(default, rename = "zh-CN")]
+    pub zh_cn: Option<CategoryPath>,
+    #[serde(default)]
+    pub en: Option<CategoryPath>,
+    #[serde(default, rename = "zh-TW")]
+    pub zh_tw: Option<CategoryPath>,
+}
+
+impl CategoryTranslations {
+    pub fn is_empty(&self) -> bool {
+        self.zh_cn.is_none() && self.en.is_none() && self.zh_tw.is_none()
+    }
+}
+
+/// One rule's position in the 3-level classification tree, in a single
+/// language. Field names deliberately mirror the source knowledge base's
+/// own `ClassChin`/`SubClassChin`/`DetailClassChin` vocabulary rather than
+/// generic `level1`/`level2`/`level3` names, so a reader can trace a value
+/// straight back to where it came from.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct CategoryPath {
+    #[serde(default)]
+    pub class: String,
+    #[serde(default)]
+    pub sub_class: String,
+    #[serde(default)]
+    pub detail_class: String,
+}
+
+impl CategoryPath {
+    pub fn is_empty(&self) -> bool {
+        self.class.is_empty() && self.sub_class.is_empty() && self.detail_class.is_empty()
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

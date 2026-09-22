@@ -39,6 +39,50 @@ pub fn legacy_models_for(language: Language) -> Result<RuleSet> {
     Ok(rules)
 }
 
+/// One rule's full classification data, tagged with the language pack it
+/// came from — this, not the executable `RuleSet` (matchers/conditions/etc,
+/// much larger and meaningless outside the scan engine), is what a rule
+/// catalog bundle for browsing/display actually needs: id, title, the
+/// standards it's tagged under, and its class/sub_class/detail_class path.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct CatalogedRule {
+    pub language: String,
+    pub metadata: RuleMetadata,
+}
+
+/// Every distinct legacy language pack's metadata in one list — the
+/// backing data for the encrypted rule-catalog bundle
+/// (`export_rule_catalog_bundle`/`crates/cli`'s `ExportRuleCatalogBundle`).
+/// Deliberately only the base packs `legacy_analysis_models_for` actually
+/// decodes from their own `.bin` file (Java, JavaScript, C/C++, Objective-C/
+/// C++, Python, Go, C#, Ruby) — languages that `retarget_models` derives
+/// from one of those (Kotlin/Jsp from Java, ObjCpp already covered) would
+/// otherwise duplicate the same rules under a second language tag.
+pub fn all_legacy_rule_metadata() -> Result<Vec<CatalogedRule>> {
+    const BASE_LANGUAGES: &[Language] = &[
+        Language::Java,
+        Language::JavaScript,
+        Language::Cpp,
+        Language::ObjC,
+        Language::Python,
+        Language::Go,
+        Language::CSharp,
+        Language::Ruby,
+    ];
+    let mut out = Vec::new();
+    for language in BASE_LANGUAGES {
+        let rules = legacy_models_for(language.clone())?;
+        let language_name = language.as_str().to_string();
+        out.extend(
+            rules
+                .metadata
+                .into_iter()
+                .map(|metadata| CatalogedRule { language: language_name.clone(), metadata }),
+        );
+    }
+    Ok(out)
+}
+
 pub fn legacy_analysis_models_for(language: Language) -> Result<RuleSet> {
     let rules = match language {
         Language::Cpp => decode_legacy_pack(LEGACY_C_CPP_RULES, "C/C++")?,

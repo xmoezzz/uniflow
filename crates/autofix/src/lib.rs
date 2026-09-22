@@ -1,6 +1,6 @@
 mod taint_fix;
 
-pub use taint_fix::{apply_taint_fix_and_reverify, LlmFixConfig, SourceFinding, TaintFixResult};
+pub use taint_fix::{apply_taint_fix_and_reverify, language_from_extension, LlmFixConfig, SourceFinding, TaintFixResult};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

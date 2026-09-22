@@ -691,6 +691,7 @@ fn c_like_models(language: Language) -> RuleSet {
                 "0301000010120027".to_string(),
                 "0501000010120027".to_string(),
             ],
+            categories: Default::default(),
             translations: RuleTranslations {
                 zh_cn: Some(LocalizedRuleText {
                     title: "循环控制变量被污染".to_string(),
@@ -713,6 +714,7 @@ fn c_like_models(language: Language) -> RuleSet {
             rules.metadata.push(RuleMetadata {
                 id: id.to_string(), title: title.to_string(), message: message.to_string(), severity: "warning".to_string(), cwe: Vec::new(),
                 standards: standards.into_iter().map(str::to_string).collect(),
+                categories: Default::default(),
                 translations: RuleTranslations { zh_cn: Some(LocalizedRuleText { title: "释放后指针使用".to_string(), message: "不要释放或使用未定义、已释放的指针。".to_string() }), en: Some(LocalizedRuleText { title: title.to_string(), message: message.to_string() }), zh_tw: Some(LocalizedRuleText { title: "釋放後指標使用".to_string(), message: "不要釋放或使用未定義、已釋放的指標。".to_string() }) },
             });
             rules.native_dataflow_rules.push(NativeDataflowRule { id: id.to_string(), language: Some(language.clone()) });
@@ -724,6 +726,7 @@ fn c_like_models(language: Language) -> RuleSet {
             severity: "warning".to_string(),
             cwe: Vec::new(),
             standards: vec!["0701000010130053".to_string()],
+            categories: Default::default(),
             translations: RuleTranslations {
                 zh_cn: Some(LocalizedRuleText {
                     title: "传给 free 的指针必须来自内存分配函数".to_string(),
@@ -756,6 +759,7 @@ fn c_like_models(language: Language) -> RuleSet {
                 "0701000010130027".to_string(),
                 "0101000010110338".to_string(),
             ],
+            categories: Default::default(),
             translations: RuleTranslations {
                 zh_cn: Some(LocalizedRuleText {
                     title: "动态分配指针使用前必须检查".to_string(),
@@ -787,6 +791,7 @@ fn c_like_models(language: Language) -> RuleSet {
             severity: "warning".to_string(),
             cwe: Vec::new(),
             standards: vec!["0701000010130047".to_string()],
+            categories: Default::default(),
             translations: RuleTranslations {
                 zh_cn: Some(LocalizedRuleText {
                     title: String::new(),
@@ -818,6 +823,7 @@ fn c_like_models(language: Language) -> RuleSet {
                 "0701000010130046".to_string(),
                 "0601000010140037".to_string(),
             ],
+            categories: Default::default(),
             translations: RuleTranslations {
                 zh_cn: Some(LocalizedRuleText {
                     title: String::new(),
@@ -844,6 +850,7 @@ fn c_like_models(language: Language) -> RuleSet {
             severity: "warning".to_string(),
             cwe: Vec::new(),
             standards: vec!["0101000010110430".to_string()],
+            categories: Default::default(),
             translations: RuleTranslations {
                 zh_cn: Some(LocalizedRuleText {
                     title: String::new(),

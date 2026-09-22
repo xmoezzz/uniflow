@@ -406,6 +406,7 @@ fn compile_sink_rule(
                     severity: "warning".to_string(),
                     cwe: Vec::new(),
                     standards: Vec::new(),
+                    categories: Default::default(),
                     translations: Default::default(),
                 });
                 let conditions = legacy
@@ -454,6 +455,7 @@ fn compile_sink_rule(
             severity: "warning".to_string(),
             cwe: Vec::new(),
             standards: Vec::new(),
+            categories: Default::default(),
             translations: Default::default(),
         });
         let conditions = legacy

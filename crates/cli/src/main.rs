@@ -458,6 +458,20 @@ enum Command {
         #[arg(long)]
         output: Option<String>,
     },
+    /// Exports every compiled-in legacy rule's classification data (title,
+    /// severity, CWE, standards, and the class/sub_class/detail_class
+    /// taxonomy) as one encrypted bundle cosmos-backend can host and
+    /// cosmos-agent can sync/decrypt — see `uniflow_rule_crypto`'s module
+    /// doc comment for exactly what the encryption here does and does not
+    /// achieve. This bundle is metadata-only (no matchers/conditions/taint
+    /// models): it is for browsing/classification display, not for
+    /// swapping the scan engine's own compiled-in rule source.
+    ExportRuleCatalogBundle {
+        #[arg(long)]
+        output: String,
+        #[arg(long, default_value_t = false)]
+        overwrite: bool,
+    },
     CheckBaseline {
         /// Defaults to `mix`: route every source file to its own frontend
         /// before running bundled coding-style/baseline checkers.
@@ -941,6 +955,30 @@ fn run() -> Result<()> {
             } else {
                 println!("{json}");
             }
+        }
+        Command::ExportRuleCatalogBundle { output, overwrite } => {
+            let output_path = Path::new(&output);
+            if output_path.exists() && !overwrite {
+                anyhow::bail!("{} already exists; pass --overwrite to replace it", output_path.display());
+            }
+            let rules = uniflow_models::all_legacy_rule_metadata()
+                .context("failed to collect legacy rule catalog metadata")?;
+            let bundle = serde_json::json!({
+                "version": env!("CARGO_PKG_VERSION"),
+                "rule_count": rules.len(),
+                "rules": rules,
+            });
+            let plaintext = serde_json::to_vec(&bundle).context("failed to serialize rule catalog bundle")?;
+            let ciphertext = uniflow_rule_crypto::transform("cosmos-rule-catalog-bundle-v1", &plaintext);
+            std::fs::write(output_path, &ciphertext)
+                .with_context(|| format!("failed to write {}", output_path.display()))?;
+            println!(
+                "wrote {} rules ({} bytes plaintext, {} bytes encrypted) to {}",
+                rules.len(),
+                plaintext.len(),
+                ciphertext.len(),
+                output_path.display()
+            );
         }
         Command::AuditLegacyJvmRules { input, json_out } => {
             let report = audit_legacy_jvm_rule_tree(Path::new(&input))?;

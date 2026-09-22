@@ -5453,6 +5453,7 @@ dependencies = [
  "uniflow-platform",
  "uniflow-reasoning-oracle",
  "uniflow-report",
+ "uniflow-rule-crypto",
  "uniflow-rules",
  "uniflow-system-graph",
  "uniflow-taint",

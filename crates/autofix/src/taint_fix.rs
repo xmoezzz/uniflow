@@ -58,6 +58,18 @@ fn default_context_lines() -> usize {
 #[derive(Debug, Clone, Serialize)]
 pub struct TaintFixResult {
     pub diff: String,
+    /// 1-indexed line number of the first line in `original_snippet`/
+    /// `updated_snippet`, so a caller can render both with correct line
+    /// numbers instead of always starting from 1.
+    pub start_line: usize,
+    /// The context window as it was before the fix — same lines the LLM
+    /// was shown, kept even when `resolved` is false so a caller can still
+    /// show what was attempted.
+    pub original_snippet: String,
+    /// The context window after the fix. Equal to `original_snippet` when
+    /// `resolved` is false (the file was rolled back, so nothing changed).
+    pub updated_snippet: String,
+    pub language: String,
     pub explanation: String,
     pub confidence: f32,
     pub resolved: bool,
@@ -99,7 +111,7 @@ pub fn apply_taint_fix_and_reverify(finding: &SourceFinding, config: &LlmFixConf
         finding.message,
     );
     let answer = oracle
-        .interpret_semantics(&SemanticQuery { language, code_snippet: window_text.clone(), question })
+        .interpret_semantics(&SemanticQuery { language: language.clone(), code_snippet: window_text.clone(), question })
         .map_err(|error| anyhow::anyhow!("LLM fix drafting failed: {error}"))?;
     let replacement = strip_markdown_fence(answer.answer.trim());
     anyhow::ensure!(!replacement.trim().is_empty(), "LLM returned an empty replacement");
@@ -132,6 +144,10 @@ pub fn apply_taint_fix_and_reverify(finding: &SourceFinding, config: &LlmFixConf
         std::fs::write(path, &original).with_context(|| format!("failed to roll back {}", path.display()))?;
         return Ok(TaintFixResult {
             diff,
+            start_line: start + 1,
+            original_snippet: window_text.clone(),
+            updated_snippet: window_text,
+            language,
             explanation: answer.rationale,
             confidence: answer.confidence,
             resolved: false,
@@ -142,6 +158,10 @@ pub fn apply_taint_fix_and_reverify(finding: &SourceFinding, config: &LlmFixConf
 
     Ok(TaintFixResult {
         diff,
+        start_line: start + 1,
+        original_snippet: window_text,
+        updated_snippet: replacement,
+        language,
         explanation: answer.rationale,
         confidence: answer.confidence,
         resolved: true,
@@ -169,7 +189,7 @@ fn strip_markdown_fence(text: &str) -> String {
     }
 }
 
-fn language_from_extension(path: &Path) -> String {
+pub fn language_from_extension(path: &Path) -> String {
     match path.extension().and_then(|e| e.to_str()) {
         Some("py") => "python",
         Some("js" | "jsx" | "mjs") => "javascript",

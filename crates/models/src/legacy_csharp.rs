@@ -508,6 +508,7 @@ fn metadata_for(
             .to_string(),
         cwe,
         standards,
+        categories: Default::default(),
         translations: RuleTranslations {
             en: Some(LocalizedRuleText {
                 title: english_title,

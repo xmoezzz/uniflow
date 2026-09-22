@@ -217,6 +217,7 @@ fn compile_sinks(
                 severity: "warning".to_string(),
                 cwe: Vec::new(),
                 standards: Vec::new(),
+                categories: Default::default(),
                 translations: RuleTranslations {
                     zh_cn: (!legacy.format_zh_cn.is_empty()).then(|| LocalizedRuleText {
                         title: legacy.key.clone(),

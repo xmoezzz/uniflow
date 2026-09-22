@@ -15,6 +15,7 @@ fn metadata(id: &str) -> RuleMetadata {
         severity: "warning".into(),
         cwe: vec![],
         standards: vec![],
+        categories: Default::default(),
         translations: Default::default(),
     }
 }
@@ -90,6 +91,67 @@ fn jvm_metadata_preserves_original_prose_and_completes_all_locales() {
         entries[1].translations.zh_tw.as_ref().unwrap().message,
         "fallback"
     );
+}
+
+const KNOWLEDGE_WITH_CATEGORIES: &str = r#"
+BugInfos:
+  BugInfo:
+  - id: '0001'
+    Categories:
+      Category:
+      - {type: ClassChin, value: 污点规范}
+      - {type: SubClassChin, value: API误用}
+      - {type: DetailClassChin, value: 误用的权限管理}
+    Categories_En:
+      Category:
+      - {type: ClassChin, value: Taint Specification}
+      - {type: SubClassChin, value: API Abuse}
+      - {type: DetailClassChin, value: Misused Privilege Management}
+    Description: 描述。
+    Advice: 建议。
+References:
+  Reference: []
+RuleSets:
+  RuleSet:
+  - Name: privilege_misuse
+    Maps:
+      Map: [{type: bug, value: '0001'}]
+"#;
+
+#[test]
+fn jvm_metadata_preserves_the_full_class_subclass_detailclass_path() {
+    let mut catalog = LegacyJvmKnowledgeCatalog::default();
+    catalog.ingest_yaml(KNOWLEDGE_WITH_CATEGORIES).unwrap();
+    let mut entries = [metadata("sink")];
+    let names = BTreeMap::from([("sink".into(), "privilege_misuse".into())]);
+    catalog.enrich(&mut entries, &names);
+
+    let zh = entries[0].categories.zh_cn.as_ref().expect("zh_cn categories must be present");
+    assert_eq!(zh.class, "污点规范");
+    assert_eq!(zh.sub_class, "API误用");
+    assert_eq!(zh.detail_class, "误用的权限管理");
+
+    let en = entries[0].categories.en.as_ref().expect("en categories must be present");
+    assert_eq!(en.class, "Taint Specification");
+    assert_eq!(en.sub_class, "API Abuse");
+    assert_eq!(en.detail_class, "Misused Privilege Management");
+
+    // No source Traditional Chinese category was supplied — it must be
+    // generated from zh_cn, same fallback shape as title/message text.
+    let tw = entries[0].categories.zh_tw.as_ref().expect("zh_tw categories must be generated");
+    assert_eq!(tw.class, "汙點規範");
+    assert_eq!(tw.sub_class, "API誤用");
+    assert_eq!(tw.detail_class, "誤用的許可權管理");
+}
+
+#[test]
+fn jvm_metadata_leaves_categories_absent_when_the_source_has_none() {
+    let mut catalog = LegacyJvmKnowledgeCatalog::default();
+    catalog.ingest_yaml(KNOWLEDGE).unwrap();
+    let mut entries = [metadata("unmapped")];
+    let names = BTreeMap::from([("unmapped".into(), "unknown".into())]);
+    catalog.enrich(&mut entries, &names);
+    assert!(entries[0].categories.is_empty(), "no category data was ever supplied for this rule");
 }
 
 struct Scratch(PathBuf);

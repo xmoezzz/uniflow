@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use uniflow_rules::{LocalizedRuleText, RuleMetadata};
+use uniflow_rules::{CategoryPath, LocalizedRuleText, RuleMetadata};
 use zhhz::{Config, Converter};
 
 use crate::{LegacyJvmRuleKind, LegacyJvmRulePack};
@@ -77,6 +77,9 @@ struct KnowledgeEntry {
     zh_cn: LocalizedRuleText,
     en: LocalizedRuleText,
     zh_tw: LocalizedRuleText,
+    categories_zh_cn: CategoryPath,
+    categories_en: CategoryPath,
+    categories_zh_tw: CategoryPath,
     cwe: BTreeSet<String>,
     standards: BTreeSet<String>,
 }
@@ -156,6 +159,9 @@ impl LegacyJvmKnowledgeCatalog {
                     zh_cn: localized(item, "Categories", "Description", "Advice"),
                     en: localized(item, "Categories_En", "Description_En", "Advice_En"),
                     zh_tw: localized(item, "Categories_Tw", "Description_Tw", "Advice_Tw"),
+                    categories_zh_cn: category_path(item, "Categories"),
+                    categories_en: category_path(item, "Categories_En"),
+                    categories_zh_tw: category_path(item, "Categories_Tw"),
                     ..Default::default()
                 };
                 if entry.en.title.is_empty() {
@@ -193,6 +199,9 @@ impl LegacyJvmKnowledgeCatalog {
                 fill_text(&mut existing.zh_cn, &entry.zh_cn);
                 fill_text(&mut existing.en, &entry.en);
                 fill_text(&mut existing.zh_tw, &entry.zh_tw);
+                fill_category(&mut existing.categories_zh_cn, &entry.categories_zh_cn);
+                fill_category(&mut existing.categories_en, &entry.categories_en);
+                fill_category(&mut existing.categories_zh_tw, &entry.categories_zh_tw);
                 existing.cwe.extend(entry.cwe);
                 existing.standards.extend(entry.standards);
             }
@@ -282,6 +291,9 @@ impl LegacyJvmKnowledgeCatalog {
                     fill_text(&mut combined.zh_cn, &entry.zh_cn);
                     fill_text(&mut combined.en, &entry.en);
                     fill_text(&mut combined.zh_tw, &entry.zh_tw);
+                    fill_category(&mut combined.categories_zh_cn, &entry.categories_zh_cn);
+                    fill_category(&mut combined.categories_en, &entry.categories_en);
+                    fill_category(&mut combined.categories_zh_tw, &entry.categories_zh_tw);
                     combined.cwe.extend(entry.cwe.iter().cloned());
                     combined.standards.extend(entry.standards.iter().cloned());
                 } else {
@@ -324,6 +336,15 @@ impl LegacyJvmKnowledgeCatalog {
             }
             if tw.is_some() {
                 meta.translations.zh_tw = tw;
+            }
+            if !combined.categories_zh_cn.is_empty() {
+                meta.categories.zh_cn = Some(combined.categories_zh_cn);
+            }
+            if !combined.categories_en.is_empty() {
+                meta.categories.en = Some(combined.categories_en);
+            }
+            if !combined.categories_zh_tw.is_empty() {
+                meta.categories.zh_tw = Some(combined.categories_zh_tw);
             }
         }
         let converter = Converter::new(Config::S2twp);
@@ -379,6 +400,20 @@ fn complete_presentations(meta: &mut RuleMetadata, converter: &Converter) {
     meta.translations.zh_cn = Some(zh_cn);
     meta.translations.en = Some(en);
     meta.translations.zh_tw = Some(zh_tw);
+
+    // Same fallback shape as the title/message text above: a category path
+    // is only ever worth generating a Traditional-Chinese variant of when a
+    // Simplified original exists to convert, and only when the source
+    // didn't already supply its own Traditional text.
+    if meta.categories.zh_tw.is_none() {
+        if let Some(zh_cn) = &meta.categories.zh_cn {
+            meta.categories.zh_tw = Some(CategoryPath {
+                class: converter.convert(&zh_cn.class),
+                sub_class: converter.convert(&zh_cn.sub_class),
+                detail_class: converter.convert(&zh_cn.detail_class),
+            });
+        }
+    }
 }
 
 fn has_message(text: &Option<LocalizedRuleText>) -> bool {
@@ -407,6 +442,40 @@ fn localized(item: &Value, categories: &str, description: &str, advice: &str) ->
         .collect::<Vec<_>>()
         .join("\n\n");
     LocalizedRuleText { title, message }
+}
+
+/// Extracts the full `ClassChin`/`SubClassChin`/`DetailClassChin` path from
+/// `item[category_key].Category[]` — unlike `localized()` above (which only
+/// keeps the deepest `DetailClassChin` entry, as the rule's title), this
+/// keeps all three levels so the full tree survives into `RuleMetadata`.
+fn category_path(item: &Value, category_key: &str) -> CategoryPath {
+    let Some(entries) = item.get(category_key).and_then(|v| v.get("Category")).and_then(Value::as_sequence) else {
+        return CategoryPath::default();
+    };
+    let mut path = CategoryPath::default();
+    for entry in entries {
+        let Some(kind) = scalar(entry.get("type")) else { continue };
+        let Some(value) = scalar(entry.get("value")) else { continue };
+        match kind.as_str() {
+            "ClassChin" => path.class = value,
+            "SubClassChin" => path.sub_class = value,
+            "DetailClassChin" => path.detail_class = value,
+            _ => {}
+        }
+    }
+    path
+}
+
+fn fill_category(target: &mut CategoryPath, candidate: &CategoryPath) {
+    if target.class.is_empty() && !candidate.class.is_empty() {
+        target.class = candidate.class.clone();
+    }
+    if target.sub_class.is_empty() && !candidate.sub_class.is_empty() {
+        target.sub_class = candidate.sub_class.clone();
+    }
+    if target.detail_class.is_empty() && !candidate.detail_class.is_empty() {
+        target.detail_class = candidate.detail_class.clone();
+    }
 }
 
 fn scalar(value: Option<&Value>) -> Option<String> {

@@ -1640,6 +1640,7 @@ def hello(name):
                 severity: "error".to_string(),
                 cwe: vec!["CWE-78".to_string()],
                 standards: vec!["GJB-8114".to_string()],
+                categories: Default::default(),
                 translations: RuleTranslations {
                     zh_cn: Some(LocalizedRuleText {
                         title: "命令注入".to_string(),

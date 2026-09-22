@@ -31,7 +31,7 @@
     {
       "language": "java",
       "file": "java-taint.yml",
-      "sha256": "5c572ed454de9f140223d907c312c089257cc01dd5bad4c30cbc3755e63dbd85",
+      "sha256": "f01c50e946f7f1e02ccda534d019f3abe6247eb2da188698ecd8aaa2793ab7bd",
       "metadata_report": "java-taint-metadata-report.json",
       "sources": 1639,
       "sinks": 4511,

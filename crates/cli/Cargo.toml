@@ -31,6 +31,7 @@ uniflow-lang-python-bytecode = { path = "../lang_python_bytecode" }
 uniflow-lang-wasm-bytecode = { path = "../lang_wasm_bytecode" }
 uniflow-lowering = { path = "../lowering" }
 uniflow-models = { path = "../models" }
+uniflow-rule-crypto = { path = "../rule_crypto" }
 uniflow-rules = { path = "../rules" }
 uniflow-report = { path = "../report" }
 uniflow-taint = { path = "../taint" }

@@ -1,8 +1,17 @@
 [package]
+# Deliberately NOT `.workspace = true` for these fields (unlike every other
+# crate in this repo) — cosmos-backend path-depends on this crate but is
+# built in a Docker context that only copies `cosmos/`, not the rest of
+# this (large, 33-crate) workspace. Hardcoding these values lets this one
+# crate be copied and built standalone, with no ancestor `uniflow/Cargo.toml`
+# workspace file present, while still resolving to the exact same values
+# `[workspace.package]` provides when built as a normal member of this
+# workspace (cosmos-agent, uniflow-models, uniflow-baseline). Keep these in
+# sync with `[workspace.package]` in the root Cargo.toml if that ever changes.
 name = "uniflow-rule-crypto"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-authors.workspace = true
+version = "1.0.0"
+edition = "2021"
+license = "MPL-2.0"
+authors = ["UniFlow Contributors"]
 
 [dependencies]

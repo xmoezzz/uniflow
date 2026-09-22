@@ -144,6 +144,7 @@ pub fn compile_legacy_go_pack(pack: &LegacyGoPack, namespace: &str) -> Result<Le
                     severity: grade_severity(&sink.default_grade).to_string(),
                     cwe: Vec::new(),
                     standards: Vec::new(),
+                    categories: Default::default(),
                     translations: Default::default(),
                 });
             }
