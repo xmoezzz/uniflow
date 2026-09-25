@@ -458,7 +458,9 @@ enum Command {
         #[arg(long)]
         output: Option<String>,
     },
-    /// Exports every compiled-in legacy rule's classification data (title,
+    /// Exports every compiled-in rule's classification data — legacy
+    /// knowledge-base packs, the baseline pattern/AST packs and the
+    /// MIT-derived taint sinks — (title,
     /// severity, CWE, standards, and the class/sub_class/detail_class
     /// taxonomy) as one encrypted bundle cosmos-backend can host and
     /// cosmos-agent can sync/decrypt — see `uniflow_rule_crypto`'s module
@@ -961,8 +963,7 @@ fn run() -> Result<()> {
             if output_path.exists() && !overwrite {
                 anyhow::bail!("{} already exists; pass --overwrite to replace it", output_path.display());
             }
-            let rules = uniflow_models::all_legacy_rule_metadata()
-                .context("failed to collect legacy rule catalog metadata")?;
+            let rules = collect_rule_catalog()?;
             let bundle = serde_json::json!({
                 "version": env!("CARGO_PKG_VERSION"),
                 "rule_count": rules.len(),
@@ -2819,6 +2820,41 @@ fn print_findings(findings: &[TaintFinding], pretty: bool) -> Result<()> {
         writeln!(out).context("failed to finish findings output")?;
         Ok(())
     }
+}
+
+/// Every rule family the scan engine can report on, as catalog entries:
+/// legacy knowledge-base packs, the MIT-derived taint sinks, and the
+/// baseline pattern/AST pack. The baseline conversion lives here rather
+/// than in `uniflow_models` because `uniflow_baseline` depends on nothing
+/// in the catalog and `uniflow_models` must not depend on it (baseline is
+/// only a dev-dependency there) — the CLI is the one crate that links both.
+fn collect_rule_catalog() -> Result<Vec<uniflow_models::CatalogedRule>> {
+    let mut rules = uniflow_models::all_legacy_rule_metadata().context("failed to collect legacy rule catalog metadata")?;
+    rules.extend(uniflow_models::mit_sink_rule_metadata().context("failed to collect MIT sink catalog metadata")?);
+    let baseline = uniflow_baseline::builtin_security_pack().context("failed to load the built-in baseline pack")?;
+    for rule in baseline.rules {
+        let languages: Vec<String> = rule.languages.iter().map(|language| language.as_str().to_string()).collect();
+        let severity = serde_json::to_value(&rule.severity)?.as_str().unwrap_or("warning").to_string();
+        // Same field names/shape on both sides (zh-CN/en/zh-TW -> title/message);
+        // a serde round trip avoids hand-copying three optional structs.
+        let translations: RuleTranslations = serde_json::from_value(serde_json::to_value(&rule.translations)?)?;
+        rules.push(uniflow_models::CatalogedRule {
+            language: languages.first().cloned().unwrap_or_else(|| "any".to_string()),
+            languages: if languages.len() > 1 { languages } else { Vec::new() },
+            pack: "baseline".to_string(),
+            metadata: uniflow_rules::RuleMetadata {
+                id: rule.id,
+                title: rule.title,
+                message: rule.message,
+                severity,
+                cwe: rule.cwe,
+                standards: rule.standards,
+                categories: Default::default(),
+                translations,
+            },
+        });
+    }
+    Ok(rules)
 }
 
 #[cfg(test)]

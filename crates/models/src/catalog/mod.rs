@@ -8,6 +8,7 @@ use uniflow_rules::{
 
 include!("api.rs");
 include!("mit.rs");
+include!("catalog_mit.rs");
 include!("legacy.rs");
 include!("java.rs");
 include!("python.rs");

@@ -253,6 +253,13 @@ fn supplied_vulnerability_database_is_used_by_the_full_orchestrator() {
         summary: "unsafe deserialization in widget loader".to_string(),
         cwe: vec!["CWE-502".to_string()],
         vulnerable_range: "<1.5.0".to_string(),
+        affected_symbols: Vec::new(),
+        fixed_versions: Vec::new(),
+        epss: None,
+        kev: false,
+        fix_state: None,
+        distro_severity: None,
+        references: Vec::new(),
     }]);
 
     let result = scan_directory_with_vuln_db(dir.path(), &vuln_db).expect("custom database scan");

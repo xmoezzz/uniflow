@@ -52,6 +52,11 @@ fn parse_go_mod(text: &str, manifest_path: &str) -> Vec<Dependency> {
     let mut deps = Vec::new();
     let mut in_require_block = false;
     for raw_line in text.lines() {
+        // `// indirect` is how go.mod marks a requirement that no package in
+        // this module imports directly (Go ≥1.17 lists the full selected
+        // set, so these are the transitive ones) — captured before the
+        // comment is stripped.
+        let indirect = raw_line.split_once("//").is_some_and(|(_, comment)| comment.trim_start().starts_with("indirect"));
         let line = raw_line.split("//").next().unwrap_or("").trim();
         if line.is_empty() {
             continue;
@@ -66,11 +71,11 @@ fn parse_go_mod(text: &str, manifest_path: &str) -> Vec<Dependency> {
                 in_require_block = false;
                 continue;
             }
-            if let Some(dep) = parse_require_entry(line, manifest_path) {
+            if let Some(dep) = parse_require_entry(line, manifest_path, indirect) {
                 deps.push(dep);
             }
         } else if let Some(rest) = line.strip_prefix("require ") {
-            if let Some(dep) = parse_require_entry(rest.trim(), manifest_path) {
+            if let Some(dep) = parse_require_entry(rest.trim(), manifest_path, indirect) {
                 deps.push(dep);
             }
         }
@@ -94,7 +99,8 @@ mod tests {
 
         let deps = GoParser.parse(&path).expect("parse");
         assert_eq!(deps.len(), 3);
-        assert!(deps.iter().all(|dep| dep.direct && dep.ecosystem == "go"));
+        assert!(deps.iter().all(|dep| dep.ecosystem == "go"));
+        assert_eq!(deps.iter().filter(|dep| dep.direct).count(), 2, "the `// indirect` requirement is transitive");
         let errors = deps.iter().find(|dep| dep.name == "github.com/pkg/errors").expect("present");
         assert_eq!(errors.version, "v0.9.1");
     }
@@ -114,9 +120,23 @@ mod tests {
         assert_eq!(deps[0].version, "v0.9.1");
         assert!(!deps[0].direct);
     }
+
+    #[test]
+    fn marks_indirect_requirements_as_not_direct() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("go.mod");
+        std::fs::write(
+            &path,
+            "module example.com/app\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.0\n\tgolang.org/x/net v0.7.0 // indirect\n)\n",
+        )
+        .expect("write fixture");
+        let deps = GoParser.parse(&path).expect("parse");
+        assert!(deps.iter().find(|d| d.name == "github.com/gin-gonic/gin").unwrap().direct);
+        assert!(!deps.iter().find(|d| d.name == "golang.org/x/net").unwrap().direct);
+    }
 }
 
-fn parse_require_entry(entry: &str, manifest_path: &str) -> Option<Dependency> {
+fn parse_require_entry(entry: &str, manifest_path: &str, indirect: bool) -> Option<Dependency> {
     let mut fields = entry.split_whitespace();
     let name = fields.next()?;
     let version = fields.next()?;
@@ -125,6 +145,6 @@ fn parse_require_entry(entry: &str, manifest_path: &str) -> Option<Dependency> {
         name: name.to_string(),
         version: version.to_string(),
         manifest_path: manifest_path.to_string(),
-        direct: true,
+        direct: !indirect,
     })
 }

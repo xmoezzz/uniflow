@@ -47,7 +47,22 @@ pub fn legacy_models_for(language: Language) -> Result<RuleSet> {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CatalogedRule {
     pub language: String,
+    /// Every language the rule applies to when it covers more than one
+    /// (baseline rules often target `[c, cpp]`); empty means "just
+    /// `language`". Kept separate from `language` so older consumers that
+    /// only read `language` still see a sensible primary value.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub languages: Vec<String>,
+    /// Which rule family the entry came from: `legacy` (the compiled
+    /// knowledge-base packs), `baseline` (pattern/AST checks) or `mit`
+    /// (MIT-licensed taint models).
+    #[serde(default = "default_catalog_pack")]
+    pub pack: String,
     pub metadata: RuleMetadata,
+}
+
+fn default_catalog_pack() -> String {
+    "legacy".to_string()
 }
 
 /// Every distinct legacy language pack's metadata in one list — the
@@ -77,7 +92,12 @@ pub fn all_legacy_rule_metadata() -> Result<Vec<CatalogedRule>> {
             rules
                 .metadata
                 .into_iter()
-                .map(|metadata| CatalogedRule { language: language_name.clone(), metadata }),
+                .map(|metadata| CatalogedRule {
+                    language: language_name.clone(),
+                    languages: Vec::new(),
+                    pack: default_catalog_pack(),
+                    metadata,
+                }),
         );
     }
     Ok(out)

@@ -201,6 +201,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
 
 [[package]]
+name = "ascii"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d92bec98840b8f03a5ff5413de5293bfcd8bf96467cf5452609f939ec6f5de16"
+
+[[package]]
 name = "askalono"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -632,6 +638,12 @@ dependencies = [
  "chrono",
  "phf 0.12.1",
 ]
+
+[[package]]
+name = "chunked_transfer"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e4de3bc4ea267985becf712dc6d9eed8b04c953b3fcfb339ebc87acd9804901"
 
 [[package]]
 name = "cipher"
@@ -1630,6 +1642,15 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+]
+
+[[package]]
+name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
@@ -1664,6 +1685,15 @@ dependencies = [
  "rayon",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "hashlink"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
+dependencies = [
+ "hashbrown 0.14.5",
 ]
 
 [[package]]
@@ -1736,6 +1766,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
 
 [[package]]
+name = "httpdate"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
+
+[[package]]
 name = "humantime"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1786,6 +1822,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -2215,6 +2252,17 @@ name = "libm"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
+
+[[package]]
+name = "libsqlite3-sys"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e99fb7a497b1e3339bc746195567ed8d3e24945ecd636e3619d20b9de9e9149"
+dependencies = [
+ "cc",
+ "pkg-config",
+ "vcpkg",
+]
 
 [[package]]
 name = "linux-raw-sys"
@@ -4129,6 +4177,7 @@ checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "h2",
@@ -4161,6 +4210,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -4238,6 +4288,20 @@ name = "rpm-version"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61e5905b7c264d3aec4c631f6a90f0b68bec5bcf9dc0be2bb793c4cf797eae7d"
+
+[[package]]
+name = "rusqlite"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7753b721174eb8ff87a9a0e799e2d7bc3749323e773db92e0984debb00019d6e"
+dependencies = [
+ "bitflags 2.13.2",
+ "fallible-iterator",
+ "fallible-streaming-iterator",
+ "hashlink",
+ "libsqlite3-sys",
+ "smallvec",
+]
 
 [[package]]
 name = "rust_xlsxwriter"
@@ -5001,6 +5065,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tiny_http"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "389915df6413a2e74fb181895f933386023c71110878cd0825588928e64cdc82"
+dependencies = [
+ "ascii",
+ "chunked_transfer",
+ "httpdate",
+ "log",
+]
+
+[[package]]
 name = "tinystr"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5461,6 +5537,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "uniflow-container-image"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "flate2",
+ "serde",
+ "serde_json",
+ "tar",
+ "tempfile",
+ "uniflow-archive-extract",
+ "walkdir",
+]
+
+[[package]]
 name = "uniflow-core"
 version = "1.0.0"
 dependencies = [
@@ -5621,6 +5711,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "serde_json",
+ "serde_yaml",
  "tempfile",
  "uniflow-sca-core",
 ]
@@ -5651,6 +5742,7 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "serde",
+ "serde_json",
  "tempfile",
  "toml",
  "uniflow-sca-core",
@@ -5921,6 +6013,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "uniflow-oci-registry"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "tiny_http",
+]
+
+[[package]]
+name = "uniflow-os-package-db"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "rusqlite",
+ "serde",
+ "tempfile",
+ "uniflow-sca-core",
+]
+
+[[package]]
 name = "uniflow-parser-core"
 version = "1.0.0"
 dependencies = [
@@ -5990,8 +6106,11 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "serde",
+ "serde_json",
+ "serde_yaml",
  "sevenz-rust2",
  "tempfile",
+ "toml",
  "uniflow-archive-extract",
  "uniflow-deps-cargo",
  "uniflow-deps-chef",
@@ -6018,6 +6137,23 @@ dependencies = [
  "uniflow-sca-core",
  "uniflow-vuln-db",
  "walkdir",
+]
+
+[[package]]
+name = "uniflow-sca-reachability"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "uniflow-frontend",
+ "uniflow-hir",
+ "uniflow-sca-core",
+ "walkdir",
+ "zip 2.4.2",
 ]
 
 [[package]]
@@ -6225,6 +6361,12 @@ dependencies = [
  "itoa",
  "ryu",
 ]
+
+[[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "version_check"

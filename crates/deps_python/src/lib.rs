@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use serde_json::Value;
 use std::path::Path;
 use uniflow_sca_core::{Dependency, ManifestParser};
 
@@ -10,7 +11,7 @@ impl ManifestParser for PythonParser {
     }
 
     fn manifest_file_names(&self) -> &'static [&'static str] {
-        &["requirements.txt", "poetry.lock"]
+        &["requirements.txt", "poetry.lock", "Pipfile.lock", "uv.lock"]
     }
 
     fn parse(&self, manifest_path: &Path) -> anyhow::Result<Vec<Dependency>> {
@@ -20,8 +21,37 @@ impl ManifestParser for PythonParser {
         if file_name == "poetry.lock" {
             return Ok(parse_poetry_lock(&text, &manifest_path));
         }
+        if file_name == "uv.lock" {
+            return Ok(parse_uv_lock(&text, &manifest_path));
+        }
+        if file_name == "Pipfile.lock" {
+            return Ok(parse_pipfile_lock(&text, &manifest_path));
+        }
         Ok(parse_requirements_txt(&text, &manifest_path))
     }
+}
+
+/// Pipfile.lock is plain JSON: `{"default": {"<name>": {"version": "==x.y.z", ...}}, "develop": {...}}`.
+/// The version string carries a leading pip-style operator (almost always
+/// `==` since it's a lock file) that needs stripping to get a bare version.
+fn parse_pipfile_lock(text: &str, manifest_path: &str) -> Vec<Dependency> {
+    let Ok(json) = serde_json::from_str::<Value>(text) else { return Vec::new() };
+    let mut deps = Vec::new();
+    for section in ["default", "develop"] {
+        let Some(packages) = json.get(section).and_then(Value::as_object) else { continue };
+        for (name, meta) in packages {
+            let Some(version) = meta.get("version").and_then(Value::as_str) else { continue };
+            let version = version.trim_start_matches("==").trim_start_matches('=').to_string();
+            deps.push(Dependency {
+                ecosystem: "pypi".to_string(),
+                name: name.clone(),
+                version,
+                manifest_path: manifest_path.to_string(),
+                direct: false,
+            });
+        }
+    }
+    deps
 }
 
 const VERSION_OPERATORS: &[&str] = &["===", "==", "~=", ">=", "<=", "!=", ">", "<"];
@@ -80,6 +110,33 @@ fn parse_poetry_lock(text: &str, manifest_path: &str) -> Vec<Dependency> {
         .collect()
 }
 
+/// uv.lock: TOML `[[package]]` entries like poetry.lock, plus one entry
+/// for the project itself (`source = { editable = "." }` or
+/// `{ virtual = "." }`), which is first-party code rather than a
+/// dependency and so is skipped.
+fn parse_uv_lock(text: &str, manifest_path: &str) -> Vec<Dependency> {
+    let Ok(doc) = toml::from_str::<toml::Value>(text) else { return Vec::new() };
+    let Some(packages) = doc.get("package").and_then(toml::Value::as_array) else { return Vec::new() };
+    packages
+        .iter()
+        .filter(|package| {
+            !package
+                .get("source")
+                .and_then(toml::Value::as_table)
+                .is_some_and(|source| source.contains_key("editable") || source.contains_key("virtual"))
+        })
+        .filter_map(|package| {
+            Some(Dependency {
+                ecosystem: "pypi".to_string(),
+                name: package.get("name")?.as_str()?.to_string(),
+                version: package.get("version")?.as_str()?.to_string(),
+                manifest_path: manifest_path.to_string(),
+                direct: false,
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,5 +170,38 @@ mod tests {
         assert_eq!(deps.len(), 1);
         assert_eq!(deps[0].name, "requests");
         assert!(!deps[0].direct);
+    }
+
+    #[test]
+    fn parses_resolved_versions_from_pipfile_lock_stripping_the_operator() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("Pipfile.lock");
+        std::fs::write(
+            &path,
+            r#"{"default": {"requests": {"version": "==2.25.0"}}, "develop": {"pytest": {"version": "==7.0.0"}}}"#,
+        )
+        .expect("write fixture");
+
+        let deps = PythonParser.parse(&path).expect("parse");
+        assert_eq!(deps.len(), 2);
+        let requests = deps.iter().find(|dep| dep.name == "requests").expect("requests present");
+        assert_eq!(requests.version, "2.25.0");
+        assert!(!requests.direct);
+        assert!(deps.iter().any(|dep| dep.name == "pytest"), "develop section must also be scanned");
+    }
+
+    #[test]
+    fn parses_uv_lock_skipping_the_project_itself() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("uv.lock");
+        std::fs::write(
+            &path,
+            "version = 1\n\n[[package]]\nname = \"svc\"\nversion = \"0.1.0\"\nsource = { editable = \".\" }\n\n[[package]]\nname = \"pyyaml\"\nversion = \"5.3.1\"\nsource = { registry = \"https://pypi.org/simple\" }\n",
+        )
+        .expect("write fixture");
+        let deps = PythonParser.parse(&path).expect("parse");
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].name, "pyyaml");
+        assert_eq!(deps[0].version, "5.3.1");
     }
 }
