@@ -69,6 +69,7 @@ impl BaselinePack {
         let mut scanner = HirScanner {
             pack: self,
             language: &program.language,
+            source_maps: &program.source_maps,
             file_paths: program
                 .files
                 .iter()
@@ -167,6 +168,9 @@ enum ValueUse {
 struct HirScanner<'a> {
     pack: &'a BaselinePack,
     language: &'a Language,
+    /// Frontends that rewrite source before building HIR (C/C++) record
+    /// how HIR offsets map back to the file; empty for the rest.
+    source_maps: &'a [uniflow_hir::SourceMap],
     file_paths: HashMap<u32, String>,
     source_by_path: &'a HashMap<String, String>,
     automatic_symbols: HashSet<SymbolId>,
@@ -2243,13 +2247,22 @@ impl HirScanner<'_> {
         })
     }
 
+    /// `span` in the original file's bytes and lines (a no-op without a
+    /// source map). C/C++ HIR spans are offsets into preprocessed text with
+    /// no line numbers, which made every C misuse finding "line 1".
+    fn original_span(&self, span: Span) -> Span {
+        self.source_maps.iter().find(|map| map.file.0 == span.file).map_or(span, |map| map.remap_span(span))
+    }
+
     fn span_source(&self, span: Span) -> Option<&str> {
+        let span = self.original_span(span);
         let path = self.file_paths.get(&span.file)?;
         let source = self.source_by_path.get(path)?;
         source.get(span.start_byte as usize..span.end_byte as usize)
     }
 
     fn push_finding(&mut self, rule: &BaselineRule, callee: &str, span: Span) {
+        let span = self.original_span(span);
         let path = self
             .file_paths
             .get(&span.file)

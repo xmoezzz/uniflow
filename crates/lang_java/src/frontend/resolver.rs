@@ -103,7 +103,12 @@ impl JavaResolver {
                 return found;
             }
         }
-        uniflow_hir::java_api::java_api_return_type(&owner, method_name, arg_count?).map(str::to_string)
+        let arity = arg_count?;
+        uniflow_hir::java_api::java_api_return_type(&owner, method_name, arity)
+            // `String`, `StringBuilder`, … are spelled without their implicit
+            // `java.lang` package in source; the catalog names them fully.
+            .or_else(|| (!owner.contains('.')).then(|| uniflow_hir::java_api::java_api_return_type(&format!("java.lang.{owner}"), method_name, arity)).flatten())
+            .map(str::to_string)
     }
 
     fn resolve_static_member_call(&self, member_name: &str) -> Option<String> {

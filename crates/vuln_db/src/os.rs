@@ -80,6 +80,22 @@ fn rpm_flavor(version: &str) -> u8 {
     }
 }
 
+struct MatchContext<'a> {
+    distro_key: &'a str,
+    distro_label: &'a str,
+    db_path: &'a str,
+}
+
+/// The RHEL major release whose unfixed/won't-fix statements a
+/// binary-compatible rebuild inherits (`rocky:9.4` → `rhel:9`). CentOS
+/// Stream is upstream of RHEL rather than a rebuild, but Red Hat's
+/// unfixed data describes the same sources and is what Trivy/Grype apply.
+pub fn rhel_parent(distro_key: &str) -> Option<String> {
+    let (id, release) = distro_key.split_once(':')?;
+    let major = release.split('.').next().filter(|m| !m.is_empty() && m.chars().all(|c| c.is_ascii_digit()))?;
+    matches!(id, "rocky" | "almalinux" | "ol" | "centos").then(|| format!("rhel:{major}"))
+}
+
 struct Query {
     name: String,
     version: String,
@@ -111,7 +127,6 @@ impl VulnDb {
         let Some(data_key) = data_keys.iter().find(|k| self.covers_ecosystem(k)).cloned() else {
             return OsLookup { findings: Vec::new(), data_source: None, packages_checked: packages.len() };
         };
-        let scheme = Scheme::for_ecosystem(&normalize_ecosystem(&data_key));
 
         // One query per distinct (name, version); binaries sharing a source
         // package collapse into one query carrying all their names.
@@ -133,6 +148,34 @@ impl VulnDb {
             }
         }
 
+        let ctx = MatchContext { distro_key, distro_label, db_path };
+        let mut findings = self.match_dataset(&data_key, &queries, &ctx, false);
+        if let Some(parent) = rhel_parent(distro_key).filter(|p| *p != data_key && self.covers_ecosystem(p)) {
+            // RHEL rebuilds publish advisories only for what they *fixed*;
+            // Red Hat's "affected, no fix yet" / "will not fix" statements
+            // apply to them by binary compatibility (ADR-0021). Inherited
+            // only for CVEs the rebuild's own data says nothing about for
+            // that package — its own statement always wins.
+            let inherited = self.match_dataset(&parent, &queries, &ctx, true);
+            findings.extend(inherited.into_iter().filter(|f| !self.dataset_mentions(&data_key, &f.package, &f.rule_id)));
+        }
+        Self::dedupe_source_level(&mut findings);
+        findings.sort_by(|a, b| a.package.cmp(&b.package).then_with(|| a.rule_id.cmp(&b.rule_id)));
+        OsLookup { findings, data_source: Some(data_key), packages_checked: packages.len() }
+    }
+
+    /// Whether `dataset` has any record for `package` that names `cve`.
+    fn dataset_mentions(&self, dataset: &str, package: &str, cve: &str) -> bool {
+        self.candidates(dataset, package).any(|(record, _)| bare_id(&record.id) == cve || record.aliases.iter().any(|a| a == cve) || cve_of(&record.id).as_deref() == Some(cve))
+    }
+
+    /// Matches every query against one dataset. `unfixed_only` keeps just
+    /// the affected-without-fix and will-not-fix findings (for inherited
+    /// data, where a *fix* version belongs to another distro's builds).
+    fn match_dataset(&self, data_key: &str, queries: &BTreeMap<(String, String), Query>, ctx: &MatchContext, unfixed_only: bool) -> Vec<DependencyFinding> {
+        let (distro_key, distro_label, db_path) = (ctx.distro_key, ctx.distro_label, ctx.db_path);
+        let data_key = data_key.to_string();
+        let scheme = Scheme::for_ecosystem(&normalize_ecosystem(&data_key));
         let mut findings = Vec::new();
         for query in queries.values() {
             let Some(installed) = Ver::parse(scheme, &query.version) else { continue };
@@ -195,6 +238,9 @@ impl VulnDb {
                 let severity = acc.specific_severity.or(acc.bundle_severity).unwrap_or(Severity::Medium);
                 let title = acc.title.unwrap_or_else(|| cve.clone());
                 let fix_state = acc.state.unwrap_or(FixState::Unfixed);
+                if unfixed_only && fix_state == FixState::Fixed {
+                    continue;
+                }
                 let recommended = if fix_state == FixState::Fixed { acc.fixed } else { None };
                 findings.push(DependencyFinding {
                     rule_id: cve.clone(),
@@ -230,11 +276,16 @@ impl VulnDb {
                         advisory_ids: acc.advisories.into_iter().collect(),
                         distro_severity: acc.distro_severity,
                         references: acc.references.into_iter().take(6).collect(),
+                        inherited: unfixed_only,
                     }),
                 });
             }
         }
 
+        findings
+    }
+
+    fn dedupe_source_level(findings: &mut Vec<DependencyFinding>) {
         // A package whose binary name equals its source name (bash,
         // openssl on rpm distros) is queried once; but data keyed by both
         // conventions (openEuler rows for the source, Red Hat rows for
@@ -250,8 +301,6 @@ impl VulnDb {
             os.source_package.is_some()
                 || !source_level.iter().any(|(cve, bins)| *cve == f.rule_id && bins.split(',').any(|b| os.binaries.contains(&b.to_string())))
         });
-        findings.sort_by(|a, b| a.package.cmp(&b.package).then_with(|| a.rule_id.cmp(&b.rule_id)));
-        OsLookup { findings, data_source: Some(data_key), packages_checked: packages.len() }
     }
 }
 
@@ -340,6 +389,43 @@ mod tests {
         assert_eq!(first.severity, Severity::Low);
         assert_eq!(first.os.as_ref().unwrap().advisory_ids, vec!["USN-7001-1"]);
         assert_eq!(out.findings[1].severity, Severity::High);
+    }
+
+    #[test]
+    fn rocky_inherits_rhel_unfixed_statements_it_has_no_own_word_on() {
+        let rpm = |name: &str, version: &str| OsPackage {
+            name: name.to_string(),
+            version: version.to_string(),
+            source_name: Some(name.to_string()),
+            source_version: None,
+            arch: Some("x86_64".into()),
+            module: None,
+        };
+        let mut unfixed = rec("redhat:CVE-2021-45078", "rhel:9", "binutils", ">=0", &[], Severity::Low);
+        unfixed.fix_state = Some("unfixed".into());
+        let mut wont = rec("redhat:CVE-2022-0001", "rhel:9", "binutils", ">=0", &[], Severity::Medium);
+        wont.fix_state = Some("wont_fix".into());
+        let mut decided = rec("redhat:CVE-2023-9999", "rhel:9", "binutils", ">=0", &[], Severity::High);
+        decided.fix_state = Some("unfixed".into());
+        let db = VulnDb::from_records(vec![
+            // Rocky's own advisory: fixed in -42, installed is -42 — Rocky
+            // has a statement on this CVE, so RHEL's unfixed row must not
+            // resurrect it.
+            rec("osv:RLSA-2024:1", "rocky:9", "binutils", "<2.35.2-42.el9", &["CVE-2023-9999"], Severity::High),
+            // A fixed RHEL advisory: never inherited (its fix version is a RHEL build).
+            rec("osv:RHSA-2024:2", "rhel:9", "binutils", "<2.35.2-99.el9", &["CVE-2024-1111"], Severity::High),
+            unfixed,
+            wont,
+            decided,
+        ]);
+        let out = lookup(&db, &["rocky:9"], &[rpm("binutils", "2.35.2-42.el9")]);
+        let got: Vec<(&str, FixState, bool)> =
+            out.findings.iter().map(|f| (f.rule_id.as_str(), f.os.as_ref().unwrap().fix_state, f.os.as_ref().unwrap().inherited)).collect();
+        assert_eq!(got, vec![("CVE-2021-45078", FixState::Unfixed, true), ("CVE-2022-0001", FixState::WontFix, true)]);
+        assert_eq!(out.findings[0].os.as_ref().unwrap().data_source, "rhel:9");
+        assert_eq!(out.data_source.as_deref(), Some("rocky:9"));
+        assert_eq!(rhel_parent("almalinux:8.10").as_deref(), Some("rhel:8"));
+        assert_eq!(rhel_parent("debian:12"), None);
     }
 
     #[test]

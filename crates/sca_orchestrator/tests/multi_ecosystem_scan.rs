@@ -288,3 +288,41 @@ fn one_file_can_produce_dependency_license_and_malware_evidence_without_cross_co
     assert_eq!(result.malware_findings.len(), 1);
     assert_eq!(result.malware_findings[0].path.ends_with("install.js"), true);
 }
+
+/// Benchmark regression (superset 0.36.0): one GHSA covering several
+/// packages at the same version in the same lockfile must yield a finding
+/// per package — the dedupe key used to omit the package name, so
+/// `@babel/runtime-corejs2@7.8.7` vanished behind `@babel/runtime@7.8.7`.
+#[test]
+fn one_advisory_covering_several_packages_reports_each_of_them() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    write(
+        dir.path(),
+        "package-lock.json",
+        r#"{ "lockfileVersion": 1, "dependencies": {
+             "@babel/runtime": { "version": "7.8.7" },
+             "@babel/runtime-corejs2": { "version": "7.8.7" } } }"#,
+    );
+    let record = |package: &str| VulnRecord {
+        id: "osv:GHSA-968p-4wvh-cqc8".into(),
+        aliases: vec!["CVE-2025-27789".into()],
+        ecosystem: "npm".into(),
+        package: package.into(),
+        severity: Severity::Medium,
+        summary: "inefficient RegExp complexity".into(),
+        cwe: Vec::new(),
+        vulnerable_range: "<7.26.10".into(),
+        affected_symbols: Vec::new(),
+        fixed_versions: vec!["7.26.10".into()],
+        epss: None,
+        kev: false,
+        fix_state: None,
+        distro_severity: None,
+        references: Vec::new(),
+    };
+    let db = VulnDb::from_records(vec![record("@babel/runtime"), record("@babel/runtime-corejs2")]);
+    let result = scan_directory_with_vuln_db(dir.path(), &db).expect("scan");
+    let mut packages: Vec<&str> = result.dependency_findings.iter().map(|f| f.package.as_str()).collect();
+    packages.sort();
+    assert_eq!(packages, vec!["@babel/runtime", "@babel/runtime-corejs2"]);
+}

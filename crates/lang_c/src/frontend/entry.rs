@@ -16,6 +16,7 @@ pub fn parse_c_like_file(
     path: &str,
     source: &str,
 ) -> Result<uniflow_hir::Program> {
+    let original = source;
     let source = preprocess_c_source_with_origins(source);
     let source = normalize_c_surface_tracked(source);
     let macro_ranges = source.macro_ranges();
@@ -74,8 +75,58 @@ pub fn parse_c_like_file(
                 kind: uniflow_hir::SourceOriginKind::MacroExpansion,
             }
         }));
+        // C++ attaches its own map from its normalized text; for C the HIR
+        // offsets are into the preprocessed text, whose lines correspond
+        // one-to-one to the input's (see `join_line_continuations` and
+        // `rewrite_tracked_regex`). Without a map, lowering had no way to
+        // turn offsets into lines and every C finding was just `@file.c`.
+        if language == Language::C {
+            program.source_maps.push(line_source_map(file.id, original, &source));
+        }
     }
     Ok(program)
+}
+
+/// A `SourceMap` pairing line `i` of `processed` with line `i` of
+/// `original` — exact for every line the preprocessor left alone, and
+/// still the right line (column interpolated within it) for a line whose
+/// macros were expanded. If the line counts ever disagree, only lines that
+/// exist in both are mapped; offsets past them clamp to the original length.
+fn line_source_map(file: uniflow_hir::FileId, original: &str, processed: &str) -> uniflow_hir::SourceMap {
+    fn line_spans(text: &str) -> Vec<(u32, u32)> {
+        let mut spans = Vec::new();
+        let mut start = 0usize;
+        for (index, byte) in text.bytes().enumerate() {
+            if byte == b'\n' {
+                spans.push((start as u32, index as u32 + 1));
+                start = index + 1;
+            }
+        }
+        if start < text.len() || spans.is_empty() {
+            spans.push((start as u32, text.len() as u32));
+        }
+        spans
+    }
+    let original_lines = line_spans(original);
+    let processed_lines = line_spans(processed);
+    let segments = processed_lines
+        .iter()
+        .zip(&original_lines)
+        .filter(|((ps, pe), _)| pe > ps)
+        .map(|(&(normalized_start, normalized_end), &(original_start, original_end))| uniflow_hir::SourceMapSegment {
+            normalized_start,
+            normalized_end,
+            original_start,
+            original_end,
+        })
+        .collect();
+    uniflow_hir::SourceMap {
+        file,
+        original_len: original.len() as u32,
+        normalized_len: processed.len() as u32,
+        original_line_starts: original_lines.iter().map(|(start, _)| *start).collect(),
+        segments,
+    }
 }
 
 /// Normalize C declaration and initializer sugar into the conservative HIR grammar.
@@ -96,7 +147,12 @@ where
         };
         text.push_str(&input.text[cursor..matched.start()]);
         macro_bytes.extend_from_slice(&input.macro_bytes[cursor..matched.start()]);
-        let rewritten = replacement(&captures);
+        let mut rewritten = replacement(&captures);
+        // Keep the line count: a multi-line construct rewritten to one line
+        // (an `enum {…}` → `typedef int E;`) would otherwise shift every
+        // later line and put findings on the wrong source line.
+        let lost_lines = matched.as_str().matches('\n').count().saturating_sub(rewritten.matches('\n').count());
+        rewritten.extend(std::iter::repeat_n('\n', lost_lines));
         let macro_origin = input.macro_bytes[matched.start()..matched.end()]
             .iter()
             .copied()
@@ -927,7 +983,49 @@ fn parse_c_like_try(
     ))
 }
 
+/// Parses one `;`-terminated statement into `out`. Every statement it
+/// produces without a location of its own gets the statement's span, so
+/// checkers anchored on assignments, declarations and returns (array
+/// bounds, leaks, `x = rand()`) report the real line instead of line 1.
 fn parse_c_like_simple_statement(
+    builder: &mut ModuleBuilder,
+    stmt: &str,
+    stmt_offset: usize,
+    env: &mut CLikeEnv,
+    function_pointer_typedefs: &HashSet<String>,
+    out: &mut Vec<Stmt>,
+) {
+    let first = out.len();
+    parse_c_like_simple_statement_inner(builder, stmt, stmt_offset, env, function_pointer_typedefs, out);
+    let span = occurrence_span(stmt_offset, stmt_offset + stmt.len());
+    for produced in &mut out[first..] {
+        let slot = stmt_span_mut(produced);
+        if slot.start_byte == 0 && slot.end_byte == 0 {
+            *slot = span;
+        }
+    }
+}
+
+fn stmt_span_mut(stmt: &mut Stmt) -> &mut uniflow_hir::Span {
+    match stmt {
+        Stmt::Let { span, .. }
+        | Stmt::Assign { span, .. }
+        | Stmt::Expr { span, .. }
+        | Stmt::If { span, .. }
+        | Stmt::While { span, .. }
+        | Stmt::For { span, .. }
+        | Stmt::ForEach { span, .. }
+        | Stmt::Return { span, .. }
+        | Stmt::Throw { span, .. }
+        | Stmt::Try { span, .. }
+        | Stmt::Break { span, .. }
+        | Stmt::Continue { span, .. }
+        | Stmt::DoWhile { span, .. }
+        | Stmt::Switch { span, .. } => span,
+    }
+}
+
+fn parse_c_like_simple_statement_inner(
     builder: &mut ModuleBuilder,
     stmt: &str,
     stmt_offset: usize,
@@ -1097,7 +1195,7 @@ fn parse_c_like_simple_statement(
         return;
     }
 
-    if let Some(extra_stmts) = parse_copy_propagation_stmt(builder, stmt, env) {
+    if let Some(extra_stmts) = parse_copy_propagation_stmt(builder, stmt, stmt_offset, env) {
         out.extend(extra_stmts);
         return;
     }

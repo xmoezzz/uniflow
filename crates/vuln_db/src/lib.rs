@@ -304,7 +304,9 @@ impl VulnDb {
     pub fn lookup_detailed(&self, dependency: &Dependency) -> LookupOutcome {
         let key = (normalize_ecosystem(&dependency.ecosystem), normalize_package_name(&dependency.ecosystem, &dependency.name));
         let Some(candidates) = self.index.get(&key) else { return LookupOutcome::default() };
-        let Some(version) = Ver::parse(Scheme::Generic, &normalize_version(&dependency.version)) else {
+        // Same ordering the record's ranges were parsed with (see `insert`):
+        // PEP 440 for PyPI, ComparableVersion for Maven, lenient otherwise.
+        let Some(version) = Ver::parse(Scheme::for_ecosystem(&key.0), &normalize_version(&dependency.version)) else {
             return LookupOutcome { findings: Vec::new(), unresolved_advisories: Some(candidates.len()) };
         };
 

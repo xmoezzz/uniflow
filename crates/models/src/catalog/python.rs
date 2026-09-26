@@ -51,6 +51,20 @@ fn python_models() -> RuleSet {
                 out: Port::Return,
                 kind: "generic".to_string(),
             },
+            // Werkzeug multidict accessors beyond `.get` (`getlist("x")`,
+            // `to_dict()`, `keys()`/`values()`/`items()`, `lists()`): every
+            // key and value they return is client-controlled.
+            SourceRule {
+                id: "python-flask-request-multidict-accessors".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    receiver_regex: Some(r"^flask\.request\.(args|form|values|headers|cookies|files)$".to_string()),
+                    method_regex: Some(r"^(getlist|to_dict|keys|values|items|lists)$".to_string()),
+                    ..Default::default()
+                },
+                out: Port::Return,
+                kind: "generic".to_string(),
+            },
             SourceRule {
                 id: "python-os-getenv".to_string(),
                 language: Some(Language::Python),
@@ -449,6 +463,43 @@ fn python_models() -> RuleSet {
             },
         ],
         sinks: vec![
+            // XPath evaluation over lxml trees/elements and compiled
+            // `etree.XPath(...)` expressions: the expression string (arg 0).
+            SinkRule {
+                id: "python-lxml-xpath".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher { method_regex: Some(r"^(xpath|evaluate)$".to_string()), ..Default::default() },
+                inputs: vec![Port::Arg(0)],
+                kind: "xpath".to_string(),
+            },
+            SinkRule {
+                id: "python-lxml-xpath-compile".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher { regex: Some(r"^(lxml\.)?etree\.(XPath|ETXPath|XPathEvaluator)$".to_string()), ..Default::default() },
+                inputs: vec![Port::Arg(0)],
+                kind: "xpath".to_string(),
+            },
+            // LDAP search filters: ldap3 `Connection.search(base, filter)`
+            // and python-ldap `search_s/search_st/search_ext(_s)(base, scope,
+            // filterstr)`; the search base is attacker-steerable too.
+            SinkRule {
+                id: "python-ldap3-search".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    receiver_regex: Some(r"(^|\.)ldap3(\.core\.connection)?\.Connection$".to_string()),
+                    method_name: Some("search".to_string()),
+                    ..Default::default()
+                },
+                inputs: vec![Port::Arg(0), Port::Arg(1), Port::NamedArg("search_filter".to_string())],
+                kind: "ldap".to_string(),
+            },
+            SinkRule {
+                id: "python-ldap-search".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher { method_regex: Some(r"^search(_s|_st|_ext|_ext_s)$".to_string()), ..Default::default() },
+                inputs: vec![Port::Arg(0), Port::Arg(2), Port::NamedArg("filterstr".to_string())],
+                kind: "ldap".to_string(),
+            },
             SinkRule {
                 id: "python-sql-execute".to_string(),
                 language: Some(Language::Python),
@@ -800,6 +851,33 @@ fn python_models() -> RuleSet {
                     ..Default::default()
                 },
                 flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+            },
+            // `str`/`bytes` methods whose result is (part of) the receiver's
+            // data, matched by name so they also apply when the receiver's
+            // type isn't inferred (`request.path.split("/")`,
+            // `request.query_string.decode()`). `replace`/`translate` are
+            // deliberately absent: they carry sanitizer semantics elsewhere.
+            SummaryRule {
+                id: "python-string-methods".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    method_regex: Some(
+                        r"^(split|rsplit|splitlines|partition|rpartition|decode|encode|strip|lstrip|rstrip|lower|upper|casefold|title|capitalize|swapcase|removeprefix|removesuffix|zfill|center|ljust|rjust|expandtabs|format_map)$"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+                flows: vec![FlowSpec { from: Port::Receiver, to: Port::Return }],
+            },
+            // URL decoding and parsing return the input's (decoded) content.
+            SummaryRule {
+                id: "python-urllib-parse-decoders".to_string(),
+                language: Some(Language::Python),
+                matcher: ApiMatcher {
+                    regex: Some(r"^urllib\.parse\.(unquote|unquote_plus|unquote_to_bytes|parse_qs|parse_qsl|urlparse|urlsplit|urljoin)$".to_string()),
+                    ..Default::default()
+                },
+                flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }, FlowSpec { from: Port::Arg(1), to: Port::Return }],
             },
             SummaryRule {
                 id: "python-dict-get".to_string(),
@@ -1380,7 +1458,21 @@ fn python_models() -> RuleSet {
         sink_conditions: Vec::new(),
         call_conditions: Vec::new(),
         taint_transforms: Vec::new(),
-        field_sources: Vec::new(),
+        // Attributes of Flask's request proxy that carry client-controlled
+        // data directly (no accessor call): the path, the raw query string
+        // and body, and the multidict/header containers themselves, whose
+        // accessors (`getlist`, `keys()`, iteration) then inherit the taint.
+        field_sources: [
+            "path", "full_path", "url", "base_url", "url_root", "query_string", "data", "stream", "json", "files", "args", "form", "values", "headers", "cookies",
+        ]
+        .into_iter()
+        .map(|field| FieldSourceRule {
+            id: format!("python-flask-request-field-{field}"),
+            language: Some(Language::Python),
+            matcher: FieldMatcher { owner: Some("flask.request".to_string()), owner_regex: None, field: field.to_string() },
+            kind: "generic".to_string(),
+        })
+        .collect(),
         unused_return_sinks: Vec::new(),
         named_value_sources: Vec::new(),
         field_sinks: Vec::new(),

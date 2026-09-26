@@ -465,7 +465,7 @@ fn parse_imports_shallow_for_module_kind(
 fn parse_imports(source: &str, builder: &mut ModuleBuilder, module_name: &str) -> PyImports {
     let imports = parse_imports_shallow_for_module(source, module_name);
     for (alias, path) in &imports.aliases {
-        builder.add_import(path, Some(alias.clone()));
+        builder.add_import(bare_import_target(alias, path), Some(alias.clone()));
     }
     for base in &imports.wildcard_bases {
         builder.add_import(&format!("{base}.*"), Some("*".to_string()));
@@ -513,6 +513,31 @@ fn canonicalize_prefixed_project_path(index: &PyProjectIndex, path: &str) -> Opt
     Some(canonicalize_project_path(index, &current))
 }
 
+/// `head.tail` with `head` bound by an import to `base`. A plain
+/// `import a.b.c` records `a` → `a.b.c` (the project index uses that to know
+/// which submodule was loaded), but Python binds `a` to the top-level
+/// package, so `a.<tail>` is already a full path: expanding it as
+/// `a.b.c.<tail>` turned `urllib.parse.unquote(x)` into
+/// `urllib.parse.parse.unquote` and matched no model. An explicit alias
+/// (`import a.b as c` → `c.x`) still expands through its target.
+/// What a bare imported name denotes — see [`expand_import_alias`]: after
+/// `import a.b`, the name `a` is the package `a`, not `a.b`.
+fn bare_import_target<'a>(name: &'a str, mapped: &'a str) -> &'a str {
+    if mapped.strip_prefix(name).is_some_and(|rest| rest.starts_with('.')) {
+        name
+    } else {
+        mapped
+    }
+}
+
+fn expand_import_alias(head: &str, tail: &str, base: &str) -> String {
+    if base.strip_prefix(head).is_some_and(|rest| rest.starts_with('.')) {
+        format!("{head}.{tail}")
+    } else {
+        format!("{base}.{tail}")
+    }
+}
+
 fn resolve_prefixed_imported_name(name: &str, imports: &PyImports, env: &PyEnv) -> Option<String> {
     let (head, tail) = split_once_top_level(name, '.')?;
     let head = head.trim();
@@ -521,7 +546,7 @@ fn resolve_prefixed_imported_name(name: &str, imports: &PyImports, env: &PyEnv) 
         return None;
     }
     if let Some(base) = imports.aliases.get(head) {
-        return canonicalize_prefixed_project_path(&env.project_index, &format!("{base}.{tail}"));
+        return canonicalize_prefixed_project_path(&env.project_index, &expand_import_alias(head, tail, base));
     }
     if let Some(base) = env.project_index.resolve_module_member(&env.current_module, head) {
         return canonicalize_prefixed_project_path(&env.project_index, &format!("{base}.{tail}"));
@@ -537,7 +562,7 @@ fn resolve_imported_name(name: &str, imports: &PyImports, env: &PyEnv) -> Option
         return Some(prefixed);
     }
     if let Some(mapped) = imports.aliases.get(name) {
-        return Some(canonicalize_project_path(&env.project_index, mapped));
+        return Some(canonicalize_project_path(&env.project_index, bare_import_target(name, mapped)));
     }
     let mut candidates = Vec::new();
     for base in &imports.wildcard_bases {
@@ -622,12 +647,12 @@ fn qualify_type_name(
     }
     if let Some(index) = project_index {
         if let Some(mapped) = imports.aliases.get(trimmed) {
-            return Some(canonicalize_project_path(index, mapped));
+            return Some(canonicalize_project_path(index, bare_import_target(trimmed, mapped)));
         }
         if trimmed.contains('.') {
             if let Some((head, tail)) = split_once_top_level(trimmed, '.') {
                 if let Some(mapped) = imports.aliases.get(head.trim()) {
-                    return canonicalize_prefixed_project_path(index, &format!("{}.{}", mapped, tail.trim()));
+                    return canonicalize_prefixed_project_path(index, &expand_import_alias(head.trim(), tail.trim(), mapped));
                 }
             }
             return Some(canonicalize_project_path(index, trimmed));
@@ -643,7 +668,7 @@ fn qualify_type_name(
         }
     }
     if let Some(mapped) = imports.aliases.get(trimmed) {
-        return Some(mapped.clone());
+        return Some(bare_import_target(trimmed, mapped).to_string());
     }
     if trimmed.contains('.') {
         return Some(trimmed.to_string());

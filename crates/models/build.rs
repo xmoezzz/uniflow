@@ -62,7 +62,8 @@ fn compile_pack(
     // archive below — a stale cached artifact from v6 decodes with the
     // wrong field layout instead of failing loudly, so the fingerprint must
     // change even though none of the source YAML files did.
-    const FORMAT_VERSION: &str = "uniflow-rule-table-v7";
+    // Bumped to v8: ApiMatcher gained `receiver_origin_regex`.
+    const FORMAT_VERSION: &str = "uniflow-rule-table-v8";
     let output = out_dir.join(format!("legacy-{name}.bin"));
     let metadata_output = out_dir.join(format!("legacy-{name}.metadata.bin"));
     let stamp = out_dir.join(format!("legacy-{name}.stamp"));

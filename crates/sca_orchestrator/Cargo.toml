@@ -12,6 +12,8 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 toml = "0.8"
 walkdir = "2"
+zip.workspace = true
+flate2 = "1"
 uniflow-archive-extract = { path = "../archive_extract" }
 uniflow-sca-core = { path = "../sca_core" }
 uniflow-filetype = { path = "../filetype" }

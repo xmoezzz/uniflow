@@ -564,6 +564,12 @@ fn connect_rule_summaries(
     let Some(call_info) = meta.as_call_info() else {
         return;
     };
+    // A call on a provably local collection is replayed element by element
+    // (java_collections.rs); any receiver-level model — from any rule pack —
+    // would reintroduce exactly the whole-collection taint it removes.
+    if fg.precise_collection_calls.contains(&(func, inst)) {
+        return;
+    }
 
     rule_index.propagators.for_each_candidate(&call_info, |position| {
         let rule = &rules.propagators[position];
@@ -1009,6 +1015,37 @@ fn normalized_static_callee_name(
     }
 }
 
+/// The callee that produced `value` in `func`: follow `Copy` chains back
+/// to a defining call and name it the way matchers see callees
+/// (`<receiver type>.<method>`, or the static name). Bounded, because SSA
+/// copy chains are short and this runs once per call site.
+fn receiver_origin(fg: &FlowGraph, func: &Function, value: ValueId) -> Option<String> {
+    let mut current = value;
+    for _ in 0..8 {
+        let defining = func.blocks.iter().flat_map(|block| block.insts.iter()).find(|inst| match &inst.kind {
+            InstKind::Call(call) => call.dst == Some(current),
+            InstKind::Copy { dst, .. } => *dst == current,
+            _ => false,
+        })?;
+        match &defining.kind {
+            InstKind::Copy { src, .. } => current = *src,
+            InstKind::Call(call) => {
+                if let Some(meta) = fg.call_meta.get(&(func.id, defining.id)) {
+                    return meta.callee_name.clone();
+                }
+                let method = static_callee_name(call);
+                let owner = call.receiver.and_then(|receiver| fg.value_types.get(&(func.id, receiver)));
+                return match (owner, method) {
+                    (Some(owner), Some(method)) if !method.contains('.') => Some(format!("{owner}.{method}")),
+                    (_, method) => method,
+                };
+            }
+            _ => return None,
+        }
+    }
+    None
+}
+
 fn build_call_meta(
     fg: &FlowGraph,
     func: &Function,
@@ -1036,9 +1073,15 @@ fn build_call_meta(
                 .filter(|name| name.starts_with('$'))
                 .cloned()
         });
-    if let (Some(name), Some(symbol)) = (
+    // Rename the callee after a symbolic receiver (`JSON` → `JSON.parse`)
+    // only where the frontend could not resolve it. A JVM frontend resolves
+    // `Helper.field.m()` to the field's declared type; renaming it to
+    // `Helper.field.m` would throw that resolution away.
+    let jvm = matches!(fg.language, Language::Java | Language::Kotlin | Language::Jsp);
+    if let (Some(name), Some(symbol), false) = (
         callee_name.as_ref(),
         receiver_symbol.as_deref(),
+        jvm,
     ) {
         if !name.starts_with(&format!("{symbol}."))
             && !name.starts_with(&format!("{symbol}::"))
@@ -1106,10 +1149,13 @@ fn build_call_meta(
         .dst
         .is_some_and(|return_value| function_uses_value(func, return_value));
 
+    let receiver_origin = call.receiver.and_then(|receiver| receiver_origin(fg, func, receiver));
+
     CallMeta {
         func: func.id,
         inst,
         function_name: func.name.clone(),
+        receiver_origin,
         callee_name,
         receiver_type,
         receiver_type_candidates,
@@ -1222,5 +1268,24 @@ fn expand_receiver_type_candidates(
             }
         }
     }
+    // Frontends and lowering spell implicit `java.lang` types by their
+    // simple name (`String` for a declared `String q`, and for every string
+    // literal), while rule packs name them fully (`java.lang.String`). Offer
+    // both spellings so a rule written against the qualified name — as JVM
+    // rules are — sees these receivers and arguments at all.
+    let aliases: Vec<String> = out
+        .iter()
+        .filter(|name| JAVA_LANG_SIMPLE_TYPES.contains(&name.as_str()))
+        .map(|name| format!("java.lang.{name}"))
+        .filter(|qualified| !out.contains(qualified))
+        .collect();
+    out.extend(aliases);
     out
 }
+
+/// `java.lang` types that source code names without an import.
+const JAVA_LANG_SIMPLE_TYPES: &[&str] = &[
+    "String", "Object", "StringBuilder", "StringBuffer", "CharSequence", "Integer", "Long", "Short", "Byte", "Character",
+    "Boolean", "Double", "Float", "Number", "Math", "System", "Runtime", "Process", "ProcessBuilder", "Thread", "Class",
+    "ClassLoader", "Iterable", "Comparable", "Throwable", "Exception", "RuntimeException",
+];

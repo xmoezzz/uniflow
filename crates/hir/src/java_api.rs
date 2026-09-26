@@ -13,7 +13,12 @@ static RETURNS: LazyLock<BTreeMap<(&'static str, &'static str, usize), &'static 
         {
             let fields = line.split('\t').collect::<Vec<_>>();
             assert_eq!(fields.len(), 4, "invalid Java return signature: {line}");
-            assert!(fields[0].contains('.') && fields[3].contains('.'));
+            // Owners are always qualified; a return type may also be a
+            // primitive array (`String.toCharArray` → `char[]`).
+            let primitive_array = fields[3].strip_suffix("[]").is_some_and(|element| {
+                matches!(element, "boolean" | "byte" | "char" | "short" | "int" | "long" | "float" | "double")
+            });
+            assert!(fields[0].contains('.') && (fields[3].contains('.') || primitive_array));
             for arity in fields[2].split(',') {
                 let arity = arity.parse::<usize>().expect("Java signature arity");
                 assert!(
@@ -37,7 +42,7 @@ mod tests {
 
     #[test]
     fn embedded_java_return_signatures_are_exact_and_arity_gated() {
-        assert_eq!(RETURNS.len(), 62);
+        assert_eq!(RETURNS.len(), 152);
         for (&(owner, method, arity), &result) in RETURNS.iter() {
             assert_eq!(java_api_return_type(owner, method, arity), Some(result));
             assert_eq!(

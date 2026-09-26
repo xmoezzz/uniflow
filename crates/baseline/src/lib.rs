@@ -2322,6 +2322,69 @@ pub fn builtin_security_pack() -> Result<BaselinePack> {
     )
 }
 
+/// CWEs whose rules in the curated packs are *syntactic proxies* for a
+/// data-flow weakness: "a non-literal string reaches `executeQuery`", "a
+/// `ProcessBuilder` exists". For a language the taint engine analyzes, those
+/// questions are answered properly by data flow — a proxy rule would report
+/// every safe parameterized query too. See [`misuse_security_pack`].
+const DATAFLOW_CWES: &[&str] = &[
+    "CWE-22", "CWE-23", "CWE-36", "CWE-73", "CWE-77", "CWE-78", "CWE-79", "CWE-80", "CWE-88", "CWE-89", "CWE-90", "CWE-94",
+    "CWE-95", "CWE-99", "CWE-113", "CWE-117", "CWE-470", "CWE-502", "CWE-564", "CWE-601", "CWE-643", "CWE-917", "CWE-918",
+    "CWE-1336",
+];
+
+/// Languages whose injection weaknesses come from the taint engine, so the
+/// curated packs contribute only structural (API-misuse) rules for them.
+/// C/C++ keep every rule: CERT C checks such as a non-literal `printf`
+/// format or `strcpy` are structural in their own right there.
+fn taint_covered(language: &Language) -> bool {
+    matches!(language, Language::Java | Language::Kotlin | Language::Python | Language::JavaScript | Language::Go | Language::CSharp | Language::Ruby)
+}
+
+/// The curated security rules that run in every project scan next to taint
+/// analysis (`uniflow_core::scan_source_paths`): weak hash/cipher/random,
+/// insecure cookie and TLS configuration, XXE-prone parser setup, CERT C
+/// unsafe calls — questions answered by the shape of one call, not by data
+/// flow. The legacy knowledge-base style packs (unused fields, naming,
+/// method length …) are deliberately excluded: they are code-quality
+/// findings, tens of thousands on a real project, and belong to
+/// `check-baseline`, not to a security scan. Rules that only approximate a
+/// data-flow weakness are dropped for languages the taint engine covers
+/// (see [`DATAFLOW_CWES`]).
+pub fn misuse_security_pack() -> Result<BaselinePack> {
+    let mut pack = BaselinePack::merge(
+        "uniflow-security-misuse-1.0",
+        "UniFlow security misuse checks",
+        [
+            BaselinePack::from_yaml_str(cert_c_cpp_pack())?,
+            BaselinePack::from_yaml_str(python_security_pack())?,
+            BaselinePack::from_yaml_str(java_security_pack())?,
+            BaselinePack::from_yaml_str(common_security_pack())?,
+            BaselinePack::from_yaml_str(swift_security_pack())?,
+        ],
+    )?;
+    pack.rules.retain_mut(|rule| {
+        let proxy = rule.cwe.iter().any(|cwe| DATAFLOW_CWES.contains(&cwe.as_str()));
+        if !proxy {
+            return true;
+        }
+        let kept: Vec<Language> = if rule.languages.is_empty() {
+            // A language-agnostic proxy rule stays only for languages the
+            // taint engine does not cover.
+            [Language::C, Language::Cpp, Language::ObjC, Language::ObjCpp, Language::Swift, Language::Php, Language::Shell, Language::Sql].to_vec()
+        } else {
+            rule.languages.iter().filter(|language| !taint_covered(language)).cloned().collect()
+        };
+        if kept.is_empty() {
+            return false;
+        }
+        rule.languages = kept;
+        true
+    });
+    pack.validate()?;
+    Ok(pack)
+}
+
 pub fn builtin_pack_manifest() -> &'static str {
     baseline_manifest_asset()
 }

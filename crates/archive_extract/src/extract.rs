@@ -170,13 +170,40 @@ fn extract_tar_from_reader<R: io::Read>(reader: R, dest: &Path, budget: &mut Bud
             ) {
                 continue;
             }
-            entry.unpack_in(dest)?;
+            let rel = entry.path()?.into_owned();
+            if entry.unpack_in(dest)? {
+                ensure_owner_access(&dest.join(&rel));
+            }
         }
         Ok(())
     })();
     budget.account(capped.bytes_read());
     outcome.map_err(anyhow::Error::new)
 }
+
+/// Tar entries keep their archived mode, and real images archive
+/// directories an unprivileged extractor then cannot write into (RPM
+/// images ship `/root` as 0550) and files it cannot read (`/etc/shadow-`
+/// as 000). Extraction used to stop at the first such entry — for Rocky 9
+/// after 149 of ~7,100 entries — so every RPM-family image scanned as
+/// empty unless run as root. The extracted tree is scan input that is never
+/// executed, so the owner is always granted rw (and x on directories).
+#[cfg(unix)]
+fn ensure_owner_access(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let Ok(meta) = fs::symlink_metadata(path) else { return };
+    if meta.file_type().is_symlink() {
+        return;
+    }
+    let mode = meta.permissions().mode();
+    let wanted = if meta.is_dir() { mode | 0o700 } else { mode | 0o600 };
+    if wanted != mode {
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(wanted));
+    }
+}
+
+#[cfg(not(unix))]
+fn ensure_owner_access(_path: &Path) {}
 
 /// `lzma-rs` decompresses xz/lzma in one call into an arbitrary [`io::Write`]
 /// rather than exposing a lazy [`io::Read`] adapter, so the only way to

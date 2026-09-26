@@ -361,6 +361,7 @@ fn parse_alloc_expr(
 fn parse_copy_propagation_stmt(
     builder: &mut ModuleBuilder,
     stmt: &str,
+    stmt_offset: usize,
     env: &mut CLikeEnv,
 ) -> Option<Vec<Stmt>> {
     let (callee_text, arg_text) = parse_call_parts(stmt.trim())?;
@@ -390,8 +391,11 @@ fn parse_copy_propagation_stmt(
     }
     let lhs = parse_lvalue(builder, lhs_text, env);
     let rhs = parse_expr(builder, src_text, env);
-    let span = default_span();
-    let call_expr = parse_expr(builder, stmt, env);
+    // The copy call's own location: CWE-120/121/122 findings are reported
+    // at this call (it used to be a zero span, i.e. "line 1").
+    let leading = stmt.len() - stmt.trim_start().len();
+    let span = occurrence_span(stmt_offset + leading, stmt_offset + stmt.trim_end().len());
+    let call_expr = parse_expr_at(builder, stmt, stmt_offset, env);
     Some(vec![
         Stmt::Assign {
             id: builder.alloc_stmt_id(),

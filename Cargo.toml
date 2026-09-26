@@ -65,6 +65,7 @@ members = [
   "crates/sca_reachability",
   "crates/autofix",
   "crates/cli",
+  "crates/bench",
 ]
 resolver = "2"
 

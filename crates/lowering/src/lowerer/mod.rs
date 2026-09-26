@@ -11,6 +11,8 @@ use uniflow_ir::{
     Type, ValueId,
 };
 
+mod const_branches;
+
 include!("entry.rs");
 include!("function.rs");
 include!("cfg.rs");

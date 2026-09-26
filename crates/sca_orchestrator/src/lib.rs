@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use uniflow_archive_extract::{extract_archives_recursively, ExtractOptions};
+mod installed;
 use uniflow_deps_cargo::CargoParser;
 use uniflow_deps_chef::BerkshelfParser;
 use uniflow_deps_cocoapods::CocoaPodsParser;
@@ -47,6 +48,8 @@ const LOCKFILES: &[(&str, &[&str])] = &[
     ("cargo", &["Cargo.lock"]),
     ("pypi", &["poetry.lock", "Pipfile.lock", "uv.lock"]),
     ("go", &["go.mod"]),
+    // Resolved versions win over the `*.csproj` PackageReferences next to it.
+    ("nuget", &["packages.lock.json"]),
 ];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -131,6 +134,35 @@ pub fn scan_directory_with_vuln_db(root: &Path, vuln_db: &VulnDb) -> anyhow::Res
         archives_extracted,
         warnings,
     })
+}
+
+/// [`scan_directory_with_vuln_db`] for a *root filesystem* (a squashed
+/// container image, or a host): manifests and lockfiles found anywhere in
+/// it, plus language packages that are installed rather than declared —
+/// `site-packages`, `node_modules`, jars, Go/Rust binaries (see
+/// `installed`). An installed package already reported from a lockfile at
+/// the same version is not reported twice.
+pub fn scan_root_filesystem_with_vuln_db(root: &Path, vuln_db: &VulnDb) -> anyhow::Result<ScaScanResult> {
+    let mut result = scan_directory_with_vuln_db(root, vuln_db)?;
+    let (found, mut warnings) = installed::inventory(root);
+    let known: HashSet<(String, String, String)> = result
+        .dependencies
+        .iter()
+        .map(|d| (normalize_ecosystem(&d.ecosystem), normalize_package_name(&d.ecosystem, &d.name), d.version.clone()))
+        .collect();
+    let mut added: HashSet<(String, String, String)> = HashSet::new();
+    let new: Vec<Dependency> = found
+        .into_iter()
+        .filter(|d| {
+            let key = (normalize_ecosystem(&d.ecosystem), normalize_package_name(&d.ecosystem, &d.name), d.version.clone());
+            !known.contains(&key) && added.insert(key)
+        })
+        .collect();
+    let findings = match_dependencies(&new, vuln_db, &BTreeMap::new(), &mut warnings);
+    result.dependencies.extend(new);
+    result.dependency_findings.extend(findings);
+    result.warnings.extend(warnings);
+    Ok(result)
 }
 
 #[derive(Default)]
@@ -234,7 +266,7 @@ fn match_dependencies(
     }
 
     let mut findings = Vec::new();
-    let mut seen: HashSet<(String, String, String, String)> = HashSet::new();
+    let mut seen: HashSet<(String, String, String, String, String)> = HashSet::new();
     let mut uncovered: BTreeMap<String, usize> = BTreeMap::new();
     for dependency in dependencies {
         let eco = normalize_ecosystem(&dependency.ecosystem);
@@ -264,7 +296,11 @@ fn match_dependencies(
                 finding.direct |= path.len() == 2;
                 finding.dependency_path = path;
             }
-            if seen.insert((finding.rule_id.clone(), eco.clone(), finding.version.clone(), finding.manifest_path.clone())) {
+            // The package is part of the identity: one advisory routinely
+            // covers several packages at the same version (GHSA-968p-4wvh-cqc8
+            // for @babel/runtime *and* -corejs2/-corejs3; lodash and
+            // lodash-es), and each is its own thing to upgrade.
+            if seen.insert((finding.rule_id.clone(), eco.clone(), normalize_package_name(&eco, &finding.package), finding.version.clone(), finding.manifest_path.clone())) {
                 findings.push(finding);
             }
         }

@@ -775,7 +775,8 @@ fn defined_value(kind: &InstKind) -> Option<ValueId> {
     }
 }
 
-fn used_values(kind: &InstKind) -> Vec<ValueId> {
+/// Every SSA value an instruction reads.
+pub fn used_values(kind: &InstKind) -> Vec<ValueId> {
     match kind {
         InstKind::ConstInt { .. } | InstKind::ConstString { .. } => Vec::new(),
         InstKind::Copy { src, .. }

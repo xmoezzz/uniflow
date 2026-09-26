@@ -136,7 +136,13 @@ pub fn apply_taint_fix_and_reverify(finding: &SourceFinding, config: &LlmFixConf
         Ok(outcome) => outcome
             .taint_findings
             .iter()
-            .any(|f| f.sink_rule_id == finding.rule_id || f.source_rule_id == finding.rule_id),
+            // Findings are merged per (sink location, CWE) across rule
+            // packs; the merged-in rule ids are kept as `rule:<id>`.
+            .any(|f| {
+                f.sink_rule_id == finding.rule_id
+                    || f.source_rule_id == finding.rule_id
+                    || f.standards.iter().any(|s| s.strip_prefix("rule:") == Some(finding.rule_id.as_str()))
+            }),
         Err(_) => true, // a re-scan failure (e.g. the drafted replacement doesn't parse) counts as unresolved, not a false "fixed"
     };
 

@@ -138,19 +138,27 @@ fn preprocess_c_source_with_origins(source: &str) -> TrackedSource {
     TrackedSource { text: out, macro_bytes }
 }
 
+/// Joins `\`-continued lines into one logical line, then emits one empty
+/// line per continuation it absorbed, so every later line keeps its
+/// original line number (finding locations are line-based; see
+/// `rewrite_tracked_regex`).
 fn join_line_continuations(source: &str) -> String {
     let mut out = String::new();
     let mut pending = String::new();
+    let mut absorbed = 0usize;
     for line in source.lines() {
         let trimmed = line.trim_end();
         if let Some(prefix) = trimmed.strip_suffix('\\') {
             pending.push_str(prefix);
             pending.push(' ');
+            absorbed += 1;
         } else {
             pending.push_str(line);
             out.push_str(&pending);
             out.push('\n');
+            out.extend(std::iter::repeat_n('\n', absorbed));
             pending.clear();
+            absorbed = 0;
         }
     }
     if !pending.is_empty() {

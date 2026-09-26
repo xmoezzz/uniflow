@@ -687,3 +687,32 @@ fn visit(dir: &Path, out: &mut Vec<PathBuf>) {
         }
     }
 }
+
+/// RPM-family images archive `/root` as 0550 and `/etc/shadow-` as 000:
+/// an unprivileged extractor must still unpack what is inside and be able
+/// to read it (every RPM image used to scan as empty unless run as root).
+#[cfg(unix)]
+#[test]
+fn restrictive_modes_do_not_stop_an_unprivileged_extraction() {
+    let mut builder = tar::Builder::new(Vec::new());
+    let mut dir = tar::Header::new_gnu();
+    dir.set_entry_type(tar::EntryType::Directory);
+    dir.set_mode(0o550);
+    dir.set_size(0);
+    dir.set_cksum();
+    builder.append_data(&mut dir, "root/", &[][..]).unwrap();
+    for (name, mode, body) in [("root/.bash_logout", 0o644, &b"bye"[..]), ("etc/shadow-", 0o000, &b"x"[..])] {
+        let mut file = tar::Header::new_gnu();
+        file.set_mode(mode);
+        file.set_size(body.len() as u64);
+        file.set_cksum();
+        builder.append_data(&mut file, name, body).unwrap();
+    }
+    let tmp = tempfile::tempdir().expect("temp dir");
+    fs::write(tmp.path().join("layer.tar"), builder.into_inner().unwrap()).unwrap();
+    let report = one_shot_extract(tmp.path(), &ExtractOptions::default());
+    let files = find_all_files(&report.extraction_root);
+    let find = |name: &str| files.iter().find(|p| p.ends_with(name)).cloned().unwrap_or_else(|| panic!("{name} missing from {files:?}"));
+    assert_eq!(fs::read(find(".bash_logout")).unwrap(), b"bye");
+    assert_eq!(fs::read(find("shadow-")).unwrap(), b"x");
+}

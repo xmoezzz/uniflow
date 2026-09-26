@@ -1,0 +1,34 @@
+[package]
+name = "uniflow-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Reproducible SAST/SCA quality benchmark for uniflow against labeled public suites (see cosmos ADR-0019)"
+
+[[bin]]
+name = "uniflow-bench"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+ureq.workspace = true
+zip.workspace = true
+flate2 = "1"
+tar = "0.4"
+libc = "0.2"
+uniflow-core = { path = "../uniflow_core" }
+uniflow-frontend = { path = "../frontend" }
+uniflow-sca-core = { path = "../sca_core" }
+uniflow-sca-orchestrator = { path = "../sca_orchestrator" }
+uniflow-vuln-db = { path = "../vuln_db" }
+uniflow-os-package-db = { path = "../os_package_db" }
+uniflow-container-image = { path = "../container_image" }
+uniflow-archive-extract = { path = "../archive_extract" }
+
+[dev-dependencies]
+tempfile = "3.27"

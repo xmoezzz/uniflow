@@ -1,13 +1,15 @@
 use petgraph::{Direction, graph::NodeIndex};
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
+use rayon::prelude::*;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use uniflow_rules::{
     expand_port, language_matches, ApiMatcherIndex, Port, RuleMetadata, RuleSet,
     RuleTranslations, TaintCondition,
 };
 use uniflow_value_flow::{
-    DemandEngine, DemandQuery, DemandReachability, DemandSeed, EdgeKind, FlowGraph, FlowNode,
+    DemandEngine, DemandQuery, DemandReachability, EdgeKind, FlowGraph, FlowNode,
     QueryCompleteness, SparseDirection,
 };
 
@@ -75,39 +77,34 @@ struct LabelTransformEdge {
 
 type LabelTransformMap = HashMap<usize, Vec<LabelTransformEdge>>;
 
-// A reachability result holds one bit-vector slot per flow-graph node. Keeping
-// a result for every modeled sink makes peak memory grow with
-// `synthetic_sinks × graph_nodes`, which is prohibitive for the bundled Java
-// catalog. A small FIFO cache keeps nearby sink queries hot without allowing a
-// rule-heavy project to retain an unbounded number of whole-graph slices.
-const MAX_BACKWARD_DEMAND_CACHE_ENTRIES: usize = 16;
-
-struct BoundedBackwardDemandCache {
-    entries: Vec<(usize, DemandReachability)>,
-}
-
-impl BoundedBackwardDemandCache {
-    fn get_or_insert_with(
-        &mut self,
-        sink: usize,
-        compute: impl FnOnce() -> DemandReachability,
-    ) -> &DemandReachability {
-        if let Some(position) = self.entries.iter().position(|(cached, _)| *cached == sink) {
-            return &self.entries[position].1;
-        }
-        if self.entries.len() == MAX_BACKWARD_DEMAND_CACHE_ENTRIES {
-            self.entries.remove(0);
-        }
-        self.entries.push((sink, compute()));
-        &self.entries.last().expect("inserted demand result").1
-    }
-}
+/// Source groups whose demand slices are computed in parallel before their
+/// witnesses are searched sequentially.
+const PARALLEL_SLICE_CHUNK: usize = 256;
 
 // A project can have hundreds of broad source and sink models. Materializing a
 // witness (labels, locations, and every edge) for their Cartesian product is
 // not useful to a reviewer and used to exhaust memory before the CLI could
-// print a result. The limit is explicit in the returned findings below.
-const MAX_MATERIALIZED_TAINT_FINDINGS: usize = 512;
+// print a result. So a witness is materialized once per (sink node, sink
+// rule) — the unit a reviewer triages; every further source reaching an
+// already-reported sink is skipped before any path search — and this cap
+// only bounds the number of *distinct* sinks. It used to be 512 findings
+// counted across the source×sink product, which silently truncated any
+// real project (a 2,700-file Java app hit it) long before memory was a
+// concern. The limit is explicit in the returned findings below.
+const MAX_MATERIALIZED_TAINT_FINDINGS: usize = 20_000;
+
+/// States one witness search may visit before giving up (see
+/// `find_contextual_path_to_sink`).
+const MAX_WITNESS_SEARCH_STATES: usize = 4_000;
+
+/// Failure budget per sink before it stops being retried. Sinks reachable
+/// in the coarse demand slice but not under label/context rules would
+/// otherwise be re-searched once per source in the project. A search that
+/// ran out of states costs `EXHAUSTED_WITNESS_FAILURE_COST`; one that proved
+/// the negative quickly costs 1, so a function whose many parameters reach
+/// one call (only some of them feeding the sink port) is still fully tried.
+const MAX_FAILED_WITNESS_ATTEMPTS_PER_SINK: u8 = 8;
+const EXHAUSTED_WITNESS_FAILURE_COST: u8 = 4;
 
 /// Rule-family indexes are built once per taint run. They preserve the final
 /// matcher check while avoiding an O(calls × all-models) regex walk.
@@ -131,14 +128,6 @@ impl<'a> TaintMatcherIndex<'a> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct TraversalState {
-    node: NodeIndex,
-    labels: Vec<String>,
-    call_stack: Vec<(u32, u32)>,
-    context_truncated: bool,
-}
-
 fn default_true() -> bool {
     true
 }
@@ -154,12 +143,32 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
     let matcher_index = TaintMatcherIndex::new(rules);
     let label_transforms = build_label_transform_map(flow, rules, &matcher_index);
     let receiver_side_labels = build_receiver_side_labels(flow, rules, &matcher_index);
-    let mut backward_cache = BoundedBackwardDemandCache {
-        entries: Vec::with_capacity(MAX_BACKWARD_DEMAND_CACHE_ENTRIES),
-    };
-    let mut kind_transform_cache = HashMap::<(String, String), bool>::new();
+    // Normalized taint kinds as small integers: the (source kind, sink kind)
+    // compatibility check runs for every source × sink pair in a slice, and
+    // keying its cache on two freshly allocated Strings dominated the loop.
+    let mut kinds = KindIds::default();
+    let mut kind_transform_cache = FxHashMap::<(u32, u32), bool>::default();
+    let sink_kind_ids: Vec<u32> = sink_seeds.iter().map(|sink| kinds.id(&sink.kind)).collect();
+    let mut sinks_by_node = FxHashMap::<u32, Vec<usize>>::default();
+    for (index, sink) in sink_seeds.iter().enumerate() {
+        sinks_by_node.entry(sink.node.index() as u32).or_default().push(index);
+    }
     let mut findings = Vec::new();
     let mut seen = HashSet::new();
+    // Source rules that already have a witness at each (sink node, sink rule);
+    // borrowed sink rule ids live as long as `sink_seeds`. Keying on the
+    // source *rule* keeps one finding per distinct source model (colocated
+    // models carry different labels) while every further call site of the
+    // same model reaching an already-reported sink is skipped.
+    let mut reported_sinks: FxHashMap<(usize, &str), Vec<String>> = FxHashMap::default();
+    let already_reported = |reported: &FxHashMap<(usize, &str), Vec<String>>,
+                            key: &(usize, &str),
+                            source_rule: &str| {
+        reported
+            .get(key)
+            .is_some_and(|rules| rules.iter().any(|rule| rule == source_rule))
+    };
+    let mut failed_attempts: FxHashMap<(usize, &str), u8> = FxHashMap::default();
     let mut result_limit_reached = false;
 
     // Several bundled models can mark the same output port as different taint
@@ -180,118 +189,218 @@ pub fn analyze(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
     let mut source_groups = source_groups.into_values().collect::<Vec<_>>();
     source_groups.sort_unstable_by_key(|(first_position, _)| *first_position);
 
-    'sources: for (_, sources) in source_groups {
-        let representative = sources
-            .first()
-            .expect("a source group is created from at least one source");
-        let forward_query = DemandQuery {
-            seeds: vec![DemandSeed::Node(representative.node.index())],
-            direction: SparseDirection::Forward,
-            engine: DemandEngine::Fixpoint,
-            include_heap: true,
-        };
-        let forward_plan = flow.solver_plan_for_query(&forward_query);
-        let forward_nodes = flow.one_shot_node_reachability(
-            representative.node,
+    // Forward and backward demand slices are pure reads of the flow graph, so
+    // they are computed in parallel one chunk of source groups at a time. The
+    // witness search below stays sequential in source order: which source
+    // reports a sink first (and therefore the emitted witness) must not depend
+    // on thread scheduling.
+    let forward_query = DemandQuery {
+        seeds: Vec::new(),
+        direction: SparseDirection::Forward,
+        engine: DemandEngine::Fixpoint,
+        include_heap: true,
+    };
+    let forward_plan = flow.solver_plan_for_query(&forward_query);
+    let backward_query = DemandQuery {
+        seeds: Vec::new(),
+        direction: SparseDirection::Backward,
+        engine: DemandEngine::Fixpoint,
+        include_heap: true,
+    };
+    let backward_plan = flow.solver_plan_for_query(&backward_query);
+    let forward_slice = |node: NodeIndex| {
+        flow.one_shot_node_reachability(
+            node,
             forward_plan.query.direction,
             forward_plan.query.engine,
             forward_plan.max_depth,
             forward_plan.max_visits,
             forward_plan.query.include_heap,
-        );
+        )
+    };
+    // The backward slice from a sink is taken inside the source's forward
+    // slice: any witness lies in both, and a global backward slice per sink
+    // is both larger and not reusable across sources without a cache that
+    // grows with `sinks × budget`.
+    let backward_slice = |node: NodeIndex, forward_nodes: &DemandReachability| {
+        flow.one_shot_node_reachability_within(
+            node,
+            backward_plan.query.direction,
+            backward_plan.query.engine,
+            backward_plan.max_depth,
+            backward_plan.max_visits,
+            backward_plan.query.include_heap,
+            Some(forward_nodes),
+        )
+    };
 
-        for source in sources {
-            for sink in sink_seeds
-                .iter()
-                .filter(|sink| forward_nodes.contains(sink.node.index()))
-            {
-                if findings.len() >= MAX_MATERIALIZED_TAINT_FINDINGS {
-                    result_limit_reached = true;
-                    break 'sources;
+    let mut allowed_scratch = AllowedNodes::default();
+    let mut remaining_groups = source_groups.into_iter().map(|(_, sources)| sources);
+    'sources: loop {
+        let chunk = remaining_groups
+            .by_ref()
+            .take(PARALLEL_SLICE_CHUNK)
+            .collect::<Vec<_>>();
+        if chunk.is_empty() {
+            break;
+        }
+        let forward_slices = chunk
+            .par_iter()
+            .map(|sources| {
+                let representative = sources
+                    .first()
+                    .expect("a source group is created from at least one source");
+                forward_slice(representative.node)
+            })
+            .collect::<Vec<_>>();
+        for (sources, forward_nodes) in chunk.into_iter().zip(forward_slices) {
+            // Prefetch, in parallel, the backward slices the sequential loop
+            // below will request for this group (same kind, event-order and
+            // already-reported filters). Holding one group's slices at a time
+            // bounds memory by that group's sink fan-out.
+            // Sinks inside this group's forward slice, in `sink_seeds` order —
+            // the same for every source of the group, so filtered once.
+            // Walk whichever side is smaller: a project has far more sinks
+            // than one source's slice usually holds, and testing every sink
+            // against every group's slice was quadratic in project size.
+            let sinks_in_slice: Vec<usize> = if forward_nodes.len() < sink_seeds.len() {
+                let mut hits: Vec<usize> =
+                    forward_nodes.node_ids().iter().filter_map(|id| sinks_by_node.get(id)).flatten().copied().collect();
+                hits.sort_unstable();
+                hits
+            } else {
+                (0..sink_seeds.len()).filter(|&i| forward_nodes.contains(sink_seeds[i].node.index())).collect()
+            };
+            let mut wanted = Vec::new();
+            for source in &sources {
+                let source_kind = kinds.id(&source.kind);
+                for &sink_index in &sinks_in_slice {
+                    let sink = &sink_seeds[sink_index];
+                    let sink_key = (sink.node.index(), sink.rule_id.as_str());
+                    if already_reported(&reported_sinks, &sink_key, &source.rule_id)
+                        || failed_attempts
+                            .get(&sink_key)
+                            .is_some_and(|n| *n >= MAX_FAILED_WITNESS_ATTEMPTS_PER_SINK)
+                    {
+                        continue;
+                    }
+                    let kind_key = (source_kind, sink_kind_ids[sink_index]);
+                    let kind_reachable = *kind_transform_cache.entry(kind_key).or_insert_with(|| {
+                        kind_can_transform_to(rules, kinds.name(kind_key.0), kinds.name(kind_key.1))
+                    });
+                    if kind_reachable && source_event_can_reach_sink(flow, source.node, sink.node) {
+                        wanted.push(sink.node);
+                    }
                 }
-                let kind_key = (
-                    normalize_kind(&source.kind).to_string(),
-                    normalize_kind(&sink.kind).to_string(),
-                );
-                let kind_reachable = *kind_transform_cache
-                    .entry(kind_key.clone())
-                    .or_insert_with(|| kind_can_transform_to(rules, &kind_key.0, &kind_key.1));
-                if !kind_reachable {
-                    continue;
-                }
-                if !source_event_can_reach_sink(flow, source.node, sink.node) {
-                    continue;
-                }
-                // A forward demand summary tells us which nodes may be influenced by the source.
-                // A sink-specific backward summary removes nodes that cannot contribute to this
-                // sink. The witness search is therefore constrained to the bidirectional demand
-                // slice, rather than falling back to an unrestricted whole-graph taint traversal.
-                let backward_query = DemandQuery {
-                    seeds: vec![DemandSeed::Node(sink.node.index())],
-                    direction: SparseDirection::Backward,
-                    engine: DemandEngine::Fixpoint,
-                    include_heap: true,
-                };
-                let backward_plan = flow.solver_plan_for_query(&backward_query);
-                let backward_nodes = backward_cache.get_or_insert_with(sink.node.index(), || {
-                    flow.one_shot_node_reachability(
+            }
+            wanted.sort_unstable();
+            wanted.dedup();
+            // Each backward slice is kept with its intersection with this
+            // group's forward slice: the witness search only ever asks
+            // "is this node in both?", so it probes one precomputed set.
+            let with_intersection = |backward: DemandReachability| {
+                let both = forward_nodes.intersection_ids(&backward);
+                (backward, both)
+            };
+            let mut backward_slices = wanted
+                .par_iter()
+                .map(|sink| (sink.index(), with_intersection(backward_slice(*sink, &forward_nodes))))
+                .collect::<HashMap<_, _>>();
+
+            for source in sources {
+                let source_kind = kinds.id(&source.kind);
+                for &sink_index in &sinks_in_slice {
+                    let sink = &sink_seeds[sink_index];
+                    let sink_key = (sink.node.index(), sink.rule_id.as_str());
+                    if already_reported(&reported_sinks, &sink_key, &source.rule_id)
+                        || failed_attempts.get(&sink_key).is_some_and(|n| *n >= MAX_FAILED_WITNESS_ATTEMPTS_PER_SINK)
+                    {
+                        continue;
+                    }
+                    if findings.len() >= MAX_MATERIALIZED_TAINT_FINDINGS {
+                        result_limit_reached = true;
+                        break 'sources;
+                    }
+                    let kind_key = (source_kind, sink_kind_ids[sink_index]);
+                    let kind_reachable = *kind_transform_cache.entry(kind_key).or_insert_with(|| {
+                        kind_can_transform_to(rules, kinds.name(kind_key.0), kinds.name(kind_key.1))
+                    });
+                    if !kind_reachable {
+                        continue;
+                    }
+                    if !source_event_can_reach_sink(flow, source.node, sink.node) {
+                        continue;
+                    }
+                    // A forward demand summary tells us which nodes may be influenced by the source.
+                    // A sink-specific backward summary removes nodes that cannot contribute to this
+                    // sink. The witness search is therefore constrained to the bidirectional demand
+                    // slice, rather than falling back to an unrestricted whole-graph taint traversal.
+                    let (backward_nodes, allowed_ids) = &*backward_slices
+                        .entry(sink.node.index())
+                        .or_insert_with(|| with_intersection(backward_slice(sink.node, &forward_nodes)));
+
+                    let context_limit = forward_plan
+                        .max_depth
+                        .max(backward_plan.max_depth)
+                        .clamp(8, 32);
+                    let mut budget_exhausted = false;
+                    let Some((path, context_truncated, _sink_labels)) = find_contextual_path_to_sink(
+                        flow,
+                        rules,
+                        &label_transforms,
+                        &receiver_side_labels,
+                        &source,
+                        &sink,
+                        allowed_ids,
+                        &mut allowed_scratch,
+                        context_limit,
+                        &mut budget_exhausted,
+                    ) else {
+                        let cost = if budget_exhausted {
+                            EXHAUSTED_WITNESS_FAILURE_COST
+                        } else {
+                            1
+                        };
+                        let spent = failed_attempts.entry(sink_key).or_default();
+                        *spent = spent.saturating_add(cost);
+                        continue;
+                    };
+
+                    let mut completeness = merge_completeness(
+                        forward_nodes.completeness,
+                        backward_nodes.completeness,
+                    );
+                    if context_truncated {
+                        completeness =
+                            merge_completeness(completeness, QueryCompleteness::ContextLimitReached);
+                    }
+                    let finding = build_finding(
+                        flow,
+                        &source.rule_id,
+                        &sink.rule_id,
+                        &source.kind,
+                        &sink.kind,
                         sink.node,
-                        backward_plan.query.direction,
-                        backward_plan.query.engine,
-                        backward_plan.max_depth,
-                        backward_plan.max_visits,
-                        backward_plan.query.include_heap,
-                    )
-                });
-
-                let context_limit = forward_plan
-                    .max_depth
-                    .max(backward_plan.max_depth)
-                    .clamp(8, 32);
-                let Some((path, context_truncated, _sink_labels)) = find_contextual_path_to_sink(
-                    flow,
-                    rules,
-                    &label_transforms,
-                    &receiver_side_labels,
-                    &source,
-                    &sink,
-                    &forward_nodes,
-                    backward_nodes,
-                    context_limit,
-                ) else {
-                    continue;
-                };
-
-                let mut completeness = merge_completeness(
-                    forward_nodes.completeness,
-                    backward_nodes.completeness,
-                );
-                if context_truncated {
-                    completeness =
-                        merge_completeness(completeness, QueryCompleteness::ContextLimitReached);
-                }
-                let finding = build_finding(
-                    flow,
-                    &source.rule_id,
-                    &sink.rule_id,
-                    &source.kind,
-                    &sink.kind,
-                    sink.node,
-                    &path,
-                    completeness,
-                    rules.metadata_for(&sink.rule_id),
-                );
-                let key = (
-                    finding.source_rule_id.clone(),
-                    finding.sink_rule_id.clone(),
-                    finding.source_kind.clone(),
-                    finding.sink_kind.clone(),
-                    finding.source_location.clone(),
-                    finding.sink_location.clone(),
-                    finding.path_labels.clone(),
-                );
-                if seen.insert(key) {
-                    findings.push(finding);
+                        &path,
+                        completeness,
+                        rules.metadata_for(&sink.rule_id),
+                    );
+                    let key = (
+                        finding.source_rule_id.clone(),
+                        finding.sink_rule_id.clone(),
+                        finding.source_kind.clone(),
+                        finding.sink_kind.clone(),
+                        finding.source_location.clone(),
+                        finding.sink_location.clone(),
+                        finding.path_labels.clone(),
+                    );
+                    if seen.insert(key) {
+                        reported_sinks
+                            .entry((sink.node.index(), sink.rule_id.as_str()))
+                            .or_default()
+                            .push(source.rule_id.clone());
+                        findings.push(finding);
+                    }
                 }
             }
         }
@@ -439,6 +548,162 @@ fn sink_condition_matches(
         .is_some_and(|call| condition.matches_call(&call, labels))
 }
 
+/// Normalized taint kind strings interned to small integers.
+#[derive(Default)]
+struct KindIds {
+    ids: FxHashMap<String, u32>,
+    names: Vec<String>,
+}
+
+impl KindIds {
+    fn id(&mut self, kind: &str) -> u32 {
+        let kind = normalize_kind(kind);
+        if let Some(&id) = self.ids.get(kind) {
+            return id;
+        }
+        let id = self.names.len() as u32;
+        self.names.push(kind.to_string());
+        self.ids.insert(kind.to_string(), id);
+        id
+    }
+
+    fn name(&self, id: u32) -> &str {
+        &self.names[id as usize]
+    }
+}
+
+/// Interned label sets: a witness state carries a `u32` instead of a
+/// `Vec<String>` that every expansion used to clone and SipHash twice.
+/// Identity is exact vector equality — the same notion of "same state" the
+/// search had before — so the explored state space is unchanged.
+#[derive(Default)]
+struct LabelSets {
+    sets: Vec<Vec<String>>,
+    index: FxHashMap<Vec<String>, u32>,
+    transformed: FxHashMap<(u32, u32, u32), u32>,
+}
+
+impl LabelSets {
+    fn intern(&mut self, labels: Vec<String>) -> u32 {
+        if let Some(&id) = self.index.get(&labels) {
+            return id;
+        }
+        let id = self.sets.len() as u32;
+        self.sets.push(labels.clone());
+        self.index.insert(labels, id);
+        id
+    }
+
+    fn get(&self, id: u32) -> &[String] {
+        &self.sets[id as usize]
+    }
+
+    /// `transformed_labels`, memoized: it depends only on the label set and
+    /// the edge, and most edges have no transform at all.
+    fn transform(&mut self, transforms: &LabelTransformMap, id: u32, from: NodeIndex, to: NodeIndex) -> u32 {
+        if !transforms.contains_key(&to.index()) {
+            return id;
+        }
+        let key = (id, from.index() as u32, to.index() as u32);
+        if let Some(&out) = self.transformed.get(&key) {
+            return out;
+        }
+        let out = transformed_labels(transforms, self.get(id), from, to);
+        let out = self.intern(out);
+        self.transformed.insert(key, out);
+        out
+    }
+}
+
+/// Call stacks as a persistent linked list in an arena: id 0 is the empty
+/// stack, every other id is one frame (parent id + call site). Each
+/// distinct site sequence gets exactly one id, so comparing ids compares
+/// stacks.
+struct CallStacks {
+    frames: Vec<(u32, (u32, u32), u32)>, // (parent, site, depth)
+    index: FxHashMap<(u32, (u32, u32)), u32>,
+}
+
+impl CallStacks {
+    fn new() -> Self {
+        Self { frames: vec![(0, (0, 0), 0)], index: FxHashMap::default() }
+    }
+
+    fn push(&mut self, parent: u32, site: (u32, u32)) -> u32 {
+        if let Some(&id) = self.index.get(&(parent, site)) {
+            return id;
+        }
+        let id = self.frames.len() as u32;
+        let depth = self.frames[parent as usize].2 + 1;
+        self.frames.push((parent, site, depth));
+        self.index.insert((parent, site), id);
+        id
+    }
+
+    fn top(&self, id: u32) -> Option<(u32, u32)> {
+        (id != 0).then(|| self.frames[id as usize].1)
+    }
+
+    fn parent(&self, id: u32) -> u32 {
+        self.frames[id as usize].0
+    }
+
+    fn depth(&self, id: u32) -> usize {
+        self.frames[id as usize].2 as usize
+    }
+
+    /// Drops the oldest frames so at most `limit` remain (the context bound).
+    fn keep_newest(&mut self, id: u32, limit: usize) -> u32 {
+        let mut sites = Vec::with_capacity(self.depth(id));
+        let mut cur = id;
+        while cur != 0 {
+            sites.push(self.frames[cur as usize].1);
+            cur = self.parent(cur);
+        }
+        sites.reverse();
+        let excess = sites.len().saturating_sub(limit);
+        sites[excess..].iter().fold(0, |stack, site| self.push(stack, *site))
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct WitnessState {
+    node: u32,
+    labels: u32,
+    stack: u32,
+    truncated: bool,
+}
+
+/// Bitmap over flow-graph nodes marking forward ∩ backward for the sink
+/// being searched; reused across searches and cleared through the id list.
+#[derive(Default)]
+pub(crate) struct AllowedNodes {
+    words: Vec<u64>,
+}
+
+impl AllowedNodes {
+    fn mark(&mut self, ids: &[u32], node_count: usize) {
+        let needed = node_count.div_ceil(64);
+        if self.words.len() < needed {
+            self.words.resize(needed, 0);
+        }
+        for &id in ids {
+            self.words[(id / 64) as usize] |= 1 << (id % 64);
+        }
+    }
+
+    fn clear(&mut self, ids: &[u32]) {
+        for &id in ids {
+            self.words[(id / 64) as usize] &= !(1 << (id % 64));
+        }
+    }
+
+    fn contains(&self, id: usize) -> bool {
+        self.words.get(id / 64).is_some_and(|word| word & (1 << (id % 64)) != 0)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn find_contextual_path_to_sink(
     flow: &FlowGraph,
     rules: &RuleSet,
@@ -446,76 +711,122 @@ fn find_contextual_path_to_sink(
     receiver_side_labels: &HashMap<(u32, u32), Vec<String>>,
     source: &SourceSeed,
     sink: &SinkSeed,
-    forward_nodes: &uniflow_value_flow::DemandReachability,
-    backward_nodes: &uniflow_value_flow::DemandReachability,
+    allowed_ids: &[u32],
+    allowed: &mut AllowedNodes,
     context_limit: usize,
+    budget_exhausted: &mut bool,
 ) -> Option<(Vec<usize>, bool, Vec<String>)> {
-    let start = TraversalState {
-        node: source.node,
-        labels: source.labels.clone(),
-        call_stack: Vec::new(),
-        context_truncated: false,
-    };
-    let mut queue = VecDeque::from([start.clone()]);
-    let mut visited = HashSet::from([start.clone()]);
-    let mut parent = HashMap::<TraversalState, TraversalState>::new();
+    allowed.mark(allowed_ids, flow.graph.node_count());
+    let result = search_witness(flow, rules, label_transforms, receiver_side_labels, source, sink, allowed, context_limit, budget_exhausted);
+    allowed.clear(allowed_ids);
+    result
+}
+
+#[allow(clippy::too_many_arguments)]
+fn search_witness(
+    flow: &FlowGraph,
+    rules: &RuleSet,
+    label_transforms: &LabelTransformMap,
+    receiver_side_labels: &HashMap<(u32, u32), Vec<String>>,
+    source: &SourceSeed,
+    sink: &SinkSeed,
+    allowed: &AllowedNodes,
+    context_limit: usize,
+    budget_exhausted: &mut bool,
+) -> Option<(Vec<usize>, bool, Vec<String>)> {
+    let mut labels = LabelSets::default();
+    let mut stacks = CallStacks::new();
+    let start = WitnessState { node: source.node.index() as u32, labels: labels.intern(source.labels.clone()), stack: 0, truncated: false };
+    let mut queue = VecDeque::from([start]);
+    let mut visited = FxHashSet::default();
+    visited.insert(start);
+    let mut parent = FxHashMap::<WitnessState, WitnessState>::default();
+    let sink_condition = rules.sink_conditions.iter().find(|condition| condition.sink_rule_id == sink.rule_id);
 
     while let Some(state) = queue.pop_front() {
-        let mut sink_labels = state.labels.clone();
-        if state.node == sink.node {
+        // The (node, labels, call stack) state space is exponential in the
+        // worst case; a witness that exists is found within a few thousand
+        // states on real code, so an unbounded search only ever burns time
+        // proving a negative (it turned a 17 s benchmark into >10 min).
+        if visited.len() > MAX_WITNESS_SEARCH_STATES {
+            *budget_exhausted = true;
+            return None;
+        }
+        let node = NodeIndex::new(state.node as usize);
+        if node == sink.node {
+            let mut sink_labels = labels.get(state.labels).to_vec();
             if let FlowNode::SyntheticSink { func, inst, .. } = flow.graph[sink.node] {
-                sink_labels.extend(
-                    receiver_side_labels
-                        .get(&(func.0, inst.0))
-                        .into_iter()
-                        .flatten()
-                        .cloned(),
-                );
+                sink_labels.extend(receiver_side_labels.get(&(func.0, inst.0)).into_iter().flatten().cloned());
                 sink_labels.sort();
                 sink_labels.dedup();
             }
-        }
-        if state.node == sink.node
-            && sink_labels
-                .iter()
-                .any(|label| kind_compatible(label, &sink.kind))
-            && rules
-                .sink_conditions
-                .iter()
-                .find(|condition| condition.sink_rule_id == sink.rule_id)
-                .is_none_or(|condition| {
-                    sink_condition_matches(flow, sink.node, &condition.condition, &sink_labels)
-                })
-        {
-            let path = reconstruct_contextual_path(&start, &state, &parent);
-            return Some((path, state.context_truncated, sink_labels));
-        }
-        for edge in flow.graph.edges(state.node) {
-            let next_node = edge.target();
-            let next_index = next_node.index();
-            if next_node != source.node
-                && next_node != sink.node
-                && !(forward_nodes.contains(next_index) && backward_nodes.contains(next_index))
+            if live_for_sink(&sink_labels, &sink.kind)
+                && sink_condition.is_none_or(|condition| sink_condition_matches(flow, sink.node, &condition.condition, &sink_labels))
             {
+                let mut path = vec![state.node as usize];
+                let mut cur = state;
+                while cur != start {
+                    let Some(prev) = parent.get(&cur) else { break };
+                    path.push(prev.node as usize);
+                    cur = *prev;
+                }
+                path.reverse();
+                return Some((path, state.truncated, sink_labels));
+            }
+        }
+        for edge in flow.graph.edges(node) {
+            let next_node = edge.target();
+            if next_node != source.node && next_node != sink.node && !allowed.contains(next_node.index()) {
                 continue;
             }
-            let Some(mut next_state) =
-                transition_state(flow, &state, next_node, &edge.weight().kind, context_limit)
-            else {
+            let Some((stack, truncated)) = transition_stack(flow, &mut stacks, state, node, next_node, &edge.weight().kind, context_limit) else {
                 continue;
             };
-            next_state.labels =
-                transformed_labels(label_transforms, &state.labels, edge.source(), next_node);
-            if next_state.labels.is_empty() {
+            let next_labels = labels.transform(label_transforms, state.labels, edge.source(), next_node);
+            if labels.get(next_labels).is_empty() {
                 continue;
             }
-            if visited.insert(next_state.clone()) {
-                parent.insert(next_state.clone(), state.clone());
+            let next_state = WitnessState { node: next_node.index() as u32, labels: next_labels, stack, truncated };
+            if visited.insert(next_state) {
+                parent.insert(next_state, state);
                 queue.push_back(next_state);
             }
         }
     }
     None
+}
+
+/// Context-sensitive call matching: entering a callee pushes the call
+/// site (bounded by `context_limit`, oldest frames dropped), returning must
+/// pop the matching site; an empty stack may return anywhere.
+fn transition_stack(
+    flow: &FlowGraph,
+    stacks: &mut CallStacks,
+    state: WitnessState,
+    node: NodeIndex,
+    next_node: NodeIndex,
+    edge_kind: &EdgeKind,
+    context_limit: usize,
+) -> Option<(u32, bool)> {
+    match edge_kind {
+        EdgeKind::ActualToFormal => {
+            let site = call_site_of(&flow.graph[node])?;
+            let pushed = stacks.push(state.stack, site);
+            if stacks.depth(pushed) > context_limit {
+                return Some((stacks.keep_newest(pushed, context_limit), true));
+            }
+            Some((pushed, state.truncated))
+        }
+        EdgeKind::FormalToActual => {
+            let site = call_site_of(&flow.graph[next_node])?;
+            match stacks.top(state.stack) {
+                Some(active) if active != site => None,
+                Some(_) => Some((stacks.parent(state.stack), state.truncated)),
+                None => Some((state.stack, state.truncated)),
+            }
+        }
+        _ => Some((state.stack, state.truncated)),
+    }
 }
 
 fn merge_completeness(left: QueryCompleteness, right: QueryCompleteness) -> QueryCompleteness {
@@ -535,50 +846,6 @@ fn merge_completeness(left: QueryCompleteness, right: QueryCompleteness) -> Quer
     }
 }
 
-fn transition_state(
-    flow: &FlowGraph,
-    state: &TraversalState,
-    next_node: NodeIndex,
-    edge_kind: &EdgeKind,
-    context_limit: usize,
-) -> Option<TraversalState> {
-    let mut call_stack = state.call_stack.clone();
-    match edge_kind {
-        EdgeKind::ActualToFormal => {
-            let site = call_site_of(&flow.graph[state.node])?;
-            call_stack.push(site);
-            let mut context_truncated = state.context_truncated;
-            if call_stack.len() > context_limit {
-                let excess = call_stack.len() - context_limit;
-                call_stack.drain(0..excess);
-                context_truncated = true;
-            }
-            return Some(TraversalState {
-                node: next_node,
-                labels: state.labels.clone(),
-                call_stack,
-                context_truncated,
-            });
-        }
-        EdgeKind::FormalToActual => {
-            let site = call_site_of(&flow.graph[next_node])?;
-            if let Some(active) = call_stack.last().copied() {
-                if active != site {
-                    return None;
-                }
-                call_stack.pop();
-            }
-        }
-        _ => {}
-    }
-    Some(TraversalState {
-        node: next_node,
-        labels: state.labels.clone(),
-        call_stack,
-        context_truncated: state.context_truncated,
-    })
-}
-
 fn call_site_of(node: &FlowNode) -> Option<(u32, u32)> {
     match node {
         FlowNode::CallPort { func, inst, .. }
@@ -586,24 +853,6 @@ fn call_site_of(node: &FlowNode) -> Option<(u32, u32)> {
         | FlowNode::SyntheticSink { func, inst, .. } => Some((func.0, inst.0)),
         _ => None,
     }
-}
-
-fn reconstruct_contextual_path(
-    start: &TraversalState,
-    end: &TraversalState,
-    parent: &HashMap<TraversalState, TraversalState>,
-) -> Vec<usize> {
-    let mut path = vec![end.node.index()];
-    let mut cur = end.clone();
-    while &cur != start {
-        let Some(prev) = parent.get(&cur) else {
-            break;
-        };
-        path.push(prev.node.index());
-        cur = prev.clone();
-    }
-    path.reverse();
-    path
 }
 
 pub fn pretty_findings(findings: &[TaintFinding]) -> String {
@@ -764,7 +1013,7 @@ fn build_finding(
             .filter(|message| !message.trim().is_empty())
             .unwrap_or(fallback_message),
         rule_title: metadata.map(|item| item.title.clone()).unwrap_or_default(),
-        cwe: metadata.map(|item| item.cwe.clone()).unwrap_or_default(),
+        cwe: finding_cwes(metadata, sink_kind, sink_rule_id),
         standards: metadata
             .map(|item| item.standards.clone())
             .unwrap_or_default(),
@@ -774,6 +1023,26 @@ fn build_finding(
         analysis_complete: completeness == QueryCompleteness::Complete,
         completeness,
     }
+}
+
+/// The finding's CWE(s): the rule's own when it has any; otherwise the
+/// weakness its sink kind names (`sql`, `command`, … — the MIT and built-in
+/// models' only classification), then whatever class its title/message
+/// names. Without this last resort a finding with a real flow but a
+/// metadata-less rule could never be grouped, scored or put in a standards
+/// book (see `uniflow_rules::vuln_class`). The very last signal is the sink
+/// kind and rule id *text* (`semgrep.….aws-lambda-event` /
+/// `…-tainted-shell-call`, `…-log-forging`), which for converted third-party
+/// packs is often the only place the weakness is named.
+fn finding_cwes(metadata: Option<&RuleMetadata>, sink_kind: &str, sink_rule_id: &str) -> Vec<String> {
+    if let Some(cwe) = metadata.map(|item| &item.cwe).filter(|cwe| !cwe.is_empty()) {
+        return cwe.clone();
+    }
+    uniflow_rules::vuln_class::for_sink_kind(sink_kind)
+        .or_else(|| metadata.and_then(|item| uniflow_rules::vuln_class::classify_category(&format!("{} {}", item.title, item.message))))
+        .or_else(|| uniflow_rules::vuln_class::classify_category(&format!("{sink_kind} {sink_rule_id}")))
+        .map(|class| vec![class.cwe_id()])
+        .unwrap_or_default()
 }
 
 fn lifetime_findings(flow: &FlowGraph, rules: &RuleSet) -> Vec<TaintFinding> {
@@ -1275,15 +1544,30 @@ fn transformed_labels(
             .is_none_or(|transform_from| transform_from == from.index())
     }) {
         changed = true;
+        let had_generic = result.iter().any(|label| normalize_kind(label) == "generic");
         result.retain(|label| {
             !edge.remove_kinds.iter().any(|removed| {
-                if edge.remove_compatible {
-                    kind_compatible(label, removed)
-                } else {
-                    normalize_kind(label) == normalize_kind(removed)
-                }
+                let (label, removed) = (normalize_kind(label), normalize_kind(removed));
+                // A specific-kind removal never deletes a `generic` label: an
+                // HTML encoder makes data safe for an XSS sink, not for SQL,
+                // and a legacy "passthrough_remove safeX" (a decoder undoing
+                // encoding) removes a safety sign, not the taint. Deleting
+                // the generic label used to lose every flow through
+                // `URLDecoder.decode` for sources modeled as `generic`.
+                label == removed || (edge.remove_compatible && removed == "generic")
             })
         });
+        if had_generic && edge.remove_compatible {
+            // Remember what the generic taint was neutralized for, so a sink
+            // of exactly that kind is not reported (see `live_for_sink`).
+            result.extend(
+                edge.remove_kinds
+                    .iter()
+                    .map(|removed| normalize_kind(removed))
+                    .filter(|removed| *removed != "generic" && !is_safety_sign(removed))
+                    .map(|removed| format!("{NEUTRALIZED_PREFIX}{removed}")),
+            );
+        }
         result.extend(
             edge.add_kinds
                 .iter()
@@ -1294,6 +1578,31 @@ fn transformed_labels(
         return labels.to_vec();
     }
     result.into_iter().collect()
+}
+
+const NEUTRALIZED_PREFIX: &str = "neutralized:";
+
+/// Whether `labels` still carry taint that `sink_kind` must report: some
+/// real (non-marker) label compatible with the sink, where a `generic` label
+/// does not count if it was neutralized for exactly this sink kind.
+fn live_for_sink(labels: &[String], sink_kind: &str) -> bool {
+    let sink_kind = normalize_kind(sink_kind);
+    let neutralized_here = sink_kind != "generic" && labels.iter().any(|label| label.strip_prefix(NEUTRALIZED_PREFIX) == Some(sink_kind));
+    labels.iter().any(|label| {
+        !label.starts_with(NEUTRALIZED_PREFIX)
+            && kind_compatible(label, sink_kind)
+            && !(neutralized_here && normalize_kind(label) == "generic")
+    })
+}
+
+/// Legacy packs record sanitization as *signs* on a value
+/// (`safeSqlInjection`, `safeCrossSiteScriptingReflected`, …) that sinks
+/// test with `not has_kind safeX`. Removing such a sign — `URLDecoder.decode`
+/// undoes HTML/URL encoding — must remove only that sign. Letting the
+/// `generic` wildcard of [`kind_compatible`] apply here stripped the taint
+/// label itself, so every flow through a decoder vanished.
+fn is_safety_sign(kind: &str) -> bool {
+    normalize_kind(kind).to_ascii_lowercase().starts_with("safe")
 }
 
 fn kind_compatible(source_kind: &str, other_kind: &str) -> bool {
@@ -1409,18 +1718,6 @@ mod tests {
         TaintTransformRule,
     };
     use uniflow_value_flow::build;
-
-    #[test]
-    fn backward_demand_cache_has_a_fixed_capacity() {
-        let mut cache = BoundedBackwardDemandCache {
-            entries: Vec::with_capacity(MAX_BACKWARD_DEMAND_CACHE_ENTRIES),
-        };
-        for sink in 0..(MAX_BACKWARD_DEMAND_CACHE_ENTRIES + 3) {
-            cache.get_or_insert_with(sink, DemandReachability::default);
-        }
-        assert_eq!(cache.entries.len(), MAX_BACKWARD_DEMAND_CACHE_ENTRIES);
-        assert!(cache.entries.iter().all(|(sink, _)| *sink >= 3));
-    }
 
     #[test]
     fn rust_frontend_lowers_taint_crate_without_undefined_values() {
@@ -2873,7 +3170,7 @@ int main(void) {
         let sink = *finding.path.last().expect("sink node");
         let forward = flow
             .execute_solver_plan(&flow.solver_plan_for_query(&DemandQuery {
-                seeds: vec![DemandSeed::Node(source)],
+                seeds: vec![uniflow_value_flow::DemandSeed::Node(source)],
                 direction: SparseDirection::Forward,
                 engine: DemandEngine::Fixpoint,
                 include_heap: true,
@@ -2881,7 +3178,7 @@ int main(void) {
             .expect("forward demand summary");
         let backward = flow
             .execute_solver_plan(&flow.solver_plan_for_query(&DemandQuery {
-                seeds: vec![DemandSeed::Node(sink)],
+                seeds: vec![uniflow_value_flow::DemandSeed::Node(sink)],
                 direction: SparseDirection::Backward,
                 engine: DemandEngine::Fixpoint,
                 include_heap: true,

@@ -5463,6 +5463,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "uniflow-bench"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "flate2",
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tar",
+ "tempfile",
+ "uniflow-archive-extract",
+ "uniflow-container-image",
+ "uniflow-core",
+ "uniflow-frontend",
+ "uniflow-os-package-db",
+ "uniflow-sca-core",
+ "uniflow-sca-orchestrator",
+ "uniflow-vuln-db",
+ "ureq",
+ "zip 2.4.2",
+]
+
+[[package]]
 name = "uniflow-cache"
 version = "1.0.0"
 dependencies = [
@@ -5558,6 +5583,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "uniflow-baseline",
  "uniflow-checker-api",
  "uniflow-checker-host",
  "uniflow-frontend",
@@ -5638,6 +5664,7 @@ name = "uniflow-deps-dotnet"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "roxmltree",
  "serde",
  "serde_json",
  "tempfile",
@@ -6105,6 +6132,7 @@ name = "uniflow-sca-orchestrator"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "flate2",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -6137,6 +6165,7 @@ dependencies = [
  "uniflow-sca-core",
  "uniflow-vuln-db",
  "walkdir",
+ "zip 2.4.2",
 ]
 
 [[package]]
@@ -6191,7 +6220,9 @@ name = "uniflow-taint"
 version = "1.0.0"
 dependencies = [
  "petgraph",
+ "rayon",
  "regex",
+ "rustc-hash",
  "serde",
  "uniflow-frontend",
  "uniflow-hir",

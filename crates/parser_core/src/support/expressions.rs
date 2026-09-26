@@ -11,26 +11,25 @@ pub fn parse_call_parts(text: &str) -> Option<(String, String)> {
     let bytes = trimmed.as_bytes();
     let mut depth = 0usize;
     let mut quote: Option<u8> = None;
-    let mut escaped = false;
     let mut open = None;
+    // Scanning right to left, an escaping backslash sits to the *left* of
+    // the quote it escapes, so a quote is escaped when an odd run of
+    // backslashes precedes it (`'\''`, `"a\"b"`) — checking the byte after
+    // it, as a left-to-right scanner would, loses the string boundaries and
+    // with them the whole call.
+    let escaped_at = |index: usize| bytes[..index].iter().rev().take_while(|b| **b == b'\\').count() % 2 == 1;
 
     for index in (0..bytes.len()).rev() {
         let byte = bytes[index];
         if let Some(active_quote) = quote {
-            if escaped {
-                escaped = false;
-                continue;
-            }
-            if byte == b'\\' {
-                escaped = true;
-            } else if byte == active_quote {
+            if byte == active_quote && !escaped_at(index) {
                 quote = None;
             }
             continue;
         }
 
         match byte {
-            b'\'' | b'"' => quote = Some(byte),
+            b'\'' | b'"' if !escaped_at(index) => quote = Some(byte),
             b')' => depth += 1,
             b'(' => {
                 depth = depth.checked_sub(1)?;

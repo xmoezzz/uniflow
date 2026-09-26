@@ -983,7 +983,10 @@ impl<'a> Lexer<'a> {
         let mut line_start_of_scan = self.pos;
         while line_start_of_scan < self.src.len() {
             let mut scan = line_start_of_scan;
-            while matches!(self.src[scan], b' ' | b'\t') {
+            // A heredoc body whose last line is only indentation ends the
+            // file mid-scan; indexing past the end used to panic the whole
+            // project scan.
+            while scan < self.src.len() && matches!(self.src[scan], b' ' | b'\t') {
                 scan += 1;
             }
             if starts_with(self.src, scan, tag.as_bytes()) {

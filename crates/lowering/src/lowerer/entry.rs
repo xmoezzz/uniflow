@@ -771,8 +771,11 @@ impl Lowerer {
             &mut value_types,
             &mut value_spans,
         );
+        // Dead branches of compile-time-constant conditions are not lowered
+        // at all (see `const_branches`).
+        let folded_body = const_branches::fold_constant_branches(&func.body);
         let (mut blocks, final_value_map) = ctx.lower_cfg_body(
-            &func.body,
+            folded_body.as_ref().unwrap_or(&func.body),
             value_map,
             &mut symbol_types,
             &mut locals,

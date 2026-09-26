@@ -1,8 +1,14 @@
 pub fn default_models_for(language: Language) -> RuleSet {
     match language {
-        Language::Java => java_models(),
+        Language::Java => {
+            let mut rules = java_models();
+            rules.merge(java_servlet_models());
+            rules
+        }
         Language::Kotlin | Language::Jsp => {
-            let mut rules = retarget_models(java_models(), language.clone());
+            let mut base = java_models();
+            base.merge(java_servlet_models());
+            let mut rules = retarget_models(base, language.clone());
             rules.merge(portable_models(language));
             rules
         }

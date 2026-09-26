@@ -622,3 +622,182 @@ fn java_models() -> RuleSet {
         model_dependencies: Vec::new(),
     }
 }
+
+/// Servlet-API models the legacy and MIT packs lack or model too loosely:
+/// XSS through the response writer, trust-boundary writes into the session,
+/// the rest of the request-input surface, and collection/array flows. Each
+/// sink's `kind` names its weakness (`uniflow_rules::vuln_class`), so the
+/// finding carries the right CWE without per-rule metadata.
+fn java_servlet_models() -> RuleSet {
+    let java = || Some(Language::Java);
+    let request = "javax.servlet.http.HttpServletRequest";
+    let mut rules = RuleSet::default();
+
+    // Request input beyond getParameter/getHeader/getQueryString.
+    for (id, method) in [
+        ("java-http-request-parameter-values", "getParameterValues"),
+        ("java-http-request-parameter-map", "getParameterMap"),
+        ("java-http-request-parameter-names", "getParameterNames"),
+        ("java-http-request-headers", "getHeaders"),
+        ("java-http-request-header-names", "getHeaderNames"),
+        ("java-http-request-cookies", "getCookies"),
+        ("java-http-request-reader", "getReader"),
+        ("java-http-request-input-stream", "getInputStream"),
+        ("java-http-request-uri", "getRequestURI"),
+        ("java-http-request-path-info", "getPathInfo"),
+    ] {
+        rules.sources.push(SourceRule {
+            id: id.to_string(),
+            language: java(),
+            matcher: ApiMatcher { receiver_type: Some(request.to_string()), method_name: Some(method.to_string()), ..Default::default() },
+            out: Port::Return,
+            kind: "generic".to_string(),
+        });
+    }
+
+    // XSS: output written to the HTTP response. Receiver provenance, not
+    // type, is what separates this from a PrintWriter on a file.
+    let response_stream = r"(?:javax|jakarta)\.servlet\.(?:http\.HttpServletResponse|ServletResponse)\.(?:getWriter|getOutputStream)$";
+    for (id, receiver, methods, port) in [
+        ("java-servlet-writer-print", r"^java\.io\.(?:PrintWriter|Writer)$", r"^(?:print|println|write|append)$", Port::Arg(0)),
+        ("java-servlet-writer-format", r"^java\.io\.PrintWriter$", r"^(?:format|printf)$", Port::ArgsFrom(0)),
+        ("java-servlet-output-stream-print", r"^(?:javax|jakarta)\.servlet\.ServletOutputStream$", r"^(?:print|println|write)$", Port::Arg(0)),
+    ] {
+        rules.sinks.push(SinkRule {
+            id: id.to_string(),
+            language: java(),
+            matcher: ApiMatcher {
+                receiver_regex: Some(receiver.to_string()),
+                method_regex: Some(methods.to_string()),
+                receiver_origin_regex: Some(response_stream.to_string()),
+                ..Default::default()
+            },
+            inputs: vec![port],
+            kind: "xss".to_string(),
+        });
+    }
+
+    // SQL through frameworks: the query string argument of Spring JDBC
+    // templates, JPA and Hibernate. (The raw JDBC `Statement`/`Connection`
+    // sinks are in `java_models`.)
+    for (id, receiver, methods) in [
+        (
+            "java-spring-jdbc-template",
+            r"^org\.springframework\.jdbc\.core\.(?:JdbcTemplate|JdbcOperations|namedparam\.NamedParameterJdbcTemplate|namedparam\.NamedParameterJdbcOperations)$",
+            r"^(?:query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForLong|queryForInt|queryForStream|update|batchUpdate|execute)$",
+        ),
+        (
+            "java-jpa-entity-manager",
+            r"^(?:javax|jakarta)\.persistence\.EntityManager$",
+            r"^(?:createQuery|createNativeQuery)$",
+        ),
+        (
+            "java-hibernate-session",
+            r"^org\.hibernate\.(?:Session|SharedSessionContract|StatelessSession|query\.QueryProducer)$",
+            r"^(?:createQuery|createSQLQuery|createNativeQuery|createFilter)$",
+        ),
+    ] {
+        rules.sinks.push(SinkRule {
+            id: id.to_string(),
+            language: java(),
+            matcher: ApiMatcher { receiver_regex: Some(receiver.to_string()), method_regex: Some(methods.to_string()), ..Default::default() },
+            inputs: vec![Port::Arg(0)],
+            kind: "sql".to_string(),
+        });
+    }
+
+    // Trust boundary: untrusted data stored as trusted session state.
+    rules.sinks.push(SinkRule {
+        id: "java-http-session-set-attribute".to_string(),
+        language: java(),
+        matcher: ApiMatcher {
+            receiver_regex: Some(r"^(?:javax|jakarta)\.servlet\.http\.HttpSession$".to_string()),
+            method_regex: Some(r"^(?:setAttribute|putValue)$".to_string()),
+            ..Default::default()
+        },
+        inputs: vec![Port::Arg(0), Port::Arg(1)],
+        kind: "trust_boundary".to_string(),
+    });
+
+    // Collections, arrays and common value holders: element in, element out.
+    let into_receiver = |id: &str, receiver: &str, methods: &str, from: Port| PropagatorRule {
+        id: id.to_string(),
+        language: java(),
+        matcher: ApiMatcher { receiver_regex: Some(receiver.to_string()), method_regex: Some(methods.to_string()), ..Default::default() },
+        flows: vec![FlowSpec { from, to: Port::Receiver }],
+    };
+    let out_of_receiver = |id: &str, receiver: &str, methods: &str| PropagatorRule {
+        id: id.to_string(),
+        language: java(),
+        matcher: ApiMatcher { receiver_regex: Some(receiver.to_string()), method_regex: Some(methods.to_string()), ..Default::default() },
+        flows: vec![FlowSpec { from: Port::Receiver, to: Port::Return }],
+    };
+    let collection = r"^java\.util\.(?:List|ArrayList|LinkedList|Collection|Set|HashSet|LinkedHashSet|TreeSet|Queue|Deque|ArrayDeque|Vector|Stack)$";
+    let map = r"^java\.util\.(?:Map|HashMap|LinkedHashMap|TreeMap|Hashtable|concurrent\.ConcurrentHashMap|Properties)$";
+    rules.propagators.extend([
+        into_receiver("java-collection-add", collection, r"^(?:add|addFirst|addLast|offer|push|set|addAll)$", Port::ArgsFrom(0)),
+        out_of_receiver("java-collection-get", collection, r"^(?:get|getFirst|getLast|peek|poll|pop|remove|element|toArray|iterator|stream|subList)$"),
+        into_receiver("java-map-put", map, r"^(?:put|putIfAbsent|putAll|setProperty)$", Port::ArgsFrom(0)),
+        out_of_receiver("java-map-get", map, r"^(?:get|getOrDefault|getProperty|values|entrySet|keySet|remove)$"),
+        out_of_receiver("java-iterator-next", r"^java\.util\.(?:Iterator|ListIterator|Enumeration)$", r"^(?:next|nextElement)$"),
+        out_of_receiver("java-map-entry-get", r"^java\.util\.Map\.Entry$", r"^(?:getKey|getValue)$"),
+        out_of_receiver("java-cookie-get-value", r"^(?:javax|jakarta)\.servlet\.http\.Cookie$", r"^(?:getValue|getName)$"),
+        into_receiver("java-process-builder-command", r"^java\.lang\.ProcessBuilder$", r"^command$", Port::ArgsFrom(0)),
+    ]);
+    // Strings: every value-producing method of a string carries the
+    // receiver's data into its result (a substring of a tainted string is
+    // tainted), and those that splice in arguments carry the arguments too.
+    let strings = r"^java\.lang\.(?:String|StringBuilder|StringBuffer|CharSequence)$";
+    rules.propagators.push(PropagatorRule {
+        id: "java-string-derivations".to_string(),
+        language: java(),
+        matcher: ApiMatcher {
+            receiver_regex: Some(strings.to_string()),
+            method_regex: Some(r"^(?:substring|subSequence|trim|strip|stripLeading|stripTrailing|toLowerCase|toUpperCase|toString|intern|toCharArray|getBytes|split|lines|repeat|formatted|chars|codePoints|concat|replace|replaceAll|replaceFirst|translateEscapes|stripIndent|indent|reverse|insert)$".to_string()),
+            ..Default::default()
+        },
+        flows: vec![FlowSpec { from: Port::Receiver, to: Port::Return }],
+    });
+    rules.propagators.push(PropagatorRule {
+        id: "java-string-splice-args".to_string(),
+        language: java(),
+        matcher: ApiMatcher {
+            receiver_regex: Some(strings.to_string()),
+            method_regex: Some(r"^(?:concat|replace|replaceAll|replaceFirst|formatted|insert)$".to_string()),
+            ..Default::default()
+        },
+        flows: vec![FlowSpec { from: Port::ArgsFrom(0), to: Port::Return }],
+    });
+    // `String.valueOf(x)`, `String.format(fmt, args)`, `new String(bytes)`,
+    // `Arrays.copyOf(a, n)` and friends: arguments to result.
+    rules.propagators.push(PropagatorRule {
+        id: "java-string-factories".to_string(),
+        language: java(),
+        matcher: ApiMatcher {
+            regex: Some(r"^java\.lang\.(?:String\.(?:valueOf|copyValueOf|format|join|init\^)|StringBuilder\.init\^|StringBuffer\.init\^)$|^java\.util\.(?:Arrays\.copyOf(?:Range)?|Objects\.(?:toString|requireNonNull|requireNonNullElse))$|^java\.util\.Base64\.(?:Encoder|Decoder)\.(?:encode|encodeToString|decode)$".to_string()),
+            ..Default::default()
+        },
+        flows: vec![FlowSpec { from: Port::ArgsFrom(0), to: Port::Return }],
+    });
+    // Decoders reverse an encoding, so the decoded text carries the input's
+    // data unchanged. (Encoders are deliberately absent: `URLEncoder.encode`
+    // or an HTML encoder is a sanitizer for some sinks and must not be
+    // modeled as plain propagation.)
+    rules.propagators.push(PropagatorRule {
+        id: "java-decoders".to_string(),
+        language: java(),
+        matcher: ApiMatcher {
+            regex: Some(r"^java\.net\.URLDecoder\.decode$|^java\.net\.URI\.(?:create|init\^)$|^org\.apache\.commons\.codec\.binary\.Base64\.decode(?:Base64)?$".to_string()),
+            ..Default::default()
+        },
+        flows: vec![FlowSpec { from: Port::Arg(0), to: Port::Return }],
+    });
+    // `Arrays.asList(a...)`, `List.of(...)`, `String.join(sep, parts)`.
+    rules.propagators.push(PropagatorRule {
+        id: "java-collection-factories".to_string(),
+        language: java(),
+        matcher: ApiMatcher { regex: Some(r"^java\.util\.(?:Arrays\.asList|List\.of|Set\.of|Collections\.(?:singletonList|singleton|unmodifiableList))$|^java\.lang\.String\.join$".to_string()), ..Default::default() },
+        flows: vec![FlowSpec { from: Port::ArgsFrom(0), to: Port::Return }],
+    });
+    rules
+}

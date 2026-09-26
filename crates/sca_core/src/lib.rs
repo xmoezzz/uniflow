@@ -139,6 +139,11 @@ pub struct OsFindingInfo {
     pub distro_severity: Option<String>,
     #[serde(default)]
     pub references: Vec<String>,
+    /// True when this unfixed / will-not-fix statement comes from the
+    /// upstream RHEL data rather than the rebuild's own advisories
+    /// (Rocky, Alma, Oracle, CentOS — see ADR-0021).
+    #[serde(default)]
+    pub inherited: bool,
 }
 
 /// Reachability verdict for one dependency finding, strongest first.

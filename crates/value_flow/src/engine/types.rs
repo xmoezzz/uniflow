@@ -74,7 +74,9 @@ pub struct FlowGraph {
     pub region_graph_successors: HashMap<usize, Vec<usize>>,
     pub region_graph_predecessors: HashMap<usize, Vec<usize>>,
     #[serde(skip)]
-    pub region_graph_direct_neighbors_cache: RefCell<HashMap<usize, Vec<usize>>>,
+    pub region_graph_direct_neighbors_cache: QueryCell<HashMap<usize, Vec<usize>>>,
+    #[serde(skip)]
+    pub region_neighbor_index: QueryCell<Option<std::sync::Arc<RegionNeighborIndex>>>,
     pub cell_live_values: HashMap<usize, Vec<(u32, u32)>>,
     pub cell_live_regions: HashMap<usize, Vec<String>>,
     pub region_live_values: HashMap<String, Vec<(u32, u32)>>,
@@ -112,23 +114,23 @@ pub struct FlowGraph {
     pub global_solver_iterations: usize,
     #[serde(skip)]
     pub demand_summary_cache:
-        RefCell<HashMap<(usize, SparseDirection, usize, usize), SparseValueSummary>>,
+        QueryCell<HashMap<(usize, SparseDirection, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
     pub demand_seed_summary_cache:
-        RefCell<HashMap<(Vec<usize>, SparseDirection, usize, usize), SparseValueSummary>>,
+        QueryCell<HashMap<(Vec<usize>, SparseDirection, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
     pub demand_call_summary_cache:
-        RefCell<HashMap<((u32, u32), SparseDirection, usize, usize), SparseValueSummary>>,
+        QueryCell<HashMap<((u32, u32), SparseDirection, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
     pub demand_fixpoint_summary_cache:
-        RefCell<HashMap<(Vec<usize>, SparseDirection, usize, usize), SparseValueSummary>>,
+        QueryCell<HashMap<(Vec<usize>, SparseDirection, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
     pub demand_query_summary_cache:
-        RefCell<HashMap<(DemandQuery, usize, usize), SparseValueSummary>>,
+        QueryCell<HashMap<(DemandQuery, usize, usize), SparseValueSummary>>,
     #[serde(skip)]
-    demand_query_scc_cache: RefCell<HashMap<bool, DemandQuerySccIndex>>,
+    demand_query_scc_cache: QueryCell<HashMap<bool, std::sync::Arc<DemandQuerySccIndex>>>,
     #[serde(skip)]
-    pub contextual_call_summary_cache: RefCell<
+    pub contextual_call_summary_cache: QueryCell<
         HashMap<
             (
                 CallContextKey,
@@ -142,7 +144,7 @@ pub struct FlowGraph {
         >,
     >,
     #[serde(skip)]
-    pub function_summary_cache: RefCell<
+    pub function_summary_cache: QueryCell<
         HashMap<
             (
                 u32,
@@ -157,7 +159,7 @@ pub struct FlowGraph {
         >,
     >,
     #[serde(skip)]
-    pub contextual_demand_query_cache: RefCell<
+    pub contextual_demand_query_cache: QueryCell<
         HashMap<
             (
                 DemandQuery,
@@ -170,7 +172,7 @@ pub struct FlowGraph {
         >,
     >,
     #[serde(skip)]
-    pub interprocedural_call_summary_cache: RefCell<
+    pub interprocedural_call_summary_cache: QueryCell<
         HashMap<
             (
                 CallContextKey,
@@ -185,9 +187,9 @@ pub struct FlowGraph {
     >,
     #[serde(skip)]
     pub function_transfer_summary_cache:
-        RefCell<HashMap<(u32, usize, usize, DemandEngine, bool), FunctionTransferSummary>>,
+        QueryCell<HashMap<(u32, usize, usize, DemandEngine, bool), FunctionTransferSummary>>,
     #[serde(skip)]
-    pub contextual_function_transfer_summary_cache: RefCell<
+    pub contextual_function_transfer_summary_cache: QueryCell<
         HashMap<
             (
                 u32,
@@ -203,9 +205,9 @@ pub struct FlowGraph {
     >,
     #[serde(skip)]
     pub function_heap_effect_summary_cache:
-        RefCell<HashMap<(u32, usize, usize, DemandEngine, bool), FunctionHeapEffectSummary>>,
+        QueryCell<HashMap<(u32, usize, usize, DemandEngine, bool), FunctionHeapEffectSummary>>,
     #[serde(skip)]
-    pub contextual_function_heap_effect_summary_cache: RefCell<
+    pub contextual_function_heap_effect_summary_cache: QueryCell<
         HashMap<
             (
                 u32,
@@ -224,6 +226,10 @@ pub struct FlowGraph {
     pub resolved_internal_targets: HashMap<(FunctionId, InstId), Vec<String>>,
     pub synthetic_sources: Vec<NodeIndex>,
     pub synthetic_sinks: Vec<NodeIndex>,
+    /// Java collection calls replayed precisely by `java_collections.rs`;
+    /// the generic receiver-level collection propagators skip these.
+    #[serde(default)]
+    pub precise_collection_calls: HashSet<(FunctionId, InstId)>,
 }
 impl FlowGraph {
     pub fn lifetime_state_of(&self, func: FunctionId, value: ValueId) -> LifetimeState {
@@ -297,7 +303,8 @@ impl Default for FlowGraph {
             cell_memory_regions: HashMap::new(),
             region_graph_successors: HashMap::new(),
             region_graph_predecessors: HashMap::new(),
-            region_graph_direct_neighbors_cache: RefCell::new(HashMap::new()),
+            region_graph_direct_neighbors_cache: QueryCell::new(HashMap::new()),
+            region_neighbor_index: QueryCell::new(None),
             cell_live_values: HashMap::new(),
             cell_live_regions: HashMap::new(),
             region_live_values: HashMap::new(),
@@ -331,23 +338,24 @@ impl Default for FlowGraph {
             contextual_points_to_object_ids: HashMap::new(),
             solver_closure_iterations: 0,
             global_solver_iterations: 0,
-            demand_summary_cache: RefCell::new(HashMap::new()),
-            demand_seed_summary_cache: RefCell::new(HashMap::new()),
-            demand_call_summary_cache: RefCell::new(HashMap::new()),
-            demand_fixpoint_summary_cache: RefCell::new(HashMap::new()),
-            demand_query_summary_cache: RefCell::new(HashMap::new()),
-            demand_query_scc_cache: RefCell::new(HashMap::new()),
-            contextual_call_summary_cache: RefCell::new(HashMap::new()),
-            function_summary_cache: RefCell::new(HashMap::new()),
-            contextual_demand_query_cache: RefCell::new(HashMap::new()),
-            interprocedural_call_summary_cache: RefCell::new(HashMap::new()),
-            function_transfer_summary_cache: RefCell::new(HashMap::new()),
-            contextual_function_transfer_summary_cache: RefCell::new(HashMap::new()),
-            function_heap_effect_summary_cache: RefCell::new(HashMap::new()),
-            contextual_function_heap_effect_summary_cache: RefCell::new(HashMap::new()),
+            demand_summary_cache: QueryCell::new(HashMap::new()),
+            demand_seed_summary_cache: QueryCell::new(HashMap::new()),
+            demand_call_summary_cache: QueryCell::new(HashMap::new()),
+            demand_fixpoint_summary_cache: QueryCell::new(HashMap::new()),
+            demand_query_summary_cache: QueryCell::new(HashMap::new()),
+            demand_query_scc_cache: QueryCell::new(HashMap::new()),
+            contextual_call_summary_cache: QueryCell::new(HashMap::new()),
+            function_summary_cache: QueryCell::new(HashMap::new()),
+            contextual_demand_query_cache: QueryCell::new(HashMap::new()),
+            interprocedural_call_summary_cache: QueryCell::new(HashMap::new()),
+            function_transfer_summary_cache: QueryCell::new(HashMap::new()),
+            contextual_function_transfer_summary_cache: QueryCell::new(HashMap::new()),
+            function_heap_effect_summary_cache: QueryCell::new(HashMap::new()),
+            contextual_function_heap_effect_summary_cache: QueryCell::new(HashMap::new()),
             type_hierarchy: HashMap::new(),
             call_meta: HashMap::new(),
             resolved_internal_targets: HashMap::new(),
+            precise_collection_calls: HashSet::new(),
             synthetic_sources: Vec::new(),
             synthetic_sinks: Vec::new(),
         }
@@ -430,6 +438,10 @@ pub struct CallMeta {
     /// return value. A call without a destination is necessarily unused.
     #[serde(default)]
     pub return_is_used: bool,
+    /// Callee of the call whose result is the receiver (same function,
+    /// through copies) — see `ApiMatcher::receiver_origin_regex`.
+    #[serde(default)]
+    pub receiver_origin: Option<String>,
     pub span: Span,
 }
 
@@ -448,6 +460,7 @@ impl CallMeta {
         call.receiver_constant = self.receiver_constant.clone();
         call.receiver_parameter = self.receiver_parameter;
         call.arg_constants = self.arg_constants.clone();
+        call.receiver_origin = self.receiver_origin.clone();
         Some(call)
     }
 }
@@ -657,21 +670,67 @@ pub struct SparseTraversal {
 /// does not retain traversal layers or materialized value/call summaries.
 #[derive(Clone, Debug, Default)]
 pub struct DemandReachability {
-    reachable: Vec<bool>,
+    // Sorted, deduplicated node indexes. A slice is bounded by the query's
+    // visit budget, so it costs O(visits) rather than one slot per graph
+    // node; taint keeps hundreds of these alive against project graphs with
+    // millions of nodes.
+    reachable: Vec<u32>,
     pub completeness: QueryCompleteness,
 }
 
 impl DemandReachability {
+    pub(crate) fn from_visited(mut visited: Vec<u32>, completeness: QueryCompleteness) -> Self {
+        visited.sort_unstable();
+        visited.dedup();
+        visited.shrink_to_fit();
+        Self { reachable: visited, completeness }
+    }
+
     pub fn contains(&self, node: usize) -> bool {
-        self.reachable.get(node).copied().unwrap_or(false)
+        u32::try_from(node).is_ok_and(|node| self.reachable.binary_search(&node).is_ok())
+    }
+
+    /// Node ids present in both slices, ascending — a linear merge of the
+    /// two sorted id lists. Taint's witness search tests every edge against
+    /// "forward ∩ backward"; materializing the intersection once per sink
+    /// replaces two binary searches per edge with one bitmap probe.
+    pub fn intersection_ids(&self, other: &DemandReachability) -> Vec<u32> {
+        let (mut left, mut right) = (self.reachable.iter().peekable(), other.reachable.iter().peekable());
+        let mut out = Vec::with_capacity(self.reachable.len().min(other.reachable.len()));
+        while let (Some(&&a), Some(&&b)) = (left.peek(), right.peek()) {
+            match a.cmp(&b) {
+                std::cmp::Ordering::Less => {
+                    left.next();
+                }
+                std::cmp::Ordering::Greater => {
+                    right.next();
+                }
+                std::cmp::Ordering::Equal => {
+                    out.push(a);
+                    left.next();
+                    right.next();
+                }
+            }
+        }
+        out
     }
 
     pub fn len(&self) -> usize {
-        self.reachable.iter().filter(|reachable| **reachable).count()
+        self.reachable.len()
+    }
+
+    /// The retained node ids, ascending.
+    pub fn node_ids(&self) -> &[u32] {
+        &self.reachable
+    }
+
+    /// Node ids retained by this result.
+    pub fn retained_words(&self) -> usize {
+        self.reachable.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        !self.reachable.iter().any(|reachable| *reachable)
+        self.reachable.is_empty()
     }
 }
 
@@ -843,4 +902,50 @@ pub enum EdgeKind {
     Summary { rule_id: String },
     Source { rule_id: String },
     Sink { rule_id: String },
+}
+
+/// Nodes grouped by memory region, ordered so that every region sharing a
+/// boundary prefix (`r.` / `r[`) with a given region is one range scan away.
+/// Replaces a scan over every region-carrying node per neighbor lookup.
+#[derive(Debug, Default)]
+pub struct RegionNeighborIndex {
+    by_region: BTreeMap<String, Vec<usize>>,
+}
+
+impl RegionNeighborIndex {
+    fn build(node_memory_regions: &HashMap<usize, Vec<String>>) -> Self {
+        let mut by_region = BTreeMap::<String, Vec<usize>>::new();
+        for (&node, regions) in node_memory_regions {
+            for region in regions {
+                by_region.entry(region.clone()).or_default().push(node);
+            }
+        }
+        Self { by_region }
+    }
+
+    /// Nodes carrying a region related to `region` by `memory_region_related`:
+    /// the region itself, its boundary-prefix ancestors, and its descendants.
+    fn related_nodes(&self, region: &str, out: &mut Vec<usize>) {
+        let bytes = region.as_bytes();
+        for (idx, byte) in bytes.iter().enumerate() {
+            if matches!(byte, b'.' | b'[') {
+                if let Some(nodes) = self.by_region.get(&region[..idx]) {
+                    out.extend_from_slice(nodes);
+                }
+            }
+        }
+        if let Some(nodes) = self.by_region.get(region) {
+            out.extend_from_slice(nodes);
+        }
+        for separator in ['.', '['] {
+            let prefix = format!("{region}{separator}");
+            for (_, nodes) in self
+                .by_region
+                .range::<str, _>((std::ops::Bound::Included(prefix.as_str()), std::ops::Bound::Unbounded))
+                .take_while(|(key, _)| key.starts_with(&prefix))
+            {
+                out.extend_from_slice(nodes);
+            }
+        }
+    }
 }

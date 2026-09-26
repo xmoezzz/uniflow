@@ -6,6 +6,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+rayon.workspace = true
+rustc-hash = "2"
 petgraph.workspace = true
 regex.workspace = true
 serde.workspace = true

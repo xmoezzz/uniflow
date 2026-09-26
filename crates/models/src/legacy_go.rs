@@ -137,12 +137,19 @@ pub fn compile_legacy_go_pack(pack: &LegacyGoPack, namespace: &str) -> Result<Le
                     sink_rule_id: id.clone(),
                     condition: condition.clone(),
                 });
+                // The converted rules have no names, only a numeric category;
+                // the weakness is named by the sink point's positive sign
+                // checks (`xss`, `safeSqlInjection`, …).
+                let class = weakness_of_sign_check(&point.check);
                 out.rules.metadata.push(RuleMetadata {
                     id,
-                    title: format!("Go security rule {category}"),
+                    title: match class {
+                        Some(class) => format!("{} (Go security rule {category})", class.en),
+                        None => format!("Go security rule {category}"),
+                    },
                     message: format!("Data reaches Go security sink category {category}."),
                     severity: grade_severity(&sink.default_grade).to_string(),
-                    cwe: Vec::new(),
+                    cwe: class.map(|class| vec![class.cwe_id()]).unwrap_or_default(),
                     standards: Vec::new(),
                     categories: Default::default(),
                     translations: Default::default(),
@@ -152,6 +159,43 @@ pub fn compile_legacy_go_pack(pack: &LegacyGoPack, namespace: &str) -> Result<Le
     }
     out.rules.validate()?;
     Ok(out)
+}
+
+/// The weakness a sink point checks for, from its `SignCheck` condition. A
+/// positive sign (`xss`, `weakcrypto`) is a taint flavor that may name it
+/// directly; more often the weakness is named by the sanitizer mark the
+/// rule *excludes* — `Not: safeSqlInjection` reads "unless already
+/// neutralized for SQL injection", i.e. this is the SQL injection check.
+/// Other signs under `Not` are exclusions, not the weakness.
+fn weakness_of_sign_check(check: &Value) -> Option<uniflow_rules::vuln_class::VulnClass> {
+    fn signs<'a>(value: &'a Value, negated: bool, positive: &mut Vec<&'a str>, excluded_safe: &mut Vec<&'a str>) {
+        match value {
+            Value::Mapping(map) => {
+                for (key, child) in map {
+                    match key.as_str() {
+                        Some("Not") => signs(child, !negated, positive, excluded_safe),
+                        Some("SignCheck") => {
+                            if let Some(sign) = child.as_str() {
+                                if !negated {
+                                    positive.push(sign);
+                                } else if sign.starts_with("safe") {
+                                    excluded_safe.push(sign);
+                                }
+                            }
+                        }
+                        _ => signs(child, negated, positive, excluded_safe),
+                    }
+                }
+            }
+            Value::Sequence(items) => items.iter().for_each(|item| signs(item, negated, positive, excluded_safe)),
+            _ => {}
+        }
+    }
+    let (mut positive, mut excluded_safe) = (Vec::new(), Vec::new());
+    signs(check, false, &mut positive, &mut excluded_safe);
+    positive.into_iter().chain(excluded_safe).find_map(|sign| {
+        uniflow_rules::vuln_class::for_sink_kind(sign).or_else(|| uniflow_rules::vuln_class::classify_category(sign))
+    })
 }
 
 fn compile_method_matcher(method: &Mapping) -> Result<ApiMatcher> {

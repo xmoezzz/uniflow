@@ -8,6 +8,8 @@ fn parse_simple_stmt(
 ) -> Vec<Stmt> {
     let span = span_from_line_range(builder.file_id(), line_no, line_no);
     let mut out = Vec::new();
+    let augmented = desugar_augmented_assignment(line);
+    let line = augmented.as_deref().unwrap_or(line);
 
     if let Some(rest) = line.strip_prefix("return ") {
         out.push(Stmt::Return {
@@ -1340,6 +1342,9 @@ fn parse_expr(
         return with_line_span(new_call(builder, "builtins.gen_expr", None, vec![iterable, result]), builder.file_id(), line_no);
     }
 
+    if let Some(expr) = parse_fstring_expr(builder, trimmed, imports, known_classes, env, line_no) {
+        return expr;
+    }
     if is_string_literal(trimmed) {
         return new_string(builder, &trimmed[1..trimmed.len() - 1]);
     }
@@ -1368,7 +1373,7 @@ fn parse_expr(
         };
     }
 
-    if trimmed.starts_with('(') && trimmed.ends_with(')') {
+    if trimmed.starts_with('(') && trimmed.ends_with(')') && outer_parens_enclose_all(trimmed) {
         let inner = &trimmed[1..trimmed.len().saturating_sub(1)];
         let items = split_top_level_commas(inner)
             .into_iter()
@@ -1380,6 +1385,11 @@ fn parse_expr(
                 .map(|arg| parse_expr(builder, &arg, imports, known_classes, env, line_no))
                 .collect::<Vec<_>>();
             return with_line_span(new_call(builder, "builtins.tuple", None, args), builder.file_id(), line_no);
+        }
+        // `(expr)` — plain grouping, e.g. the `('a ' + (x))` that
+        // `desugar_fstrings` produces for an f-string.
+        if items.len() == 1 {
+            return parse_expr(builder, inner, imports, known_classes, env, line_no);
         }
     }
 
@@ -1673,7 +1683,15 @@ fn parse_expr(
     }
     if let Some((base, index_expr)) = split_last_top_level_index(trimmed) {
         if let Some(base_ty) = receiver_type_for_method(&base, "__getitem__", imports, env, known_classes) {
-            if let Some(method_path) = project_method_static_path(&env.project_index, &base_ty, "__getitem__") {
+            // Only a class the project itself defines `__getitem__` on gets a
+            // method call; for anything else (an external API's return value
+            // such as `request.form.getlist(...)`) an opaque
+            // `<type>.__getitem__` call would drop the container's taint that
+            // a plain index read carries.
+            let defined = env.project_index.method_path(&base_ty, "__getitem__").or_else(|| {
+                env.project_index.class_has_method(&base_ty, "__getitem__").then(|| format!("{base_ty}.__getitem__"))
+            });
+            if let Some(method_path) = defined {
                 let receiver = parse_expr(builder, &base, imports, known_classes, env, line_no);
                 let index = parse_expr(builder, &index_expr, imports, known_classes, env, line_no);
                 let expr = with_line_span(
@@ -1930,6 +1948,63 @@ fn base_is_self(base: &Expr, env: &PyEnv) -> bool {
         Expr::VarRef { symbol, .. } => env.self_symbol == Some(*symbol),
         _ => false,
     }
+}
+
+/// `x += y` → `x = x + (y)` (every augmented operator). Without this the
+/// statement split at `=` produced an assignment to a variable literally
+/// named `x +`, so `cmd += user_input` / `html += value` silently dropped
+/// the new value's taint.
+fn desugar_augmented_assignment(line: &str) -> Option<String> {
+    let (left, right) = split_once_top_level(line, '=')?;
+    if right.starts_with('=') {
+        return None;
+    }
+    let left = left.trim_end();
+    for op in ["**", "//", ">>", "<<", "+", "-", "*", "/", "%", "&", "|", "^", "@"] {
+        if let Some(target) = left.strip_suffix(op) {
+            let target = target.trim();
+            // `a <<= b` is caught by "<<"; a lone `<`/`>`/`!`/`=` before the
+            // `=` is a comparison, never reached here.
+            if target.is_empty() || target.ends_with(['<', '>', '=', '!', '*', '/']) {
+                return None;
+            }
+            return Some(format!("{target} = {target} {op} ({})", right.trim()));
+        }
+    }
+    None
+}
+
+/// Whether the `(` opening `text` is closed by its final `)` — true for
+/// `(a + b)`, false for `(a).f(b)` or `(a) + (b)`.
+fn outer_parens_enclose_all(text: &str) -> bool {
+    let mut depth = 0i32;
+    let mut quote: Option<char> = None;
+    let mut escape = false;
+    let last = text.char_indices().last().map(|(i, _)| i);
+    for (idx, ch) in text.char_indices() {
+        if let Some(q) = quote {
+            if escape {
+                escape = false;
+            } else if ch == '\\' {
+                escape = true;
+            } else if ch == q {
+                quote = None;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' => quote = Some(ch),
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                depth -= 1;
+                if depth == 0 && Some(idx) != last {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    depth == 0
 }
 
 fn is_simple_ident(name: &str) -> bool {

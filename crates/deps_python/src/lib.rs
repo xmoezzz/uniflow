@@ -14,6 +14,20 @@ impl ManifestParser for PythonParser {
         &["requirements.txt", "poetry.lock", "Pipfile.lock", "uv.lock"]
     }
 
+    /// pip reads any file it is pointed at, and projects name them
+    /// accordingly: `requirements-dev.txt`, `requirements_test.txt`,
+    /// `dev-requirements.txt`, `constraints.txt` (the pip-tools / osv-scanner
+    /// conventions). Only the exact `requirements.txt` used to match, so
+    /// superset's `black==19.3b0` in `requirements-dev.txt` was never seen.
+    fn matches_file_name(&self, file_name: &str) -> bool {
+        if self.manifest_file_names().contains(&file_name) {
+            return true;
+        }
+        let Some(stem) = file_name.strip_suffix(".txt") else { return false };
+        let stem = stem.to_ascii_lowercase();
+        stem.starts_with("requirements") || stem.ends_with("requirements") || stem.starts_with("constraints")
+    }
+
     fn parse(&self, manifest_path: &Path) -> anyhow::Result<Vec<Dependency>> {
         let file_name = manifest_path.file_name().and_then(|name| name.to_str()).unwrap_or_default();
         let text = std::fs::read_to_string(manifest_path)?;
@@ -59,12 +73,15 @@ const VERSION_OPERATORS: &[&str] = &["===", "==", "~=", ">=", "<=", "!=", ">", "
 fn parse_requirements_txt(text: &str, manifest_path: &str) -> Vec<Dependency> {
     let mut deps = Vec::new();
     for raw_line in text.lines() {
-        let line = raw_line.split('#').next().unwrap_or("").trim();
+        // Environment markers (`; python_version < "3.8"`) are not part of
+        // the version, and neither are `--hash=` options or a trailing `\`.
+        let line = raw_line.split('#').next().unwrap_or("").split(';').next().unwrap_or("").trim();
         if line.is_empty() || line.starts_with('-') {
             continue;
         }
         let (name, version) = match VERSION_OPERATORS.iter().find_map(|op| line.split_once(op)) {
-            Some((name, version)) => (name.trim(), version.trim()),
+            // `>=1.0,<2` / `==1.0 --hash=…` → the first version only.
+            Some((name, version)) => (name.trim(), version.split([',', ' ', '\t', '\\']).next().unwrap_or("").trim()),
             None => (line, ""),
         };
         let name = name.split(['[', ';']).next().unwrap_or(name).trim();
@@ -140,6 +157,25 @@ fn parse_uv_lock(text: &str, manifest_path: &str) -> Vec<Dependency> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn requirements_variants_and_line_suffixes() {
+        for name in ["requirements-dev.txt", "requirements_test.txt", "dev-requirements.txt", "requirements.txt", "constraints.txt"] {
+            assert!(PythonParser.matches_file_name(name), "{name}");
+        }
+        for name in ["notes.txt", "requirements.in", "README.txt"] {
+            assert!(!PythonParser.matches_file_name(name), "{name}");
+        }
+        let deps = parse_requirements_txt(
+            "black==19.3b0\nurllib3==1.24.1 ; python_version < \"3.8\"\nrequests==2.19.0 \\\n    --hash=sha256:abc\nflask>=1.0,<2\n",
+            "requirements-dev.txt",
+        );
+        let get = |n: &str| deps.iter().find(|d| d.name == n).map(|d| d.version.clone());
+        assert_eq!(get("black").as_deref(), Some("19.3b0"));
+        assert_eq!(get("urllib3").as_deref(), Some("1.24.1"));
+        assert_eq!(get("requests").as_deref(), Some("2.19.0"));
+        assert_eq!(get("flask").as_deref(), Some("1.0"));
+    }
 
     #[test]
     fn parses_requirements_txt_skipping_comments_and_includes() {

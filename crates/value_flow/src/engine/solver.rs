@@ -523,6 +523,7 @@ fn materialize_memory_regions(fg: &mut FlowGraph) -> bool {
         memory_region_propagation_neighbors(fg, node)
     });
     fg.node_memory_regions = regions;
+    *fg.region_neighbor_index.borrow_mut() = None;
     for (&(func, value), &node) in &fg.values {
         if let Some(node_regions) = fg.node_memory_regions.get(&node.index()).cloned() {
             let mut merged = fg
@@ -602,6 +603,7 @@ fn materialize_region_graph_adjacency(fg: &mut FlowGraph) {
     fg.region_graph_successors.clear();
     fg.region_graph_predecessors.clear();
     fg.region_graph_direct_neighbors_cache.borrow_mut().clear();
+    *fg.region_neighbor_index.borrow_mut() = None;
 
     let node_count = fg.graph.node_count();
     let mut parent = (0..node_count).collect::<Vec<_>>();

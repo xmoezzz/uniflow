@@ -35,4 +35,5 @@ include!("environment_effects.rs");
 include!("call_effects.rs");
 include!("containers.rs");
 include!("expressions.rs");
+include!("fstrings.rs");
 include!("tests.rs");

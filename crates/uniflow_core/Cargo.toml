@@ -9,6 +9,7 @@ authors.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+uniflow-baseline = { path = "../baseline" }
 uniflow-checker-api = { path = "../checker_api" }
 uniflow-checker-host = { path = "../checker_host" }
 uniflow-frontend = { path = "../frontend" }

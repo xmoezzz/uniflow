@@ -965,7 +965,7 @@ fn infer_project_symbol_path(
         return None;
     }
     if let Some(mapped) = imports.aliases.get(trimmed) {
-        return Some(canonicalize_project_path(index, mapped));
+        return Some(canonicalize_project_path(index, bare_import_target(trimmed, mapped)));
     }
     if let Some(prefixed) = canonicalize_prefixed_project_path(index, trimmed) {
         if prefixed != trimmed || index.module_exists(trimmed) || trimmed.contains('.') {

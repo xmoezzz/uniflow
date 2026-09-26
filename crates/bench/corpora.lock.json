@@ -1,0 +1,344 @@
+{
+  "corpora": {
+    "gosec-samples": {
+      "url": "https://codeload.github.com/securego/gosec/tar.gz/8c77519419e934a3e158dbf1a3fbbc0871b8c691",
+      "sha256": "39dd3aac1d32d64eeb407b7de5962bed56ce643ee05039e5f7db18d5893afd89",
+      "kind": "tar.gz",
+      "note": "gosec rule samples (Apache-2.0)"
+    },
+    "juliet-c-cpp-1.3": {
+      "url": "https://samate.nist.gov/SARD/downloads/test-suites/2017-10-01-juliet-test-suite-for-c-cplusplus-v1-3.zip",
+      "sha256": "ada9d7e1c323d283446df3f55bdee0d00bda1fed786785fe98764d58688f38eb",
+      "kind": "zip",
+      "note": "NIST SARD Juliet C/C++ 1.3 (public domain, US Government work)"
+    },
+    "owasp-benchmark-java": {
+      "url": "https://codeload.github.com/OWASP-Benchmark/BenchmarkJava/tar.gz/20cbf3d11123347e47ed89541e6942836def53f7",
+      "sha256": "3751f0c4c2892573006ad3652ca9f73947c6bfb7522310fdc12cdc2a59b4702c",
+      "kind": "tar.gz",
+      "note": "OWASP Benchmark; GPL — scanned, never redistributed"
+    },
+    "owasp-benchmark-python": {
+      "url": "https://codeload.github.com/OWASP-Benchmark/BenchmarkPython/tar.gz/f1291485808b66e20ddb6b01b10dc71b3df8c8ba",
+      "sha256": "0defda4cce2ea7675fbeae5b059b4d7cca7d49232529367133feb1adfb529096",
+      "kind": "tar.gz",
+      "note": "OWASP Benchmark; GPL — scanned, never redistributed"
+    },
+    "realvuln": {
+      "url": "https://codeload.github.com/kolega-ai/Real-Vuln-Benchmark/tar.gz/7a710251f55c17d32d3adcb13d37468e2e3b9e4a",
+      "sha256": "5b78cf41a5eebb4cf8dd624091b19895dafd5309a6cbf30e40c013680fa5738a",
+      "kind": "tar.gz",
+      "note": "RealVuln ground truth (Apache-2.0)"
+    },
+    "realvuln-target/damn-vulnerable-flask-app": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-Damn-Vulnerable-Flask-Application/tar.gz/55f63201c85190e760a8fa34a580a9bf918dbf36",
+      "sha256": "c174277b2b5245be5fca410eefb11322ca126b81f732d2049a4b706110375333",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/djangoat": {
+      "url": "https://codeload.github.com/Contrast-Security-OSS/DjanGoat/tar.gz/082c88bfefced508ae083b92b459c808f95e905e",
+      "sha256": "474fa41a799745f7a7af94500e2041ac7e98130c6ae2ababbbe7b470a2e6c864",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/dsvpwa": {
+      "url": "https://codeload.github.com/sgabe/DSVPWA/tar.gz/a06abb306ed3699bb2f073e3f41d3d9c57012819",
+      "sha256": "9dec4092898ce7bae7d4ffd854a6a577eeeadd209f7d01053787384935dd1bad",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/dsvw": {
+      "url": "https://codeload.github.com/stamparm/DSVW/tar.gz/7d40f4b7939c901610ed9b85724552d60e7d63fa",
+      "sha256": "8a9e0d07755bedf2c73c856c88573cb1cfa37ba810231b23ab2113a1a1473b4e",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/dvblab": {
+      "url": "https://codeload.github.com/mamgad/DVBLab/tar.gz/25bdef1e32055bfb6366856acc5db829e61e3647",
+      "sha256": "4008407073ece150bdfee2fe93a57991ed1246b2538ef28ecc3098e9b435e066",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/dvga": {
+      "url": "https://codeload.github.com/dolevf/Damn-Vulnerable-GraphQL-Application/tar.gz/a961308c02d1fb462b192681c336b0739e432da7",
+      "sha256": "ce16094a23fffb5d9726a3b0684cabf1fda5888e1ba8bc8b105592c3c86604b8",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/dvna": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-dvna/tar.gz/9ba473add536f66ac9007966acb2a775dd31277a",
+      "sha256": "8e3cbe766cb39b52023db8acde37c2c090696bac72846a59392dadbe6ea912fe",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/dvpwa": {
+      "url": "https://codeload.github.com/anxolerd/dvpwa/tar.gz/a1d8f89fac2e57093189853c6527c2b01fc1d9c1",
+      "sha256": "902ddd5e78673bdbc771e43f89e5b7f7af2f7c3da2544fd9c530d0f571506673",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/dvws-node": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-dvws-node/tar.gz/a7385b855dce7a4da135f5949df96059b76aaba6",
+      "sha256": "254663220ccb0e054801aebc16c97fab87fb519555eec3d6a7746cc94374e12f",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/extremely-vulnerable-flask-app": {
+      "url": "https://codeload.github.com/manuelz120/extremely-vulnerable-flask-app/tar.gz/d5d8875559e21222bbbaadb7b9f0af592c6eb7fa",
+      "sha256": "dc14fbc137b9259fc5a7f10ef296370acc9cf18cc669ccc7b88739619f12955b",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/flask-xss": {
+      "url": "https://codeload.github.com/terrabitz/Flask_XSS/tar.gz/4d6f500246696d9078e141d7eabcc34087c54faa",
+      "sha256": "f240b24191f249594ce149b485e1d420dec3414c0f0fb1b5f7e244a617b7e3ae",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/insecure-web": {
+      "url": "https://codeload.github.com/brenesrm/insecure-web/tar.gz/5d1b791bb6c2d1397843f29ee6a0d5c9386dd667",
+      "sha256": "6f5c92d22306b9699558be9aef2478ad8be92f1d05197a745fa934d222b85265",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/intentionally-vulnerable-python-app": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-Intentionally-Vulnerable-Python-Application/tar.gz/3804a18ae666b296675f9a60bc617e527beae520",
+      "sha256": "f055e5acd8984e38d6428fbdca3879df3922d261b83e48ba99db7be5addb7da0",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/ivna": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-ivna/tar.gz/78ab2bfa97b0afd32db15cc11d53c8288ede951f",
+      "sha256": "4fd34aad1741d923e1b8a7fae35606a0bc442d47667e23b8deb31f11a102fa31",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/juice-shop": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-juice-shop/tar.gz/3b178fd07b9f754c9d444d818448cfe58168943f",
+      "sha256": "c68afcc768a488c998bd9145a0bab038d6fb1bd1aaa1c28020840ba1ee1eeee7",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/juice-shop-goof": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-juice-shop-goof/tar.gz/36fefdecb54ece09cad203dc2a1160927c4f72a3",
+      "sha256": "ab3570354168b90c65bae632258a63c0921f236d9146171b19e731717f7fe748",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/lets-be-bad-guys": {
+      "url": "https://codeload.github.com/mpirnat/lets-be-bad-guys/tar.gz/7cbf11014bfc6dc9e199dc0b8a64e4597bc2338f",
+      "sha256": "5b71ad25da118b1c4bcc587c85dff28656d365f6bd58166013a41036f8fa119f",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/nextjs-vulnerable-app": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-nextjs-vulnerable-app/tar.gz/fba16cb28ff1eaccdcd30c646d22d0bb119e89f5",
+      "sha256": "cd4c8f92cac440b1318669679ffab2cea642e35926bd57207a97dbdde4682d25",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/ninjasworkout": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-ninjasworkout/tar.gz/8c2bfebc7431fb33a15ee9da10b19c105a563a56",
+      "sha256": "5d18d0781e2811dec938ab730f52c54a4ec91d54bd887226e98f231c681cc652",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/node-api-goat": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-node-api-goat/tar.gz/66c77ee983f1327871345e9c149b59461735b74c",
+      "sha256": "e474beefb44e195c280727dde6825e7224c1e0ac8e9e36a2685d03ed78b74d54",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/nodegoat": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-NodeGoat/tar.gz/c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+      "sha256": "cb355c552fe5e3d2b65e4007999e1218e0cdd4b51164952f2c787a543af10787",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/nodejs-goof": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-nodejs-goof/tar.gz/d240896711e31c540fc1cab79ae2e4cf63f00b1a",
+      "sha256": "e27bfb374dc169aebb31d2d3c6d66b3c054fc70df351038d0492510f652bd85d",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/oss-oopssec-store": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-oss-oopssec-store/tar.gz/0373cf43a9cc35ec835f79b562eb47f9fd1b1649",
+      "sha256": "2154362049b5f6ddf166c931ebe42be9772cf3b1c857a349c4fb4893a74bae25",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/owasp-web-playground": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-OWASP-Web-Playground/tar.gz/5e682aca1b58e03362a5fbd9fc88c37626e429ce",
+      "sha256": "815e5ac25157a09f0bb143e9546e42978d749cfbeae8d89995e4014d5584876e",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/pygoat": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-pygoat/tar.gz/2fb0c600245f50670e8b9233c784afe61e8b340b",
+      "sha256": "d36746c1537963ba62ad124dcf6eb392e1dc347853f8a578aacd40a048e10cd5",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/python-insecure-app": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-python-insecure-app/tar.gz/80b894a2f754590747a31c92b2088be086421953",
+      "sha256": "111b15123c80f3803c791733ed7fcd879326c041c9d10fab6b4a380e0eee8b5f",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/python-ssti": {
+      "url": "https://codeload.github.com/TheWation/PythonSSTI/tar.gz/76339c27d5a870c0a81bad6aee5f9bd516592145",
+      "sha256": "fb9ffd1ae5a1b1415c92db31abfdad2c578cde852c29609544d8835180e33b06",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/react-security": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-react-security/tar.gz/0e69c8fdf7672f734f3a55054bdeb6d582c57481",
+      "sha256": "d9420d5880fa9c7c9116428a6db7bb2848c48a2cc3d1dff8552019f6ff602209",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/react-test-bench": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-react-test-bench/tar.gz/10dac2d4c529eadf6be72e52f51c7dbb1728e704",
+      "sha256": "877b88a7eea9db9cc1824e61a66e299da6d63ade492d87dca2eaeb4ca4cd72dc",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/reactvulna": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-reactvulna/tar.gz/2f429f2b02114a76d0ce8d4c1c3336e34d1fd000",
+      "sha256": "5f2cb456a83fe3825373b4b988b5f70b6fe3b111c0eb0a73b6b84b8e71bb8a7b",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/realvuln-python-app": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-python-app/tar.gz/a33452268ef7489ebeb44f65a1bae06eda2072ab",
+      "sha256": "aa5b351dc830aa8ca15b1a3cd0fee750f97a139cfc9582586598cfee7a10767c",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/simply-vulnerable-react": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-simply_vulnerable_react/tar.gz/a3a1644a5e19be28b3b42c4c763369970b3063c1",
+      "sha256": "b4bbf2435290e85bb1d5f1faa1967ad5de73273d45582832fddc1596853d9e0a",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/threatbyte": {
+      "url": "https://codeload.github.com/anotherik/ThreatByte/tar.gz/c4db46f72586c4ecb65859051ea037018dbf0e5e",
+      "sha256": "b0f511d99a2a238a078f46b16a1b1148d135758a577e63a48ddb3dd9e2ac660f",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vampi": {
+      "url": "https://codeload.github.com/erev0s/VAmPI/tar.gz/1713b54b601ad29582581eeda4b31fceb1319874",
+      "sha256": "42f45bb0612383c57c3f1cfb2c446e742c2104f7766337199de766b6dc5c3e37",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vfapi": {
+      "url": "https://codeload.github.com/naryal2580/vfapi/tar.gz/f36f177e1a32aa49272f4eb52f8be0af3e8f6bc3",
+      "sha256": "eb9fcc598e84643df34f5687eb0855e4f0821a21613d2b8d67f8cfb98ae7be2a",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vuln-node-express": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-vuln_node_express/tar.gz/b912ebd7c88eead5b90b85ff28ac961ed0d1acd0",
+      "sha256": "4b64ce23437f306c7390a309a0a214f6be93d9782f63ac620a678418fd1923b1",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vuln-node-express-swagger": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-vuln-node.js-express.js-app/tar.gz/b977c7407f328da929577745ad509639e26c428a",
+      "sha256": "f8266b63afd1a7d3e313e324625743db6e456263c02911581d9ec8b0cae7e4a8",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-api": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-Vulnerable-API/tar.gz/f7797964e1cd63a1cbcc8ced721fa41db674c8e0",
+      "sha256": "25d38355e18aac569009c8dd06e2ed69c31dd7e4cbc37253b1ad440d97a261c6",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-app-angular": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-vulnerable-app/tar.gz/2d76b72c40c4953982e29f894bdde2e5173dd405",
+      "sha256": "436ef24c71b196492c84d0b65e018f11ea78c158216bc5a065ce0f416aa575e4",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-flask-app": {
+      "url": "https://codeload.github.com/we45/Vulnerable-Flask-App/tar.gz/b6a4f97afd466e83e1f60781494252dec1c37039",
+      "sha256": "78a0c42b5fc3a9631df16ccfbdb56d2dc2e9f8ace75572b2a18f01f1ab84b735",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-node": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-vulnerable-node/tar.gz/4e2058201e4443026c11de1799d1e2f2e37f9f9b",
+      "sha256": "0c0813a6e137af34800512bc042f4fe76e4175ba6ae4c5761bc494fbc9c1f4cf",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-nodejs": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-Vulnerable-nodejs/tar.gz/be41f02bb686ddacedd928e870441205ced56c44",
+      "sha256": "baa16b445c5fe258611f06cc19834ad62c73d1c55432717fc395839231a9a4aa",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-python-apps": {
+      "url": "https://codeload.github.com/LinuxUser255/Vulnerable_Python_Apps/tar.gz/6336c77e6db523a5df34c4b628dff4159110797a",
+      "sha256": "2c1e95b84f4ffca2e3a920552537788c6704010ec42e9b4feeca736a3551fd3f",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-react-fatih": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-vulnerable_react_app/tar.gz/5704204015a550b678f1a0f826641a7f8bfc42b0",
+      "sha256": "64120f9237ec339efae0a68e30a4015d362b6da6935353becca88c190d0c6f1e",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-rest-api-owasp-2023": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-vulnerable-rest-api/tar.gz/33467261f3ec6a2b0aa9b9ff08c30a39a5572b9b",
+      "sha256": "299a43ec3c48908c4e2e698226427521fa4f9c267f9cae3e1a1e8f5129403fba",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnerable-tornado-app": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-Vulnerable_Tornado_App/tar.gz/7aca8b78ba948c841d6cb1cc2a244922a27e842b",
+      "sha256": "63aadc91a8389629381fa28432ff5aa110d93c4137d6150b816c68210e65e257",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnnodeapp": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-VulnNodeApp/tar.gz/3393db1ae7813128067c8d243985b9cef57abcb1",
+      "sha256": "6ef3840c2f7332a66d8fa6ea610eaec2b18dfcf75633176d971d30930a89c679",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulnpy": {
+      "url": "https://codeload.github.com/Contrast-Security-OSS/vulnpy/tar.gz/d1d0f64c06f038fe59a049e0e6001bfaf9839697",
+      "sha256": "81c56c7579128db681018d04dbd64bab6a5d2d4a6564bcad35eac48ee2779b6a",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/vulpy": {
+      "url": "https://codeload.github.com/fportantier/vulpy/tar.gz/5249cc8b05a1c37f6b2f757b1cf16a509c327122",
+      "sha256": "a0087359a38d52e977cbc6493bb949629add4038413b52af4372c7ad88f3a091",
+      "kind": "tar.gz"
+    },
+    "realvuln-target/xvna": {
+      "url": "https://codeload.github.com/kolega-ai-dev/realvuln-xvna/tar.gz/4be0506a9cde76d6c622b610693b7ae9e31740c9",
+      "sha256": "68fb48bdd265a920920762035d13aaacb3599882f7ef60abeed213645a43d1b1",
+      "kind": "tar.gz"
+    },
+    "sca/alacritty-0.4.0": {
+      "url": "https://codeload.github.com/alacritty/alacritty/tar.gz/b115b9038566d6ce0ed56f4a50c428c98e04b51a",
+      "sha256": "9ba5277169e8e3eae8e9e1c21c58e21c0afe12e43c16ac0b3c2169ca46f43694",
+      "kind": "tar.gz"
+    },
+    "sca/discourse-2.4.0": {
+      "url": "https://codeload.github.com/discourse/discourse/tar.gz/76b9be3f19f393a216973b791245228f2d3e92f8",
+      "sha256": "c9320eb901a23114e5e680e902c4115ef7003f4678839b3e19f63785cb2fcd86",
+      "kind": "tar.gz"
+    },
+    "sca/eshoponweb": {
+      "url": "https://codeload.github.com/dotnet-architecture/eShopOnWeb/tar.gz/4da8212117e87d808d4bbc7da6286fd2147ce606",
+      "sha256": "35f69f3957ae3cc3712ddee6f74fc82144376de0915b83c89ef062eff53e766f",
+      "kind": "tar.gz"
+    },
+    "sca/gin-1.6.0": {
+      "url": "https://codeload.github.com/gin-gonic/gin/tar.gz/c4fd2489ced13e86c6e9328e7d66cd3bb2957f00",
+      "sha256": "4cdf85b3901fca7494d53173d0497b2e56b119936b45a89cfb66f6c04309fccd",
+      "kind": "tar.gz"
+    },
+    "sca/hugo-0.60.0": {
+      "url": "https://codeload.github.com/gohugoio/hugo/tar.gz/f2dea9b036364d3aa380787dd0f495c73792ad95",
+      "sha256": "1de3e565fe3803a9dd42a3cce529bc2529ea2a744e96d92f53fd14e4aa6226f4",
+      "kind": "tar.gz"
+    },
+    "sca/mastodon-3.0.0": {
+      "url": "https://codeload.github.com/mastodon/mastodon/tar.gz/83d3e7733da892f5ad94ed2b8757db11250fbe6a",
+      "sha256": "ecc7f3e3f6b16a11d65860f71f5492aa78db983f6ea8bb3cb7b835ad0d6e2992",
+      "kind": "tar.gz"
+    },
+    "sca/matomo-3.14.0": {
+      "url": "https://codeload.github.com/matomo-org/matomo/tar.gz/6b6dc723c73dc4d59b2ae849d241270dc53e5a39",
+      "sha256": "2d7e949038ef013725a5514e93224e9e97b890c4db3c7cbad7c66e9d10536a84",
+      "kind": "tar.gz"
+    },
+    "sca/nodegoat": {
+      "url": "https://codeload.github.com/OWASP/NodeGoat/tar.gz/c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+      "sha256": "f9455e6c5c57471fcc213959f523d640d9454337cbdf870c731f1b588a19b5c3",
+      "kind": "tar.gz"
+    },
+    "sca/pygoat": {
+      "url": "https://codeload.github.com/adeyosemanputra/pygoat/tar.gz/19d17cc8874861142b330636d068bbde54e86b85",
+      "sha256": "3cd7c1e39838d8fe9f10f15665f453828676c7b5cb9d456ab65ec02e07970f0f",
+      "kind": "tar.gz"
+    },
+    "sca/spring-petclinic": {
+      "url": "https://codeload.github.com/spring-projects/spring-petclinic/tar.gz/818c4136ea971c21674525f9053de0d9c7ad8cfe",
+      "sha256": "f4211e8217601bb4af9ac70e1dc4044ac1521b63d066e88d5fd3318f4188a090",
+      "kind": "tar.gz"
+    },
+    "sca/superset-0.36.0": {
+      "url": "https://codeload.github.com/apache/superset/tar.gz/2cd8ca94c8923c4320e305f92d74d282390646a5",
+      "sha256": "3f2064fd8f76e291ab71fabe67eefd1d60c7992fc5d2c78ce8c74ca828660c63",
+      "kind": "tar.gz"
+    },
+    "sca/webgoat-8.0.0": {
+      "url": "https://codeload.github.com/WebGoat/WebGoat/tar.gz/985148ede3de39073c3bfa5b784ed52eb8496dfc",
+      "sha256": "3fcf8f49568d87c084681192e4af8675ccfe4c1df24d3e833637d9b17f8e10d6",
+      "kind": "tar.gz"
+    }
+  }
+}

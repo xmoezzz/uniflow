@@ -121,6 +121,28 @@ fn parse_expr(
         return Expr::Opaque { id: builder.alloc_expr_id(), text: trimmed.to_string(), span };
     }
 
+    // Array initializers — `{a, b}` in a declaration, `new T[] {a, b}` —
+    // become an array collection, so each element's data (a tainted request
+    // value in `String[] env = {param}`) flows into the array instead of the
+    // whole initializer being an opaque symbol.
+    let array_initializer = if trimmed.starts_with('{') {
+        Some(trimmed)
+    } else if let Some(rest) = trimmed.strip_prefix("new ") {
+        rest.find('{').filter(|brace| rest[..*brace].trim_end().ends_with(']')).map(|brace| rest[brace..].trim())
+    } else {
+        None
+    };
+    if let Some(body) = array_initializer {
+        if body.ends_with('}') && matching_delimiter(body, 0, '{', '}') == Some(body.len() - 1) {
+            let elements = split_top_level_commas(&body[1..body.len() - 1])
+                .into_iter()
+                .filter(|part| !part.trim().is_empty())
+                .map(|part| parse_expr(builder, &part, resolver, env, span))
+                .collect::<Vec<_>>();
+            return Expr::Collection { id: builder.alloc_expr_id(), container: uniflow_hir::CollectionKind::Array, elements, span };
+        }
+    }
+
     if let Some(rest) = trimmed.strip_prefix("new ") {
         if let Some((type_name, arg_text)) = parse_call_parts(rest) {
             let args = split_top_level_commas(&arg_text)
@@ -228,6 +250,16 @@ fn parse_expr(
                         span,
                     });
                 }
+            }
+            // `Helper.field.method()`: a static field of another class looks
+            // like a type path (and a capitalized field name like
+            // `JDBCtemplate` passes the type-name heuristic), so check the
+            // project index for `Helper.field` before treating the whole
+            // prefix as a type.
+            if let Some(field_type) = static_field_receiver_type(&prefix, resolver, env) {
+                let receiver = parse_expr(builder, &prefix, resolver, env, span);
+                let target = resolver.qualify_method_target(&field_type, &method);
+                return with_span(new_call(builder, &target, Some(receiver), args), span);
             }
             if is_static_receiver(&prefix, env) {
                 let qual = resolver.qualify_type_name(prefix.as_str());
@@ -865,6 +897,16 @@ fn this_expr(builder: &mut ModuleBuilder, env: &mut JavaEnv, span: uniflow_hir::
     with_span(new_var_ref(builder, this_symbol), span)
 }
 
+/// The declared type of `prefix` when it names a static field of a class
+/// (`org.x.Helper.template`, `Helper.template`), per the project index.
+fn static_field_receiver_type(prefix: &str, resolver: &JavaResolver, env: &JavaEnv) -> Option<String> {
+    let (owner, field) = prefix.rsplit_once('.')?;
+    if !is_static_receiver(owner, env) {
+        return None;
+    }
+    resolver.lookup_field_type(&resolver.qualify_type_name(owner), field)
+}
+
 fn is_static_receiver(prefix: &str, env: &JavaEnv) -> bool {
     let first = prefix.split('.').next().unwrap_or(prefix);
     !env.vars.contains_key(first) && !env.field_types.contains_key(first)
@@ -1035,6 +1077,17 @@ fn resolve_receiver_method_name(
     resolver: &JavaResolver,
     env: &JavaEnv,
 ) -> String {
+    // Only a plain name path (`request`, `a.b.C`) says anything about the
+    // receiver's type through its first segment. For a computed receiver
+    // (`request.getAsyncContext()`, `items[0]`, `(x)`) whose type could not
+    // be inferred, the first segment is some *other* object: naming the
+    // call after it turned `request.getSession().setAttribute(..)` into
+    // `HttpServletRequest.setAttribute`, so rules matched the wrong API. The
+    // honest owner of an unknown receiver is `java.lang.Object`.
+    let is_name_path = !prefix.is_empty() && prefix.split('.').all(|part| !part.is_empty() && part.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '$'));
+    if !is_name_path {
+        return format!("java.lang.Object.{method}");
+    }
     let root = prefix.split('.').next().unwrap_or(prefix);
     if root == "this" {
         return format!("{}.{}", env.current_class, method);
@@ -1176,6 +1229,14 @@ fn infer_expr_type_text(text: &str, resolver: &JavaResolver, env: &JavaEnv) -> O
             .filter(|part| !part.trim().is_empty())
             .count();
         if let Some((prefix, method)) = split_last_top_level_dot(&callee_text) {
+            if let Some(field_type) = static_field_receiver_type(&prefix, resolver, env) {
+                return resolver.lookup_method_return_type(
+                    &field_type,
+                    &method,
+                    Some(arg_count),
+                    Some(&call_arg_type_list_from_text(&arg_text, resolver, env)),
+                );
+            }
             if is_static_receiver(&prefix, env) {
                 let owner = resolver.qualify_type_name(prefix.as_str());
                 return resolver.lookup_method_return_type(

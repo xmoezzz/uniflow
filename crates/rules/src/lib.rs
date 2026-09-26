@@ -7,6 +7,8 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use uniflow_hir::Language;
 
+pub mod vuln_class;
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RuleSet {
     #[serde(default)]
@@ -1059,6 +1061,13 @@ pub struct ApiMatcher {
     /// Positional argument type regex constraints. Empty entries are wildcards.
     #[serde(default)]
     pub arg_type_regexes: Vec<Option<String>>,
+    /// Receiver provenance: the receiver object must have been produced (in
+    /// the same function, through copies) by a call whose callee matches
+    /// this regex — e.g. a `PrintWriter` obtained from
+    /// `HttpServletResponse.getWriter`. Type alone cannot tell an HTTP
+    /// response writer from a file writer; where the object came from can.
+    #[serde(default)]
+    pub receiver_origin_regex: Option<String>,
 }
 
 impl ApiMatcher {
@@ -1141,6 +1150,16 @@ impl ApiMatcher {
         ) {
             return false;
         }
+        if self.receiver_origin_regex.is_some() {
+            let origin_regex = cached_regex(self.receiver_origin_regex.as_deref());
+            let matched = match (origin_regex.as_deref(), call.receiver_origin.as_deref()) {
+                (Some(regex), Some(origin)) => regex.is_match(origin),
+                _ => false,
+            };
+            if !matched {
+                return false;
+            }
+        }
         let containing_function_regex = cached_regex(self.containing_function_regex.as_deref());
         if !match_optional_string_constraints(
             None,
@@ -1192,6 +1211,7 @@ impl ApiMatcher {
             || self.arg_count_max.is_some()
             || self.arg_types.iter().any(Option::is_some)
             || self.arg_type_regexes.iter().any(Option::is_some)
+            || self.receiver_origin_regex.is_some()
     }
 }
 
@@ -1592,6 +1612,10 @@ pub struct CallInfo {
     pub receiver_constant: Option<String>,
     #[serde(default)]
     pub arg_constants: Vec<Option<String>>,
+    /// Callee of the call that produced the receiver object, when known
+    /// (see [`ApiMatcher::receiver_origin_regex`]).
+    #[serde(default)]
+    pub receiver_origin: Option<String>,
 }
 
 impl CallInfo {
@@ -1617,6 +1641,7 @@ impl CallInfo {
             arg_type_candidates,
             receiver_constant: None,
             arg_constants: Vec::new(),
+            receiver_origin: None,
         }
     }
 
@@ -1635,6 +1660,7 @@ impl CallInfo {
             arg_type_candidates: Vec::new(),
             receiver_constant: None,
             arg_constants: Vec::new(),
+            receiver_origin: None,
         }
     }
 }

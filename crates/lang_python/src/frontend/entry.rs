@@ -25,6 +25,11 @@ pub fn parse_project_owned_sources_with_progress(
     entries: Vec<(String, String)>,
     on_module_parsed: &(dyn Fn() + Sync),
 ) -> Result<Program> {
+    // Before the index: it reads the same text (see `desugar_fstrings`).
+    let entries: Vec<(String, String)> = entries.into_iter().map(|(path, source)| {
+        let source = desugar_fstrings(&source);
+        (path, source)
+    }).collect();
     let index = Arc::new(PyProjectIndex::build(&entries));
     let entry_count = entries.len();
     let worker_count = thread::available_parallelism()
@@ -162,7 +167,7 @@ impl SourceParser for PythonParser {
     }
 
     fn parse_file(&self, path: &str, source: &str) -> Result<uniflow_hir::Program> {
-        parse_python_file(path, source, None)
+        parse_python_file(path, &desugar_fstrings(source), None)
     }
 }
 

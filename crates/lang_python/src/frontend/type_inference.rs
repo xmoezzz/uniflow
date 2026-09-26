@@ -827,6 +827,8 @@ fn apply_project_module_import_line_effects(
         }
     }
     for (alias, path) in line_imports.aliases {
+        // `import a.b` binds `a` (the package), like a module-level import.
+        let path = bare_import_target(&alias, &path).to_string();
         let canonical_path = canonicalize_project_path(&env.project_index, &path);
         let ty = env
             .project_index

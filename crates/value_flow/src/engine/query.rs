@@ -1,4 +1,8 @@
 
+thread_local! {
+    static DEMAND_QUERY_MARKS: std::cell::RefCell<Vec<bool>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
 fn merge_query_completeness(
     left: QueryCompleteness,
     right: QueryCompleteness,
@@ -34,88 +38,109 @@ impl FlowGraph {
         max_visits: usize,
         include_heap: bool,
     ) -> DemandReachability {
-        let mut out = DemandReachability {
-            reachable: vec![false; self.graph.node_count()],
-            completeness: QueryCompleteness::Complete,
-        };
-        if seed.index() >= out.reachable.len() {
-            out.reachable.resize(seed.index() + 1, false);
-        }
+        self.one_shot_node_reachability_within(seed, direction, engine, max_depth, max_visits, include_heap, None)
+    }
+
+    /// Like `one_shot_node_reachability`, but a sparse query never leaves
+    /// `within` (the seed is always visited). Taint uses it to slice backward
+    /// from a sink inside a source's forward slice: every witness path lies in
+    /// that slice, and the restricted query is far smaller than a global
+    /// backward slice that would otherwise have to be cached per sink.
+    #[allow(clippy::too_many_arguments)]
+    pub fn one_shot_node_reachability_within(
+        &self,
+        seed: NodeIndex,
+        direction: SparseDirection,
+        engine: DemandEngine,
+        max_depth: usize,
+        max_visits: usize,
+        include_heap: bool,
+        within: Option<&DemandReachability>,
+    ) -> DemandReachability {
+        let mut visited = Vec::<u32>::new();
+        let mut completeness = QueryCompleteness::Complete;
 
         match engine {
             DemandEngine::Sparse => {
-                let mut frontier = vec![seed];
-                let mut depth = 0usize;
-                let mut visits = 0usize;
-                while !frontier.is_empty() && depth <= max_depth {
-                    let mut next = Vec::new();
-                    for node in frontier {
-                        let index = node.index();
-                        if index >= out.reachable.len() {
-                            out.reachable.resize(index + 1, false);
-                        }
-                        if out.reachable[index] {
-                            continue;
-                        }
-                        if visits >= max_visits {
-                            out.completeness = QueryCompleteness::VisitLimitReached;
-                            return out;
-                        }
-                        out.reachable[index] = true;
-                        visits += 1;
-                        for neighbor in self.demand_query_neighbors_of(node, direction, include_heap) {
-                            if !out.contains(neighbor.index()) {
-                                next.push(neighbor);
+                // Nodes are marked when enqueued so a layer never carries
+                // duplicates; only layers within `max_depth` are enqueued.
+                // The mark bitmap is per-thread scratch reset through the
+                // touched list, so a query costs O(visited) rather than
+                // O(graph nodes) or a hash insert per edge.
+                DEMAND_QUERY_MARKS.with(|marks| {
+                    let mut marks = marks.borrow_mut();
+                    let node_count = self.graph.node_count().max(seed.index() + 1);
+                    if marks.len() < node_count {
+                        marks.resize(node_count, false);
+                    }
+                    let mut touched = vec![seed.index()];
+                    marks[seed.index()] = true;
+                    let mut frontier = vec![seed];
+                    let mut depth = 0usize;
+                    'layers: while !frontier.is_empty() {
+                        let mut next = Vec::new();
+                        for node in frontier {
+                            if visited.len() >= max_visits {
+                                completeness = QueryCompleteness::VisitLimitReached;
+                                break 'layers;
+                            }
+                            visited.push(node.index() as u32);
+                            for neighbor in self.demand_query_neighbors_of(node, direction, include_heap) {
+                                let index = neighbor.index();
+                                if index >= marks.len() {
+                                    marks.resize(index + 1, false);
+                                }
+                                if !marks[index] && within.is_none_or(|within| within.contains(index)) {
+                                    marks[index] = true;
+                                    touched.push(index);
+                                    next.push(neighbor);
+                                }
                             }
                         }
+                        if depth >= max_depth {
+                            if !next.is_empty() {
+                                completeness = QueryCompleteness::DepthLimitReached;
+                            }
+                            break;
+                        }
+                        frontier = next;
+                        depth += 1;
                     }
-                    next.sort_unstable_by_key(|node| node.index());
-                    next.dedup_by_key(|node| node.index());
-                    frontier = next;
-                    depth += 1;
-                }
-                if !frontier.is_empty() {
-                    out.completeness = QueryCompleteness::DepthLimitReached;
-                }
+                    for index in touched {
+                        marks[index] = false;
+                    }
+                });
             }
             DemandEngine::Fixpoint => {
                 let scc = self.demand_query_scc_index(include_heap);
                 let Some(seed_component) = scc.node_to_component.get(seed.index()).copied() else {
-                    return out;
+                    return DemandReachability::from_visited(visited, completeness);
                 };
                 if seed_component == usize::MAX {
-                    return out;
+                    return DemandReachability::from_visited(visited, completeness);
                 }
                 let mut frontier = vec![seed_component];
-                let mut seen_components = vec![false; scc.components.len()];
+                let mut seen_components = HashSet::<usize>::new();
+                let mut seen_members = HashSet::<usize>::new();
                 let mut depth = 0usize;
-                let mut visits = 0usize;
-                while !frontier.is_empty() && depth <= max_depth {
+                'components: while !frontier.is_empty() && depth <= max_depth {
                     let mut next = Vec::new();
-                    for component in frontier {
-                        if seen_components.get(component).copied().unwrap_or(false) {
+                    for component in std::mem::take(&mut frontier) {
+                        if !seen_components.insert(component) {
                             continue;
                         }
-                        if component >= seen_components.len() {
-                            continue;
-                        }
-                        seen_components[component] = true;
                         let Some(members) = scc.components.get(component) else {
                             continue;
                         };
                         for &member in members {
-                            if member >= out.reachable.len() {
-                                out.reachable.resize(member + 1, false);
-                            }
-                            if out.reachable[member] {
+                            if !seen_members.insert(member) {
                                 continue;
                             }
-                            if visits >= max_visits {
-                                out.completeness = QueryCompleteness::VisitLimitReached;
-                                return out;
+                            if visited.len() >= max_visits {
+                                completeness = QueryCompleteness::VisitLimitReached;
+                                break 'components;
                             }
-                            out.reachable[member] = true;
-                            visits += 1;
+                            visited.push(member as u32);
                         }
                         let neighbors = match direction {
                             SparseDirection::Forward => scc.successors.get(&component),
@@ -123,7 +148,7 @@ impl FlowGraph {
                         };
                         if let Some(neighbors) = neighbors {
                             for neighbor in neighbors {
-                                if !seen_components.get(*neighbor).copied().unwrap_or(false) {
+                                if !seen_components.contains(neighbor) {
                                     next.push(*neighbor);
                                 }
                             }
@@ -134,12 +159,12 @@ impl FlowGraph {
                     frontier = next;
                     depth += 1;
                 }
-                if !frontier.is_empty() {
-                    out.completeness = QueryCompleteness::DepthLimitReached;
+                if completeness == QueryCompleteness::Complete && !frontier.is_empty() {
+                    completeness = QueryCompleteness::DepthLimitReached;
                 }
             }
         }
-        out
+        DemandReachability::from_visited(visited, completeness)
     }
 
     pub fn ensure_value(&mut self, func: FunctionId, value: ValueId) -> NodeIndex {
@@ -306,43 +331,34 @@ impl FlowGraph {
             .collect()
     }
 
-    fn region_graph_direct_neighbors(&self, node: NodeIndex) -> Vec<usize> {
-        if let Some(cached) = self
-            .region_graph_direct_neighbors_cache
-            .borrow()
-            .get(&node.index())
-            .cloned()
-        {
-            return cached;
+    fn region_neighbor_index(&self) -> std::sync::Arc<RegionNeighborIndex> {
+        if let Some(index) = self.region_neighbor_index.borrow().as_ref() {
+            return index.clone();
         }
+        let index = std::sync::Arc::new(RegionNeighborIndex::build(&self.node_memory_regions));
+        self.region_neighbor_index
+            .borrow_mut()
+            .get_or_insert(index)
+            .clone()
+    }
+
+    fn region_graph_direct_neighbors(&self, node: NodeIndex) -> Vec<usize> {
+        // Not memoized: the region index makes a lookup a few map probes, and
+        // a shared memo table would serialize parallel demand queries.
         let Some(regions) = self.node_memory_regions.get(&node.index()) else {
             return Vec::new();
         };
         if regions.is_empty() {
             return Vec::new();
         }
-        let mut neighbors = self
-            .node_memory_regions
-            .iter()
-            .filter_map(|(&other, other_regions)| {
-                if other == node.index() {
-                    return None;
-                }
-                regions
-                    .iter()
-                    .any(|left| {
-                        other_regions
-                            .iter()
-                            .any(|right| memory_region_related(left, right))
-                    })
-                    .then_some(other)
-            })
-            .collect::<Vec<_>>();
+        let index = self.region_neighbor_index();
+        let mut neighbors = Vec::new();
+        for region in regions {
+            index.related_nodes(region, &mut neighbors);
+        }
+        neighbors.retain(|other| *other != node.index());
         neighbors.sort_unstable();
         neighbors.dedup();
-        self.region_graph_direct_neighbors_cache
-            .borrow_mut()
-            .insert(node.index(), neighbors.clone());
         neighbors
     }
 
@@ -1194,18 +1210,16 @@ impl FlowGraph {
         }
     }
 
-    fn demand_query_scc_index(&self, include_heap: bool) -> std::cell::Ref<'_, DemandQuerySccIndex> {
-        if !self.demand_query_scc_cache.borrow().contains_key(&include_heap) {
-            let index = self.build_demand_query_scc_index(include_heap);
-            self.demand_query_scc_cache
-                .borrow_mut()
-                .insert(include_heap, index);
+    fn demand_query_scc_index(&self, include_heap: bool) -> std::sync::Arc<DemandQuerySccIndex> {
+        if let Some(index) = self.demand_query_scc_cache.borrow().get(&include_heap) {
+            return index.clone();
         }
-        std::cell::Ref::map(self.demand_query_scc_cache.borrow(), |cache| {
-            cache
-                .get(&include_heap)
-                .expect("demand-query SCC cache entry must exist")
-        })
+        let index = std::sync::Arc::new(self.build_demand_query_scc_index(include_heap));
+        self.demand_query_scc_cache
+            .borrow_mut()
+            .entry(include_heap)
+            .or_insert(index)
+            .clone()
     }
 
     fn demand_query_fixpoint_traversal(
@@ -2167,16 +2181,21 @@ impl FlowGraph {
 
     pub fn recommended_query_limits(&self, query: &DemandQuery) -> (usize, usize) {
         match self.recommended_budget_profile(query) {
+            // Depth counts graph hops, and ordinary code spends many of them
+            // on SSA plumbing: every loop, `if` and reassignment adds φ and
+            // copy nodes. An 18-hop cap silently cut real flows (a cookie
+            // read in a loop, URL-decoded, copied and concatenated into SQL
+            // is ~20 hops). Visit budgets, not depth, are what bound cost.
             QueryBudgetProfile::Light => {
                 if query.direction == SparseDirection::Backward {
-                    (14, 4096)
+                    (48, 8192)
                 } else {
-                    (10, 2048)
+                    (40, 4096)
                 }
             }
-            QueryBudgetProfile::Standard => (18, 8192),
-            QueryBudgetProfile::Deep => (24, 16384),
-            QueryBudgetProfile::Exhaustive => (28, 24576),
+            QueryBudgetProfile::Standard => (96, 32768),
+            QueryBudgetProfile::Deep => (128, 49152),
+            QueryBudgetProfile::Exhaustive => (160, 65536),
         }
     }
 

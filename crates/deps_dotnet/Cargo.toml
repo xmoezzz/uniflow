@@ -7,6 +7,7 @@ authors.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+roxmltree = "0.21"
 serde.workspace = true
 serde_json.workspace = true
 uniflow-sca-core = { path = "../sca_core" }

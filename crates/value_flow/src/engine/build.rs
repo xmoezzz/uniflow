@@ -457,6 +457,12 @@ where
         let (object_identity_roots, object_identity_sites) =
             compute_object_identity_representatives(func);
         let literal_index_keys = compute_literal_index_keys(func, &program.language);
+        let java_collections = if matches!(program.language, uniflow_hir::Language::Java) {
+            plan_java_local_collections(func, &literal_index_keys)
+        } else {
+            JavaCollectionPlan::default()
+        };
+        fg.precise_collection_calls.extend(java_collections.precise.iter().map(|inst| (func.id, *inst)));
         for (value, literal) in &literal_index_keys {
             let literal = if func
                 .value_types
@@ -627,9 +633,20 @@ where
                     InstKind::LoadIndex { dst, base, index } => {
                         let canonical_base = canonical_heap_value(&fg, func.id, *base);
                         let key = abstract_index_key(&literal_index_keys, *index);
+                        // A container literal (`builtins.dict`/`builtins.list`
+                        // call semantics in heap.rs) registers its cells in
+                        // `fg.index_cells`; reuse them (the exact key, else the
+                        // container's wildcard cell), or a later `d["k"]`
+                        // reads a fresh, empty cell and the element's taint
+                        // is lost.
+                        let registered = fg
+                            .index_cells
+                            .get(&(func.id, canonical_base, key.clone()))
+                            .or_else(|| fg.index_cells.get(&(func.id, canonical_base, "*".to_string())))
+                            .copied();
                         let cell = *abstract_index_cells
                             .entry((canonical_base, key.clone()))
-                            .or_insert_with(|| {
+                            .or_insert_with(|| registered.unwrap_or_else(|| {
                                 let node = fg.graph.add_node(FlowNode::IndexCell {
                                     func: func.id,
                                     block: block.id,
@@ -641,7 +658,7 @@ where
                                 fg.index_cells
                                     .insert((func.id, canonical_base, key.clone()), node);
                                 node
-                            });
+                            }));
                         let base_node = value_node(&fg, func.id, *base);
                         fg.graph.add_edge(
                             base_node,
@@ -670,9 +687,20 @@ where
                     InstKind::StoreIndex { base, index, src } => {
                         let canonical_base = canonical_heap_value(&fg, func.id, *base);
                         let key = abstract_index_key(&literal_index_keys, *index);
+                        // A container literal (`builtins.dict`/`builtins.list`
+                        // call semantics in heap.rs) registers its cells in
+                        // `fg.index_cells`; reuse them (the exact key, else the
+                        // container's wildcard cell), or a later `d["k"]`
+                        // reads a fresh, empty cell and the element's taint
+                        // is lost.
+                        let registered = fg
+                            .index_cells
+                            .get(&(func.id, canonical_base, key.clone()))
+                            .or_else(|| fg.index_cells.get(&(func.id, canonical_base, "*".to_string())))
+                            .copied();
                         let cell = *abstract_index_cells
                             .entry((canonical_base, key.clone()))
-                            .or_insert_with(|| {
+                            .or_insert_with(|| registered.unwrap_or_else(|| {
                                 let node = fg.graph.add_node(FlowNode::IndexCell {
                                     func: func.id,
                                     block: block.id,
@@ -684,7 +712,7 @@ where
                                 fg.index_cells
                                     .insert((func.id, canonical_base, key.clone()), node);
                                 node
-                            });
+                            }));
                         let src_node = value_node(&fg, func.id, *src);
                         fg.graph.add_edge(
                             src_node,
@@ -729,6 +757,9 @@ where
                             &literal_index_keys,
                         );
                         connect_builtin_language_call_semantics(&mut fg, func, call);
+                        if let Some(loads) = java_collections.loads.get(&inst.id) {
+                            connect_java_local_collection_loads(&mut fg, func.id, call, loads);
+                        }
                         let resolved_callees = func_index.resolve_call(&meta);
                         if argument_validation_enabled {
                             emit_argument_validation_diagnostics(
@@ -2085,6 +2116,7 @@ impl<'a> FunctionIndex<'a> {
             receiver_symbol: None,
             arg_constants: Vec::new(),
             return_is_used: false,
+            receiver_origin: None,
             span: Span::default(),
         };
         self.resolve_call(&meta)

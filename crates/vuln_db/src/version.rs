@@ -10,6 +10,13 @@
 //! - dpkg: `verrevcmp` from dpkg's `lib/dpkg/version.c`
 //! - rpm: `rpmvercmp` from rpm's `rpmio/rpmvercmp.c` (incl. `~` and `^`)
 //! - apk: apk-tools' `apk_version_compare` token rules
+//!
+//! Two application ecosystems also get their own rules, because the lenient
+//! generic order is wrong exactly on pre-releases — where fixes often land:
+//! - PyPI: PEP 440 (`1.0.dev1 < 1.0a1 < 1.0rc1 < 1.0 < 1.0.post1`, epochs,
+//!   local versions); the generic order treats `1.0.0rc1` as equal to `1.0.0`
+//! - Maven: `ComparableVersion` from maven-artifact (`1.0-alpha < 1.0-rc <
+//!   1.0 = 1.0.Final = 1.0-ga < 1.0-sp1`, `-SNAPSHOT` below its release)
 use std::cmp::Ordering;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -19,6 +26,8 @@ pub enum Scheme {
     Dpkg,
     Rpm,
     Apk,
+    Pep440,
+    Maven,
 }
 
 impl Scheme {
@@ -31,6 +40,8 @@ impl Scheme {
             "alpine" | "wolfi" | "chainguard" => Scheme::Apk,
             "rhel" | "centos" | "rocky" | "almalinux" | "ol" | "amzn" | "fedora" | "openeuler" | "anolis" | "opencloudos" | "kylin"
             | "uos-server" | "sles" | "opensuse-leap" | "opensuse-tumbleweed" | "azurelinux" | "mageia" | "photon" => Scheme::Rpm,
+            "pypi" => Scheme::Pep440,
+            "maven" => Scheme::Maven,
             _ => Scheme::Generic,
         }
     }
@@ -345,6 +356,331 @@ pub fn apk_compare(a: &str, b: &str) -> Ordering {
     Ordering::Equal
 }
 
+// -------------------------------------------------------------- PEP 440 --
+
+/// A parsed PEP 440 version, reduced to its sort key. Anything that isn't
+/// valid PEP 440 (legacy `LegacyVersion` strings) sorts by plain text
+/// after every valid version, as `packaging` did before it dropped them.
+#[derive(Debug, PartialEq, Eq)]
+struct Pep440 {
+    epoch: u64,
+    release: Vec<u64>,
+    /// (phase, n): phase 0 = a, 1 = b, 2 = rc; `None` = no pre-release.
+    pre: Option<(u8, u64)>,
+    post: Option<u64>,
+    dev: Option<u64>,
+    local: Vec<LocalPart>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum LocalPart {
+    Num(u64),
+    Text(String),
+}
+
+fn pep440_parse(raw: &str) -> Option<Pep440> {
+    let s = raw.trim().to_ascii_lowercase();
+    let s = s.strip_prefix('v').unwrap_or(&s);
+    let (public, local) = match s.split_once('+') {
+        Some((p, l)) => (p, Some(l)),
+        None => (s, None),
+    };
+    let (epoch, rest) = match public.split_once('!') {
+        Some((e, r)) => (e.parse().ok()?, r),
+        None => (0, public),
+    };
+    let bytes = rest.as_bytes();
+    let mut i = 0;
+    let number = |i: &mut usize| -> Option<u64> {
+        let start = *i;
+        while *i < bytes.len() && bytes[*i].is_ascii_digit() {
+            *i += 1;
+        }
+        if start == *i {
+            None
+        } else {
+            rest[start..*i].parse().ok()
+        }
+    };
+    let mut release = vec![number(&mut i)?];
+    while i + 1 < bytes.len() && bytes[i] == b'.' && bytes[i + 1].is_ascii_digit() {
+        i += 1;
+        release.push(number(&mut i)?);
+    }
+    let skip_sep = |i: &mut usize| {
+        if *i < bytes.len() && matches!(bytes[*i], b'.' | b'-' | b'_') {
+            *i += 1;
+        }
+    };
+    let word = |i: &mut usize| -> &str {
+        let start = *i;
+        while *i < bytes.len() && bytes[*i].is_ascii_alphabetic() {
+            *i += 1;
+        }
+        &rest[start..*i]
+    };
+    let mut pre = None;
+    let mut post = None;
+    let mut dev = None;
+    // Pre-release: a|alpha, b|beta, c|rc|pre|preview, optional separators
+    // and an implicit 0.
+    let save = i;
+    skip_sep(&mut i);
+    let phase = match word(&mut i) {
+        "a" | "alpha" => Some(0),
+        "b" | "beta" => Some(1),
+        "c" | "rc" | "pre" | "preview" => Some(2),
+        _ => None,
+    };
+    if let Some(phase) = phase {
+        skip_sep(&mut i);
+        pre = Some((phase, number(&mut i).unwrap_or(0)));
+    } else {
+        i = save;
+    }
+    // Post-release: `.post1`, `-rev1`, `-r1`, or the bare `-1` form.
+    let save = i;
+    if i < bytes.len() && bytes[i] == b'-' && i + 1 < bytes.len() && bytes[i + 1].is_ascii_digit() {
+        i += 1;
+        post = Some(number(&mut i)?);
+    } else {
+        skip_sep(&mut i);
+        match word(&mut i) {
+            "post" | "rev" | "r" => {
+                skip_sep(&mut i);
+                post = Some(number(&mut i).unwrap_or(0));
+            }
+            _ => i = save,
+        }
+    }
+    let save = i;
+    skip_sep(&mut i);
+    if word(&mut i) == "dev" {
+        skip_sep(&mut i);
+        dev = Some(number(&mut i).unwrap_or(0));
+    } else {
+        i = save;
+    }
+    if i != bytes.len() {
+        return None;
+    }
+    let local = local
+        .map(|l| {
+            l.split(['.', '-', '_'])
+                .filter(|p| !p.is_empty())
+                .map(|p| p.parse().map(LocalPart::Num).unwrap_or_else(|_| LocalPart::Text(p.to_string())))
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(Pep440 { epoch, release, pre, post, dev, local })
+}
+
+fn pep440_key_cmp(a: &Pep440, b: &Pep440) -> Ordering {
+    // Release compares with trailing zeros ignored (`1.0 == 1.0.0`).
+    let trim = |r: &[u64]| -> usize { r.iter().rposition(|&x| x != 0).map_or(0, |p| p + 1) };
+    let (ra, rb) = (&a.release[..trim(&a.release)], &b.release[..trim(&b.release)]);
+    // Phase ranks: a dev-only release sorts before any pre-release of the
+    // same version; no pre-release at all sorts after every one.
+    let pre_key = |v: &Pep440| -> (i8, u64) {
+        match (v.pre, v.post, v.dev) {
+            (None, None, Some(_)) => (-1, 0),
+            (None, _, _) => (3, 0),
+            (Some((phase, n)), _, _) => (phase as i8, n),
+        }
+    };
+    let post_key = |v: &Pep440| -> (i8, u64) { v.post.map_or((-1, 0), |n| (0, n)) };
+    let dev_key = |v: &Pep440| -> (i8, u64) { v.dev.map_or((1, 0), |n| (0, n)) };
+    a.epoch
+        .cmp(&b.epoch)
+        .then_with(|| ra.cmp(rb))
+        .then_with(|| pre_key(a).cmp(&pre_key(b)))
+        .then_with(|| post_key(a).cmp(&post_key(b)))
+        .then_with(|| dev_key(a).cmp(&dev_key(b)))
+        .then_with(|| {
+            // Local segments: numbers sort after text; a longer local
+            // version with an equal prefix is newer.
+            for (x, y) in a.local.iter().zip(&b.local) {
+                let ord = match (x, y) {
+                    (LocalPart::Num(x), LocalPart::Num(y)) => x.cmp(y),
+                    (LocalPart::Text(x), LocalPart::Text(y)) => x.cmp(y),
+                    (LocalPart::Num(_), LocalPart::Text(_)) => Ordering::Greater,
+                    (LocalPart::Text(_), LocalPart::Num(_)) => Ordering::Less,
+                };
+                if ord != Ordering::Equal {
+                    return ord;
+                }
+            }
+            a.local.len().cmp(&b.local.len())
+        })
+}
+
+pub fn pep440_compare(a: &str, b: &str) -> Ordering {
+    match (pep440_parse(a), pep440_parse(b)) {
+        (Some(x), Some(y)) => pep440_key_cmp(&x, &y),
+        (Some(_), None) => Ordering::Greater,
+        (None, Some(_)) => Ordering::Less,
+        (None, None) => a.cmp(b),
+    }
+}
+
+// ---------------------------------------------------------------- Maven --
+
+/// One item of Maven's `ComparableVersion`: numbers, qualifiers, and
+/// `-`-introduced sub-lists.
+#[derive(Debug, Clone)]
+enum MvnItem {
+    Int(u128),
+    Str(String),
+    List(Vec<MvnItem>),
+}
+
+/// Well-known qualifiers in release order; `""` (a plain release, with its
+/// aliases ga/final/release) sits between `snapshot` and `sp`. Unknown
+/// qualifiers sort after all of them, lexically.
+fn mvn_qualifier_rank(q: &str) -> (u8, String) {
+    let q = match q {
+        "a" => "alpha",
+        "b" => "beta",
+        "m" => "milestone",
+        "cr" => "rc",
+        "ga" | "final" | "release" => "",
+        other => other,
+    };
+    match q {
+        "alpha" => (0, String::new()),
+        "beta" => (1, String::new()),
+        "milestone" => (2, String::new()),
+        "rc" => (3, String::new()),
+        "snapshot" => (4, String::new()),
+        "" => (5, String::new()),
+        "sp" => (6, String::new()),
+        other => (7, other.to_string()),
+    }
+}
+
+fn mvn_parse(raw: &str) -> Vec<MvnItem> {
+    let s = raw.trim().to_ascii_lowercase();
+    // Build a nested list: `.` separates items in the current list, `-`
+    // (and a digit/letter transition) starts a sub-list.
+    let mut stack: Vec<Vec<MvnItem>> = vec![Vec::new()];
+    let mut token = String::new();
+    let mut token_is_digit = false;
+    let flush = |token: &mut String, is_digit: bool, list: &mut Vec<MvnItem>| {
+        if token.is_empty() {
+            // Maven turns an empty token into 0 (`1..2` = `1.0.2`).
+            list.push(MvnItem::Int(0));
+        } else if is_digit {
+            list.push(MvnItem::Int(token.parse().unwrap_or(u128::MAX)));
+        } else {
+            // A qualifier directly followed by digits (`alpha1`) keeps its
+            // short forms meaningful only in that position.
+            list.push(MvnItem::Str(token.clone()));
+        }
+        token.clear();
+    };
+    let chars: Vec<char> = s.chars().collect();
+    for (idx, &c) in chars.iter().enumerate() {
+        if c == '.' {
+            flush(&mut token, token_is_digit, stack.last_mut().unwrap());
+        } else if c == '-' {
+            flush(&mut token, token_is_digit, stack.last_mut().unwrap());
+            stack.push(Vec::new());
+        } else if c.is_ascii_digit() {
+            if !token.is_empty() && !token_is_digit {
+                // letter -> digit transition: `alpha1` is `alpha-1`.
+                let letters = std::mem::take(&mut token);
+                let qualifier_followed_by_digit = match letters.as_str() {
+                    "a" => "alpha".to_string(),
+                    "b" => "beta".to_string(),
+                    "m" => "milestone".to_string(),
+                    _ => letters,
+                };
+                stack.last_mut().unwrap().push(MvnItem::Str(qualifier_followed_by_digit));
+                stack.push(Vec::new());
+            }
+            token_is_digit = true;
+            token.push(c);
+        } else {
+            if !token.is_empty() && token_is_digit {
+                // digit -> letter transition: `1rc` is `1-rc`.
+                flush(&mut token, true, stack.last_mut().unwrap());
+                stack.push(Vec::new());
+            }
+            token_is_digit = false;
+            token.push(c);
+        }
+        let _ = idx;
+    }
+    if !token.is_empty() || chars.last().is_some_and(|c| *c == '.') {
+        flush(&mut token, token_is_digit, stack.last_mut().unwrap());
+    }
+    while stack.len() > 1 {
+        let inner = stack.pop().unwrap();
+        stack.last_mut().unwrap().push(MvnItem::List(inner));
+    }
+    let mut root = stack.pop().unwrap_or_default();
+    mvn_normalize(&mut root);
+    root
+}
+
+/// Strips trailing "null" items (0, empty/release qualifiers, empty lists)
+/// from every list, as `ComparableVersion` does: `1.0.0` = `1` = `1-ga`.
+fn mvn_normalize(list: &mut Vec<MvnItem>) {
+    for item in list.iter_mut() {
+        if let MvnItem::List(inner) = item {
+            mvn_normalize(inner);
+        }
+    }
+    while list.last().is_some_and(mvn_is_null) {
+        list.pop();
+    }
+}
+
+fn mvn_is_null(item: &MvnItem) -> bool {
+    match item {
+        MvnItem::Int(n) => *n == 0,
+        MvnItem::Str(s) => mvn_qualifier_rank(s).0 == 5,
+        MvnItem::List(l) => l.is_empty(),
+    }
+}
+
+fn mvn_cmp_item(a: Option<&MvnItem>, b: Option<&MvnItem>) -> Ordering {
+    use MvnItem::*;
+    match (a, b) {
+        (None, None) => Ordering::Equal,
+        // Compare against "nothing": a number > 0 is newer, a qualifier is
+        // newer only if it ranks after a plain release, a list recurses.
+        (Some(x), None) => match x {
+            Int(n) => n.cmp(&0),
+            Str(s) => mvn_qualifier_rank(s).cmp(&mvn_qualifier_rank("")),
+            List(l) => mvn_cmp_list(l, &[]),
+        },
+        (None, Some(_)) => mvn_cmp_item(b, None).reverse(),
+        (Some(Int(x)), Some(Int(y))) => x.cmp(y),
+        (Some(Int(_)), Some(_)) => Ordering::Greater,
+        (Some(Str(_)), Some(Int(_))) => Ordering::Less,
+        (Some(Str(x)), Some(Str(y))) => mvn_qualifier_rank(x).cmp(&mvn_qualifier_rank(y)),
+        (Some(Str(_)), Some(List(_))) => Ordering::Less,
+        (Some(List(_)), Some(Int(_))) => Ordering::Less,
+        (Some(List(_)), Some(Str(_))) => Ordering::Greater,
+        (Some(List(x)), Some(List(y))) => mvn_cmp_list(x, y),
+    }
+}
+
+fn mvn_cmp_list(a: &[MvnItem], b: &[MvnItem]) -> Ordering {
+    for i in 0..a.len().max(b.len()) {
+        let ord = mvn_cmp_item(a.get(i), b.get(i));
+        if ord != Ordering::Equal {
+            return ord;
+        }
+    }
+    Ordering::Equal
+}
+
+pub fn maven_compare(a: &str, b: &str) -> Ordering {
+    mvn_cmp_list(&mvn_parse(a), &mvn_parse(b))
+}
+
 /// The ordering for `scheme`; `Generic` is handled by the caller (it
 /// needs `versions::Versioning`'s parsed form).
 pub fn compare(scheme: Scheme, a: &str, b: &str) -> Ordering {
@@ -352,6 +688,8 @@ pub fn compare(scheme: Scheme, a: &str, b: &str) -> Ordering {
         Scheme::Dpkg => dpkg_compare(a, b),
         Scheme::Rpm => rpm_compare(a, b),
         Scheme::Apk => apk_compare(a, b),
+        Scheme::Pep440 => pep440_compare(a, b),
+        Scheme::Maven => maven_compare(a, b),
         Scheme::Generic => a.cmp(b),
     }
 }
@@ -360,6 +698,38 @@ pub fn compare(scheme: Scheme, a: &str, b: &str) -> Ordering {
 mod tests {
     use super::*;
     use Ordering::*;
+
+    #[test]
+    fn pep440_orders_pre_post_dev_and_local_releases() {
+        let ordered = [
+            "1.0.dev0", "1.0a1.dev1", "1.0a1", "1.0a2", "1.0b1", "1.0rc1", "1.0", "1.0.post1.dev1", "1.0.post1", "1.0.post1+local.1", "1.1",
+            "2!0.1",
+        ];
+        for pair in ordered.windows(2) {
+            assert_eq!(pep440_compare(pair[0], pair[1]), Less, "{} < {}", pair[0], pair[1]);
+        }
+        for (a, b) in [("1.0", "1.0.0"), ("19.3b0", "19.3.0b0"), ("1.0-1", "1.0.post1"), ("1.0RC1", "1.0c1"), ("v2.0", "2.0")] {
+            assert_eq!(pep440_compare(a, b), Equal, "{a} == {b}");
+        }
+        // The benchmark's miss: `black 19.3b0` is inside `< 24.3.0`.
+        assert_eq!(pep440_compare("19.3b0", "24.3.0"), Less);
+        assert_eq!(pep440_compare("1.0.0rc1", "1.0.0"), Less);
+    }
+
+    #[test]
+    fn maven_matches_comparable_version_on_tricky_pairs() {
+        // Orderings from maven-artifact's ComparableVersionTest.
+        let ordered = ["1-alpha-1", "1-alpha-2", "1-beta-1", "1-milestone-1", "1-rc-1", "1-SNAPSHOT", "1", "1-sp-1", "1.0.1", "1.1", "1.10"];
+        for pair in ordered.windows(2) {
+            assert_eq!(maven_compare(pair[0], pair[1]), Less, "{} < {}", pair[0], pair[1]);
+        }
+        for (a, b) in [("1", "1.0.0"), ("1.0", "1-ga"), ("4.1.0.Final", "4.1.0"), ("1.0-RELEASE", "1.0"), ("1a1", "1-alpha-1")] {
+            assert_eq!(maven_compare(a, b), Equal, "{a} == {b}");
+        }
+        assert_eq!(maven_compare("2.9.10.8", "2.9.10.7"), Greater);
+        assert_eq!(maven_compare("5.3.18", "5.3.2"), Greater);
+        assert_eq!(maven_compare("2.12.6.1", "2.13.0"), Less);
+    }
 
     #[test]
     fn dpkg_matches_the_reference_implementation_on_tricky_pairs() {
